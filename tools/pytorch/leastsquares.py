@@ -2,7 +2,7 @@ import torch
 
 
 def least_squares(*, x, y):
-    x = torch.cat((torch.ones(len(x), 1), torch.tensor(x)), dim=1)
+    x = torch.cat((torch.ones(len(y), 1), torch.tensor(x)), dim=1)
     y = torch.tensor(y)
 
     def f(beta):
