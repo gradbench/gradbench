@@ -6,6 +6,13 @@ on:
       - main
 
 jobs:
+  julia:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: julia --project=. -e 'import Pkg; Pkg.instantiate()'
+      - run: julia --project=. tools/zygote/leastsquares.jl
+
   python:
     runs-on: ubuntu-22.04
     steps:
