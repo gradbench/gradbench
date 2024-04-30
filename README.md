@@ -1,2 +1,3 @@
-# gradbench
-Benchmark for automatic differentiation tools across languages and domains.
+# GradBench
+
+Benchmark for differentiable programming across languages and domains.

@@ -1,0 +1,14 @@
+[tool.poetry]
+name = "gradbench"
+version = "0.0.0"
+description = "Benchmark for differentiable programming across languages and domains."
+authors = []
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.8,<3.11"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
