@@ -8,6 +8,18 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.11"
+numpy = "^1"
+torch = [
+  { version = "^2", source = "pypi", markers = "sys_platform == 'darwin'" },
+  { version = "^2", source = "pypi", markers = "platform_machine == 'aarch64' and sys_platform != 'darwin'" },
+  { version = "^2", source = "pytorch_cpu", markers = "platform_machine == 'x86_64' and sys_platform != 'darwin'" },
+]
+
+# https://github.com/python-poetry/poetry/issues/6409#issuecomment-2051677167
+[[tool.poetry.source]]
+name = "pytorch_cpu"
+url = "https://download.pytorch.org/whl/cpu"
+priority = "explicit"
 
 [build-system]
 requires = ["poetry-core"]
