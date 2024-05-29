@@ -3,7 +3,7 @@ const App = () => {
     <>
       <h1>GradBench</h1>
       <p>
-        <a href="https://github.com/samestep/gradbench">GitHub</a>
+        <a href="https://github.com/gradbench/gradbench">GitHub</a>
       </p>
     </>
   );
