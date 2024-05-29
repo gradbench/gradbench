@@ -1,6 +1,0 @@
-[package]
-name = "gradbench"
-version = "0.0.0"
-description = "Benchmark for differentiable programming across languages and domains."
-license = "MIT"
-include = ["src/lib.rs"]
