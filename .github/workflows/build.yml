@@ -6,6 +6,12 @@ on:
       - main
 
 jobs:
+  cli:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./gradbench.sh list
+
   site:
     runs-on: ubuntu-22.04
     steps:

@@ -1,13 +1,5 @@
 [tool.poetry]
-name = "gradbench"
-version = "0.0.0"
-description = "Benchmark for differentiable programming across languages and domains."
-authors = []
-license = "MIT"
-readme = "README.md"
-
-[tool.poetry.scripts]
-gradbench = "gradbench:main"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = ">=3.9"
@@ -18,9 +10,6 @@ torch = [
   { version = "^2", source = "pytorch_cpu", markers = "platform_machine == 'x86_64' and sys_platform != 'darwin'" },
 ]
 
-[tool.poetry.group.dev.dependencies]
-pytest = "^8"
-
 # https://github.com/python-poetry/poetry/issues/6409#issuecomment-2051677167
 [[tool.poetry.source]]
 name = "pytorch_cpu"
@@ -30,6 +19,3 @@ priority = "explicit"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
-
-[tool.pytest.ini_options]
-addopts = "--doctest-modules"

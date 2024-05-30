@@ -1,0 +1,11 @@
+[package]
+name = "gradbench"
+version = "0.0.0"
+license = "MIT"
+description = "Benchmark for differentiable programming across languages and domains."
+repository = "https://github.com/gradbench/gradbench"
+include = ["src/lib.rs"]
+edition = "2021"
+
+[dependencies]
+clap = { version = "4", features = ["cargo", "derive"] }
