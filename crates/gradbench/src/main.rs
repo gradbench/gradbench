@@ -2,7 +2,7 @@ use std::{
     env,
     ffi::OsStr,
     path::{Path, PathBuf},
-    process::Command,
+    process::{exit, Command},
 };
 
 use clap::{crate_name, Parser, Subcommand};
@@ -61,13 +61,17 @@ fn main() {
         }
         Commands::External(rest) => {
             let name = format!("{}-{}", crate_name!(), rest[0]);
-            Command::new(
-                external_subcommands(exe, &path)
-                    .find(|p| p.file_name().unwrap().to_str().unwrap() == name)
-                    .unwrap(),
+            exit(
+                Command::new(
+                    external_subcommands(exe, &path)
+                        .find(|p| p.file_name().unwrap().to_str().unwrap() == name)
+                        .unwrap(),
+                )
+                .status()
+                .unwrap()
+                .code()
+                .unwrap(),
             )
-            .spawn()
-            .unwrap();
         }
     }
 }
