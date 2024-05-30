@@ -6,6 +6,9 @@ authors = []
 license = "MIT"
 readme = "README.md"
 
+[tool.poetry.scripts]
+gradbench = "gradbench:main"
+
 [tool.poetry.dependencies]
 python = ">=3.9"
 numpy = "^1"
@@ -14,6 +17,9 @@ torch = [
   { version = "^2", source = "pypi", markers = "platform_machine == 'aarch64' and sys_platform != 'darwin'" },
   { version = "^2", source = "pytorch_cpu", markers = "platform_machine == 'x86_64' and sys_platform != 'darwin'" },
 ]
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8"
 
 # https://github.com/python-poetry/poetry/issues/6409#issuecomment-2051677167
 [[tool.poetry.source]]
@@ -24,3 +30,6 @@ priority = "explicit"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+addopts = "--doctest-modules"
