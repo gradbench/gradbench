@@ -6,6 +6,8 @@ Make sure to have these tools installed:
 
 - [Git](https://git-scm.com/downloads)
 - [Rust](https://www.rust-lang.org/tools/install)
+- [Python](https://www.python.org/downloads/)
+- [Poetry](https://python-poetry.org/docs/#installation)
 
 ## Setup
 
@@ -27,4 +29,19 @@ run it:
 
 ```sh
 ./gradbench.sh help
+```
+
+## Python
+
+The Python tools you to set up the Poetry project first:
+
+```sh
+poetry install
+```
+
+This doesn't put anything on the `PATH` by default. When running a command, you
+can put the Python scripts on the `PATH` via `poetry run`; for instance:
+
+```sh
+poetry run ./gradbench.sh pytorch tools.pytorch.constant big
 ```

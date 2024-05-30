@@ -67,6 +67,7 @@ fn main() {
                         .find(|p| p.file_name().unwrap().to_str().unwrap() == name)
                         .unwrap(),
                 )
+                .args(rest.into_iter().skip(1))
                 .status()
                 .unwrap()
                 .code()
