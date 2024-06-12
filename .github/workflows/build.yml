@@ -56,4 +56,7 @@ jobs:
                 "containerd-snapshotter": true
               }
             }
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/amd64,linux/arm64
       - run: docker build --platform linux/amd64,linux/arm64 tools/pytorch --tag ghcr.io/gradbench/pytorch:latest
