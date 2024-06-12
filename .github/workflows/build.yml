@@ -44,10 +44,16 @@ jobs:
       - run: julia --project=. -e 'import Pkg; Pkg.instantiate()'
       - run: julia --project=. tools/zygote/leastsquares.jl
 
-  python:
+  pytorch:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - uses: snok/install-poetry@v1
-      - run: poetry install
-      - run: poetry run python tools/pytorch/leastsquares.py
+      - uses: crazy-max/ghaction-setup-docker@v3
+        with:
+          daemon-config: |
+            {
+              "features": {
+                "containerd-snapshotter": true
+              }
+            }
+      - run: docker build --platform linux/amd64,linux/arm64 tools/pytorch --tag ghcr.io/gradbench/pytorch:latest
