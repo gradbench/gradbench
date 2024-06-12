@@ -49,9 +49,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/docker
-      - run: docker build --platform linux/amd64,linux/arm64 tools/pytorch --tag ghcr.io/gradbench/pytorch:latest
-      - run: docker image save --output gradbench-pytorch.tar ghcr.io/gradbench/pytorch:latest
+      - run: docker build --platform linux/amd64,linux/arm64 tools/pytorch --tag ghcr.io/gradbench/pytorch
+      - run: docker image save --output gradbench-pytorch.tar ghcr.io/gradbench/pytorch
       - uses: actions/upload-artifact@v4
         with:
           name: gradbench-pytorch
           path: gradbench-pytorch.tar
+      - run: cat gradbench.json | docker run --interactive --rm ghcr.io/gradbench/pytorch
