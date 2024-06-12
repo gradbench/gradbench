@@ -11,9 +11,13 @@ def resolve(name):
     return getattr(functions, name)
 
 
+def tensor(x):
+    return torch.tensor(x, dtype=torch.float64, requires_grad=True)
+
+
 def run(params):
     func = resolve(params["name"])
-    vals = [torch.tensor(arg["value"]) for arg in params["arguments"]]
+    vals = [tensor(arg["value"]) for arg in params["arguments"]]
     start = time.perf_counter_ns()
     ret = func(*vals)
     end = time.perf_counter_ns()

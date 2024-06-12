@@ -1,2 +1,4 @@
-def square(x):
-    return x * x
+def double(x):
+    y = x * x
+    y.backward()
+    return x.grad
