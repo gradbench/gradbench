@@ -50,8 +50,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/docker
       - run: docker build --platform linux/amd64,linux/arm64 tools/pytorch --tag ghcr.io/gradbench/pytorch:latest
-      - run: docker image save --output image.tar ghcr.io/gradbench/pytorch:latest
+      - run: docker image save --output gradbench-pytorch.tar ghcr.io/gradbench/pytorch:latest
       - uses: actions/upload-artifact@v4
         with:
           name: gradbench-pytorch
-          path: image.tar
+          path: gradbench-pytorch.tar
