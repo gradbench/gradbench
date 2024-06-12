@@ -41,8 +41,14 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - run: julia --project=. -e 'import Pkg; Pkg.instantiate()'
-      - run: julia --project=. tools/zygote/leastsquares.jl
+      - uses: ./.github/actions/docker
+      - run: docker build --platform linux/amd64,linux/arm64 tools/zygote --tag ghcr.io/gradbench/zygote
+      - run: docker image save --output gradbench-zygote.tar ghcr.io/gradbench/zygote
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gradbench-zygote
+          path: gradbench-zygote.tar
+      - run: cat gradbench.json | docker run --interactive --rm ghcr.io/gradbench/zygote
 
   pytorch:
     runs-on: ubuntu-22.04
