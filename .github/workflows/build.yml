@@ -44,10 +44,14 @@ jobs:
       - run: julia --project=. -e 'import Pkg; Pkg.instantiate()'
       - run: julia --project=. tools/zygote/leastsquares.jl
 
-  python:
+  pytorch:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - uses: snok/install-poetry@v1
-      - run: poetry install
-      - run: poetry run python tools/pytorch/leastsquares.py
+      - uses: ./.github/actions/docker
+      - run: docker build --platform linux/amd64,linux/arm64 tools/pytorch --tag ghcr.io/gradbench/pytorch:latest
+      - run: docker image save --output gradbench-pytorch.tar ghcr.io/gradbench/pytorch:latest
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gradbench-pytorch
+          path: gradbench-pytorch.tar
