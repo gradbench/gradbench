@@ -48,15 +48,10 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - uses: crazy-max/ghaction-setup-docker@v3
-        with:
-          daemon-config: |
-            {
-              "features": {
-                "containerd-snapshotter": true
-              }
-            }
-      - uses: docker/setup-qemu-action@v3
-        with:
-          platforms: linux/amd64,linux/arm64
+      - uses: ./.github/actions/docker
       - run: docker build --platform linux/amd64,linux/arm64 tools/pytorch --tag ghcr.io/gradbench/pytorch:latest
+      - run: docker image save --output image.tar ghcr.io/gradbench/pytorch:latest
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gradbench-pytorch
+          path: image.tar
