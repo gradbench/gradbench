@@ -4,10 +4,11 @@
 
 Make sure to have these tools installed:
 
-- [Git](https://git-scm.com/downloads)
-- [Rust](https://www.rust-lang.org/tools/install)
-- [Python](https://www.python.org/downloads/)
-- [Poetry](https://python-poetry.org/docs/#installation)
+- [Git][]
+- [Docker][]
+
+We build [multi-platform images][] to support both x86 and ARM chips, so to
+build those, you need to enable [containerd][] in Docker.
 
 ## Setup
 
@@ -24,24 +25,19 @@ terminal, run this command:
 cd gradbench
 ```
 
-Then you can use the `gradbench.sh` script to build GradBench from source and
-run it:
+Use `build.sh` to build the Docker image for any tool:
 
 ```sh
-./gradbench.sh help
+./build.sh pytorch
 ```
 
-## Python
-
-The Python tools you to set up the Poetry project first:
+Then use `run.sh` to run that Docker image:
 
 ```sh
-poetry install
+./run.sh pytorch
 ```
 
-This doesn't put anything on the `PATH` by default. When running a command, you
-can put the Python scripts on the `PATH` via `poetry run`; for instance:
-
-```sh
-poetry run ./gradbench.sh pytorch tools.pytorch.constant big
-```
+[containerd]: https://docs.docker.com/desktop/containerd/
+[docker]: https://docs.docker.com/engine/install/
+[git]: https://git-scm.com/downloads
+[multi-platform images]: https://docs.docker.com/build/building/multi-platform/

@@ -37,28 +37,28 @@ jobs:
       - id: deploy
         uses: actions/deploy-pages@v4
 
-  julia:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/docker
-      - run: docker build --platform linux/amd64,linux/arm64 tools/zygote --tag ghcr.io/gradbench/zygote
-      - run: docker image save --output gradbench-zygote.tar ghcr.io/gradbench/zygote
-      - uses: actions/upload-artifact@v4
-        with:
-          name: gradbench-zygote
-          path: gradbench-zygote.tar
-      - run: cat gradbench.json | docker run --interactive --rm ghcr.io/gradbench/zygote
-
   pytorch:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/docker
-      - run: docker build --platform linux/amd64,linux/arm64 tools/pytorch --tag ghcr.io/gradbench/pytorch
+      - run: ./build.sh pytorch
       - run: docker image save --output gradbench-pytorch.tar ghcr.io/gradbench/pytorch
       - uses: actions/upload-artifact@v4
         with:
           name: gradbench-pytorch
           path: gradbench-pytorch.tar
-      - run: cat gradbench.json | docker run --interactive --rm ghcr.io/gradbench/pytorch
+      - run: ./run.sh pytorch
+
+  zygote:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/docker
+      - run: ./build.sh zygote
+      - run: docker image save --output gradbench-zygote.tar ghcr.io/gradbench/zygote
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gradbench-zygote
+          path: gradbench-zygote.tar
+      - run: ./run.sh zygote
