@@ -1,9 +1,14 @@
 {
   "inputs": [
+    { "name": "square", "arguments": [{ "value": 3 }] },
     { "name": "double", "arguments": [{ "value": 3 }] },
+    { "name": "square", "arguments": [{ "value": 3 }] },
     { "name": "double", "arguments": [{ "value": 3 }] },
+    { "name": "square", "arguments": [{ "value": 3 }] },
     { "name": "double", "arguments": [{ "value": 3 }] },
+    { "name": "square", "arguments": [{ "value": 3 }] },
     { "name": "double", "arguments": [{ "value": 3 }] },
+    { "name": "square", "arguments": [{ "value": 3 }] },
     { "name": "double", "arguments": [{ "value": 3 }] }
   ]
 }

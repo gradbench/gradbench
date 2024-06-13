@@ -10,6 +10,10 @@ Make sure to have these tools installed:
 We build [multi-platform images][] to support both x86 and ARM chips, so to
 build those, you need to enable [containerd][] in Docker.
 
+Other tools that are optional but useful:
+
+- [jq][]
+
 ## Setup
 
 Once you've installed all prerequisites, clone this repo.
@@ -37,7 +41,14 @@ Then use `run.sh` to run that Docker image:
 ./run.sh pytorch
 ```
 
+If you want to see the JSON output formatted nicely, just pipe it to jq:
+
+```sh
+./run.sh pytorch | jq
+```
+
 [containerd]: https://docs.docker.com/desktop/containerd/
 [docker]: https://docs.docker.com/engine/install/
 [git]: https://git-scm.com/downloads
+[jq]: https://jqlang.github.io/jq/download/
 [multi-platform images]: https://docs.docker.com/build/building/multi-platform/
