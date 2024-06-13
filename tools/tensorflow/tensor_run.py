@@ -23,11 +23,12 @@ def run(params):
     with tf.GradientTape() as tape:
         tape.watch(vals)
         ret = func(*vals)
+        
     start = time.perf_counter_ns()
     gradients = tape.gradient(ret,vals)
-    items = [g.numpy().item() for g in gradients]
     end = time.perf_counter_ns()
-        
+    items = [g.numpy().item() for g in gradients]
+    
     return {"return": items, "nanoseconds": end - start}
 
 
