@@ -37,19 +37,6 @@ jobs:
       - id: deploy
         uses: actions/deploy-pages@v4
 
-  jax:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/docker
-      - run: ./build.sh jax
-      - run: docker image save --output gradbench-jax.tar ghcr.io/gradbench/jax
-      - uses: actions/upload-artifact@v4
-        with:
-          name: gradbench-jax
-          path: gradbench-jax.tar
-      - run: ./run.sh jax
-
   pytorch:
     runs-on: ubuntu-22.04
     steps:
