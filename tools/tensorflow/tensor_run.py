@@ -17,19 +17,12 @@ def tensor(x):
 
 def run(params):
     func = resolve(params["name"])
-    vals = [tensor(arg["value"]) for arg in params["arguments"]]
-    
-    
-    with tf.GradientTape() as tape:
-        tape.watch(vals)
-        ret = func(*vals)
-        
+    vals = [tensor(arg["value"]) for arg in params["arguments"]]        
     start = time.perf_counter_ns()
-    gradients = tape.gradient(ret,vals)
+    ret = func(*vals)
     end = time.perf_counter_ns()
-    items = [g.numpy().item() for g in gradients]
     
-    return {"return": items, "nanoseconds": end - start}
+    return {"return": ret, "nanoseconds": end - start}
 
 
 def main():
