@@ -47,7 +47,7 @@ If you want to see the JSON output formatted nicely, just pipe it to jq:
 ./run.sh pytorch | jq
 ```
 
-[containerd]: https://docs.docker.com/desktop/containerd/
+[containerd]: https://docs.docker.com/storage/containerd/
 [docker]: https://docs.docker.com/engine/install/
 [git]: https://git-scm.com/downloads
 [jq]: https://jqlang.github.io/jq/download/
