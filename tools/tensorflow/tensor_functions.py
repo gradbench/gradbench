@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-def sqaure(x):
+def square(x):
     return x*x
 
 def double(x):
@@ -9,4 +9,4 @@ def double(x):
         y = square(x)
                 
     grad = tape.gradient(y,x)
-    return grad.numpy()
+    return grad

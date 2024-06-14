@@ -21,8 +21,8 @@ def run(params):
     start = time.perf_counter_ns()
     ret = func(*vals)
     end = time.perf_counter_ns()
-    
-    return {"return": ret, "nanoseconds": end - start}
+
+    return {"return": ret.numpy(), "nanoseconds": end - start}
 
 
 def main():
