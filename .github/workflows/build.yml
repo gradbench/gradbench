@@ -50,6 +50,19 @@ jobs:
           path: gradbench-pytorch.tar
       - run: ./run.sh pytorch
 
+  tensorflow:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/docker
+      - run: ./build.sh tensorflow
+      - run: docker image save --output gradbench-tensorflow.tar ghcr.io/gradbench/tensorflow
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gradbench-tensorflow
+          path: gradbench-tensorflow.tar
+      - run: ./run.sh tensorflow
+
   zygote:
     runs-on: ubuntu-22.04
     steps:
