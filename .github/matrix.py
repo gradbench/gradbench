@@ -6,7 +6,8 @@ from pathlib import Path
 
 def main():
     tools = sorted(p.name for p in Path("tools").iterdir())
-    print(json.dumps({"tool": tools}))
+    # GitHub Actions doesn't like whitespace in the JSON
+    print(json.dumps({"tool": tools}, separators=(",", ":")))
 
 
 if __name__ == "__main__":

@@ -44,7 +44,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - id: matrix
-        run: echo "matrix=$(./matrix.py)" | tee -a "$GITHUB_OUTPUT"
+        run: echo "matrix=$(.github/matrix.py)" | tee -a "$GITHUB_OUTPUT"
 
   docker:
     needs: matrix
