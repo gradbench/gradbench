@@ -37,15 +37,17 @@ jobs:
       - id: deploy
         uses: actions/deploy-pages@v4
 
+  list:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "tools=$(./list.py)" | tee -a "$GITHUB_OUTPUT"
+
   docker:
+    needs: list
     strategy:
       matrix:
-        tool:
-          - jax
-          - mygrad
-          - pytorch
-          - tensorflow
-          - zygote
+        tool: ${{ fromJSON(needs.list.outputs.tools) }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
