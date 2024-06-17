@@ -58,7 +58,7 @@ jobs:
       - uses: docker/setup-qemu-action@v3
         with:
           platforms: linux/amd64,linux/arm64
-      - run: ./cross.sh ${{ matrix.tool}}
+      - run: ./cross.sh ${{ matrix.tool }}
       - run: docker image save --output gradbench-${{ matrix.tool }}.tar ghcr.io/gradbench/${{ matrix.tool }}
       - uses: actions/upload-artifact@v4
         with:
