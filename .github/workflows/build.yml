@@ -42,6 +42,7 @@ jobs:
       matrix:
         tool:
           - jax
+          - mygrad
           - pytorch
           - tensorflow
           - zygote
