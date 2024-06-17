@@ -40,10 +40,11 @@ jobs:
   list:
     runs-on: ubuntu-22.04
     outputs:
-      tools: $
+      tools: $${{ steps.list.outputs.tools }}
     steps:
       - uses: actions/checkout@v4
-      - run: echo "tools=$(./list.py)" | tee -a "$GITHUB_OUTPUT"
+      - id: list
+        run: echo "tools=$(./list.py)" | tee -a "$GITHUB_OUTPUT"
 
   docker:
     needs: list
