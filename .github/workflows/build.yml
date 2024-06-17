@@ -49,7 +49,7 @@ jobs:
   docker:
     needs: matrix
     strategy:
-      matrix: ${{ fromJSON(needs.matrix.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.matrix.outputs.matrix) }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
