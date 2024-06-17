@@ -5,7 +5,8 @@ from pathlib import Path
 
 
 def main():
-    print(json.dumps(sorted(p.name for p in Path("tools").iterdir())))
+    tools = sorted(p.name for p in Path("tools").iterdir())
+    print(json.dumps({"tool": tools}))
 
 
 if __name__ == "__main__":

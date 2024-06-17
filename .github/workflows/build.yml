@@ -37,20 +37,19 @@ jobs:
       - id: deploy
         uses: actions/deploy-pages@v4
 
-  list:
+  matrix:
     runs-on: ubuntu-22.04
     outputs:
-      tools: $${{ steps.list.outputs.tools }}
+      matrix: $${{ steps.matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
-      - id: list
-        run: echo "tools=$(./list.py)" | tee -a "$GITHUB_OUTPUT"
+      - id: matrix
+        run: echo "matrix=$(./matrix.py)" | tee -a "$GITHUB_OUTPUT"
 
   docker:
-    needs: list
+    needs: matrix
     strategy:
-      matrix:
-        tool: ${{ fromJSON(needs.list.outputs.tools) }}
+      matrix: ${{ fromJSON(needs.matrix.outputs.matrix) }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
