@@ -45,7 +45,7 @@ jobs:
           - pytorch
           - tensorflow
           - zygote
-    runs-on: ubuntu-22.04xs
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: crazy-max/ghaction-setup-docker@v3
