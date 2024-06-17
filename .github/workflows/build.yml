@@ -37,54 +37,31 @@ jobs:
       - id: deploy
         uses: actions/deploy-pages@v4
 
-  jax:
+  docker:
+    strategy:
+      matrix:
+        tool:
+          - pytorch
+          - tensorflow
+          - zygote
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/docker
-      - run: ./build.sh jax
-      - run: docker image save --output gradbench-jax.tar ghcr.io/gradbench/jax
+      - uses: crazy-max/ghaction-setup-docker@v3
+        with:
+          daemon-config: |
+            {
+              "features": {
+                "containerd-snapshotter": true
+              }
+            }
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/amd64,linux/arm64
+      - run: ./cross.sh ${{ matrix.tool }}
+      - run: docker image save --output gradbench-${{ matrix.tool }}.tar ghcr.io/gradbench/${{ matrix.tool }}
       - uses: actions/upload-artifact@v4
         with:
-          name: gradbench-jax
-          path: gradbench-jax.tar
-      - run: ./run.sh jax
-
-  pytorch:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/docker
-      - run: ./build.sh pytorch
-      - run: docker image save --output gradbench-pytorch.tar ghcr.io/gradbench/pytorch
-      - uses: actions/upload-artifact@v4
-        with:
-          name: gradbench-pytorch
-          path: gradbench-pytorch.tar
-      - run: ./run.sh pytorch
-
-  tensorflow:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/docker
-      - run: ./build.sh tensorflow
-      - run: docker image save --output gradbench-tensorflow.tar ghcr.io/gradbench/tensorflow
-      - uses: actions/upload-artifact@v4
-        with:
-          name: gradbench-tensorflow
-          path: gradbench-tensorflow.tar
-      - run: ./run.sh tensorflow
-
-  zygote:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/docker
-      - run: ./build.sh zygote
-      - run: docker image save --output gradbench-zygote.tar ghcr.io/gradbench/zygote
-      - uses: actions/upload-artifact@v4
-        with:
-          name: gradbench-zygote
-          path: gradbench-zygote.tar
-      - run: ./run.sh zygote
+          name: gradbench-${{ matrix.tool }}
+          path: gradbench-${{ matrix.tool }}.tar
+      - run: ./run.sh ${{ matrix.tool }}
