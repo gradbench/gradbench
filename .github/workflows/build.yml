@@ -39,6 +39,8 @@ jobs:
 
   list:
     runs-on: ubuntu-22.04
+    outputs:
+      tools: $
     steps:
       - uses: actions/checkout@v4
       - run: echo "tools=$(./list.py)" | tee -a "$GITHUB_OUTPUT"
