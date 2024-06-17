@@ -3,7 +3,7 @@ import sys
 import time
 from importlib import import_module
 
-import mygrad as mg
+from mygrad import tensor as mg_tensor
 import numpy as np
 
 
@@ -13,7 +13,7 @@ def resolve(name):
 
 
 def tensor(x):
-    return mg.tensor(x,dtype=np.float64)
+    return mg_tensor(x,dtype=np.float64)
 
 
 def run(params):
