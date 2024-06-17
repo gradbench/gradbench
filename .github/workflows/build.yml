@@ -37,15 +37,19 @@ jobs:
       - id: deploy
         uses: actions/deploy-pages@v4
 
+  matrix:
+    runs-on: ubuntu-22.04
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: matrix
+        run: echo "matrix=$(.github/matrix.py)" | tee -a "$GITHUB_OUTPUT"
+
   docker:
+    needs: matrix
     strategy:
-      matrix:
-        tool:
-          - jax
-          - mygrad
-          - pytorch
-          - tensorflow
-          - zygote
+      matrix: ${{ fromJSON(needs.matrix.outputs.matrix) }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
