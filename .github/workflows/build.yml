@@ -41,6 +41,7 @@ jobs:
     strategy:
       matrix:
         tool:
+          - jax
           - pytorch
           - tensorflow
           - zygote
