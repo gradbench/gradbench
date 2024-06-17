@@ -40,7 +40,7 @@ jobs:
   matrix:
     runs-on: ubuntu-22.04
     outputs:
-      matrix: $${{ steps.matrix.outputs.matrix }}
+      matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
       - id: matrix
@@ -49,8 +49,7 @@ jobs:
   docker:
     needs: matrix
     strategy:
-      matrix:
-        tool: ${{ fromJson(needs.matrix.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.matrix.outputs.matrix) }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
