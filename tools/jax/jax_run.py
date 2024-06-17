@@ -4,7 +4,7 @@ import time
 from importlib import import_module
 
 import jax.numpy as jnp
-from jax import grad, jit
+# from jax import grad, jit
 
 
 def resolve(name):

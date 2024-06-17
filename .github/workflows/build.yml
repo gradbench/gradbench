@@ -41,11 +41,11 @@ jobs:
     strategy:
       matrix:
         tool:
+          - jax
           - pytorch
           - tensorflow
           - zygote
-          - jax
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-22.04xs
     steps:
       - uses: actions/checkout@v4
       - uses: crazy-max/ghaction-setup-docker@v3
