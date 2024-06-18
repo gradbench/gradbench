@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - run: ./gradbench.sh help
+      - run: cargo run gradbench.adroit
 
   site:
     runs-on: ubuntu-22.04
