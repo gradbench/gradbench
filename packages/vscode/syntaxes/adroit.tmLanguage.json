@@ -26,7 +26,7 @@
     "comments": {
       "patterns": [
         {
-          "name": "comment.line.number-sign.rose",
+          "name": "comment.line.number-sign.adroit",
           "match": "#.*$"
         }
       ]
@@ -34,15 +34,15 @@
     "keywords": {
       "patterns": [
         {
-          "name": "keyword.control.rose",
+          "name": "keyword.control.adroit",
           "match": "\\b(else|if|then)\\b"
         },
         {
-          "name": "keyword.other.rose",
+          "name": "keyword.other.adroit",
           "match": "\\b(and|in|or)\\b"
         },
         {
-          "name": "storage.type.rose",
+          "name": "storage.type.adroit",
           "match": "\\b(def|let|type)\\b"
         }
       ]
@@ -50,12 +50,12 @@
     "literals": {
       "patterns": [
         {
-          "name": "string.quoted.double.rose",
+          "name": "string.quoted.double.adroit",
           "begin": "\"",
           "end": "\""
         },
         {
-          "name": "constant.numeric.rose",
+          "name": "constant.numeric.adroit",
           "match": "\\b\\d+(\\.\\d+)?\\b"
         }
       ]
@@ -63,11 +63,11 @@
     "identifiers": {
       "patterns": [
         {
-          "name": "entity.name.type.rose",
+          "name": "entity.name.type.adroit",
           "match": "\\b([A-Z]\\w*)\\b"
         },
         {
-          "name": "variable.other.rose",
+          "name": "variable.other.adroit",
           "match": "\\b(\\w+)\\b"
         }
       ]
@@ -75,7 +75,7 @@
     "punctuation": {
       "patterns": [
         {
-          "name": "punctuation.rose",
+          "name": "punctuation.adroit",
           "match": "[\\(\\)\\[\\]\\{\\},\\.]"
         }
       ]
@@ -83,7 +83,7 @@
     "operators": {
       "patterns": [
         {
-          "name": "keyword.operator.rose",
+          "name": "keyword.operator.adroit",
           "match": "[^\\s#\\w\"\\(\\)\\[\\]\\{\\},\\.]+"
         }
       ]
