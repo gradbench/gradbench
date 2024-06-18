@@ -1,78 +1,34 @@
-use std::{
-    env,
-    ffi::OsStr,
-    path::{Path, PathBuf},
-    process::{exit, Command},
-};
+mod parse;
 
-use clap::{crate_name, Parser, Subcommand};
+use std::fs;
 
-#[derive(Parser)]
+use ariadne::{Color, Label, Report, ReportKind, Source};
+use clap::Parser;
+
+#[derive(Debug, Parser)]
 struct Cli {
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    /// List all available subcommands
-    List,
-    #[command(external_subcommand)]
-    External(Vec<String>),
-}
-
-fn external_subcommands<'a>(exe: &'a Path, path: &'a OsStr) -> impl Iterator<Item = PathBuf> + 'a {
-    let prefix = format!("{}-", exe.file_name().unwrap().to_str().unwrap());
-    exe.parent()
-        .map(PathBuf::from)
-        .into_iter()
-        .chain(env::split_paths(path))
-        .flat_map(|p| p.read_dir().ok().into_iter().flatten())
-        .map(|entry| entry.unwrap().path())
-        .filter(move |p| {
-            let name = p.file_name().unwrap().to_str().unwrap();
-            name.starts_with(&prefix) && name.chars().all(|c| c.is_alphabetic() || c == '-')
-        })
+    file: String,
 }
 
 fn main() {
     let args = Cli::parse();
-    let exe_str = env::args().next().unwrap();
-    let exe = Path::new(&exe_str);
-    let path = env::var_os("PATH").unwrap();
-    match args.command {
-        Commands::List => {
-            println!("Usage: gradbench <COMMAND>");
-            println!();
-            println!("Commands:");
-            let prefix = format!("{}-", crate_name!());
-            for subcmd in external_subcommands(exe, &path) {
-                println!(
-                    "  {}",
-                    subcmd
-                        .file_name()
-                        .unwrap()
-                        .to_str()
-                        .unwrap()
-                        .strip_prefix(&prefix)
-                        .unwrap()
-                )
+    let path = &args.file;
+    let input = fs::read_to_string(path).unwrap();
+    match parse::parse(&input).into_result() {
+        Ok(defs) => println!("{}", serde_json::to_string(&defs).unwrap()),
+        Err(errs) => {
+            for err in errs {
+                Report::build(ReportKind::Error, path, err.span().start)
+                    .with_message(err.to_string())
+                    .with_label(
+                        Label::new((path, err.span().into_range()))
+                            .with_message(err.reason().to_string())
+                            .with_color(Color::Red),
+                    )
+                    .finish()
+                    .eprint((path, Source::from(&input)))
+                    .unwrap();
             }
-        }
-        Commands::External(rest) => {
-            let name = format!("{}-{}", crate_name!(), rest[0]);
-            exit(
-                Command::new(
-                    external_subcommands(exe, &path)
-                        .find(|p| p.file_name().unwrap().to_str().unwrap() == name)
-                        .unwrap(),
-                )
-                .args(rest.into_iter().skip(1))
-                .status()
-                .unwrap()
-                .code()
-                .unwrap(),
-            )
         }
     }
 }

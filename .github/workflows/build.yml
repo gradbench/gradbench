@@ -17,11 +17,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: npm ci
-      - run: npm run lint
-      - run: npm run build
+      - run: npm run --workspace=gradbench lint
+      - run: npm run --workspace=gradbench build
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: packages/gradbench/dist
 
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

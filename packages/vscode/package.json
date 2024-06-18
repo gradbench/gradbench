@@ -1,0 +1,42 @@
+{
+  "name": "adroit-vscode",
+  "displayName": "Adroit",
+  "version": "0.1.0",
+  "publisher": "samestep",
+  "description": "Syntax highlighting for Adroit.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gradbench/gradbench",
+    "directory": "packages/vscode"
+  },
+  "private": true,
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "adroit",
+        "aliases": [
+          "Adroit",
+          "adroit"
+        ],
+        "extensions": [
+          ".adroit"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "adroit",
+        "scopeName": "source.adroit",
+        "path": "./syntaxes/adroit.tmLanguage.json"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "vsce package"
+  }
+}
