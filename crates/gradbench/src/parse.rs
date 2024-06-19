@@ -146,7 +146,7 @@ where
         Token::Ident(s) => Ok(s),
         _ => Err(Rich::custom(
             span,
-            format!("found {tok} expected '<identifier>'"),
+            format!("found '{tok}', expected '<identifier>'"),
         )),
     });
 

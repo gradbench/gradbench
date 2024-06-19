@@ -3,11 +3,33 @@ mod parse;
 use std::fs;
 
 use ariadne::{Color, Label, Report, ReportKind, Source};
+use chumsky::error::RichReason;
 use clap::Parser;
+use parse::Token;
 
 #[derive(Debug, Parser)]
 struct Cli {
     file: String,
+}
+
+fn err_string(reason: RichReason<Token>) -> String {
+    match reason {
+        RichReason::ExpectedFound { expected, found } => {
+            format!(
+                "found {}, expected {}",
+                found
+                    .map(|tok| format!("'{}'", *tok))
+                    .unwrap_or("end of input".to_owned()),
+                if expected.is_empty() {
+                    "something else".to_owned()
+                } else {
+                    itertools::join(expected.into_iter(), " or ")
+                }
+            )
+        }
+        RichReason::Custom(s) => s,
+        RichReason::Many(errs) => itertools::join(errs.into_iter().map(err_string), "; "),
+    }
 }
 
 fn main() {
@@ -22,7 +44,7 @@ fn main() {
                     .with_message(err.to_string())
                     .with_label(
                         Label::new((path, err.span().into_range()))
-                            .with_message(err.reason().to_string())
+                            .with_message(err_string(err.into_reason()))
                             .with_color(Color::Red),
                     )
                     .finish()
