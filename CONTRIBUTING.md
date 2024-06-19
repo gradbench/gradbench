@@ -6,6 +6,7 @@ Make sure to have these tools installed:
 
 - [Git][]
 - [Docker][]
+- [Rust][]
 
 We build [multi-platform images][] to support both x86 and ARM chips, so to
 build those, you need to enable [containerd][] in Docker. If you're running
@@ -70,3 +71,4 @@ convenient for local development.
 [jq]: https://jqlang.github.io/jq/download/
 [multi-platform images]: https://docs.docker.com/build/building/multi-platform/
 [qemu]: https://docs.docker.com/build/building/multi-platform/#qemu-without-docker-desktop
+[rust]: https://www.rust-lang.org/tools/install

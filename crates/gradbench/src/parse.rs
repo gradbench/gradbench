@@ -91,8 +91,8 @@ impl<'a> fmt::Display for Token<'a> {
 
 #[derive(Debug, Serialize)]
 pub struct Param<'a> {
-    name: &'a str,
-    ty: &'a str,
+    pub name: &'a str,
+    pub ty: &'a str,
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -126,14 +126,14 @@ pub enum Expr<'a> {
 
 #[derive(Debug, Serialize)]
 pub struct Def<'a> {
-    name: &'a str,
-    params: Vec<Param<'a>>,
-    body: Expr<'a>,
+    pub name: &'a str,
+    pub params: Vec<Param<'a>>,
+    pub body: Expr<'a>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct Module<'a> {
-    defs: Vec<Def<'a>>,
+    pub defs: Vec<Def<'a>>,
 }
 
 pub fn parser<'a, I>() -> impl Parser<'a, I, Module<'a>, extra::Err<Rich<'a, Token<'a>>>>
