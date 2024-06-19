@@ -15,7 +15,7 @@ fn main() {
     let path = &args.file;
     let input = fs::read_to_string(path).unwrap();
     match parse::parse(&input).into_result() {
-        Ok(defs) => println!("{}", serde_json::to_string(&defs).unwrap()),
+        Ok(module) => println!("{}", serde_json::to_string(&module).unwrap()),
         Err(errs) => {
             for err in errs {
                 Report::build(ReportKind::Error, path, err.span().start)
