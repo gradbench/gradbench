@@ -1,0 +1,3 @@
+def square (x : Real) = x * x
+
+def double = grad square

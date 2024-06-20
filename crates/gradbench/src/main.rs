@@ -1,78 +1,71 @@
-use std::{
-    env,
-    ffi::OsStr,
-    path::{Path, PathBuf},
-    process::{exit, Command},
-};
+mod parse;
 
-use clap::{crate_name, Parser, Subcommand};
+use std::{fs, process};
 
-#[derive(Parser)]
+use ariadne::{Color, Label, Report, ReportKind, Source};
+use chumsky::error::RichReason;
+use clap::Parser;
+use parse::Token;
+
+#[derive(Debug, Parser)]
 struct Cli {
-    #[command(subcommand)]
-    command: Commands,
+    #[arg(long, value_name = "FILENAME", default_value = "gradbench.adroit")]
+    defs: String,
+
+    #[arg(long, value_name = "FILENAME", default_value = "gradbench.json")]
+    config: String,
 }
 
-#[derive(Subcommand)]
-enum Commands {
-    /// List all available subcommands
-    List,
-    #[command(external_subcommand)]
-    External(Vec<String>),
-}
-
-fn external_subcommands<'a>(exe: &'a Path, path: &'a OsStr) -> impl Iterator<Item = PathBuf> + 'a {
-    let prefix = format!("{}-", exe.file_name().unwrap().to_str().unwrap());
-    exe.parent()
-        .map(PathBuf::from)
-        .into_iter()
-        .chain(env::split_paths(path))
-        .flat_map(|p| p.read_dir().ok().into_iter().flatten())
-        .map(|entry| entry.unwrap().path())
-        .filter(move |p| {
-            let name = p.file_name().unwrap().to_str().unwrap();
-            name.starts_with(&prefix) && name.chars().all(|c| c.is_alphabetic() || c == '-')
-        })
+fn err_string(reason: RichReason<Token>) -> String {
+    match reason {
+        RichReason::ExpectedFound { expected, found } => {
+            format!(
+                "found {}, expected {}",
+                found
+                    .map(|tok| format!("'{}'", *tok))
+                    .unwrap_or("end of input".to_owned()),
+                if expected.is_empty() {
+                    "something else".to_owned()
+                } else {
+                    itertools::join(expected.into_iter(), " or ")
+                }
+            )
+        }
+        RichReason::Custom(s) => s,
+        RichReason::Many(errs) => itertools::join(errs.into_iter().map(err_string), "; "),
+    }
 }
 
 fn main() {
     let args = Cli::parse();
-    let exe_str = env::args().next().unwrap();
-    let exe = Path::new(&exe_str);
-    let path = env::var_os("PATH").unwrap();
-    match args.command {
-        Commands::List => {
-            println!("Usage: gradbench <COMMAND>");
-            println!();
-            println!("Commands:");
-            let prefix = format!("{}-", crate_name!());
-            for subcmd in external_subcommands(exe, &path) {
-                println!(
-                    "  {}",
-                    subcmd
-                        .file_name()
-                        .unwrap()
-                        .to_str()
-                        .unwrap()
-                        .strip_prefix(&prefix)
-                        .unwrap()
-                )
+
+    let mut config: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&args.config).unwrap()).unwrap();
+
+    let path = &args.defs;
+    let input = fs::read_to_string(path).unwrap();
+    let module = match parse::parse(&input).into_result() {
+        Ok(module) => module,
+        Err(errs) => {
+            for err in errs {
+                Report::build(ReportKind::Error, path, err.span().start)
+                    .with_message(err.to_string())
+                    .with_label(
+                        Label::new((path, err.span().into_range()))
+                            .with_message(err_string(err.into_reason()))
+                            .with_color(Color::Red),
+                    )
+                    .finish()
+                    .eprint((path, Source::from(&input)))
+                    .unwrap();
             }
+            process::exit(1);
         }
-        Commands::External(rest) => {
-            let name = format!("{}-{}", crate_name!(), rest[0]);
-            exit(
-                Command::new(
-                    external_subcommands(exe, &path)
-                        .find(|p| p.file_name().unwrap().to_str().unwrap() == name)
-                        .unwrap(),
-                )
-                .args(rest.into_iter().skip(1))
-                .status()
-                .unwrap()
-                .code()
-                .unwrap(),
-            )
-        }
-    }
+    };
+
+    config.as_object_mut().unwrap().insert(
+        "defs".to_owned(),
+        serde_json::to_value(module.defs).unwrap(),
+    );
+    println!("{}", serde_json::to_string(&config).unwrap());
 }

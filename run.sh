@@ -1,3 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
-docker run --interactive --rm "ghcr.io/gradbench/$1" < gradbench.json
+json=$(cargo run)
+echo "$json" | docker run --interactive --rm "ghcr.io/gradbench/$1"
