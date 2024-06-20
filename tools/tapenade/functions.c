@@ -1,3 +1,4 @@
-void square(double x, double *y) {
-    *y = x * x;
+double square(double x) {
+    double y = x * x;
+    return y;
 }

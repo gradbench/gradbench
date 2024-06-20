@@ -6,7 +6,9 @@ RUN apt-get update && apt-get install -y \
     python3
 
 COPY functions.c .
-COPY run.c .
-COPY run_shell.py .
+COPY run_deriv.c .
+COPY run_origin.c .
+COPY run_shells.py .
+COPY tapenade_run.py .
 
-ENTRYPOINT ["python3", "/home/gradbench/run_shell.py"]
+ENTRYPOINT ["python3", "/home/gradbench/tapenade_run.py"]
