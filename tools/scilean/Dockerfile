@@ -1,5 +1,5 @@
 FROM ubuntu
-RUN apt-get update && apt-get install -y curl
+RUN apt-get update && apt-get install -y curl git
 RUN curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | bash -s -- -y
 ENV PATH="/root/.elan/bin:$PATH"
 WORKDIR /home/gradbench
