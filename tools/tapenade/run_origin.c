@@ -1,17 +1,22 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 double square(double x);
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         printf("Usage: %s <value of x>\n", argv[0]);
-        return 1;  // Exit if no input is provided
+        return 1;
     }
     double x = atof(argv[1]);
 
-    // TIME THIS
+    struct timespec start, finish;
+    clock_gettime( CLOCK_REALTIME, &start );
     double y = square(x);
-    printf("%.1f", y);
+    clock_gettime( CLOCK_REALTIME, &finish );
+
+    double time_taken = (double) (finish.tv_nsec - start.tv_nsec);
+    printf("%.1f %.0f", y, time_taken);
     return 0;
 }

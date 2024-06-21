@@ -12,11 +12,11 @@ def run(params):
     func = resolve(params["name"])
     vals = [1.0*arg["value"] for arg in params["arguments"]]
     
-    start = time.perf_counter_ns()
-    ret = func(*vals)
-    end = time.perf_counter_ns()
+    # start = time.perf_counter_ns()
+    ret,time = func(*vals).stdout.split(' ')
+    # end = time.perf_counter_ns()
     
-    return {"return": ret.stdout, "nanoseconds": end - start}
+    return {"return": ret, "nanoseconds": time}
 
 
 def main():
