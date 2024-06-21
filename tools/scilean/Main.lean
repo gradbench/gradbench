@@ -1,4 +1,5 @@
 import Lean
+import SciLean
 
 open Lean
 open Except FromJson ToJson
