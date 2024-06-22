@@ -3,4 +3,8 @@ open Lake DSL
 
 package «gradbench»
 
-require mathlib from git "https://github.com/leanprover-community/mathlib4" @ "93904a0d036e5321062ae5e705e8a893da24d81b"
+@[default_target]
+lean_exe «gradbench» where
+  root := `Main
+
+require scilean from git "https://github.com/lecopivo/SciLean.git" @ "22d53b2f4e3db2a172e71da6eb9c916e62655744"
