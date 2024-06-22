@@ -7,6 +7,3 @@ COPY lakefile.lean .
 COPY lake-manifest.json .
 COPY lean-toolchain .
 RUN lake exe cache get
-COPY Main.lean .
-RUN lake build
-ENTRYPOINT ["/home/gradbench/.lake/build/bin/gradbench"]
