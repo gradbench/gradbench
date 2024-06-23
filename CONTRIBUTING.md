@@ -54,6 +54,8 @@ If you want to see the JSON output formatted nicely, just pipe it to jq:
 ./run.sh pytorch | jq
 ```
 
+### Multi-platform images
+
 The above do not build a multi-platform image. If you have followed the above
 instructions to configure Docker for building such images, you can do so using
 the `cross.sh` script:
@@ -64,6 +66,19 @@ the `cross.sh` script:
 
 This typically takes much longer than `build.sh`, so it tends not to be
 convenient for local development.
+
+### Manual images
+
+All the Docker images for individual autodiff tools are in the `tools` directory
+and built automatically in GitHub Actions. However, some of those `Dockerfile`s
+are built `FROM` base images that we are unable to build in GitHub Actions. All
+such base images are in the `docker` directory. Each must have an `ENTRYPOINT`
+that simply prints the tag of the image. To build, tag, and push one of these
+images, first [log in to GHCR][], then use `manual.sh`:
+
+```sh
+./manual.sh mathlib4
+```
 
 ## VS Code
 
@@ -89,6 +104,7 @@ Finally, in the VS Code Explorer, right-click on the
 [git]: https://git-scm.com/downloads
 [github cli]: https://github.com/cli/cli#installation
 [jq]: https://jqlang.github.io/jq/download/
+[log in to GHCR]: https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-with-a-personal-access-token-classic
 [multi-platform images]: https://docs.docker.com/build/building/multi-platform/
 [node]: https://nodejs.org/en/download
 [qemu]: https://docs.docker.com/build/building/multi-platform/#qemu-without-docker-desktop
