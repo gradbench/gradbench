@@ -52,6 +52,9 @@ jobs:
       matrix: ${{ fromJSON(needs.matrix.outputs.matrix) }}
     runs-on: ubuntu-22.04
     steps:
+      - uses: easimon/maximize-build-space@v10
+        with:
+          remove-dotnet: "true"
       - uses: actions/checkout@v4
       - uses: crazy-max/ghaction-setup-docker@v3
         with:
