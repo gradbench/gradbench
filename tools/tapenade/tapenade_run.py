@@ -16,7 +16,7 @@ def run(params):
     ret,time = func(*vals).stdout.split(' ')
     # end = time.perf_counter_ns()
     
-    return {"return": ret, "nanoseconds": time}
+    return {"return": float(ret), "nanoseconds": int(time)}
 
 
 def main():

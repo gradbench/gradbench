@@ -17,6 +17,6 @@ int main(int argc, char *argv[]) {
     clock_gettime( CLOCK_REALTIME, &finish );
 
     double time_taken = (double) (finish.tv_nsec - start.tv_nsec);
-    printf("%.1f %.0f", y, time_taken);
+    printf("%f %.0f", y, time_taken);
     return 0;
 }
