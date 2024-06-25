@@ -1,3 +1,5 @@
+module functions
+
 #r "nuget: DiffSharp-cpu"
 
 open DiffSharp

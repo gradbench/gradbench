@@ -11,4 +11,5 @@ COPY run.fsx .
 
 # run f# through dotnet and f# interactive
 ENTRYPOINT ["dotnet", "fsi", "run.fsx"]
+LABEL org.opencontainers.image.source https://github.com/gradbench/gradbench
 
