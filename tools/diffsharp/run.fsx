@@ -41,6 +41,8 @@ let createJsonData cfg =
     json
 
 
+assert (Stopwatch.Frequency = 1000000000L) //Ensure frequency gives ticks per second
+
 let cfg = JsonValue.Load(Console.In)
 let json = createJsonData cfg
 
