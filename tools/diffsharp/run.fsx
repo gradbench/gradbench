@@ -14,12 +14,17 @@ let run (pars : JsonValue) =
     let inputs = pars?arguments
     let values = [for item in inputs -> dsharp.tensor (item?value.AsFloat())]
     let name = pars?name.AsString()
-    let stopwatch = Stopwatch.StartNew()
-    let result = 
-        if name = "square" then square (values.Head)
-        else double (values.Head)
-    stopwatch.Stop()
-    (float result, float stopwatch.ElapsedTicks)
+    
+    if name = "square" then 
+        let stopwatch = Stopwatch.StartNew()
+        let result = square (values.Head)
+        stopwatch.Stop()
+        (float result, float stopwatch.ElapsedTicks)
+    else 
+        let stopwatch = Stopwatch.StartNew()
+        let result = double (values.Head)
+        stopwatch.Stop()
+        (float result, float stopwatch.ElapsedTicks)
 
 let createJsonData cfg =
     let data = 
@@ -34,6 +39,7 @@ let createJsonData cfg =
                     ("outputs",  JsonValue.Array data)
                 |]
     json
+
 
 let cfg = JsonValue.Load(Console.In)
 let json = createJsonData cfg
