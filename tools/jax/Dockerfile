@@ -4,3 +4,4 @@ WORKDIR /home/gradbench
 COPY jax_functions.py .
 COPY jax_run.py .
 ENTRYPOINT ["python", "/home/gradbench/jax_run.py"]
+LABEL org.opencontainers.image.source https://github.com/gradbench/gradbench

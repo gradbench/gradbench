@@ -5,3 +5,4 @@ WORKDIR /home/gradbench
 COPY functions.py .
 COPY run.py .
 ENTRYPOINT ["python", "/home/gradbench/run.py"]
+LABEL org.opencontainers.image.source https://github.com/gradbench/gradbench
