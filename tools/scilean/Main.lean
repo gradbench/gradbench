@@ -1,5 +1,6 @@
 import Lean
 import SciLean
+import Mathlib.Lean.CoreM
 
 open Lean
 open Except FromJson ToJson 
@@ -86,9 +87,14 @@ def benchAD : MetaM Unit := do
 
   IO.println s!"differentiating took {1e-6*(done-start).toFloat}ms\n\n{← ppExpr e}\n==>\n{← ppExpr e'}"
 
--- Right now I'm not sure how to run `MetaM Unit` inside `main : IO UInt32`
--- So we just call it in the file with `#eval`
-#eval benchAD
+def ranBenchAD : IO Unit := 
+  let run : CoreM Unit := do
+    let _ ← benchAD.run {} {}
+
+  -- Here you have to specify all the lean files that need to be loaded
+  CoreM.withImportModules #[`SciLean,`Main] run
+    (searchPath:= compile_time_search_path%)
+
 
 def resolve (name : String) : Except String (Float -> Float) :=
   match name with
