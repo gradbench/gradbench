@@ -4,3 +4,4 @@ COPY lake-manifest.json .
 COPY Main.lean .
 RUN lake build
 ENTRYPOINT ["/home/gradbench/.lake/build/bin/gradbench"]
+LABEL org.opencontainers.image.source https://github.com/gradbench/gradbench
