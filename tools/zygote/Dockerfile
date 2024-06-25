@@ -5,3 +5,4 @@ COPY Manifest.toml .
 RUN julia --project=. -e 'import Pkg; Pkg.instantiate()'
 COPY run.jl .
 ENTRYPOINT ["julia", "--project=/home/gradbench", "/home/gradbench/run.jl"]
+LABEL org.opencontainers.image.source https://github.com/gradbench/gradbench

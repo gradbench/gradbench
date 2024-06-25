@@ -5,3 +5,4 @@ WORKDIR /home/gradbench
 COPY mg_functions.py .
 COPY mg_run.py .
 ENTRYPOINT ["python", "/home/gradbench/mg_run.py"]
+LABEL org.opencontainers.image.source https://github.com/gradbench/gradbench
