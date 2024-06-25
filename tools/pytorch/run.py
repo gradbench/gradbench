@@ -18,7 +18,6 @@ def tensor(x):
 def run(params):
     func = resolve(params["name"])
     vals = [tensor(arg["value"]) for arg in params["arguments"]]
-    print(vals)
     start = time.perf_counter_ns()
     ret = func(*vals)
     end = time.perf_counter_ns()

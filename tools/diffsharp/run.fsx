@@ -1,11 +1,12 @@
 #r "nuget: FSharp.Data"
-#r "nuget: DiffSharp-cpu"
+#r "nuget: DiffSharp-lite"
 #load "functions.fsx"
 
 open DiffSharp
 open FSharp.Data
 open FSharp.Data.JsonExtensions
 open System
+open System.Text.Json
 open System.Diagnostics
 open functions
 
@@ -13,18 +14,20 @@ let run (pars : JsonValue) =
     let inputs = pars?arguments
     let values = [for item in inputs -> dsharp.tensor (item?value.AsFloat())]
     let name = pars?name.AsString()
-    if name = "square" then square values.Head
-    else double values.Head
+    let stopwatch = Stopwatch.StartNew()
+    let result = 
+        if name = "square" then square (values.Head)
+        else double (values.Head)
+    stopwatch.Stop()
+    (float result, float stopwatch.ElapsedTicks)
 
 let createJsonData cfg =
     let data = 
         (cfg?inputs.AsArray() |> Array.map (fun entry ->
-            let stopwatch = Stopwatch.StartNew()
-            let result = run entry
-            stopwatch.Stop()
+            let (result, time) = run entry
             FSharp.Data.JsonValue.Record [|
-                ("return",  JsonValue.Float (float result));
-                ("nanoseconds",  JsonValue.Float (float stopwatch.Elapsed.TotalMilliseconds * 1000000.0))
+                ("return",  JsonValue.Float result); 
+                ("nanoseconds",  JsonValue.Float time)
             |]
         ))
     let json = JsonValue.Record [|
@@ -34,4 +37,6 @@ let createJsonData cfg =
 
 let cfg = JsonValue.Load(Console.In)
 let json = createJsonData cfg
-printfn "%A" json
+
+let jsonString = json.ToString(JsonSaveOptions.CompactSpaceAfterComma)
+printfn "%s" jsonString

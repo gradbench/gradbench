@@ -1,9 +1,9 @@
-FROM mcr.microsoft.com/dotnet/sdk:6.0 
+FROM mcr.microsoft.com/dotnet/sdk:8.0 
 WORKDIR /home/gradbench
 
 # https://diffsharp.github.io/install.html
 RUN dotnet new console -lang "F#"
-RUN dotnet add package DiffSharp-cpu
+RUN dotnet add package DiffSharp-lite
 RUN dotnet add package FSharp.Data 
 
 COPY functions.fsx .

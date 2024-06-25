@@ -1,6 +1,6 @@
 module functions
 
-#r "nuget: DiffSharp-cpu"
+#r "nuget: DiffSharp-lite"
 
 open DiffSharp
 
