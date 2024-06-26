@@ -4,9 +4,7 @@ Based on their python implementation
 
 ## Gaussian Mixture Model Fitting (GMM)
 
-[Link to IO file](https://github.com/microsoft/ADBench/blob/master/src/python/shared/GMMData.py) and [data](https://github.com/microsoft/ADBench/tree/master/data/gmm)
-
-[Link to GMM Data Generator](https://github.com/microsoft/ADBench/blob/master/data/gmm/gmm-data-gen.py)
+Link to [IO file](https://github.com/microsoft/ADBench/blob/master/src/python/shared/GMMData.py), [data](https://github.com/microsoft/ADBench/tree/master/data/gmm), and [GMM Data Generator](https://github.com/microsoft/ADBench/blob/master/data/gmm/gmm-data-gen.py)
 
 ### Inputs
 
@@ -16,7 +14,7 @@ Based on their python implementation
 4. x
 5. Wishart
 
-These are all conditional on a D and K. D ranges from $2^0$ to $2^7$ and represents the dimension of the data points and means. K is the number of mixture components (clusters) where K $\in$ [5,10,25,50,100]. Additionally GMM can be run with 1k, 10k, or 2.5 million data points.
+These are all conditional on a D and K. D ranges from $2^0$ to $2^7$ and represents the dimension of the data points and means. K is the number of mixture components (clusters) where K $\in$ [5,10,25,50,100]. Additionally GMM can be run with 1k, 10k, or 2.5 million data points. These values are inputed into the data generator to then create files to feed into GMM.
 
 ### Outputs
 
@@ -25,7 +23,7 @@ These are all conditional on a D and K. D ranges from $2^0$ to $2^7$ and represe
 
 ## Bundle Adjustment (BA)
 
-[Link to IO file](https://github.com/microsoft/ADBench/blob/master/src/python/shared/BAData.py) and [data](https://github.com/microsoft/ADBench/tree/master/data/ba)
+Link to [IO file](https://github.com/microsoft/ADBench/blob/master/src/python/shared/BAData.py) and [data](https://github.com/microsoft/ADBench/tree/master/data/ba)
 
 ### Inputs
 
@@ -43,7 +41,7 @@ These are all conditional on a D and K. D ranges from $2^0$ to $2^7$ and represe
 
 ## Hand Track (HT)
 
-[Link to IO file](https://github.com/microsoft/ADBench/blob/master/src/python/shared/HandData.py) and [data](https://github.com/microsoft/ADBench/tree/master/data/hand)
+Link to [file](https://github.com/microsoft/ADBench/blob/master/src/python/shared/HandData.py) and [data](https://github.com/microsoft/ADBench/tree/master/data/hand)
 
 ### Inputs
 
