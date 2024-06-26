@@ -6,23 +6,23 @@ from importlib import import_module
 import torch
 
 
-def resolve(name):
+def resolve():
     functions = import_module("pytorchGMM")
-    return getattr(functions, name)
+    return getattr(functions, "calculate_jacobian")
 
-def run(params):
-    func = resolve(params["name"])
-    vals = [arg["value"] for arg in params["arguments"]]
+def run():
+    func = resolve()
+    vals = "d2_k5.txt"
     start = time.perf_counter_ns()
-    ret = func(*vals)
+    ret = func(vals)
     end = time.perf_counter_ns()
     return {"return": ret.tolist(), "nanoseconds": end - start}
 
 
 def main():
-    cfg = json.load(sys.stdin)
-    outputs = [run(params) for params in cfg["inputs"]]
-    print(json.dumps({"outputs": outputs}))
+    # cfg = json.load(sys.stdin)
+    #outputs = [run(params) for params in cfg["inputs"]]
+    print(json.dumps({"outputs": run()}))
 
 
 if __name__ == "__main__":
