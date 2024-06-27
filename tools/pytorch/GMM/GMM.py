@@ -57,3 +57,10 @@ def calculate_jacobian(file):
     py.prepare(input)
     py.calculate_jacobian(1)
     return py.gradient
+
+def calculate_objective(file):
+    input = read_gmm_instance(file, False)
+    py = PyTorchGMM()
+    py.prepare(input)
+    py.calculate_objective(1)
+    return py.objective

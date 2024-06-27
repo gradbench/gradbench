@@ -10,7 +10,7 @@ import torch
 def resolve(): #name
     functions = import_module("GMM")
     # return getattr(functions, name)
-    return getattr(functions, "calculate_jacobian")
+    return getattr(functions, "calculate_objective")
 
 # NOTE Only want to call this when input is a number
 def tensor(x):
