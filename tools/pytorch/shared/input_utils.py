@@ -4,7 +4,7 @@
 import os
 import numpy as np
 
-from pytorch_defs import Wishart
+from defs import Wishart
 from gmm_data import GMMInput
 
 DELIM = ':'

@@ -3,8 +3,6 @@
 
 import torch
 
-
-
 def to_torch_tensor(param, grad_req = False, dtype = torch.float64):
     '''Converts given single parameter to torch tensors. Note that parameter
     can be an ndarray-like object.

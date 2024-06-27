@@ -4,11 +4,11 @@
 import numpy as np
 import torch
 
-from pytorch_utils import to_torch_tensors, torch_jacobian
-from pytorch_itest import ITest #this is shared
-from gmm_data import GMMInput, GMMOutput #this is shared 
-from pytorch_gmm_objective import gmm_objective
-from pytorch_input_utils import read_gmm_instance
+from utils import to_torch_tensors, torch_jacobian
+from itest import ITest #shared
+from gmm_data import GMMInput, GMMOutput #shared
+from gmm_objective import gmm_objective
+from input_utils import read_gmm_instance #shared
 
 class PyTorchGMM(ITest):
     '''Test class for GMM differentiation by PyTorch.'''

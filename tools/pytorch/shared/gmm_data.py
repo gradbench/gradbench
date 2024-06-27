@@ -4,8 +4,8 @@
 from dataclasses import dataclass, field
 import numpy as np
 
-from pytorch_defs import Wishart
-from pytorch_output_utils import save_value_to_file, objective_file_name,\
+from defs import Wishart
+from output_utils import save_value_to_file, objective_file_name,\
                             save_vector_to_file, jacobian_file_name
 
 @dataclass
