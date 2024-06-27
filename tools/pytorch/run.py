@@ -8,7 +8,7 @@ import torch
 # Works with JSON with proper input, currently have set to ignore input so doesn't mess with actions
 
 def resolve():
-    functions = import_module("pytorchGMM")
+    functions = import_module("GMM")
     return getattr(functions, "calculate_jacobian")
 
 def run():
