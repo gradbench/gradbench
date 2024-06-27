@@ -9,21 +9,22 @@ import tensorflow as tf
 def resolve(): #name
     functions = import_module("GMM")
     # return getattr(functions, "name")
-    return getattr(functions, "calculate_jacobian")
+    return getattr(functions, "calculate_objective")
 
 def tensor(x):
     return tf.Variable(x, dtype=tf.float64)
 
 def run(): #params
-    func = resolve()
+    func = resolve() #params["name"]
     # vals = [tensor(arg["value"]) for arg in params["arguments"]]        
     vals = "d2_k5.txt"    
     start = time.perf_counter_ns()
     # ret = func(*vals)
     ret = func(vals)
     end = time.perf_counter_ns()
+    # NOTE calculate_jacobain needs to convert outout to list
     # return {"return": ret.numpy(), "nanoseconds": end - start}
-    return {"return": list(ret.numpy()), "nanoseconds": end - start}
+    return {"return": ret.numpy(), "nanoseconds": end - start}
 
 
 def main():

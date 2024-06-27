@@ -79,3 +79,10 @@ def calculate_jacobian(file):
     te.prepare(input)
     te.calculate_jacobian(1)
     return te.gradient
+
+def calculate_objective(file):
+    input = read_gmm_instance(file, False)
+    te = TensorflowGMM()
+    te.prepare(input)
+    te.calculate_objective(1)
+    return te.objective
