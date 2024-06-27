@@ -8,8 +8,8 @@ RUN pip install tensorflow
 RUN pip install scipy
 
 WORKDIR /home/gradbench
-COPY tensor_functions.py .
-COPY tensor_run.py .
+COPY functions.py .
+COPY run.py .
 
 # shared
 COPY shared/ .
@@ -18,5 +18,5 @@ COPY shared/ .
 COPY GMM/ .
 
 
-ENTRYPOINT ["python", "/home/gradbench/tensor_run.py"]
+ENTRYPOINT ["python", "/home/gradbench/run.py"]
 LABEL org.opencontainers.image.source https://github.com/gradbench/gradbench
