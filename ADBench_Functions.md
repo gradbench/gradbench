@@ -4,22 +4,26 @@ Based on their python implementation
 
 ## Gaussian Mixture Model Fitting (GMM)
 
-Link to [IO file](https://github.com/microsoft/ADBench/blob/master/src/python/shared/GMMData.py), [data](https://github.com/microsoft/ADBench/tree/master/data/gmm), and [GMM Data Generator](https://github.com/microsoft/ADBench/blob/master/data/gmm/gmm-data-gen.py)
+Link to [I/O file](https://github.com/microsoft/ADBench/blob/master/src/python/shared/GMMData.py), [data folder](https://github.com/microsoft/ADBench/tree/master/data/gmm), and [GMM Data Generator](https://github.com/microsoft/ADBench/blob/master/data/gmm/gmm-data-gen.py)
+
+### Generation
+
+To generate files with the below inputs, 3 values are used: D, K, and N. D ranges from $2^0$ to $2^7$ and represents the dimension of the data points and means. K is the number of mixture components (clusters) where K $\in$ [5,10,25,50,100]. Additionally, GMM can be run with 1k, 10k, or 2.5 million data points, where N represents this value. These values/ranges are iterated over in the data generator.
 
 ### Inputs
 
-1. alphas
-2. means
-3. icf
-4. x
-5. Wishart
+One file is read in that then extracts the following inputs
 
-These are all conditional on a D and K. D ranges from $2^0$ to $2^7$ and represents the dimension of the data points and means. K is the number of mixture components (clusters) where K $\in$ [5,10,25,50,100]. Additionally GMM can be run with 1k, 10k, or 2.5 million data points. These values are inputed into the data generator to then create files to feed into GMM.
+1. Alphas ($\alpha$): Mixing components, weights
+2. Means ($\mu$): Expected centroid points in data
+3. ICF (q): Parameteres for the inverse covariance matrix (precision matrix)
+4. X: Data points being fitted
+5. Wishart: Wishard distribution parameters to specify inital beliefs about scale and structure of precision matrcies
 
 ### Outputs
 
-1. Objective Value
-2. Gradient Array
+1. Log-Likelihood Value - How well given parameteres fit the given data
+2. Gradient of Log-Likelihood - How it will change given changes to the parameters
 
 ## Bundle Adjustment (BA)
 
