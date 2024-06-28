@@ -1,6 +1,6 @@
 # ADBench Functions
 
-Based on their python implementation
+Information on functions from Microsoft's [ADBench](https://github.com/microsoft/ADBench?tab=readme-ov-file) based on their python implementation
 
 ## Gaussian Mixture Model Fitting (GMM)
 
@@ -15,15 +15,49 @@ To generate files with the below inputs, 3 values are used: D, K, and N. D range
 One file is read in that then extracts the following inputs
 
 1. Alphas ($\alpha$): Mixing components, weights
-2. Means ($\mu$): Expected centroid points in data
-3. ICF (q): Parameteres for the inverse covariance matrix (precision matrix)
-4. X: Data points being fitted
+   $$
+   \begin{align*}
+   \alpha \in \R^K
+   \end{align*}
+   $$
+2. Means ($M$): Expected centroid points, $\mu_k \in \R^D$
+   $$
+   \begin{align*}
+   M \in \R^{K \times D}
+   \end{align*}
+   $$
+3. Inverse Covariance Factor ($ICF$): Parameteres for the inverse covariance matrix (precision matrix)
+   $$
+   \begin{align*}
+   ICF \in \R^{K \times (D + \frac{D(D-1)}{2})}
+   \end{align*}
+   $$
+4. $X$: Data points being fitted
+   $$
+   \begin{align*}
+   X \in \R^{D}
+   \end{align*}
+   $$
 5. Wishart: Wishard distribution parameters to specify inital beliefs about scale and structure of precision matrcies
+   $$
+   \begin{align*}
+   W = (D,K)
+   \end{align*}
+   $$
 
 ### Outputs
 
-1. Log-Likelihood Value - How well given parameteres fit the given data
-2. Gradient of Log-Likelihood - How it will change given changes to the parameters
+1. Log-Likelihood Value: How well given parameteres fit the given data
+2. Gradient ($G$) of Log-Likelihood: How it will change given changes to alphas, means, and ICF
+   $$
+   \begin{align*}
+   G \in \R^{K + (K \times D) + (K \times (D + \frac{D(D-1)}{2}))}
+   \end{align*}
+   $$
+
+> **Example**
+>
+> If $D = 2$ and $K = 5$, $G \in \R^{30}$ meaning the function will return an array of length 30.
 
 ## Bundle Adjustment (BA)
 
