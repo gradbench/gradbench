@@ -2,6 +2,7 @@ import json
 import sys
 import time
 from importlib import import_module
+from pathlib import Path
 
 import torch
 
@@ -23,23 +24,23 @@ def output(ret):
     
 def run(params):
     func = resolve(params["name"])
-    vals = [tensor(arg["value"]) for arg in params["arguments"]]
+    inputs = tensor(params["input"])
     start = time.perf_counter_ns()
-    ret = func(*vals)
+    ret = func(inputs )
     end = time.perf_counter_ns()
     return {"return": output(ret), "nanoseconds": end - start}
 
-
-
 def main():
-    cfg = json.load(sys.stdin)
-    cfg["inputs"].append({'arguments': [{'value': 'd2_k5.txt'}], 'name': 'calculate_jacobianGMM'})
-    cfg["inputs"].append({'arguments': [{'value': 'ba1_n49_m7776_p31843.txt'}], 'name': 'calculate_jacobianBA'})
-    outputs = [run(params) for params in cfg["inputs"]]
-    print(json.dumps({"outputs": outputs}))
+    for line in sys.stdin:
+        cfg = json.loads(line)
+        outputs = [run(cfg)]
+        print(json.dumps({"outputs": outputs}))
 
-# {'arguments': [{'value': 'd2_k5.txt'}], 'name': 'calculate_jacobianGMM'}
-# {'arguments': [{'value': 'ba1_n49_m7776_p31843.txt'}], 'name': 'calculate_jacobianBA'}
+# SAMPLE RUNS
+# python ADBench_Data/GMM/gmm_data_parser.py ADBench_Data/GMM/d2_k5.txt |  docker run --interactive --rm "ghcr.io/gradbench/pytorch"
+# echo '{"name": "double", "input": 3}' | docker run --interactive --rm ghcr.io/gradbench/pytorch
+# echo -e '{ "name": "double", "input": 3} \n { "name": "double", "input": 3}' | docker run --interactive --rm ghcr.io/gradbench/pytorch
+
 
 if __name__ == "__main__":
     main()

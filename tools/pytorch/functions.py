@@ -4,7 +4,8 @@ import torch
 # shared
 from utils import to_torch_tensors, torch_jacobian, to_torch_tensor
 from itest import ITest
-from input_utils import read_gmm_instance, read_ba_instance
+from input_utils import read_ba_instance
+from defs import Wishart
 
 # gmm
 from gmm_data import GMMInput, GMMOutput
@@ -63,14 +64,20 @@ class PyTorchGMM(ITest):
                 self.params
             )
                       
-def calculate_jacobianGMM(file):
-    input = read_gmm_instance(file, False)
+def calculate_jacobianGMM(inputs):
+    input = GMMInput(
+        inputs["alpha"],
+        inputs["means"],
+        inputs["icf"],
+        inputs["x"],
+        Wishart(inputs["gamma"], inputs["m"])
+    )
     py = PyTorchGMM()
     py.prepare(input)
     py.calculate_jacobian(1)
     return py.gradient
 
-def calculate_objectiveGMM(file):
+def calculate_objectiveGMM(inputs):
     input = read_gmm_instance(file, False)
     py = PyTorchGMM()
     py.prepare(input)

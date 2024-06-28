@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 set -euo pipefail
-docker build "tools/$1" --tag "ghcr.io/gradbench/$1"
+docker build . --file "tools/$1/Dockerfile" --tag "ghcr.io/gradbench/$1"

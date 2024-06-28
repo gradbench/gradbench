@@ -38,12 +38,7 @@ One file is read in that then extracts the following inputs
    X \in \R^{D}
    \end{align*}
    $$
-5. Wishart: Wishard distribution parameters to specify inital beliefs about scale and structure of precision matrcies
-   $$
-   \begin{align*}
-   W = (D,K)
-   \end{align*}
-   $$
+5. Wishart: Wishard distribution parameters to specify inital beliefs about scale and structure of precision matrcies stored in a tuple
 
 ### Outputs
 
