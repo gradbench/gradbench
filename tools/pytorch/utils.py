@@ -57,7 +57,7 @@ def torch_jacobian(func, inputs, params = None, flatten = True):
         inputs (tuple of torch tensors): function inputs by which it is
             differentiated.
         params (tuple of torch tensors, optional): function inputs by which it
-            is doesn't differentiated. Defaults to None.
+            is not differentiated. Defaults to None.
         flatten (bool, optional): if True then jacobian will be written in
             1D array row-major. Defaults to True.
 
