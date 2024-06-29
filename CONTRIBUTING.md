@@ -6,7 +6,7 @@ Make sure to have these tools installed:
 
 - [Git][]
 - [Docker][]
-- [Rust][]
+- [Python][]
 - [Node][]
 
 We build [multi-platform images][] to support both x86 and ARM chips, so to
@@ -17,7 +17,6 @@ Docker Engine on Linux, without Docker Desktop, you also need to install
 Other tools that are optional but useful:
 
 - [GitHub CLI][]
-- [jq][]
 
 ## Setup
 
@@ -36,36 +35,37 @@ cd gradbench
 
 ## Docker
 
-Use `build.sh` to build the Docker image for any tool, for your machine:
+Use `buildeval.sh` to build the Docker image for any evaluation script:
+
+```sh
+./buildeval.sh hello
+```
+
+Use `buildtool.sh` to build the Docker image for any tool:
 
 ```sh
 ./build.sh pytorch
 ```
 
-Then use `run.sh` to run that Docker image:
+Then use `run.py` to run a given evaluation on a given tool:
 
 ```sh
-./run.sh pytorch
-```
-
-If you want to see the JSON output formatted nicely, just pipe it to jq:
-
-```sh
-./run.sh pytorch | jq
+./run.py --eval hello --tool pytorch
 ```
 
 ### Multi-platform images
 
 The above do not build a multi-platform image. If you have followed the above
 instructions to configure Docker for building such images, you can do so using
-the `cross.sh` script:
+the `crosseval.sh` and `crosstool.sh` scripts:
 
 ```sh
-./cross.sh pytorch
+./crosseval.sh hello
+./crosstool.sh pytorch
 ```
 
-This typically takes much longer than `build.sh`, so it tends not to be
-convenient for local development.
+These typically take much longer than `buildeval.sh` and `buildtool.sh`, so they
+tend not to be convenient for local development.
 
 ### Manual images
 
@@ -103,9 +103,8 @@ Finally, in the VS Code Explorer, right-click on the
 [docker]: https://docs.docker.com/engine/install/
 [git]: https://git-scm.com/downloads
 [github cli]: https://github.com/cli/cli#installation
-[jq]: https://jqlang.github.io/jq/download/
 [log in to GHCR]: https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-with-a-personal-access-token-classic
 [multi-platform images]: https://docs.docker.com/build/building/multi-platform/
 [node]: https://nodejs.org/en/download
+[python]: https://www.python.org/downloads/
 [qemu]: https://docs.docker.com/build/building/multi-platform/#qemu-without-docker-desktop
-[rust]: https://www.rust-lang.org/tools/install
