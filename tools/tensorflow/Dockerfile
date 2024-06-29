@@ -7,7 +7,7 @@ RUN pip install h5py
 RUN pip install tensorflow
 
 WORKDIR /home/gradbench
-COPY tensor_functions.py .
-COPY tensor_run.py .
+COPY tools/tensorflow/tensor_functions.py .
+COPY tools/tensorflow/tensor_run.py .
 ENTRYPOINT ["python", "/home/gradbench/tensor_run.py"]
 LABEL org.opencontainers.image.source https://github.com/gradbench/gradbench
