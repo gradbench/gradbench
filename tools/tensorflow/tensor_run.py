@@ -17,7 +17,7 @@ def tensor(x):
 
 def run(params):
     func = resolve(params["name"])
-    vals = [tensor(arg["value"]) for arg in params["arguments"]]        
+    vals = [tensor(arg["value"]) for arg in params["arguments"]]
     start = time.perf_counter_ns()
     ret = func(*vals)
     end = time.perf_counter_ns()
@@ -33,4 +33,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
