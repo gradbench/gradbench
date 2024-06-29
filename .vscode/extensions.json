@@ -1,10 +1,10 @@
 {
   "recommendations": [
+    "esbenp.prettier-vscode",
     "julialang.language-julia",
     "leanprover.lean",
     "ms-python.black-formatter",
     "ms-python.isort",
-    "ms-python.python",
-    "esbenp.prettier-vscode"
+    "ms-python.python"
   ]
 }
