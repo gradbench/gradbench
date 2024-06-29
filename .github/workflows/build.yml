@@ -104,5 +104,5 @@ jobs:
         with:
           name: tool-${{ matrix.tool }}
       - run: docker load --input eval-${{ matrix.eval }}.tar
-      - run: docker load --input eval-${{ matrix.tool }}.tar
+      - run: docker load --input tool-${{ matrix.tool }}.tar
       - run: ./run.py --eval ${{ matrix.eval }} --tool ${{ matrix.tool }}
