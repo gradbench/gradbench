@@ -15,8 +15,7 @@ def output(name, value):
 
 def main():
     output("eval", ls("evals"))
-    omit = {"diffsharp", "scilean", "tensorflow", "zygote"}
-    output("tool", [tool for tool in ls("tools") if tool not in omit])
+    output("tool", ls("tools"))
 
 
 if __name__ == "__main__":
