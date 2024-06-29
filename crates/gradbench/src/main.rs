@@ -9,11 +9,7 @@ use parse::Token;
 
 #[derive(Debug, Parser)]
 struct Cli {
-    #[arg(long, value_name = "FILENAME", default_value = "gradbench.adroit")]
-    defs: String,
-
-    #[arg(long, value_name = "FILENAME", default_value = "gradbench.json")]
-    config: String,
+    file: String,
 }
 
 fn err_string(reason: RichReason<Token>) -> String {
@@ -39,10 +35,7 @@ fn err_string(reason: RichReason<Token>) -> String {
 fn main() {
     let args = Cli::parse();
 
-    let mut config: serde_json::Value =
-        serde_json::from_str(&fs::read_to_string(&args.config).unwrap()).unwrap();
-
-    let path = &args.defs;
+    let path = &args.file;
     let input = fs::read_to_string(path).unwrap();
     let module = match parse::parse(&input).into_result() {
         Ok(module) => module,
@@ -63,9 +56,5 @@ fn main() {
         }
     };
 
-    config.as_object_mut().unwrap().insert(
-        "defs".to_owned(),
-        serde_json::to_value(module.defs).unwrap(),
-    );
-    println!("{}", serde_json::to_string(&config).unwrap());
+    println!("{}", serde_json::to_string_pretty(&module).unwrap());
 }

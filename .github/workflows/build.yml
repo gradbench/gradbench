@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - run: cargo run
+      - run: cargo run evals/hello/gradbench.adroit
 
   site:
     runs-on: ubuntu-22.04
@@ -40,16 +40,34 @@ jobs:
   matrix:
     runs-on: ubuntu-22.04
     outputs:
-      matrix: ${{ steps.matrix.outputs.matrix }}
+      eval: ${{ steps.matrix.outputs.eval }}
+      tool: ${{ steps.matrix.outputs.tool }}
     steps:
       - uses: actions/checkout@v4
       - id: matrix
-        run: echo "matrix=$(.github/matrix.py)" | tee -a "$GITHUB_OUTPUT"
+        run: .github/matrix.py | tee -a "$GITHUB_OUTPUT"
 
-  docker:
+  eval:
     needs: matrix
     strategy:
-      matrix: ${{ fromJSON(needs.matrix.outputs.matrix) }}
+      matrix:
+        eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/docker
+      - run: ./crosseval.sh ${{ matrix.eval }}
+      - run: docker save --output eval-${{ matrix.eval }}.tar ghcr.io/gradbench/eval-${{ matrix.eval }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eval-${{ matrix.eval }}
+          path: eval-${{ matrix.eval }}.tar
+
+  tool:
+    needs: matrix
+    strategy:
+      matrix:
+        tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
     runs-on: ubuntu-22.04
     steps:
       - uses: AdityaGarg8/remove-unwanted-software@v3
@@ -59,21 +77,30 @@ jobs:
           remove-haskell: "true"
           remove-codeql: "true"
       - uses: actions/checkout@v4
-      - uses: crazy-max/ghaction-setup-docker@v3
-        with:
-          daemon-config: |
-            {
-              "features": {
-                "containerd-snapshotter": true
-              }
-            }
-      - uses: docker/setup-qemu-action@v3
-        with:
-          platforms: linux/amd64,linux/arm64
-      - run: ./cross.sh ${{ matrix.tool }}
-      - run: docker image save --output gradbench-${{ matrix.tool }}.tar ghcr.io/gradbench/${{ matrix.tool }}
+      - uses: ./.github/actions/docker
+      - run: ./crosstool.sh ${{ matrix.tool }}
+      - run: docker save --output tool-${{ matrix.tool }}.tar ghcr.io/gradbench/tool-${{ matrix.tool }}
       - uses: actions/upload-artifact@v4
         with:
-          name: gradbench-${{ matrix.tool }}
-          path: gradbench-${{ matrix.tool }}.tar
-      - run: ./run.sh ${{ matrix.tool }}
+          name: tool-${{ matrix.tool }}
+          path: tool-${{ matrix.tool }}.tar
+
+  run:
+    needs:
+      - matrix
+      - eval
+      - tool
+    strategy:
+      matrix:
+        eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
+        tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        name: eval-${{ matrix.eval }}
+      - uses: actions/download-artifact@v4
+        name: tool-${{ matrix.tool }}
+      - run: docker load --input eval-${{ matrix.eval }}.tar
+      - run: docker load --input eval-${{ matrix.tool }}.tar
+      - run: ./run.py --eval ${{ matrix.eval }} --tool ${{ matrix.tool }}

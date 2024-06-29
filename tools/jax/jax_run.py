@@ -4,6 +4,7 @@ import time
 from importlib import import_module
 
 import jax.numpy as jnp
+
 # from jax import grad, jit
 
 
@@ -18,21 +19,24 @@ def tensor(x):
 
 def run(params):
     func = resolve(params["name"])
-    vals = [tensor(arg["value"]) for arg in params["arguments"]]
-    
+    arg = tensor(params["input"])
+
     # jfunc = jit(func)
-    
+
     start = time.perf_counter_ns()
-    ret = func(*vals)
+    ret = func(arg)
     end = time.perf_counter_ns()
-    
-    return {"return": ret.item(), "nanoseconds": end - start}
+
+    return {"output": ret.item(), "nanoseconds": {"evaluate": end - start}}
 
 
 def main():
-    cfg = json.load(sys.stdin)
-    outputs = [run(params) for params in cfg["inputs"]]
-    print(json.dumps({"outputs": outputs}))
+    for line in sys.stdin:
+        message = json.loads(line)
+        response = {}
+        if message["kind"] == "evaluate":
+            response = run(message)
+        print(json.dumps({"id": message["id"]} | response), flush=True)
 
 
 if __name__ == "__main__":
