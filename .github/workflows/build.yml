@@ -98,9 +98,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
-        name: eval-${{ matrix.eval }}
+        with:
+          name: eval-${{ matrix.eval }}
       - uses: actions/download-artifact@v4
-        name: tool-${{ matrix.tool }}
+        with:
+          name: tool-${{ matrix.tool }}
       - run: docker load --input eval-${{ matrix.eval }}.tar
       - run: docker load --input eval-${{ matrix.tool }}.tar
       - run: ./run.py --eval ${{ matrix.eval }} --tool ${{ matrix.tool }}
