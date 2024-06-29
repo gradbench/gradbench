@@ -1,5 +1,6 @@
 from jax import grad
 
+
 def square(x):
     return x * x
 
