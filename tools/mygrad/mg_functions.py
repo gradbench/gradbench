@@ -1,7 +1,9 @@
 import numpy as np
 
+
 def square(x):
     return x * x
+
 
 def double(x):
     y = square(x)
