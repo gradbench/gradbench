@@ -44,7 +44,7 @@ Use `buildeval.sh` to build the Docker image for any evaluation script:
 Use `buildtool.sh` to build the Docker image for any tool:
 
 ```sh
-./build.sh pytorch
+./buildtool.sh pytorch
 ```
 
 Then use `run.py` to run a given evaluation on a given tool:
