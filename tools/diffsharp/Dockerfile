@@ -6,8 +6,8 @@ RUN dotnet new console -lang "F#"
 RUN dotnet add package DiffSharp-lite
 RUN dotnet add package FSharp.Data
 
-COPY functions.fsx .
-COPY run.fsx .
+COPY tools/diffsharp/functions.fsx .
+COPY tools/diffsharp/run.fsx .
 
 # run f# through dotnet and f# interactive
 ENTRYPOINT ["dotnet", "fsi", "run.fsx"]

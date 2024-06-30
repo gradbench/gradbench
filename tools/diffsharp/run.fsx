@@ -6,43 +6,39 @@ open DiffSharp
 open FSharp.Data
 open FSharp.Data.JsonExtensions
 open System
-open System.Text.Json
 open System.Diagnostics
 open functions
 
 let run (pars: JsonValue) =
-    let inputs = pars?arguments
-    let values = [ for item in inputs -> dsharp.tensor (item?value.AsFloat()) ]
+    let arg = dsharp.tensor (pars?input.AsFloat())
     let name = pars?name.AsString()
+    let func = if name = "square" then square else double
+    let stopwatch = Stopwatch.StartNew()
+    let result = func arg
+    stopwatch.Stop()
+    (float result, decimal stopwatch.ElapsedTicks)
 
-    if name = "square" then
-        let stopwatch = Stopwatch.StartNew()
-        let result = square (values.Head)
-        stopwatch.Stop()
-        (float result, float stopwatch.ElapsedTicks)
+let createJsonData message =
+    let id = message?id
+
+    if message?kind.AsString() = "evaluate" then
+        let (result, time) = run message
+
+        JsonValue.Record
+            [| ("id", id)
+               ("output", JsonValue.Float result)
+               ("nanoseconds", JsonValue.Record [| ("evaluate", JsonValue.Number time) |]) |]
     else
-        let stopwatch = Stopwatch.StartNew()
-        let result = double (values.Head)
-        stopwatch.Stop()
-        (float result, float stopwatch.ElapsedTicks)
-
-let createJsonData cfg =
-    let data =
-        (cfg?inputs.AsArray()
-         |> Array.map (fun entry ->
-             let (result, time) = run entry
-
-             FSharp.Data.JsonValue.Record
-                 [| ("return", JsonValue.Float result); ("nanoseconds", JsonValue.Float time) |]))
-
-    let json = JsonValue.Record [| ("outputs", JsonValue.Array data) |]
-    json
+        JsonValue.Record [| ("id", id) |]
 
 
-assert (Stopwatch.Frequency = 1000000000L) //Ensure frequency gives ticks per second
+assert (Stopwatch.Frequency = 1000000000L) //Ensure one tick is one nanosecond
 
-let cfg = JsonValue.Load(Console.In)
-let json = createJsonData cfg
+let mutable line = Console.ReadLine()
 
-let jsonString = json.ToString(JsonSaveOptions.CompactSpaceAfterComma)
-printfn "%s" jsonString
+while not (isNull line) do
+    let message = JsonValue.Parse(line)
+    let json = createJsonData message
+    let jsonString = json.ToString(JsonSaveOptions.CompactSpaceAfterComma)
+    printfn "%s" jsonString
+    line <- Console.ReadLine()
