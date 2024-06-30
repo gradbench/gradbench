@@ -10,9 +10,9 @@ open System.Text.Json
 open System.Diagnostics
 open functions
 
-let run (pars : JsonValue) =
+let run (pars: JsonValue) =
     let inputs = pars?arguments
-    let values = [for item in inputs -> dsharp.tensor (item?value.AsFloat())]
+    let values = [ for item in inputs -> dsharp.tensor (item?value.AsFloat()) ]
     let name = pars?name.AsString()
 
     if name = "square" then
@@ -28,16 +28,14 @@ let run (pars : JsonValue) =
 
 let createJsonData cfg =
     let data =
-        (cfg?inputs.AsArray() |> Array.map (fun entry ->
-            let (result, time) = run entry
-            FSharp.Data.JsonValue.Record [|
-                ("return",  JsonValue.Float result);
-                ("nanoseconds",  JsonValue.Float time)
-            |]
-        ))
-    let json = JsonValue.Record [|
-                    ("outputs",  JsonValue.Array data)
-                |]
+        (cfg?inputs.AsArray()
+         |> Array.map (fun entry ->
+             let (result, time) = run entry
+
+             FSharp.Data.JsonValue.Record
+                 [| ("return", JsonValue.Float result); ("nanoseconds", JsonValue.Float time) |]))
+
+    let json = JsonValue.Record [| ("outputs", JsonValue.Array data) |]
     json
 
 
