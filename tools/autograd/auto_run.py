@@ -11,17 +11,20 @@ def resolve(name):
 
 def run(params):
     func = resolve(params["name"])
-    vals = [arg["value"] * 1.0 for arg in params["arguments"]]
+    arg = params["input"] * 1.0
     start = time.perf_counter_ns()
-    ret = func(*vals)
+    ret = func(arg)
     end = time.perf_counter_ns()
-    return {"return": ret, "nanoseconds": end - start}
+    return {"output": ret, "nanoseconds": {"evaluate": end - start}}
 
 
 def main():
-    cfg = json.load(sys.stdin)
-    outputs = [run(params) for params in cfg["inputs"]]
-    print(json.dumps({"outputs": outputs}))
+    for line in sys.stdin:
+        message = json.loads(line)
+        response = {}
+        if message["kind"] == "evaluate":
+            response = run(message)
+        print(json.dumps({"id": message["id"]} | response), flush=True)
 
 
 if __name__ == "__main__":

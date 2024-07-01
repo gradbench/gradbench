@@ -34,15 +34,9 @@ def main():
     for line in sys.stdin:
         message = json.loads(line)
         response = {}
-        # if message["kind"] == "evaluate":
-        response = run(message)
-        print(json.dumps(response), flush=True)
-        # print(json.dumps({"id": message["id"]} | response), flush=True)
-
-# SAMPLE RUNS
-# python ADBench_Data/GMM/gmm_data_parser.py ADBench_Data/GMM/d2_k5.txt |  docker run --interactive --rm "ghcr.io/gradbench/pytorch"
-# echo '{"name": "double", "input": 3}' | docker run --interactive --rm ghcr.io/gradbench/pytorch
-# echo -e '{ "name": "double", "input": 3} \n { "name": "double", "input": 3}' | docker run --interactive --rm ghcr.io/gradbench/pytorch
+        if message["kind"] == "evaluate":
+            response = run(message)
+        print(json.dumps({"id": message["id"]} | response), flush=True)
 
 
 if __name__ == "__main__":

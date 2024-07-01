@@ -21,17 +21,24 @@ end
 
 function run(params)
   func = resolve(params["name"])
-  vals = [arg["value"] for arg in params["arguments"]]
+  arg = params["input"]
   start = time_ns()
-  ret = func(vals...)
+  ret = func(arg)
   done = time_ns()
-  return Dict("return" => ret, "nanoseconds" => done - start)
+  ns = Dict("evaluate" => done - start)
+  return Dict("output" => ret, "nanoseconds" => ns)
 end
 
 function main()
-  cfg = JSON.parse(read(stdin, String))
-  outputs = map(run, cfg["inputs"])
-  println(JSON.json(Dict("outputs" => outputs)))
+  while !eof(stdin)
+    message = JSON.parse(readline(stdin))
+    response = Dict()
+    if message["kind"] == "evaluate"
+      response = run(message)
+    end
+    response["id"] = message["id"]
+    println(JSON.json(response))
+  end
 end
 
 main()
