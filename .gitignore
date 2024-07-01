@@ -1,5 +1,6 @@
 __pycache__/
 .DS_Store
+.fake/
 .lake/
 *.vsix
 /.config/dotnet-tools.json
