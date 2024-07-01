@@ -12,9 +12,7 @@ def resolve(name):
 
 # NOTE Only want to make tensor when input is a number
 def tensor(x):
-    if str(x).isnumeric():
-        return torch.tensor(x, dtype=torch.float64, requires_grad=True)
-    return x
+    return torch.tensor(x, dtype=torch.float64, requires_grad=True)
 
 def output(ret):
     if type(ret) == torch.Tensor:
@@ -28,7 +26,7 @@ def run(params):
     start = time.perf_counter_ns()
     ret = func(arg)
     end = time.perf_counter_ns()
-    return {"output": ret.item(), "nanoseconds": {"evaluate": end - start}}
+    return {"output": output(ret), "nanoseconds": {"evaluate": end - start}}
 
 def main():
     for line in sys.stdin:
