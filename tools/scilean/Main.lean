@@ -5,28 +5,6 @@ import Mathlib.Lean.CoreM
 open Lean
 open Except FromJson ToJson
 
-def singleton (xs : List a) : Except String a :=
-  match xs with
-  | [x] => ok x
-  | _ => error "expected exactly one element"
-
-def all [Monad m] (xs : List (m a)) : m (List a) := do
-  let ys <- xs.foldl (fun res x => do
-    let ys <- res
-    let y <- x
-    return y :: ys
-  ) (pure [])
-  return ys.reverse
-
-partial def readToEnd (stream : IO.FS.Stream) : IO String := do
-  let rec loop (s : String) := do
-    let line <- stream.getLine
-    if line.isEmpty then
-      return s
-    else
-      loop (s ++ line)
-  loop ""
-
 -- This informs SciLean that we want to work primarly with `Float`
 -- take it as a magic incantation that makes some of the following notation work
 set_default_scalar Float
@@ -102,49 +80,68 @@ def resolve (name : String) : Except String (Float -> Float) :=
   | "double" => ok double
   | _ => error "unknown function"
 
-structure Argument where
-  value: Float
-deriving FromJson
-
 structure Params where
+  id: Int
+  kind: String
+  module: String
   name: String
-  arguments: List Argument
+  input: Float
 deriving FromJson
 
-structure Output where
-  ret: Float
-  nanoseconds: Int
+structure Nanoseconds where
+  evaluate: Int
+deriving ToJson
 
-instance : ToJson Output where
-  toJson o := Json.mkObj [
-    ("return", toJson o.ret),
-    ("nanoseconds", toJson o.nanoseconds),
-  ]
+structure Response where
+  id: Int
+  output: Float
+  nanoseconds: Nanoseconds
+deriving ToJson
 
-def run (params : Params) : Except String (IO Output) := do
+def run (params : Params) : Except String (IO Response) := do
   let f <- resolve params.name
-  let arg <- singleton params.arguments
+  let arg := params.input
   return do
     let start <- IO.monoNanosNow
-    let y := f arg.value
+    let y := f arg
     let done <- IO.monoNanosNow
-    let output : Output := { ret := y, nanoseconds := done - start }
-    return output
+    let nanoseconds := { evaluate := done - start }
+    let response := { id := params.id, output := y, nanoseconds }
+    return response
+
+partial def loop (stdin : IO.FS.Stream) (stdout : IO.FS.Stream) :
+    IO (Except String Unit) := do
+  let line <- stdin.getLine
+  if line.isEmpty then
+    return ok ()
+  else
+    let result := do
+      let message <- Json.parse line
+      let kind <- Json.getObjVal? message "kind"
+      if kind == "evaluate" then
+        let params : Params <- fromJson? message
+        let action <- run params
+        return do
+          let response <- action
+          return toJson response
+      else
+        let id <- Json.getObjVal? message "id"
+        return do
+          return Json.mkObj [("id", toJson id)]
+    match result with
+    | error err => return error err
+    | ok action => do
+      let response <- action
+      IO.println response
+      stdout.flush
+      loop stdin stdout
 
 def main : IO UInt32 := do
   let stdin <- IO.getStdin
-  let s <- readToEnd stdin
-  let result := do
-    let cfg <- Json.parse s
-    let list <- Json.getObjVal? cfg "inputs"
-    let inputs : List Params <- fromJson? list
-    all (inputs.map run)
+  let stdout <- IO.getStdout
+  let result <- loop stdin stdout
   match result with
-  | Except.error e => do
-      IO.eprintln e
-      return 1
-  | Except.ok runs => do
-      let outputs <- all runs
-      let json := toJson outputs
-      IO.println json
-      return 0
+  | error err => do
+    IO.eprintln err
+    return 1
+  | ok _ => return 0
