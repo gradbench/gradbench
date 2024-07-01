@@ -21,20 +21,23 @@ def output(ret):
         if ret.size() == 1: return ret.item()
         return ret.tolist()
     return ret.val_list()
-    
+
 def run(params):
     func = resolve(params["name"])
-    inputs = tensor(params["input"])
+    arg = tensor(params["input"])
     start = time.perf_counter_ns()
-    ret = func(inputs )
+    ret = func(arg)
     end = time.perf_counter_ns()
-    return {"return": output(ret), "nanoseconds": end - start}
+    return {"output": ret.item(), "nanoseconds": {"evaluate": end - start}}
 
 def main():
     for line in sys.stdin:
-        cfg = json.loads(line)
-        outputs = [run(cfg)]
-        print(json.dumps({"outputs": outputs}))
+        message = json.loads(line)
+        response = {}
+        # if message["kind"] == "evaluate":
+        response = run(message)
+        print(json.dumps(response), flush=True)
+        # print(json.dumps({"id": message["id"]} | response), flush=True)
 
 # SAMPLE RUNS
 # python ADBench_Data/GMM/gmm_data_parser.py ADBench_Data/GMM/d2_k5.txt |  docker run --interactive --rm "ghcr.io/gradbench/pytorch"
