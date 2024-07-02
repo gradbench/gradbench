@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::{fmt, ops::Range};
 
 use logos::Logos;
 
@@ -27,9 +27,11 @@ impl From<ByteLen> for usize {
     }
 }
 
-#[derive(Debug, Logos)]
+#[derive(Clone, Copy, Debug, Logos, PartialEq)]
 #[logos(skip r"[^\S\r\n]+(#[^\n]*)?")]
 pub enum TokenKind {
+    Eof,
+
     #[token("\n")]
     Newline,
 
@@ -53,6 +55,9 @@ pub enum TokenKind {
 
     #[token("}")]
     RBrace,
+
+    #[token(",")]
+    Comma,
 
     #[token(":")]
     Colon,
@@ -82,11 +87,69 @@ pub enum TokenKind {
     Let,
 }
 
-#[derive(Debug)]
+impl fmt::Display for TokenKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Eof => write!(f, "end of file"),
+            Self::Newline => write!(f, "newline"),
+            Self::Ident => write!(f, "identifier"),
+            Self::LParen => write!(f, "`(`"),
+            Self::RParen => write!(f, "`)`"),
+            Self::LBracket => write!(f, "`[`"),
+            Self::RBracket => write!(f, "`]`"),
+            Self::LBrace => write!(f, "`{{`"),
+            Self::RBrace => write!(f, "`}}`"),
+            Self::Comma => write!(f, "`,`"),
+            Self::Colon => write!(f, "`:`"),
+            Self::Equal => write!(f, "`=`"),
+            Self::Semicolon => write!(f, "`;`"),
+            Self::Plus => write!(f, "`+`"),
+            Self::Hyphen => write!(f, "`-`"),
+            Self::Asterisk => write!(f, "`*`"),
+            Self::Slash => write!(f, "`/`"),
+            Self::Def => write!(f, "`def`"),
+            Self::Let => write!(f, "`let`"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
 pub struct Token {
     pub start: ByteIndex,
     pub len: ByteLen,
     pub kind: TokenKind,
+}
+
+impl Token {
+    pub fn byte_range(&self) -> Range<usize> {
+        let start = usize::from(self.start);
+        start..(start + usize::from(self.len))
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct TokenId {
+    pub index: u32,
+}
+
+impl From<TokenId> for usize {
+    fn from(index: TokenId) -> Self {
+        index
+            .index
+            .try_into()
+            .expect("pointer size is assumed to be at least 32 bits")
+    }
+}
+
+#[derive(Debug)]
+pub struct Tokens {
+    pub tokens: Vec<Token>,
+}
+
+impl Tokens {
+    pub fn get(&self, index: TokenId) -> Token {
+        self.tokens[usize::from(index)]
+    }
 }
 
 #[derive(Debug)]
@@ -120,10 +183,15 @@ impl LexError {
     }
 }
 
-pub fn lex(source: &str) -> Result<Vec<Token>, LexError> {
-    if u32::try_from(source.len()).is_err() {
-        return Err(LexError::SourceTooLong);
-    }
+pub fn lex(source: &str) -> Result<Tokens, LexError> {
+    let eof = match u32::try_from(source.len()) {
+        Ok(len) => Token {
+            start: ByteIndex { index: len },
+            len: ByteLen { len: 0 },
+            kind: TokenKind::Eof,
+        },
+        Err(_) => return Err(LexError::SourceTooLong),
+    };
     let mut tokens = Vec::new();
     for (result, range) in TokenKind::lexer(source).spanned() {
         let start = ByteIndex {
@@ -140,5 +208,6 @@ pub fn lex(source: &str) -> Result<Vec<Token>, LexError> {
         let kind = result.map_err(|_| LexError::InvalidToken { start, len })?;
         tokens.push(Token { start, len, kind });
     }
-    Ok(tokens)
+    tokens.push(eof);
+    Ok(Tokens { tokens })
 }

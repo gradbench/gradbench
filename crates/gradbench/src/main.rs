@@ -1,4 +1,5 @@
 mod lex;
+mod parse;
 
 use std::{fs, process::ExitCode};
 
@@ -26,11 +27,33 @@ fn cli() -> Result<(), ()> {
             )
             .finish()
             .eprint((path, Source::from(&source)))
-            .unwrap()
+            .unwrap();
     })?;
-    for token in tokens {
-        println!("{:?}", token);
+    for token in tokens.tokens.iter() {
+        println!("{token:?}");
     }
+    let module = parse::parse(&tokens).map_err(|err| {
+        use lex::TokenKind::*;
+        use parse::ParseError::*;
+        let (id, message) = match err {
+            Expected { id, kind } => (id, format!("expected {}", kind)),
+            UnexpectedToplevel { id } => (id, format!("expected {} or {}", Def, Eof)),
+            ExpectedExpression { id } => (id, "expected expression".to_owned()),
+            ExpectedStatementEnd { id } => (id, format!("expected {} or {}", Newline, Semicolon)),
+        };
+        let range = tokens.get(id).byte_range();
+        Report::build(ReportKind::Error, path, range.start)
+            .with_message("failed to parse")
+            .with_label(
+                Label::new((path, range))
+                    .with_message(message)
+                    .with_color(Color::Red),
+            )
+            .finish()
+            .eprint((path, Source::from(&source)))
+            .unwrap();
+    })?;
+    println!("{module:#?}");
     Ok(())
 }
 
