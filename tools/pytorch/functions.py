@@ -4,7 +4,7 @@ import torch
 # shared
 from utils import to_torch_tensors, torch_jacobian, to_torch_tensor
 from itest import ITest
-from input_utils import read_ba_instance
+from input_utils import read_gmm_instance, read_ba_instance
 from defs import Wishart
 
 # gmm
@@ -63,7 +63,7 @@ class PyTorchGMM(ITest):
                 self.inputs,
                 self.params
             )
-                      
+
 def calculate_jacobianGMM(inputs):
     input = GMMInput(
         inputs["alpha"],
@@ -78,7 +78,13 @@ def calculate_jacobianGMM(inputs):
     return py.gradient
 
 def calculate_objectiveGMM(inputs):
-    input = read_gmm_instance(file, False)
+    input = GMMInput(
+        inputs["alpha"],
+        inputs["means"],
+        inputs["icf"],
+        inputs["x"],
+        Wishart(inputs["gamma"], inputs["m"])
+    )
     py = PyTorchGMM()
     py.prepare(input)
     py.calculate_objective(1)
@@ -153,7 +159,7 @@ class PyTorchBA(ITest):
                 cam = self.cams[camIdx]
                 x = self.x[ptIdx]
                 w = self.w[j]
-                
+
                 reproj_error[j], J = torch_jacobian(
                     compute_reproj_err,
                     ( cam, x, w ),
@@ -172,7 +178,7 @@ class PyTorchBA(ITest):
                 self.jacobian.insert_w_err_block(j, J)
 
             self.reproj_error = reproj_error.flatten()
-            
+
 def calculate_jacobianBA(file):
     input = read_ba_instance(file)
     py = PyTorchBA()

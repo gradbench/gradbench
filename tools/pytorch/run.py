@@ -12,7 +12,9 @@ def resolve(name):
 
 # NOTE Only want to make tensor when input is a number
 def tensor(x):
-    return torch.tensor(x, dtype=torch.float64, requires_grad=True)
+    if isinstance(x, (int, float, complex)):
+        return torch.tensor(x, dtype=torch.float64, requires_grad=True)
+    return x
 
 def output(ret):
     if type(ret) == torch.Tensor:
