@@ -7,8 +7,8 @@ import numpy as np
 from mygrad import tensor as mg_tensor
 
 
-def resolve(name):
-    functions = import_module("mg_functions")
+def resolve(module, name):
+    functions = import_module(module)
     return getattr(functions, name)
 
 
@@ -17,7 +17,7 @@ def tensor(x):
 
 
 def run(params):
-    func = resolve(params["name"])
+    func = resolve(params["module"],params["name"])
     vals = tensor(params["input"])
     start = time.perf_counter_ns()
     ret = func(vals)
@@ -31,8 +31,15 @@ def main():
         response = {}
         if message["kind"] == "evaluate":
             response = run(message)
-        print(json.dumps({"id": message["id"]} | response), flush=True)
-
+            print(json.dumps({"id": message["id"]} | response), flush=True)
+        elif message["kind"] == "define":
+            try:
+                import_module(message["module"])
+                print(json.dumps({"id": message["id"], "success": True}), flush=True)
+            except:
+                print(json.dumps({"id": message["id"], "success": False}), flush=True)
+        else:
+             print(json.dumps({"id": message["id"]}), flush=True)
 
 if __name__ == "__main__":
     main()

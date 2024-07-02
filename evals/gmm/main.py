@@ -60,12 +60,13 @@ def main():
         )
 
     module = "gmm"
-    define(module=module, source=source)
-    files = ['d2_k5.txt']
-    for file in files:
-        x = parse(file)
-        evaluate(module=module, name="calculate_objectiveGMM", input=x)["output"]
-        evaluate(module=module, name="calculate_jacobianGMM", input=x)["output"]
+    response = define(module=module, source=source)
+    if response.get("success"):
+        files = ['d2_k5.txt']
+        for file in files:
+            x = parse(file)
+            evaluate(module=module, name="calculate_objectiveGMM", input=x)["output"]
+            evaluate(module=module, name="calculate_jacobianGMM", input=x)["output"]
 
 if __name__ == "__main__":
     main()

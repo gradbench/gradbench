@@ -1,10 +1,10 @@
-# ADBench Functions
+# Gaussian Mixture Model Fitting (GMM)
 
-Information on functions from Microsoft's [ADBench](https://github.com/microsoft/ADBench?tab=readme-ov-file) based on their python implementation
+Information on functions from Microsoft's [ADBench](https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87) based on their python implementation
 
 ## Gaussian Mixture Model Fitting (GMM)
 
-Link to [I/O file](https://github.com/microsoft/ADBench/blob/master/src/python/shared/GMMData.py), [data folder](https://github.com/microsoft/ADBench/tree/master/data/gmm), and [GMM Data Generator](https://github.com/microsoft/ADBench/blob/master/data/gmm/gmm-data-gen.py)
+Link to [I/O file](https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/shared/GMMData.py), [data folder](https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87/data/gmm), and [GMM Data Generator](https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/data/gmm/gmm-data-gen.py)
 
 ### Generation
 
@@ -53,36 +53,3 @@ One file is read in that then extracts the following inputs
 > **Example**
 >
 > If $D = 2$ and $K = 5$, $G \in \R^{30}$ meaning the function will return an array of length 30.
-
-## Bundle Adjustment (BA)
-
-Link to [IO file](https://github.com/microsoft/ADBench/blob/master/src/python/shared/BAData.py) and [data](https://github.com/microsoft/ADBench/tree/master/data/ba)
-
-### Inputs
-
-1. Cams
-2. X
-3. W
-4. obs
-5. feats
-
-### Outputs
-
-1. Reproj Errror
-2. W Error
-3. Sparse Jacobian
-
-## Hand Track (HT)
-
-Link to [file](https://github.com/microsoft/ADBench/blob/master/src/python/shared/HandData.py) and [data](https://github.com/microsoft/ADBench/tree/master/data/hand)
-
-### Inputs
-
-1. Theta
-2. Data
-3. Us
-
-### Outputs
-
-1. Objective Array
-2. Jacobian Array
