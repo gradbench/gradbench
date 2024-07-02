@@ -47,10 +47,12 @@ Use `buildtool.sh` to build the Docker image for any tool:
 ./buildtool.sh pytorch
 ```
 
-Then use `run.py` to run a given evaluation on a given tool:
+Then use `run.py` to run a given evaluation on a given tool. You can use pass
+this script any commands for the evaluation and tool, but to use the Docker
+images, the easiest way is to use the provided `eval.sh` and `tool.sh` scripts:
 
 ```sh
-./run.py --eval hello --tool pytorch
+./run.py --eval './eval.sh hello' --tool './tool.sh pytorch'
 ```
 
 ### Multi-platform images

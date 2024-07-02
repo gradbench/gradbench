@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 
 import argparse
+import shlex
 import subprocess
 import sys
 import time
 
 
-def docker(tag):
+def run(cmd):
     return subprocess.Popen(
-        ["docker", "run", "--rm", "--interactive", tag],
+        shlex.split(cmd),
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         text=True,
@@ -21,8 +22,8 @@ def main():
     parser.add_argument("--tool", required=True)
     args = parser.parse_args()
 
-    server = docker(f"ghcr.io/gradbench/tool-{args.tool}")
-    client = docker(f"ghcr.io/gradbench/eval-{args.eval}")
+    server = run(args.tool)
+    client = run(args.eval)
 
     print("[")
     first = True
