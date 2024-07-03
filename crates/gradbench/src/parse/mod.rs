@@ -1,19 +1,59 @@
-use crate::lex::{TokenId, TokenKind, Tokens};
+use crate::{
+    lex::{TokenId, TokenKind, Tokens},
+    util::u32_to_usize,
+};
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct TypeId {
+    pub index: u32,
+}
+
+impl From<TypeId> for usize {
+    fn from(id: TypeId) -> Self {
+        u32_to_usize(id.index)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct BindId {
+    pub index: u32,
+}
+
+impl From<BindId> for usize {
+    fn from(id: BindId) -> Self {
+        u32_to_usize(id.index)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ExprId {
     pub index: u32,
 }
 
-#[derive(Debug)]
-pub struct Ident {
-    pub name: TokenId,
+impl From<ExprId> for usize {
+    fn from(id: ExprId) -> Self {
+        u32_to_usize(id.index)
+    }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
+pub enum Type {
+    Unit,
+    Name { name: TokenId },
+    Pair { fst: TypeId, snd: TypeId },
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum Bind {
+    Unit,
+    Name { name: TokenId },
+    Pair { fst: Param, snd: Param },
+}
+
+#[derive(Clone, Copy, Debug)]
 pub struct Param {
-    pub name: Ident,
-    pub ty: Ident,
+    pub bind: BindId,
+    pub ty: Option<TypeId>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -24,21 +64,26 @@ pub enum Binop {
     Div,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Expr {
-    Var {
-        name: Ident,
+    Name {
+        name: TokenId,
     },
+    Unit,
     Number {
         val: TokenId,
+    },
+    Pair {
+        fst: ExprId,
+        snd: ExprId,
     },
     Apply {
         func: ExprId,
         arg: ExprId,
     },
     Let {
-        var: Ident,
-        def: ExprId,
+        param: Param,
+        val: ExprId,
         body: ExprId,
     },
     Binary {
@@ -52,37 +97,74 @@ pub enum Expr {
 pub struct Def {
     pub name: TokenId,
     pub params: Vec<Param>,
+    pub ty: Option<TypeId>,
     pub body: ExprId,
 }
 
 #[derive(Debug)]
 pub struct Module {
-    pub exprs: Vec<Expr>,
-    pub defs: Vec<Def>,
+    types: Vec<Type>,
+    binds: Vec<Bind>,
+    exprs: Vec<Expr>,
+    defs: Vec<Def>,
 }
 
 impl Module {
-    pub fn expr(&mut self, expr: Expr) -> ExprId {
+    fn make_ty(&mut self, ty: Type) -> TypeId {
+        let id = TypeId {
+            index: self.types.len().try_into().unwrap(),
+        };
+        self.types.push(ty);
+        id
+    }
+
+    fn make_bind(&mut self, bind: Bind) -> BindId {
+        let id = BindId {
+            index: self.binds.len().try_into().unwrap(),
+        };
+        self.binds.push(bind);
+        id
+    }
+
+    fn make_expr(&mut self, expr: Expr) -> ExprId {
         let id = ExprId {
             index: self.exprs.len().try_into().unwrap(),
         };
         self.exprs.push(expr);
         id
     }
+
+    pub fn ty(&self, id: TypeId) -> Type {
+        self.types[usize::from(id)]
+    }
+
+    pub fn bind(&self, id: BindId) -> Bind {
+        self.binds[usize::from(id)]
+    }
+
+    pub fn expr(&self, id: ExprId) -> Expr {
+        self.exprs[usize::from(id)]
+    }
+
+    pub fn defs(&self) -> &[Def] {
+        &self.defs
+    }
 }
 
 #[derive(Debug)]
 pub enum ParseError {
     Expected { id: TokenId, kind: TokenKind },
-    UnexpectedToplevel { id: TokenId },
-    ExpectedParamEnd { id: TokenId },
-    ExpectedStatementEnd { id: TokenId },
+    ExpectedType { id: TokenId },
+    ExpectedBind { id: TokenId },
+    BindPairRightMissing { id: TokenId },
     ExpectedExpression { id: TokenId },
+    UnexpectedToplevel { id: TokenId },
 }
 
 use ParseError::*;
 use TokenKind::*;
 
+#[derive(Debug)]
 struct Parser<'a> {
     tokens: &'a Tokens,
     before_ws: TokenId,
@@ -112,62 +194,161 @@ impl<'a> Parser<'a> {
         self.find_non_ws();
     }
 
-    fn validate(
-        &mut self,
-        pred: impl FnOnce(TokenKind) -> bool,
-        err: impl FnOnce(TokenId, TokenKind) -> ParseError,
-    ) -> Result<TokenId, ParseError> {
+    fn expect(&mut self, kind: TokenKind) -> Result<TokenId, ParseError> {
         let id = self.id;
-        let kind = self.peek();
-        if pred(kind) {
+        if self.peek() == kind {
             self.next();
             Ok(id)
         } else {
-            Err(err(id, kind))
+            Err(Expected { id, kind })
         }
     }
 
-    fn expect(&mut self, kind: TokenKind) -> Result<TokenId, ParseError> {
-        self.validate(|k| k == kind, |id, _| Expected { id, kind })
+    fn newline(&self) -> bool {
+        // we only allow single-line comments, so anything ignored must include a newline
+        self.before_ws < self.id
     }
 
-    fn parse_ident(&mut self) -> Result<Ident, ParseError> {
-        let name = self.expect(Ident)?;
-        Ok(Ident { name })
+    fn ty_atom(&mut self) -> Result<TypeId, ParseError> {
+        match self.peek() {
+            Ident => {
+                let name = self.expect(Ident)?;
+                Ok(self.module.make_ty(Type::Name { name }))
+            }
+            LParen => {
+                self.next();
+                match self.peek() {
+                    RParen => {
+                        self.next();
+                        Ok(self.module.make_ty(Type::Unit))
+                    }
+                    _ => {
+                        self.next();
+                        let ty = self.ty()?;
+                        self.expect(RParen)?;
+                        Ok(ty)
+                    }
+                }
+            }
+            _ => Err(ExpectedType { id: self.id }),
+        }
     }
 
-    fn parse_expr_atom(&mut self) -> Result<ExprId, ParseError> {
+    fn ty_elem(&mut self) -> Result<TypeId, ParseError> {
+        self.ty_atom()
+    }
+
+    fn ty(&mut self) -> Result<TypeId, ParseError> {
+        let mut types = vec![self.ty_elem()?];
+        while let Comma = self.peek() {
+            self.next();
+            types.push(self.ty_elem()?);
+        }
+        let last = types.pop().unwrap();
+        Ok(types.into_iter().rfold(last, |snd, fst| {
+            self.module.make_ty(Type::Pair { fst, snd })
+        }))
+    }
+
+    fn bind_atom(&mut self) -> Result<BindId, ParseError> {
+        match self.peek() {
+            Ident => {
+                let name = self.expect(Ident)?;
+                Ok(self.module.make_bind(Bind::Name { name }))
+            }
+            LParen => {
+                self.next();
+                match self.peek() {
+                    RParen => {
+                        self.next();
+                        Ok(self.module.make_bind(Bind::Unit))
+                    }
+                    _ => {
+                        self.next();
+                        let Param { bind, ty } = self.param()?;
+                        let right = self.expect(RParen)?;
+                        match ty {
+                            Some(_) => Err(BindPairRightMissing { id: right }),
+                            None => Ok(bind),
+                        }
+                    }
+                }
+            }
+            _ => Err(ExpectedBind { id: self.id }),
+        }
+    }
+
+    fn bind_elem(&mut self) -> Result<BindId, ParseError> {
+        self.bind_atom()
+    }
+
+    fn param_elem(&mut self) -> Result<Param, ParseError> {
+        let bind = self.bind_elem()?;
+        self.expect(Colon)?;
+        let ty = Some(self.ty_elem()?);
+        Ok(Param { bind, ty })
+    }
+
+    fn param(&mut self) -> Result<Param, ParseError> {
+        let mut params = vec![self.param_elem()?];
+        while let Comma = self.peek() {
+            self.next();
+            params.push(self.param_elem()?);
+        }
+        let last = params.pop().unwrap();
+        Ok(params.into_iter().rfold(last, |snd, fst| Param {
+            bind: self.module.make_bind(Bind::Pair { fst, snd }),
+            ty: None,
+        }))
+    }
+
+    fn expr_atom(&mut self) -> Result<ExprId, ParseError> {
         match self.peek() {
             LParen => {
                 self.next();
-                let expr = self.parse_expr()?;
-                self.expect(RParen)?;
-                Ok(expr)
+                match self.peek() {
+                    RParen => {
+                        self.next();
+                        Ok(self.module.make_expr(Expr::Unit))
+                    }
+                    _ => {
+                        self.next();
+                        let expr = self.expr()?;
+                        self.expect(RParen)?;
+                        Ok(expr)
+                    }
+                }
             }
             Ident => {
-                let name = self.parse_ident()?;
-                Ok(self.module.expr(Expr::Var { name }))
+                let name = self.expect(Ident)?;
+                Ok(self.module.make_expr(Expr::Name { name }))
             }
             Number => {
                 self.next();
-                Ok(self.module.expr(Expr::Number { val: self.id }))
+                Ok(self.module.make_expr(Expr::Number { val: self.id }))
             }
             _ => Err(ExpectedExpression { id: self.id }),
         }
     }
 
-    fn parse_expr_factor(&mut self) -> Result<ExprId, ParseError> {
-        let mut f = self.parse_expr_atom()?;
+    fn expr_factor(&mut self) -> Result<ExprId, ParseError> {
+        let mut f = self.expr_atom()?;
         // function application is the only place we forbid line breaks
-        while let LParen | Ident = self.peek() {
-            let x = self.parse_expr_atom()?;
-            f = self.module.expr(Expr::Apply { func: f, arg: x });
+        while !self.newline() {
+            match self.peek() {
+                // same set of tokens allowed at the start of an atomic expression
+                LParen | Ident | Number => {
+                    let x = self.expr_atom()?;
+                    f = self.module.make_expr(Expr::Apply { func: f, arg: x });
+                }
+                _ => break,
+            }
         }
         Ok(f)
     }
 
-    fn parse_expr_term(&mut self) -> Result<ExprId, ParseError> {
-        let mut lhs = self.parse_expr_factor()?;
+    fn expr_term(&mut self) -> Result<ExprId, ParseError> {
+        let mut lhs = self.expr_factor()?;
         loop {
             let op = match self.peek() {
                 Asterisk => Binop::Mul,
@@ -175,14 +356,14 @@ impl<'a> Parser<'a> {
                 _ => break,
             };
             self.next();
-            let rhs = self.parse_expr_factor()?;
-            lhs = self.module.expr(Expr::Binary { lhs, op, rhs });
+            let rhs = self.expr_factor()?;
+            lhs = self.module.make_expr(Expr::Binary { lhs, op, rhs });
         }
         Ok(lhs)
     }
 
-    fn parse_expr_inner(&mut self) -> Result<ExprId, ParseError> {
-        let mut lhs = self.parse_expr_term()?;
+    fn expr_inner(&mut self) -> Result<ExprId, ParseError> {
+        let mut lhs = self.expr_term()?;
         loop {
             let op = match self.peek() {
                 Plus => Binop::Add,
@@ -190,80 +371,75 @@ impl<'a> Parser<'a> {
                 _ => break,
             };
             self.next();
-            let rhs = self.parse_expr_term()?;
-            lhs = self.module.expr(Expr::Binary { lhs, op, rhs });
+            let rhs = self.expr_term()?;
+            lhs = self.module.make_expr(Expr::Binary { lhs, op, rhs });
         }
         Ok(lhs)
     }
 
-    fn parse_expr(&mut self) -> Result<ExprId, ParseError> {
+    fn expr(&mut self) -> Result<ExprId, ParseError> {
         match self.peek() {
             Let => {
                 self.next();
-                let var = self.parse_ident()?;
+                let param = self.param()?;
                 self.expect(Equal)?;
-                let def = self.parse_expr_inner()?;
-                self.validate(
-                    |kind| kind == Newline || kind == Semicolon,
-                    |id, _| ExpectedStatementEnd { id },
-                )?;
-                let body = self.parse_expr()?;
-                Ok(self.module.expr(Expr::Let { var, def, body }))
+                let val = self.expr_inner()?;
+                if !self.newline() {
+                    self.expect(Semicolon)?;
+                }
+                let body = self.expr()?;
+                Ok(self.module.make_expr(Expr::Let { param, val, body }))
             }
-            _ => self.parse_expr_inner(),
+            _ => self.expr_inner(),
         }
     }
 
-    fn parse_param(&mut self) -> Result<Param, ParseError> {
-        let name = self.parse_ident()?;
-        self.expect(Colon)?;
-        let ty = self.parse_ident()?;
-        Ok(Param { name, ty })
-    }
-
-    fn parse_def(&mut self) -> Result<Def, ParseError> {
+    fn def(&mut self) -> Result<Def, ParseError> {
         self.expect(Def)?;
         let name = self.expect(Ident)?;
         let mut params = vec![];
-        if let LParen = self.peek() {
+        while let LParen = self.peek() {
             self.next();
-            loop {
-                match self.peek() {
-                    RParen => {
-                        self.next();
-                        break;
-                    }
-                    _ => {
-                        params.push(self.parse_param()?);
-                        match self.peek() {
-                            Comma => self.next(),
-                            RParen => {
-                                self.next();
-                                break;
-                            }
-                            _ => return Err(ExpectedParamEnd { id: self.id }),
-                        }
-                    }
+            match self.peek() {
+                RParen => {
+                    self.next();
+                    let bind = self.module.make_bind(Bind::Unit);
+                    params.push(Param { bind, ty: None });
+                }
+                _ => {
+                    params.push(self.param()?);
+                    self.expect(RParen)?;
                 }
             }
         }
+        let ty = match self.peek() {
+            Colon => {
+                self.next();
+                Some(self.ty()?)
+            }
+            _ => None,
+        };
         self.expect(Equal)?;
-        let body = self.parse_expr()?;
-        Ok(Def { name, params, body })
+        let body = self.expr()?;
+        Ok(Def {
+            name,
+            params,
+            ty,
+            body,
+        })
     }
 
-    fn parse_module(mut self) -> Result<Module, ParseError> {
+    fn module(mut self) -> Result<Module, ParseError> {
         loop {
             match self.peek() {
                 Def => {
-                    let def = self.parse_def()?;
+                    let def = self.def()?;
                     self.module.defs.push(def);
                 }
-                Eof => break,
+                Eof => return Ok(self.module),
                 _ => return Err(UnexpectedToplevel { id: self.id }),
             }
         }
-        Ok(self.module)
     }
 }
 
@@ -274,12 +450,14 @@ pub fn parse(tokens: &Tokens) -> Result<Module, ParseError> {
         before_ws: id,
         id,
         module: Module {
+            types: vec![],
+            binds: vec![],
             exprs: vec![],
             defs: vec![],
         },
     };
     parser.find_non_ws();
-    parser.parse_module()
+    parser.module()
 }
 
 #[cfg(test)]
@@ -290,7 +468,14 @@ mod tests {
 
     #[test]
     fn test_empty() {
-        let Module { exprs, defs } = parse(&lex::lex("").unwrap()).unwrap();
+        let Module {
+            types,
+            binds,
+            exprs,
+            defs,
+        } = parse(&lex::lex("").unwrap()).unwrap();
+        assert!(types.is_empty());
+        assert!(binds.is_empty());
         assert!(exprs.is_empty());
         assert!(defs.is_empty());
     }
@@ -299,5 +484,17 @@ mod tests {
     fn test_leading_comment() {
         let result = parse(&lex::lex(include_str!("leading_comment.adroit")).unwrap());
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_unexpected_toplevel() {
+        let result =
+            parse(&lex::lex(include_str!("unexpected_toplevel.adroit")).unwrap()).unwrap_err();
+        assert!(matches!(result, UnexpectedToplevel { .. }));
+    }
+
+    #[test]
+    fn test_bind_unit() {
+        let module = parse(&lex::lex(include_str!("bind_unit.adroit")).unwrap()).unwrap();
     }
 }

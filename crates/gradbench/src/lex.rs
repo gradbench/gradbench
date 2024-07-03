@@ -2,21 +2,20 @@ use std::{fmt, ops::Range};
 
 use logos::Logos;
 
-#[derive(Clone, Copy, Debug)]
+use crate::util::u32_to_usize;
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ByteIndex {
     pub index: u32,
 }
 
 impl From<ByteIndex> for usize {
     fn from(index: ByteIndex) -> Self {
-        index
-            .index
-            .try_into()
-            .expect("pointer size is assumed to be at least 32 bits")
+        u32_to_usize(index.index)
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ByteLen {
     pub len: u16,
 }
@@ -135,7 +134,7 @@ impl Token {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct TokenId {
     pub index: u32,
 }
