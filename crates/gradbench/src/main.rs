@@ -1,60 +1,73 @@
+mod lex;
 mod parse;
+mod pprint;
+mod util;
 
-use std::{fs, process};
+use std::{fs, process::ExitCode};
 
 use ariadne::{Color, Label, Report, ReportKind, Source};
-use chumsky::error::RichReason;
 use clap::Parser;
-use parse::Token;
+use util::ModuleWithSource;
 
 #[derive(Debug, Parser)]
 struct Cli {
     file: String,
 }
 
-fn err_string(reason: RichReason<Token>) -> String {
-    match reason {
-        RichReason::ExpectedFound { expected, found } => {
-            format!(
-                "found {}, expected {}",
-                found
-                    .map(|tok| format!("'{}'", *tok))
-                    .unwrap_or("end of input".to_owned()),
-                if expected.is_empty() {
-                    "something else".to_owned()
-                } else {
-                    itertools::join(expected.into_iter(), " or ")
-                }
+fn cli() -> Result<(), ()> {
+    let args = Cli::parse();
+    let path = &args.file;
+    let source =
+        fs::read_to_string(path).map_err(|err| eprintln!("error reading {path}: {err}"))?;
+    let tokens = lex::lex(&source).map_err(|err| {
+        let range = err.byte_range();
+        Report::build(ReportKind::Error, path, range.start)
+            .with_message("failed to tokenize")
+            .with_label(
+                Label::new((path, range))
+                    .with_message(err.message())
+                    .with_color(Color::Red),
             )
+            .finish()
+            .eprint((path, Source::from(&source)))
+            .unwrap();
+    })?;
+    let module = parse::parse(&tokens).map_err(|err| {
+        let (id, message) = match err {
+            parse::ParseError::Expected { id, kinds } => (
+                id,
+                format!(
+                    "expected {}",
+                    itertools::join(kinds.into_iter().map(|kind| kind.to_string()), " or ")
+                ),
+            ),
+        };
+        let range = tokens.get(id).byte_range();
+        Report::build(ReportKind::Error, path, range.start)
+            .with_message("failed to parse")
+            .with_label(
+                Label::new((path, range))
+                    .with_message(message)
+                    .with_color(Color::Red),
+            )
+            .finish()
+            .eprint((path, Source::from(&source)))
+            .unwrap();
+    })?;
+    print!(
+        "{}",
+        ModuleWithSource {
+            source,
+            tokens,
+            module
         }
-        RichReason::Custom(s) => s,
-        RichReason::Many(errs) => itertools::join(errs.into_iter().map(err_string), "; "),
-    }
+    );
+    Ok(())
 }
 
-fn main() {
-    let args = Cli::parse();
-
-    let path = &args.file;
-    let input = fs::read_to_string(path).unwrap();
-    let module = match parse::parse(&input).into_result() {
-        Ok(module) => module,
-        Err(errs) => {
-            for err in errs {
-                Report::build(ReportKind::Error, path, err.span().start)
-                    .with_message(err.to_string())
-                    .with_label(
-                        Label::new((path, err.span().into_range()))
-                            .with_message(err_string(err.into_reason()))
-                            .with_color(Color::Red),
-                    )
-                    .finish()
-                    .eprint((path, Source::from(&input)))
-                    .unwrap();
-            }
-            process::exit(1);
-        }
-    };
-
-    println!("{}", serde_json::to_string_pretty(&module).unwrap());
+fn main() -> ExitCode {
+    match cli() {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(()) => ExitCode::FAILURE,
+    }
 }
