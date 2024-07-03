@@ -28,15 +28,21 @@ impl From<ByteLen> for usize {
 }
 
 #[derive(Clone, Copy, Debug, Logos, PartialEq)]
-#[logos(skip r"[^\S\r\n]+(#[^\n]*)?")]
+#[logos(skip r"[^\S\r\n]+")]
 pub enum TokenKind {
     Eof,
 
     #[token("\n")]
     Newline,
 
-    #[regex(r"\w+")]
+    #[regex("#[^\n]*")]
+    Comment,
+
+    #[regex(r"[A-Z_a-z]\w*")]
     Ident,
+
+    #[regex(r"\d+")]
+    Number,
 
     #[token("(")]
     LParen,
@@ -92,7 +98,9 @@ impl fmt::Display for TokenKind {
         match self {
             Self::Eof => write!(f, "end of file"),
             Self::Newline => write!(f, "newline"),
+            Self::Comment => write!(f, "comment"),
             Self::Ident => write!(f, "identifier"),
+            Self::Number => write!(f, "number"),
             Self::LParen => write!(f, "`(`"),
             Self::RParen => write!(f, "`)`"),
             Self::LBracket => write!(f, "`[`"),

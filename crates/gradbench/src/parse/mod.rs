@@ -1,4 +1,4 @@
-use crate::lex::{Token, TokenId, TokenKind, Tokens};
+use crate::lex::{TokenId, TokenKind, Tokens};
 
 #[derive(Debug)]
 pub struct ExprId {
@@ -28,6 +28,9 @@ pub enum Binop {
 pub enum Expr {
     Var {
         name: Ident,
+    },
+    Number {
+        val: TokenId,
     },
     Apply {
         func: ExprId,
@@ -72,8 +75,9 @@ impl Module {
 pub enum ParseError {
     Expected { id: TokenId, kind: TokenKind },
     UnexpectedToplevel { id: TokenId },
-    ExpectedExpression { id: TokenId },
+    ExpectedParamEnd { id: TokenId },
     ExpectedStatementEnd { id: TokenId },
+    ExpectedExpression { id: TokenId },
 }
 
 use ParseError::*;
@@ -81,25 +85,31 @@ use TokenKind::*;
 
 struct Parser<'a> {
     tokens: &'a Tokens,
+    before_ws: TokenId,
     id: TokenId,
     module: Module,
 }
 
 impl<'a> Parser<'a> {
-    fn current(&self) -> Token {
-        self.tokens.get(self.id)
+    fn peek(&self) -> TokenKind {
+        self.tokens.get(self.id).kind
     }
 
-    fn advance(&mut self) {
-        self.id = TokenId {
+    fn find_non_ws(&mut self) {
+        while let Newline | Comment = self.peek() {
+            self.id.index += 1;
+        }
+    }
+
+    fn next(&mut self) {
+        if let Eof = self.peek() {
+            panic!("unexpected end of file");
+        }
+        self.before_ws = TokenId {
             index: self.id.index + 1,
         };
-    }
-
-    fn ignore(&mut self) {
-        while let Newline = self.current().kind {
-            self.advance();
-        }
+        self.id = self.before_ws;
+        self.find_non_ws();
     }
 
     fn validate(
@@ -108,9 +118,9 @@ impl<'a> Parser<'a> {
         err: impl FnOnce(TokenId, TokenKind) -> ParseError,
     ) -> Result<TokenId, ParseError> {
         let id = self.id;
-        let kind = self.current().kind;
+        let kind = self.peek();
         if pred(kind) {
-            self.advance();
+            self.next();
             Ok(id)
         } else {
             Err(err(id, kind))
@@ -118,7 +128,6 @@ impl<'a> Parser<'a> {
     }
 
     fn expect(&mut self, kind: TokenKind) -> Result<TokenId, ParseError> {
-        self.ignore();
         self.validate(|k| k == kind, |id, _| Expected { id, kind })
     }
 
@@ -128,9 +137,9 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expr_atom(&mut self) -> Result<ExprId, ParseError> {
-        match self.current().kind {
+        match self.peek() {
             LParen => {
-                self.advance();
+                self.next();
                 let expr = self.parse_expr()?;
                 self.expect(RParen)?;
                 Ok(expr)
@@ -139,15 +148,18 @@ impl<'a> Parser<'a> {
                 let name = self.parse_ident()?;
                 Ok(self.module.expr(Expr::Var { name }))
             }
+            Number => {
+                self.next();
+                Ok(self.module.expr(Expr::Number { val: self.id }))
+            }
             _ => Err(ExpectedExpression { id: self.id }),
         }
     }
 
     fn parse_expr_factor(&mut self) -> Result<ExprId, ParseError> {
-        self.ignore();
         let mut f = self.parse_expr_atom()?;
         // function application is the only place we forbid line breaks
-        while let LParen | Ident = self.current().kind {
+        while let LParen | Ident = self.peek() {
             let x = self.parse_expr_atom()?;
             f = self.module.expr(Expr::Apply { func: f, arg: x });
         }
@@ -157,13 +169,12 @@ impl<'a> Parser<'a> {
     fn parse_expr_term(&mut self) -> Result<ExprId, ParseError> {
         let mut lhs = self.parse_expr_factor()?;
         loop {
-            self.ignore();
-            let op = match self.current().kind {
+            let op = match self.peek() {
                 Asterisk => Binop::Mul,
                 Slash => Binop::Div,
                 _ => break,
             };
-            self.advance();
+            self.next();
             let rhs = self.parse_expr_factor()?;
             lhs = self.module.expr(Expr::Binary { lhs, op, rhs });
         }
@@ -173,13 +184,12 @@ impl<'a> Parser<'a> {
     fn parse_expr_inner(&mut self) -> Result<ExprId, ParseError> {
         let mut lhs = self.parse_expr_term()?;
         loop {
-            self.ignore();
-            let op = match self.current().kind {
+            let op = match self.peek() {
                 Plus => Binop::Add,
                 Hyphen => Binop::Sub,
                 _ => break,
             };
-            self.advance();
+            self.next();
             let rhs = self.parse_expr_term()?;
             lhs = self.module.expr(Expr::Binary { lhs, op, rhs });
         }
@@ -187,10 +197,9 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expr(&mut self) -> Result<ExprId, ParseError> {
-        self.ignore();
-        match self.current().kind {
+        match self.peek() {
             Let => {
-                self.advance();
+                self.next();
                 let var = self.parse_ident()?;
                 self.expect(Equal)?;
                 let def = self.parse_expr_inner()?;
@@ -216,26 +225,23 @@ impl<'a> Parser<'a> {
         self.expect(Def)?;
         let name = self.expect(Ident)?;
         let mut params = vec![];
-        self.ignore();
-        if let LParen = self.current().kind {
-            self.advance();
+        if let LParen = self.peek() {
+            self.next();
             loop {
-                self.ignore();
-                match self.current().kind {
+                match self.peek() {
                     RParen => {
-                        self.advance();
+                        self.next();
                         break;
                     }
                     _ => {
                         params.push(self.parse_param()?);
-                        self.ignore();
-                        match self.current().kind {
-                            Comma => self.advance(),
+                        match self.peek() {
+                            Comma => self.next(),
                             RParen => {
-                                self.advance();
+                                self.next();
                                 break;
                             }
-                            _ => {}
+                            _ => return Err(ExpectedParamEnd { id: self.id }),
                         }
                     }
                 }
@@ -248,8 +254,7 @@ impl<'a> Parser<'a> {
 
     fn parse_module(mut self) -> Result<Module, ParseError> {
         loop {
-            self.ignore();
-            match self.current().kind {
+            match self.peek() {
                 Def => {
                     let def = self.parse_def()?;
                     self.module.defs.push(def);
@@ -263,13 +268,36 @@ impl<'a> Parser<'a> {
 }
 
 pub fn parse(tokens: &Tokens) -> Result<Module, ParseError> {
-    Parser {
+    let id = TokenId { index: 0 };
+    let mut parser = Parser {
         tokens,
-        id: TokenId { index: 0 },
+        before_ws: id,
+        id,
         module: Module {
             exprs: vec![],
             defs: vec![],
         },
+    };
+    parser.find_non_ws();
+    parser.parse_module()
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::lex;
+
+    use super::*;
+
+    #[test]
+    fn test_empty() {
+        let Module { exprs, defs } = parse(&lex::lex("").unwrap()).unwrap();
+        assert!(exprs.is_empty());
+        assert!(defs.is_empty());
     }
-    .parse_module()
+
+    #[test]
+    fn test_leading_comment() {
+        let result = parse(&lex::lex(include_str!("leading_comment.adroit")).unwrap());
+        assert!(result.is_ok());
+    }
 }

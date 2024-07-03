@@ -38,8 +38,9 @@ fn cli() -> Result<(), ()> {
         let (id, message) = match err {
             Expected { id, kind } => (id, format!("expected {}", kind)),
             UnexpectedToplevel { id } => (id, format!("expected {} or {}", Def, Eof)),
-            ExpectedExpression { id } => (id, "expected expression".to_owned()),
+            ExpectedParamEnd { id } => (id, format!("expected {} or {}", Comma, RParen)),
             ExpectedStatementEnd { id } => (id, format!("expected {} or {}", Newline, Semicolon)),
+            ExpectedExpression { id } => (id, "expected expression".to_owned()),
         };
         let range = tokens.get(id).byte_range();
         Report::build(ReportKind::Error, path, range.start)
