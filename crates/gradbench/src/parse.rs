@@ -1,5 +1,11 @@
+use enumset::EnumSet;
+
 use crate::{
-    lex::{TokenId, TokenKind, Tokens},
+    lex::{
+        TokenId,
+        TokenKind::{self, *},
+        Tokens,
+    },
     util::u32_to_usize,
 };
 
@@ -153,16 +159,11 @@ impl Module {
 
 #[derive(Debug)]
 pub enum ParseError {
-    Expected { id: TokenId, kind: TokenKind },
-    ExpectedType { id: TokenId },
-    ExpectedBind { id: TokenId },
-    BindPairRightMissing { id: TokenId },
-    ExpectedExpression { id: TokenId },
-    UnexpectedToplevel { id: TokenId },
+    Expected {
+        id: TokenId,
+        kinds: EnumSet<TokenKind>,
+    },
 }
-
-use ParseError::*;
-use TokenKind::*;
 
 #[derive(Debug)]
 struct Parser<'a> {
@@ -200,7 +201,10 @@ impl<'a> Parser<'a> {
             self.next();
             Ok(id)
         } else {
-            Err(Expected { id, kind })
+            Err(ParseError::Expected {
+                id,
+                kinds: EnumSet::only(kind),
+            })
         }
     }
 
@@ -230,7 +234,10 @@ impl<'a> Parser<'a> {
                     }
                 }
             }
-            _ => Err(ExpectedType { id: self.id }),
+            _ => Err(ParseError::Expected {
+                id: self.id,
+                kinds: Ident | LParen,
+            }),
         }
     }
 
@@ -268,13 +275,19 @@ impl<'a> Parser<'a> {
                         let Param { bind, ty } = self.param()?;
                         let right = self.expect(RParen)?;
                         match ty {
-                            Some(_) => Err(BindPairRightMissing { id: right }),
+                            Some(_) => Err(ParseError::Expected {
+                                id: right,
+                                kinds: EnumSet::only(Comma),
+                            }),
                             None => Ok(bind),
                         }
                     }
                 }
             }
-            _ => Err(ExpectedBind { id: self.id }),
+            _ => Err(ParseError::Expected {
+                id: self.id,
+                kinds: Ident | LParen,
+            }),
         }
     }
 
@@ -333,7 +346,10 @@ impl<'a> Parser<'a> {
                 self.next();
                 Ok(self.module.make_expr(Expr::Number { val }))
             }
-            _ => Err(ExpectedExpression { id: self.id }),
+            _ => Err(ParseError::Expected {
+                id: self.id,
+                kinds: LParen | Ident | Number,
+            }),
         }
     }
 
@@ -455,7 +471,12 @@ impl<'a> Parser<'a> {
                     self.module.defs.push(def);
                 }
                 Eof => return Ok(self.module),
-                _ => return Err(UnexpectedToplevel { id: self.id }),
+                _ => {
+                    return Err(ParseError::Expected {
+                        id: self.id,
+                        kinds: Def | Eof,
+                    })
+                }
             }
         }
     }

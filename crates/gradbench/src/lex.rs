@@ -1,5 +1,6 @@
 use std::{fmt, ops::Range};
 
+use enumset::EnumSetType;
 use logos::Logos;
 
 use crate::util::u32_to_usize;
@@ -26,7 +27,7 @@ impl From<ByteLen> for usize {
     }
 }
 
-#[derive(Clone, Copy, Debug, Logos, PartialEq)]
+#[derive(Debug, EnumSetType, Hash, Logos)]
 #[logos(skip r"[^\S\r\n]+")]
 pub enum TokenKind {
     Eof,

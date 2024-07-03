@@ -33,15 +33,14 @@ fn cli() -> Result<(), ()> {
             .unwrap();
     })?;
     let module = parse::parse(&tokens).map_err(|err| {
-        use lex::TokenKind::*;
-        use parse::ParseError::*;
         let (id, message) = match err {
-            Expected { id, kind } => (id, format!("expected {}", kind)),
-            ExpectedType { id } => (id, format!("expected {} or {}", Ident, LParen)),
-            ExpectedBind { id } => (id, format!("expected {} or {}", Ident, LParen)),
-            BindPairRightMissing { id } => (id, format!("expected {}", Comma)),
-            ExpectedExpression { id } => (id, "expected expression".to_owned()),
-            UnexpectedToplevel { id } => (id, format!("expected {} or {}", Def, Eof)),
+            parse::ParseError::Expected { id, kinds } => (
+                id,
+                format!(
+                    "expected {}",
+                    itertools::join(kinds.into_iter().map(|kind| kind.to_string()), " or ")
+                ),
+            ),
         };
         let range = tokens.get(id).byte_range();
         Report::build(ReportKind::Error, path, range.start)
