@@ -150,7 +150,7 @@ impl From<TokenId> for usize {
 
 #[derive(Debug)]
 pub struct Tokens {
-    pub tokens: Vec<Token>,
+    tokens: Vec<Token>,
 }
 
 impl Tokens {

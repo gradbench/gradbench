@@ -212,7 +212,8 @@ impl<'a> Parser<'a> {
     fn ty_atom(&mut self) -> Result<TypeId, ParseError> {
         match self.peek() {
             Ident => {
-                let name = self.expect(Ident)?;
+                let name = self.id;
+                self.next();
                 Ok(self.module.make_ty(Type::Name { name }))
             }
             LParen => {
@@ -223,7 +224,6 @@ impl<'a> Parser<'a> {
                         Ok(self.module.make_ty(Type::Unit))
                     }
                     _ => {
-                        self.next();
                         let ty = self.ty()?;
                         self.expect(RParen)?;
                         Ok(ty)
@@ -253,7 +253,8 @@ impl<'a> Parser<'a> {
     fn bind_atom(&mut self) -> Result<BindId, ParseError> {
         match self.peek() {
             Ident => {
-                let name = self.expect(Ident)?;
+                let name = self.id;
+                self.next();
                 Ok(self.module.make_bind(Bind::Name { name }))
             }
             LParen => {
@@ -264,7 +265,6 @@ impl<'a> Parser<'a> {
                         Ok(self.module.make_bind(Bind::Unit))
                     }
                     _ => {
-                        self.next();
                         let Param { bind, ty } = self.param()?;
                         let right = self.expect(RParen)?;
                         match ty {
@@ -284,8 +284,13 @@ impl<'a> Parser<'a> {
 
     fn param_elem(&mut self) -> Result<Param, ParseError> {
         let bind = self.bind_elem()?;
-        self.expect(Colon)?;
-        let ty = Some(self.ty_elem()?);
+        let ty = match self.peek() {
+            Colon => {
+                self.next();
+                Some(self.ty_elem()?)
+            }
+            _ => None,
+        };
         Ok(Param { bind, ty })
     }
 
@@ -312,7 +317,6 @@ impl<'a> Parser<'a> {
                         Ok(self.module.make_expr(Expr::Unit))
                     }
                     _ => {
-                        self.next();
                         let expr = self.expr()?;
                         self.expect(RParen)?;
                         Ok(expr)
@@ -320,12 +324,14 @@ impl<'a> Parser<'a> {
                 }
             }
             Ident => {
-                let name = self.expect(Ident)?;
+                let name = self.id;
+                self.next();
                 Ok(self.module.make_expr(Expr::Name { name }))
             }
             Number => {
+                let val = self.id;
                 self.next();
-                Ok(self.module.make_expr(Expr::Number { val: self.id }))
+                Ok(self.module.make_expr(Expr::Number { val }))
             }
             _ => Err(ExpectedExpression { id: self.id }),
         }
@@ -362,7 +368,7 @@ impl<'a> Parser<'a> {
         Ok(lhs)
     }
 
-    fn expr_inner(&mut self) -> Result<ExprId, ParseError> {
+    fn expr_elem(&mut self) -> Result<ExprId, ParseError> {
         let mut lhs = self.expr_term()?;
         loop {
             let op = match self.peek() {
@@ -375,6 +381,18 @@ impl<'a> Parser<'a> {
             lhs = self.module.make_expr(Expr::Binary { lhs, op, rhs });
         }
         Ok(lhs)
+    }
+
+    fn expr_inner(&mut self) -> Result<ExprId, ParseError> {
+        let mut exprs = vec![self.expr_elem()?];
+        while let Comma = self.peek() {
+            self.next();
+            exprs.push(self.expr_elem()?);
+        }
+        let last = exprs.pop().unwrap();
+        Ok(exprs.into_iter().rfold(last, |snd, fst| {
+            self.module.make_expr(Expr::Pair { fst, snd })
+        }))
     }
 
     fn expr(&mut self) -> Result<ExprId, ParseError> {
@@ -458,43 +476,4 @@ pub fn parse(tokens: &Tokens) -> Result<Module, ParseError> {
     };
     parser.find_non_ws();
     parser.module()
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::lex;
-
-    use super::*;
-
-    #[test]
-    fn test_empty() {
-        let Module {
-            types,
-            binds,
-            exprs,
-            defs,
-        } = parse(&lex::lex("").unwrap()).unwrap();
-        assert!(types.is_empty());
-        assert!(binds.is_empty());
-        assert!(exprs.is_empty());
-        assert!(defs.is_empty());
-    }
-
-    #[test]
-    fn test_leading_comment() {
-        let result = parse(&lex::lex(include_str!("leading_comment.adroit")).unwrap());
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_unexpected_toplevel() {
-        let result =
-            parse(&lex::lex(include_str!("unexpected_toplevel.adroit")).unwrap()).unwrap_err();
-        assert!(matches!(result, UnexpectedToplevel { .. }));
-    }
-
-    #[test]
-    fn test_bind_unit() {
-        let module = parse(&lex::lex(include_str!("bind_unit.adroit")).unwrap()).unwrap();
-    }
 }

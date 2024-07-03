@@ -1,0 +1,1 @@
+def apply(f, x) = f x

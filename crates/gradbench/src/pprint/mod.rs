@@ -9,9 +9,17 @@ struct Printer<'a> {
     source: &'a str,
     tokens: &'a Tokens,
     module: &'a Module,
+    indent: usize,
 }
 
 impl Printer<'_> {
+    fn indent(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for _ in 0..self.indent {
+            write!(f, "  ")?;
+        }
+        Ok(())
+    }
+
     fn token(&self, f: &mut fmt::Formatter, id: TokenId) -> fmt::Result {
         write!(f, "{}", &self.source[self.tokens.get(id).byte_range()])?;
         Ok(())
@@ -50,13 +58,11 @@ impl Printer<'_> {
     }
 
     fn param(&mut self, f: &mut fmt::Formatter, param: Param) -> fmt::Result {
-        write!(f, "(")?;
         self.bind(f, param.bind)?;
         if let Some(ty) = param.ty {
             write!(f, " : ")?;
             self.ty(f, ty)?;
         }
-        write!(f, ")")?;
         Ok(())
     }
 
@@ -85,24 +91,40 @@ impl Printer<'_> {
                 write!(f, ")")?;
             }
             Expr::Apply { func, arg } => {
+                write!(f, "(")?;
                 self.expr(f, func)?;
                 write!(f, " ")?;
                 self.expr(f, arg)?;
+                write!(f, ")")?;
             }
             Expr::Let { param, val, body } => {
                 write!(f, "let ")?;
                 self.param(f, param)?;
                 write!(f, " = ")?;
-                self.expr(f, val)?;
-                write!(f, "; ")?;
+                if let Expr::Let { .. } = self.module.expr(val) {
+                    writeln!(f, "(")?;
+                    self.indent += 1;
+                    self.indent(f)?;
+                    self.expr(f, val)?;
+                    self.indent -= 1;
+                    writeln!(f)?;
+                    self.indent(f)?;
+                    writeln!(f, ")")?;
+                } else {
+                    self.expr(f, val)?;
+                    writeln!(f)?;
+                }
+                self.indent(f)?;
                 self.expr(f, body)?;
             }
             Expr::Binary { lhs, op, rhs } => {
+                write!(f, "(")?;
                 self.expr(f, lhs)?;
                 write!(f, " ")?;
                 self.binop(f, op)?;
                 write!(f, " ")?;
                 self.expr(f, rhs)?;
+                write!(f, ")")?;
             }
         }
         Ok(())
@@ -112,23 +134,29 @@ impl Printer<'_> {
         write!(f, "def ")?;
         self.token(f, def.name)?;
         for &param in &def.params {
-            write!(f, " ")?;
+            write!(f, " (")?;
             self.param(f, param)?;
+            write!(f, ")")?;
         }
         if let Some(ty) = def.ty {
             write!(f, " : ")?;
             self.ty(f, ty)?;
         }
-        write!(f, " = ")?;
+        writeln!(f, " =")?;
+        self.indent += 1;
+        self.indent(f)?;
         self.expr(f, def.body)?;
+        self.indent -= 1;
         Ok(())
     }
 
     fn module(&mut self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.def(f, &self.module.defs()[0])?;
-        writeln!(f)?;
-        for def in self.module.defs().iter().skip(1) {
-            writeln!(f)?;
+        let mut first = true;
+        for def in self.module.defs() {
+            if !first {
+                writeln!(f)?;
+            }
+            first = false;
             self.def(f, def)?;
             writeln!(f)?;
         }
@@ -146,6 +174,38 @@ pub fn pprint(
         source,
         tokens,
         module,
+        indent: 0,
     }
     .module(f)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{fs, io::Write, path::Path};
+
+    use goldenfile::Mint;
+
+    use crate::{lex::lex, parse::parse, util::ModuleWithSource};
+
+    #[test]
+    fn test_examples() {
+        let prefix = Path::new("src/pprint");
+        let input = prefix.join("input");
+        let mut mint = Mint::new(prefix.join("output"));
+        for entry in fs::read_dir(&input).unwrap() {
+            let path = entry.unwrap().path();
+            let stripped = path.strip_prefix(&input).unwrap().to_str().unwrap();
+            let source = fs::read_to_string(&path).expect(stripped);
+            let tokens = lex(&source).expect(stripped);
+            let module = parse(&tokens).expect(stripped);
+            let pprinted = ModuleWithSource {
+                source,
+                tokens,
+                module,
+            }
+            .to_string();
+            let mut file = mint.new_goldenfile(stripped).expect(stripped);
+            file.write_all(pprinted.as_bytes()).expect(stripped);
+        }
+    }
 }

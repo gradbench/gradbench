@@ -11,3 +11,6 @@ edition = "2021"
 ariadne = "0.4"
 clap = { version = "4", features = ["cargo", "derive"] }
 logos = "0.14"
+
+[dev-dependencies]
+goldenfile = "1"

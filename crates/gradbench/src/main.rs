@@ -3,22 +3,11 @@ mod parse;
 mod pprint;
 mod util;
 
-use std::{fmt, fs, process::ExitCode};
+use std::{fs, process::ExitCode};
 
 use ariadne::{Color, Label, Report, ReportKind, Source};
 use clap::Parser;
-
-struct ModuleWithSource {
-    source: String,
-    tokens: lex::Tokens,
-    module: parse::Module,
-}
-
-impl fmt::Display for ModuleWithSource {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        pprint::pprint(f, &self.source, &self.tokens, &self.module)
-    }
-}
+use util::ModuleWithSource;
 
 #[derive(Debug, Parser)]
 struct Cli {
