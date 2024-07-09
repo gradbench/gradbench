@@ -6,7 +6,7 @@ RUN pip install scipy
 WORKDIR /home/gradbench
 COPY tools/pytorch/ .
 
-COPY shared/ .
+COPY shared/ADBench .
 
 ENTRYPOINT ["python", "/home/gradbench/run.py"]
 LABEL org.opencontainers.image.source https://github.com/gradbench/gradbench

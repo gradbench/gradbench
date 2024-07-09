@@ -9,34 +9,39 @@ open System
 open System.Diagnostics
 open modules
 
+let tensor (x) =
+    dsharp.tensor x
+
 let run (pars: JsonValue) =
-    let arg = dsharp.tensor (pars?input.AsFloat())
+    let arg = tensor (pars?input.AsFloat())
     let name = pars?name.AsString()
     let moduleName = pars.GetProperty("module").AsString()
+    let func =  Option.get (resolve moduleName (Some name) )
     let stopwatch = Stopwatch.StartNew()
-    let result = runModule moduleName name arg
+    let result = func arg
     stopwatch.Stop()
     (float result, decimal stopwatch.ElapsedTicks)
 
 let createJsonData message =
     let id = message?id
+    let kind = message.GetProperty("kind").AsString()
 
-    if message?kind.AsString() = "evaluate" then
-        let (result, time) = run message
-
-        JsonValue.Record
+    let response =
+        match kind with
+        | "evaluate" ->
+            let (result, time) = run message
             [| ("id", id)
                ("output", JsonValue.Float result)
                ("nanoseconds", JsonValue.Record [| ("evaluate", JsonValue.Number time) |]) |]
-    elif message?kind.AsString() = "define" then
-        let moduleName = message.GetProperty("module").AsString()
-        let success = moduleExists moduleName
-        JsonValue.Record [| ("id", id)
-                            ("succes", JsonValue.Boolean success) |]
-    else
-        JsonValue.Record [| ("id", id) |]
+        | "define" ->
+            let moduleName = message.GetProperty("module").AsString()
+            let success = Option.isSome (resolve moduleName None)
+            [| ("id", id)
+               ("success", JsonValue.Boolean success) |]
+        | _ ->
+            [| ("id", id) |]
 
-
+    JsonValue.Record response
 
 assert (Stopwatch.Frequency = 1000000000L) //Ensure one tick is one nanosecond
 

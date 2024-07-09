@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 from random import Random
 
+
 def parse(datafile):
     lines = iter(Path(datafile).read_text().splitlines())
     d, k, n = [int(v) for v in next(lines).split()]
@@ -23,18 +24,20 @@ def parse(datafile):
     gamma = float(last[0])
     m = int(last[1])
     return {
-            "d": d,
-            "k": k,
-            "n": n,
-            "alpha": alpha,
-            "means": means,
-            "icf": icf,
-            "x": x,
-            "gamma": gamma,
-            "m": m,
-        }
+        "d": d,
+        "k": k,
+        "n": n,
+        "alpha": alpha,
+        "means": means,
+        "icf": icf,
+        "x": x,
+        "gamma": gamma,
+        "m": m,
+    }
+
 
 i = 0
+
 
 def main():
     # this is where I would link adroit file for gmm functions
@@ -62,11 +65,12 @@ def main():
     module = "gmm"
     response = define(module=module, source=source)
     if response.get("success"):
-        files = ['d2_k5.txt']
+        files = ["d2_k5.txt"]
         for file in files:
             x = parse(file)
             evaluate(module=module, name="calculate_objectiveGMM", input=x)["output"]
             evaluate(module=module, name="calculate_jacobianGMM", input=x)["output"]
+
 
 if __name__ == "__main__":
     main()

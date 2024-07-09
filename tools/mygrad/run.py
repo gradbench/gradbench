@@ -17,7 +17,7 @@ def tensor(x):
 
 
 def run(params):
-    func = resolve(params["module"],params["name"])
+    func = resolve(params["module"], params["name"])
     vals = tensor(params["input"])
     start = time.perf_counter_ns()
     ret = func(vals)
@@ -31,15 +31,14 @@ def main():
         response = {}
         if message["kind"] == "evaluate":
             response = run(message)
-            print(json.dumps({"id": message["id"]} | response), flush=True)
         elif message["kind"] == "define":
             try:
                 import_module(message["module"])
-                print(json.dumps({"id": message["id"], "success": True}), flush=True)
+                response["success"] = True
             except:
-                print(json.dumps({"id": message["id"], "success": False}), flush=True)
-        else:
-             print(json.dumps({"id": message["id"]}), flush=True)
+                response["success"] = False
+        print(json.dumps({"id": message["id"]} | response), flush=True)
+
 
 if __name__ == "__main__":
     main()

@@ -2,14 +2,14 @@ module modules
 
 #load "gradbench.fsx"
 
-let runModule (moduleName: string) (name: string) (arg: DiffSharp.Tensor) =
-    match moduleName with
-    | "gradbench" ->
-        let func = if name = "square" then gradbench.square else gradbench.double
-        func arg
-    // add other modules
-    | _ -> failwith "Unsupported module"
-
-let moduleExists moduleName =
-    let modulePath = sprintf "%s.fsx" moduleName
-    System.IO.File.Exists(modulePath)
+let resolve (moduleName: string) (nameOpt: string option) =
+    match nameOpt with
+    | None ->
+        match moduleName with
+        | "gradbench" -> Some (fun (x: DiffSharp.Tensor) -> x) // needs to return func of same type
+        | _ -> None
+    | Some name ->
+        match moduleName, name with
+        | "gradbench", "square" -> Some gradbench.square
+        | "gradbench", "double" -> Some gradbench.double
+        | _ -> None
