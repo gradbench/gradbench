@@ -15,41 +15,21 @@ To generate files with the below inputs, 3 values are used: D, K, and N. D range
 One file is read in that then extracts the following inputs
 
 1. Alphas ($\alpha$): Mixing components, weights
-   $$
-   \begin{align*}
-   \alpha \in \R^K
-   \end{align*}
-   $$
-2. Means ($M$): Expected centroid points, $\mu_k \in \R^D$
-   $$
-   \begin{align*}
-   M \in \R^{K \times D}
-   \end{align*}
-   $$
+   $$\alpha \in \mathbb{R}^K$$
+2. Means ($M$): Expected centroid points, $\mu_k \in \mathbb{R}^D$
+   $$M \in \mathbb{R}^{K \times D}$$
 3. Inverse Covariance Factor ($ICF$): Parameteres for the inverse covariance matrix (precision matrix)
-   $$
-   \begin{align*}
-   ICF \in \R^{K \times (D + \frac{D(D-1)}{2})}
-   \end{align*}
-   $$
+   $$ICF \in \mathbb{R}^{K \times (D + \frac{D(D-1)}{2})}$$
 4. $X$: Data points being fitted
-   $$
-   \begin{align*}
-   X \in \R^{D}
-   \end{align*}
-   $$
+   $$X \in \mathbb{R}^{D}$$
 5. Wishart: Wishard distribution parameters to specify inital beliefs about scale and structure of precision matrcies stored in a tuple
 
 ### Outputs
 
 1. Log-Likelihood Value: How well given parameteres fit the given data
 2. Gradient ($G$) of Log-Likelihood: How it will change given changes to alphas, means, and ICF
-   $$
-   \begin{align*}
-   G \in \R^{K + (K \times D) + (K \times (D + \frac{D(D-1)}{2}))}
-   \end{align*}
-   $$
+   $$G \in \mathbb{R}^{K + (K \times D) + (K \times (D + \frac{D(D-1)}{2}))}$$
 
 > **Example**
 >
-> If $D = 2$ and $K = 5$, $G \in \R^{30}$ meaning the function will return an array of length 30.
+> If $D = 2$ and $K = 5$, $G \in \mathbb{R}^{30}$ meaning the function will return an array of length 30.
