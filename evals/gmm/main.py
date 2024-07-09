@@ -1,8 +1,11 @@
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from random import Random
+
+import data_gen
 
 
 def parse(datafile):
@@ -18,8 +21,13 @@ def parse(datafile):
     for _ in range(k):
         icf.append([float(v) for v in next(lines).split()])
     x = []
-    for _ in range(n):
-        x.append([float(v) for v in next(lines).split()])
+
+    if n == 2500000:
+        x_ = [float(v) for v in next(lines).split()]
+        x = [x_ for _ in range(n)]
+    else:
+        for _ in range(n):
+            x.append([float(v) for v in next(lines).split()])
     last = next(lines).split()
     gamma = float(last[0])
     m = int(last[1])
@@ -65,11 +73,15 @@ def main():
     module = "gmm"
     response = define(module=module, source=source)
     if response.get("success"):
-        files = ["d2_k5.txt"]
-        for file in files:
-            x = parse(file)
-            evaluate(module=module, name="calculate_objectiveGMM", input=x)["output"]
-            evaluate(module=module, name="calculate_jacobianGMM", input=x)["output"]
+        data_gen.main()
+        files = []
+        for file in Path.cwd().iterdir():
+            if file.is_file() and file.name.startswith("gmm_d"):
+                x = parse(file)
+                evaluate(module=module, name="calculate_objectiveGMM", input=x)[
+                    "output"
+                ]
+                evaluate(module=module, name="calculate_jacobianGMM", input=x)["output"]
 
 
 if __name__ == "__main__":
