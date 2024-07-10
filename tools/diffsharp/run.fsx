@@ -1,5 +1,7 @@
 #r "nuget: FSharp.Data"
+#r "nuget: Newtonsoft.Json"
 #r "nuget: DiffSharp-lite"
+
 #load "modules.fsx"
 
 open DiffSharp
@@ -16,10 +18,21 @@ let run (pars: JsonValue) =
     let arg = tensor (pars?input.AsFloat())
     let name = pars?name.AsString()
     let moduleName = pars.GetProperty("module").AsString()
-    let func =  Option.get (resolve moduleName (Some name) )
+
+    let resolved =
+        match resolve moduleName with
+        | Some module_ -> module_
+        | _ -> failwith "module not found"
+
+    let func =
+        match resolved name with
+        | Some func_ -> func_
+        | _ -> failwith "function not found"
+
     let stopwatch = Stopwatch.StartNew()
     let result = func arg
     stopwatch.Stop()
+
     (float result, decimal stopwatch.ElapsedTicks)
 
 let createJsonData message =
@@ -35,7 +48,7 @@ let createJsonData message =
                ("nanoseconds", JsonValue.Record [| ("evaluate", JsonValue.Number time) |]) |]
         | "define" ->
             let moduleName = message.GetProperty("module").AsString()
-            let success = Option.isSome (resolve moduleName None)
+            let success = Option.isSome (resolve moduleName)
             [| ("id", id)
                ("success", JsonValue.Boolean success) |]
         | _ ->
