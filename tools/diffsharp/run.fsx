@@ -7,15 +7,55 @@
 open DiffSharp
 open FSharp.Data
 open FSharp.Data.JsonExtensions
+open Newtonsoft.Json
+open Newtonsoft.Json.Linq
 open System
 open System.Diagnostics
 open modules
 
-let tensor (x) =
-    dsharp.tensor x
+type TensorConverter() =
+    inherit JsonConverter()
+    override this.CanConvert(objectType: Type) =
+        objectType = typeof<Tensor>
+
+    // serializing, convert to JSON
+    override this.WriteJson(writer: JsonWriter, value: obj, serializer: JsonSerializer) =
+        match value with
+        | :? Tensor as tensor ->
+            let array = tensor.toArray()
+            serializer.Serialize(writer, array)
+        | _ -> serializer.Serialize(writer, value)
+
+    // deserializing, convert to Tensor
+    override this.ReadJson(reader: JsonReader, objectType: Type, existingValue: obj, serializer: JsonSerializer) =
+        let token = JToken.Load(reader)
+        match token.Type with
+        | JTokenType.Array ->
+            let array = token.ToObject<float[]>()
+            dsharp.tensor array :> obj
+        | JTokenType.Float | JTokenType.Integer ->
+            let value = token.ToObject<float>()
+            dsharp.tensor value :> obj
+        | _ -> failwith "can no convert JSON to Tensor"
+
+let settings: JsonSerializerSettings = JsonSerializerSettings()
+settings.Converters.Add(TensorConverter())
+
+let wrap (f: 'a -> 'b) =
+    fun (x:JsonValue)->
+        try
+            let x_: 'a = JsonConvert.DeserializeObject<'a>(x.ToString(), settings)
+            let stopwatch = Stopwatch.StartNew()
+            let y_ = f x_
+            stopwatch.Stop()
+            let yJson = JsonConvert.SerializeObject(y_, settings)
+            let y = JsonValue.Parse(yJson)
+            (y , Decimal stopwatch.ElapsedTicks)
+        with
+        | ex -> failwith ex.Message
 
 let run (pars: JsonValue) =
-    let arg = tensor (pars?input.AsFloat())
+    let arg = pars?input
     let name = pars?name.AsString()
     let moduleName = pars.GetProperty("module").AsString()
 
@@ -26,14 +66,10 @@ let run (pars: JsonValue) =
 
     let func =
         match resolved name with
-        | Some func_ -> func_
+        | Some func_ -> (wrap func_)
         | _ -> failwith "function not found"
 
-    let stopwatch = Stopwatch.StartNew()
-    let result = func arg
-    stopwatch.Stop()
-
-    (float result, decimal stopwatch.ElapsedTicks)
+    func arg //add wrap here
 
 let createJsonData message =
     let id = message?id
@@ -44,7 +80,7 @@ let createJsonData message =
         | "evaluate" ->
             let (result, time) = run message
             [| ("id", id)
-               ("output", JsonValue.Float result)
+               ("output", result)
                ("nanoseconds", JsonValue.Record [| ("evaluate", JsonValue.Number time) |]) |]
         | "define" ->
             let moduleName = message.GetProperty("module").AsString()
