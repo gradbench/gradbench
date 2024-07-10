@@ -118,7 +118,6 @@ def generator(d, K, N):
     data_normal = np.random.normal(mean, sigma, amount_of_normal_numbers)
 
     # only runs on 1000 for now
-    # for n in N:
     for k in K:
         generate(data_uniform, data_normal, d, k, N[0])
 
@@ -126,7 +125,7 @@ def generator(d, K, N):
 def main():
     try:
 
-        d = 2
+        d = 2  # ADBench used powers of 2 up through 128 (2^7)
         K = [5, 10, 25, 50, 100, 200]
         N = [1000, 10000, 2500000]
 

@@ -22,6 +22,7 @@
 
 # https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/modules/PyTorch/PyTorchGMM.py
 
+import numpy as np
 import torch
 from defs import Wishart
 
@@ -71,11 +72,17 @@ class PyTorchGMM(ITest):
 
 
 def calculate_jacobianGMM(inputs):
+    n = inputs["n"]
+    data = []
+    if n == 2500000:
+        data = [inputs["x"] for _ in range(n)]
+    else:
+        data = inputs["x"]
     input = GMMInput(
-        inputs["alpha"],
-        inputs["means"],
-        inputs["icf"],
-        inputs["x"],
+        np.array(inputs["alpha"]),
+        np.array(inputs["means"]),
+        np.array(inputs["icf"]),
+        np.array(data),
         Wishart(inputs["gamma"], inputs["m"]),
     )
     py = PyTorchGMM()
@@ -85,11 +92,17 @@ def calculate_jacobianGMM(inputs):
 
 
 def calculate_objectiveGMM(inputs):
+    n = inputs["n"]
+    data = []
+    if n == 2500000:
+        data = [inputs["x"] for _ in range(n)]
+    else:
+        data = inputs["x"]
     input = GMMInput(
-        inputs["alpha"],
-        inputs["means"],
-        inputs["icf"],
-        inputs["x"],
+        np.array(inputs["alpha"]),
+        np.array(inputs["means"]),
+        np.array(inputs["icf"]),
+        np.array(data),
         Wishart(inputs["gamma"], inputs["m"]),
     )
     py = PyTorchGMM()

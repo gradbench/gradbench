@@ -21,8 +21,8 @@ def parse(datafile):
         icf.append([float(v) for v in next(lines).split()])
     x = []
     if n == 2500000:
-        x_ = [float(v) for v in next(lines).split()]
-        x = [x_ for _ in range(n)]
+        x = [float(v) for v in next(lines).split()]
+        # x = [x_ for _ in range(n)]
     else:
         for _ in range(n):
             x.append([float(v) for v in next(lines).split()])
@@ -76,10 +76,8 @@ def main():
         for file in Path.cwd().iterdir():
             if file.is_file() and file.name.startswith("gmm_d"):
                 x = parse(file)
-                evaluate(module=module, name="calculate_objectiveGMM", input=x)[
-                    "output"
-                ]
-                evaluate(module=module, name="calculate_jacobianGMM", input=x)["output"]
+                evaluate(module=module, name="calculate_objectiveGMM", input=x)
+                evaluate(module=module, name="calculate_jacobianGMM", input=x)
 
 
 if __name__ == "__main__":
