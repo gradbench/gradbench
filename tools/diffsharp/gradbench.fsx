@@ -1,4 +1,4 @@
-module functions
+module gradbench
 
 #r "nuget: DiffSharp-lite"
 

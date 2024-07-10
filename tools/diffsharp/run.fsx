@@ -1,36 +1,60 @@
 #r "nuget: FSharp.Data"
+#r "nuget: Newtonsoft.Json"
 #r "nuget: DiffSharp-lite"
-#load "functions.fsx"
+
+#load "modules.fsx"
 
 open DiffSharp
 open FSharp.Data
 open FSharp.Data.JsonExtensions
 open System
 open System.Diagnostics
-open functions
+open modules
+
+let tensor (x) =
+    dsharp.tensor x
 
 let run (pars: JsonValue) =
-    let arg = dsharp.tensor (pars?input.AsFloat())
+    let arg = tensor (pars?input.AsFloat())
     let name = pars?name.AsString()
-    let func = if name = "square" then square else double
+    let moduleName = pars.GetProperty("module").AsString()
+
+    let resolved =
+        match resolve moduleName with
+        | Some module_ -> module_
+        | _ -> failwith "module not found"
+
+    let func =
+        match resolved name with
+        | Some func_ -> func_
+        | _ -> failwith "function not found"
+
     let stopwatch = Stopwatch.StartNew()
     let result = func arg
     stopwatch.Stop()
+
     (float result, decimal stopwatch.ElapsedTicks)
 
 let createJsonData message =
     let id = message?id
+    let kind = message.GetProperty("kind").AsString()
 
-    if message?kind.AsString() = "evaluate" then
-        let (result, time) = run message
-
-        JsonValue.Record
+    let response =
+        match kind with
+        | "evaluate" ->
+            let (result, time) = run message
             [| ("id", id)
                ("output", JsonValue.Float result)
                ("nanoseconds", JsonValue.Record [| ("evaluate", JsonValue.Number time) |]) |]
-    else
-        JsonValue.Record [| ("id", id) |]
+        | "define" ->
+            let moduleName = message.GetProperty("module").AsString()
+            let success = Option.isSome (resolve moduleName)
+            [| ("id", id)
+               ("success", JsonValue.Boolean success) |]
+        | _ ->
+            [| ("id", id) |]
 
+    JsonValue.Record response
 
 assert (Stopwatch.Frequency = 1000000000L) //Ensure one tick is one nanosecond
 

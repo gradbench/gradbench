@@ -73,41 +73,54 @@ def ranBenchAD : IO Unit :=
   CoreM.withImportModules #[`SciLean,`Main] run
     (searchPath:= compile_time_search_path%)
 
-
-def resolve (name : String) : Except String (Float -> Float) :=
-  match name with
-  | "square" => ok square
-  | "double" => ok double
-  | _ => error "unknown function"
+structure Definition where
+  id: Int
+  kind: String
+  module: String
+  source: String
+deriving FromJson
 
 structure Params where
   id: Int
   kind: String
   module: String
   name: String
-  input: Float
+  input: Json
 deriving FromJson
 
 structure Nanoseconds where
-  evaluate: Int
+  evaluate: Nat
 deriving ToJson
+
+structure Output where
+  output: Json
+  nanoseconds: Nanoseconds
 
 structure Response where
   id: Int
-  output: Float
+  output: Json
   nanoseconds: Nanoseconds
 deriving ToJson
 
-def run (params : Params) : Except String (IO Response) := do
-  let f <- resolve params.name
-  let arg := params.input
+def wrap [FromJson a] [ToJson b] (f : a -> b) (x' : Json)
+    : Except String (IO Output) := do
+  let x : a <- fromJson? x'
   return do
     let start <- IO.monoNanosNow
-    let y := f arg
+    let y := f x
     let done <- IO.monoNanosNow
+    let y' := toJson y
     let nanoseconds := { evaluate := done - start }
-    let response := { id := params.id, output := y, nanoseconds }
-    return response
+    return { output := y', nanoseconds }
+
+def resolve (module : String)
+    : Option (String -> Option (Json -> Except String (IO Output))) :=
+  match module with
+  | "gradbench" => some fun
+    | "square" => some (wrap square)
+    | "double" => some (wrap double)
+    | _ => none
+  | _ => none
 
 partial def loop (stdin : IO.FS.Stream) (stdout : IO.FS.Stream) :
     IO (Except String Unit) := do
@@ -118,16 +131,28 @@ partial def loop (stdin : IO.FS.Stream) (stdout : IO.FS.Stream) :
     let result := do
       let message <- Json.parse line
       let kind <- Json.getObjVal? message "kind"
-      if kind == "evaluate" then
-        let params : Params <- fromJson? message
-        let action <- run params
+      if kind == "define" then
+        let definition : Definition <- fromJson? message
+        let success := (resolve definition.module).isSome
         return do
-          let response <- action
+          return Json.mkObj [("id", definition.id), ("success", toJson success)]
+      else if kind == "evaluate" then
+        let params : Params <- fromJson? message
+        let resolved <- match resolve params.module with
+          | some mod => ok mod
+          | none => error "module not found"
+        let function <- match resolved params.name with
+          | some func => ok func
+          | none => error "function not found"
+        let action <- function params.input
+        return do
+          let { output, nanoseconds } <- action
+          let response : Response := { id := params.id, output, nanoseconds }
           return toJson response
       else
         let id <- Json.getObjVal? message "id"
         return do
-          return Json.mkObj [("id", toJson id)]
+          return Json.mkObj [("id", id)]
     match result with
     | error err => return error err
     | ok action => do

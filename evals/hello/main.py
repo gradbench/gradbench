@@ -46,11 +46,12 @@ def main():
         )
 
     module = "gradbench"
-    define(module=module, source=source)
-    x = 1.0
-    for _ in range(4):
-        y = evaluate(module=module, name="square", input=x)["output"]
-        x = evaluate(module=module, name="double", input=y)["output"]
+    response = define(module=module, source=source)
+    if response.get("success"):
+        x = 1.0
+        for _ in range(4):
+            y = evaluate(module=module, name="square", input=x)["output"]
+            x = evaluate(module=module, name="double", input=y)["output"]
 
 
 if __name__ == "__main__":

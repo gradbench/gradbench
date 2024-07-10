@@ -3,31 +3,26 @@ import sys
 import time
 from importlib import import_module
 
-import jax.numpy as jnp
-
-# from jax import grad, jit
+import tensorflow as tf
 
 
-def resolve(name):
-    functions = import_module("jax_functions")
+def resolve(module, name):
+    functions = import_module(module)
     return getattr(functions, name)
 
 
 def tensor(x):
-    return jnp.array(x, dtype=jnp.float32)
+    return tf.Variable(x, dtype=tf.float64)
 
 
 def run(params):
-    func = resolve(params["name"])
+    func = resolve(params["module"], params["name"])
     arg = tensor(params["input"])
-
-    # jfunc = jit(func)
-
     start = time.perf_counter_ns()
     ret = func(arg)
     end = time.perf_counter_ns()
 
-    return {"output": ret.item(), "nanoseconds": {"evaluate": end - start}}
+    return {"output": ret.numpy(), "nanoseconds": {"evaluate": end - start}}
 
 
 def main():
@@ -36,6 +31,12 @@ def main():
         response = {}
         if message["kind"] == "evaluate":
             response = run(message)
+        elif message["kind"] == "define":
+            try:
+                import_module(message["module"])
+                response["success"] = True
+            except:
+                response["success"] = False
         print(json.dumps({"id": message["id"]} | response), flush=True)
 
 
