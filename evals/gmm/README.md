@@ -21,7 +21,7 @@ One file is read in that then extracts the following inputs
 3. Inverse Covariance Factor ($ICF$): Parameteres for the inverse covariance matrix (precision matrix)
    $$ICF \in \mathbb{R}^{K \times (D + \frac{D(D-1)}{2})}$$
 4. $X$: Data points being fitted
-   $$X \in \mathbb{R}^{D}$$
+   $$X \in \mathbb{R}^{N \times D}$$
 5. Wishart: Wishard distribution parameters to specify inital beliefs about scale and structure of precision matrcies stored in a tuple
 
 ### Outputs
