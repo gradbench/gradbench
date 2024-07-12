@@ -7,9 +7,9 @@ def log_wishart_prior{P, K}({
   qdiags: [K * D]Float,
   ls: [K * D * D]Float,
 }): Float =
-  let p = int[P]()
+  let p = int{N = P}()
   let n = p + wishart_m + 1
-  let k = int[K]()
+  let k = int{N = K}()
 
   let c = n * p * log(wishart_gamma / sqrt(2))
   c # TODO
@@ -25,8 +25,8 @@ def gmm_objective{D, K, N}({
   wishart_gamma: Float,
   wishart_m: Int,
 }): Float =
-  let n = int[N]()
-  let d = int[D]()
+  let n = int{N = N}()
+  let d = int{N = D}()
 
   let qdiags = exp.(qs)
   let sum_qs = [for i => sum([for j => qs[i, j]])]
