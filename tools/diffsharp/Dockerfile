@@ -4,7 +4,6 @@ WORKDIR /home/gradbench
 # https://diffsharp.github.io/install.html
 RUN dotnet new console -lang "F#"
 RUN dotnet add package DiffSharp-lite
-RUN dotnet add package FSharp.Data
 RUN dotnet add package Newtonsoft.Json
 
 COPY tools/diffsharp/ .
