@@ -45,9 +45,9 @@ def gmm({
   gamma: Float,
   m: Int,
 }): Float =
-  type D = index d
-  type K = index k
-  type N = index n
+  index D <- d
+  index K <- k
+  index N <- n
   gmm_objective({
     alphas = array{N = D}(alpha),
     means = array{N = K * D}(means),
