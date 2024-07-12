@@ -1,0 +1,59 @@
+import "math" use exp, log, pi
+
+def log_wishart_prior{P, K}({
+  wishart_gamma: Float,
+  wishart_m: Int,
+  sum_qs: [K]Float,
+  qdiags: [K * D]Float,
+  ls: [K * D * D]Float,
+}): Float =
+  let p = int[P]()
+  let n = p + wishart_m + 1
+  let k = int[K]()
+
+  let c = n * p * log(wishart_gamma / sqrt(2))
+  c # TODO
+
+def construct_l{D}(icf: []Float): [D * D]Float = zeros() # TODO
+
+def gmm_objective{D, K, N}({
+  alphas: [K]Float,
+  means: [K * D]Float,
+  qs: [K * D]Float,
+  ls: [K * D * D]Float,
+  x: [N * D]Float,
+  wishart_gamma: Float,
+  wishart_m: Int,
+}): Float =
+  let n = int[N]()
+  let d = int[D]()
+
+  let qdiags = exp.(qs)
+  let sum_qs = [for i => sum([for j => qs[i, j]])]
+
+  let constant = -n * d * 0.5 * log(2 * pi)
+  constant # TODO
+
+def gmm({
+  d: Int,
+  k: Int,
+  n: Int,
+  alpha: []Float,
+  means: [][]Float,
+  icf: [][]Float,
+  x: [][]Float,
+  gamma: Float,
+  m: Int,
+}): Float =
+  type D = index d
+  type K = index k
+  type N = index n
+  gmm_objective({
+    alphas = array{N = D}(alpha),
+    means = array{N = K * D}(means),
+    qs = array{N = K * D}(map(icf, curr_icf => curr_icf[:d])),
+    ls = array{N = K * D * D}(map(icf, construct_l)),
+    x = array{N = N * D}(x),
+    wishart_gamma = gamma,
+    wishart_m = m,
+  })
