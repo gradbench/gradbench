@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -14,6 +15,7 @@ def output(name, value):
 
 
 def main():
+    output("date", str(datetime.now(timezone.utc).date()))
     output("eval", ls("evals"))
     output("tool", ls("tools"))
 
