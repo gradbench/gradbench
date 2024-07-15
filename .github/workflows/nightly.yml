@@ -1,0 +1,61 @@
+name: Nightly
+on:
+  schedule:
+    # run daily at 1am UTC, just so nobody thinks it's yesterday or tomorrow
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+
+jobs:
+  matrix:
+    runs-on: ubuntu-22.04
+    outputs:
+      date: ${{ steps.matrix.outputs.date }}
+      eval: ${{ steps.matrix.outputs.eval }}
+      tool: ${{ steps.matrix.outputs.tool }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: matrix
+        run: .github/matrix.py | tee -a "$GITHUB_OUTPUT"
+
+  eval:
+    needs: matrix
+    strategy:
+      matrix:
+        eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
+    runs-on: ubuntu-22.04
+    env:
+      IMAGE: ghcr.io/gradbench/eval-${{ matrix.eval }}
+      TAG: ${{ fromJSON(needs.matrix.outputs.date) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/docker
+      - run: ./crosseval.sh ${{ matrix.eval }}
+      - run: docker image tag $IMAGE $IMAGE:$TAG
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: docker push $IMAGE:$TAG
+
+  tool:
+    needs: matrix
+    strategy:
+      matrix:
+        tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
+    runs-on: ubuntu-22.04
+    env:
+      IMAGE: ghcr.io/gradbench/tool-${{ matrix.tool }}
+      TAG: ${{ fromJSON(needs.matrix.outputs.date) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/space
+      - uses: ./.github/actions/docker
+      - run: ./crosstool.sh ${{ matrix.tool }}
+      - run: docker image tag $IMAGE $IMAGE:$TAG
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: docker push $IMAGE:$TAG
