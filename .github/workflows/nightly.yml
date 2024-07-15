@@ -3,6 +3,7 @@ on:
   schedule:
     # run daily at 1am UTC, just so nobody thinks it's yesterday or tomorrow
     - cron: "0 1 * * *"
+  workflow_dispatch:
 
 jobs:
   matrix:
