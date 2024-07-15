@@ -1,6 +1,7 @@
 import "array" use
   array,
   concat,
+  for,
   map,
   max,
   range,
@@ -57,7 +58,7 @@ def qtimesx{D, K}({
   l: [K * D * D]Float,
   x: [N * K * D]Float,
 }): [N * K * D]Float =
-  let f = for m, i, j => sum(for k => l[i, j, k] * x[m, i, k])
+  let f = for (m, i, j) => sum(for k => l[i, j, k] * x[m, i, k])
   qdiag * x + f # TODO
 
 def gmm_objective{D, K, N}({
@@ -75,7 +76,7 @@ def gmm_objective{D, K, N}({
   let qdiags = exp.(qs)
   let sum_qs = for i => sum(for j => qs[i, j])
 
-  let xcentered = stack(for i, j => row(x, i) - row(means, j))
+  let xcentered = stack(for (i, j) => row(x, i) - row(means, j))
   let lxcentered = qtimesx({qdiag = qdiags, l = ls, x = xcentered})
   # TODO
 

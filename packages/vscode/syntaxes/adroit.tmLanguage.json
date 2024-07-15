@@ -35,7 +35,7 @@
       "patterns": [
         {
           "name": "keyword.control.adroit",
-          "match": "\\b(as|else|for|if|import|then|use)\\b"
+          "match": "\\b(as|else|if|import|then|use)\\b"
         },
         {
           "name": "keyword.other.adroit",
