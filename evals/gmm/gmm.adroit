@@ -15,7 +15,7 @@ import "math" use exp, int, log, pi, sqr, sqrt
 
 def logsumexp{N}(x: [N]Float): Float =
   let mx = max(x)
-  let emx = exp([for i => x[i] - mx])
+  let emx = for i => exp(x[i] - mx)
   log(sum(emx) + mx)
 
 def log_gamma_distrib(a: Float, p: Float): Float = 0 # TODO
@@ -35,7 +35,7 @@ def log_wishart_prior{P, K}({
     0.5
     * wishart_gamma
     * wishart_gamma
-    * [for i => sum([for j => sqr(qdiags[i, j])])]
+    * (for i => sum(for j => sqr(qdiags[i, j])))
     - wishart_m * sum_qs
   )
 
@@ -44,19 +44,21 @@ def log_wishart_prior{P, K}({
 
 def construct_l{D}(icf: []Float): [D * D]Float =
   let d = int[D]
-  let cols = scan((d, zeros[D]()), range(d - 1), ((j, _), i) => (
+  let cols = scan((d, zeros[D]()), range(d - 1), ((j, _), i) =>
     let k = i + 1
     index K <- k
     let n = d - k
     j + n, concat(zeros[K](), slice(icf, j, j + n))
-  ))
+  )
   transpose(array[D * D](map(cols, (_, v) => v)))
 
 def qtimesx{D, K}({
   qdiag: [K * D]Float,
   l: [K * D * D]Float,
-  x: [N * K * D]Float},
-) = () # TODO
+  x: [N * K * D]Float,
+}): [N * K * D]Float =
+  let f = for m, i, j => sum(for k => l[i, j, k] * x[m, i, k])
+  qdiag * x + f # TODO
 
 def gmm_objective{D, K, N}({
   alphas: [K]Float,
@@ -71,9 +73,9 @@ def gmm_objective{D, K, N}({
   let d = int[D]
 
   let qdiags = exp.(qs)
-  let sum_qs = [for i => sum([for j => qs[i, j]])]
+  let sum_qs = for i => sum(for j => qs[i, j])
 
-  let xcentered = stack([for i, j => row(x, i) - row(means, j)])
+  let xcentered = stack(for i, j => row(x, i) - row(means, j))
   let lxcentered = qtimesx({qdiag = qdiags, l = ls, x = xcentered})
   # TODO
 
