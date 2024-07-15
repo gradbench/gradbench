@@ -12,23 +12,31 @@ import "array" use
   sum,
   transpose,
   zeros,
-import "math" use exp, int, log, pi, sqr, sqrt
+import "math" use exp, int, lgamma, log, pi, sqr, sqrt
 
-def logsumexp{N}(x: [N]Float): Float =
+def logsumexp{K}(x: [K]Float): Float =
   let mx = max(x)
-  let emx = for i => exp(x[i] - mx)
+  let emx = exp.(for i => x[i] - mx)
   log(sum(emx) + mx)
 
-def log_gamma_distrib(a: Float, p: Float): Float = 0 # TODO
+def logsumexpvec{N, K}(x: [N * K]Float): [N]Float =
+  for i => logsumexp(row(x, i))
 
-def log_wishart_prior{P, K}({
+def log_gamma_distrib(a: Float, p: Int): Float =
+  let out = 0.25 * p * (p - 1) * log(pi)
+  out + sum(map(range(p), i =>
+    let j = i + 1
+    lgamma(a + 0.5 * (1 - j))
+  ))
+
+def log_wishart_prior{K}({
+  p: Int,
   wishart_gamma: Float,
   wishart_m: Int,
   sum_qs: [K]Float,
   qdiags: [K * D]Float,
   ls: [K * D * D]Float,
 }): Float =
-  let p = int[P]
   let n = p + wishart_m + 1
   let k = int[K]
 
@@ -36,7 +44,7 @@ def log_wishart_prior{P, K}({
     0.5
     * wishart_gamma
     * wishart_gamma
-    * (for i => sum(for j => sqr(qdiags[i, j])))
+    * (for i => sum(sqr.(row(qdiags, i))) + sum(sqr.(row(ls, i))))
     - wishart_m * sum_qs
   )
 
@@ -49,17 +57,17 @@ def construct_l{D}(icf: []Float): [D * D]Float =
     let k = i + 1
     index K <- k
     let n = d - k
-    j + n, concat(zeros[K](), slice(icf, j, j + n))
+    j + n, array(concat(zeros[K](), slice(icf, j, j + n)))
   )
-  transpose(array[D * D](map(cols, (_, v) => v)))
+  transpose(stack(map(cols, (_, v) => v)))
 
-def qtimesx{D, K}({
+def qtimesx{D, K, N}({
   qdiag: [K * D]Float,
   l: [K * D * D]Float,
   x: [N * K * D]Float,
 }): [N * K * D]Float =
   let f = for (m, i, j) => sum(for k => l[i, j, k] * x[m, i, k])
-  qdiag * x + f # TODO
+  stack(for i => qdiag .* row(x, i)) + f
 
 def gmm_objective{D, K, N}({
   alphas: [K]Float,
@@ -78,14 +86,19 @@ def gmm_objective{D, K, N}({
 
   let xcentered = stack(for (i, j) => row(x, i) - row(means, j))
   let lxcentered = qtimesx({qdiag = qdiags, l = ls, x = xcentered})
-  # TODO
+  let sqsum_lxcentered = for (i, j) => sum(for k => sqr(lxcentered[i, j, k]))
+  let inner_term = stack(for i =>
+    alphas + sum_qs - 0.5 * row(sqsum_lxcentered, i)
+  )
+  let lse = logsumexpvec(inner_term)
+  let slse = sum(lse)
 
   let constant = -n * d * 0.5 * log(2 * pi)
   (
     constant
     + slse
     - n * logsumexp(alphas)
-    + log_wishart_prior({wishart_gamma, wishart_m, sum_qs, qdiags, ls})
+    + log_wishart_prior({p = d, wishart_gamma, wishart_m, sum_qs, qdiags, ls})
   )
 
 def gmm({
@@ -103,11 +116,11 @@ def gmm({
   index K <- k
   index N <- n
   gmm_objective({
-    alphas = array[D](alpha),
-    means = array[K * D](means),
-    qs = array[K * D](map(icf, curr_icf => slice(curr_icf, 0, d))),
-    ls = array[K * D * D](map(icf, construct_l{D})),
-    x = array[N * D](x),
+    alphas = array(alpha),
+    means = array(means),
+    qs = array(map(icf, curr_icf => slice(curr_icf, 0, d))),
+    ls = array(map(icf, construct_l{D})),
+    x = array(x),
     wishart_gamma = gamma,
     wishart_m = m,
   })
