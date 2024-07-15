@@ -15,14 +15,18 @@ To generate files with the below inputs, 3 values are used: D, K, and N. D range
 One file is read in that then extracts the following inputs
 
 1. Alphas ($\alpha$): Mixing components, weights
+
    $$\alpha \in \mathbb{R}^K$$
-2. Means ($M$): Expected centroid points, $\mu_k \in \mathbb{R}^D$
+3. Means ($M$): Expected centroid points, $\mu_k \in \mathbb{R}^D$
+
    $$M \in \mathbb{R}^{K \times D}$$
-3. Inverse Covariance Factor ($ICF$): Parameteres for the inverse covariance matrix (precision matrix)
+5. Inverse Covariance Factor ($ICF$): Parameteres for the inverse covariance matrix (precision matrix)
+
    $$ICF \in \mathbb{R}^{K \times (D + \frac{D(D-1)}{2})}$$
-4. $X$: Data points being fitted
+7. $X$: Data points being fitted
+
    $$X \in \mathbb{R}^{N \times D}$$
-5. Wishart: Wishard distribution parameters to specify inital beliefs about scale and structure of precision matrcies stored in a tuple
+9. Wishart: Wishard distribution parameters to specify inital beliefs about scale and structure of precision matrcies stored in a tuple
 
 ### Outputs
 
