@@ -17,6 +17,7 @@ Docker Engine on Linux, without Docker Desktop, you also need to install
 Other tools that are optional but useful:
 
 - [GitHub CLI][]
+- [Poetry][]
 
 ## Setup
 
@@ -101,6 +102,22 @@ Finally, in the VS Code Explorer, right-click on the
 `packages/vscode/adroit-vscode-*.vsix` file that has been created, and click
 **Install Extension VSIX**.
 
+## Python
+
+The Docker images should be considered canonical, but for local development, it
+can be more convenient to instead install and run tools directly. Using Poetry,
+you can create a virtual environment with all the Python tools via this command:
+
+```sh
+poetry install
+```
+
+Then you can use `poetry run` to run a command in this virtual environment:
+
+```sh
+./run.py --eval './eval.sh hello' --tool 'poetry run python3 tools/pytorch/run.py'
+```
+
 [containerd]: https://docs.docker.com/storage/containerd/
 [docker]: https://docs.docker.com/engine/install/
 [git]: https://git-scm.com/downloads
@@ -108,5 +125,6 @@ Finally, in the VS Code Explorer, right-click on the
 [log in to GHCR]: https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-with-a-personal-access-token-classic
 [multi-platform images]: https://docs.docker.com/build/building/multi-platform/
 [node]: https://nodejs.org/en/download
+[poetry]: https://python-poetry.org/docs/
 [python]: https://www.python.org/downloads/
 [qemu]: https://docs.docker.com/build/building/multi-platform/#qemu-without-docker-desktop
