@@ -1,4 +1,24 @@
-import "math" use exp, log, pi
+import "array" use
+  array,
+  concat,
+  map,
+  max,
+  range,
+  row,
+  scan,
+  slice,
+  stack,
+  sum,
+  transpose,
+  zeros,
+import "math" use exp, int, log, pi, sqr, sqrt
+
+def logsumexp{N}(x: [N]Float): Float =
+  let mx = max(x)
+  let emx = exp([for i => x[i] - mx])
+  log(sum(emx) + mx)
+
+def log_gamma_distrib(a: Float, p: Float): Float = 0 # TODO
 
 def log_wishart_prior{P, K}({
   wishart_gamma: Float,
@@ -7,14 +27,36 @@ def log_wishart_prior{P, K}({
   qdiags: [K * D]Float,
   ls: [K * D * D]Float,
 }): Float =
-  let p = int{N = P}()
+  let p = int[P]
   let n = p + wishart_m + 1
-  let k = int{N = K}()
+  let k = int[K]
+
+  let out = sum(
+    0.5
+    * wishart_gamma
+    * wishart_gamma
+    * [for i => sum([for j => sqr(qdiags[i, j])])]
+    - wishart_m * sum_qs
+  )
 
   let c = n * p * log(wishart_gamma / sqrt(2))
-  c # TODO
+  out - k * (c - log_gamma_distrib(0.5 * n, p))
 
-def construct_l{D}(icf: []Float): [D * D]Float = zeros() # TODO
+def construct_l{D}(icf: []Float): [D * D]Float =
+  let d = int[D]
+  let cols = scan((d, zeros[D]()), range(d - 1), ((j, _), i) => (
+    let k = i + 1
+    index K <- k
+    let n = d - k
+    j + n, concat(zeros[K](), slice(icf, j, j + n))
+  ))
+  transpose(array[D * D](map(cols, (_, v) => v)))
+
+def qtimesx{D, K}({
+  qdiag: [K * D]Float,
+  l: [K * D * D]Float,
+  x: [N * K * D]Float},
+) = () # TODO
 
 def gmm_objective{D, K, N}({
   alphas: [K]Float,
@@ -25,14 +67,23 @@ def gmm_objective{D, K, N}({
   wishart_gamma: Float,
   wishart_m: Int,
 }): Float =
-  let n = int{N = N}()
-  let d = int{N = D}()
+  let n = int[N]
+  let d = int[D]
 
   let qdiags = exp.(qs)
   let sum_qs = [for i => sum([for j => qs[i, j]])]
 
+  let xcentered = stack([for i, j => row(x, i) - row(means, j)])
+  let lxcentered = qtimesx({qdiag = qdiags, l = ls, x = xcentered})
+  # TODO
+
   let constant = -n * d * 0.5 * log(2 * pi)
-  constant # TODO
+  (
+    constant
+    + slse
+    - n * logsumexp(alphas)
+    + log_wishart_prior({wishart_gamma, wishart_m, sum_qs, qdiags, ls})
+  )
 
 def gmm({
   d: Int,
@@ -49,11 +100,11 @@ def gmm({
   index K <- k
   index N <- n
   gmm_objective({
-    alphas = array{N = D}(alpha),
-    means = array{N = K * D}(means),
-    qs = array{N = K * D}(map(icf, curr_icf => curr_icf[:d])),
-    ls = array{N = K * D * D}(map(icf, construct_l)),
-    x = array{N = N * D}(x),
+    alphas = array[D](alpha),
+    means = array[K * D](means),
+    qs = array[K * D](map(icf, curr_icf => slice(curr_icf, 0, d))),
+    ls = array[K * D * D](map(icf, construct_l{D})),
+    x = array[N * D](x),
     wishart_gamma = gamma,
     wishart_m = m,
   })
