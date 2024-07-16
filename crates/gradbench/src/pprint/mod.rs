@@ -30,12 +30,21 @@ impl Printer<'_> {
         match ty {
             Type::Unit => write!(f, "()")?,
             Type::Name { name } => self.token(f, name)?,
-            Type::Pair { fst, snd } => {
-                write!(f, "(")?;
+            Type::Prod { fst, snd } => {
                 self.ty(f, fst)?;
-                write!(f, ", ")?;
+                write!(f, " * ")?;
                 self.ty(f, snd)?;
-                write!(f, ")")?;
+            }
+            Type::Sum { left, right } => {
+                self.ty(f, left)?;
+                write!(f, " + ")?;
+                self.ty(f, right)?;
+            }
+            Type::Array { index, elem } => {
+                write!(f, "[")?;
+                self.ty(f, index)?;
+                write!(f, "] ")?;
+                self.ty(f, elem)?;
             }
         }
         Ok(())
@@ -90,10 +99,22 @@ impl Printer<'_> {
                 self.expr(f, snd)?;
                 write!(f, ")")?;
             }
+            Expr::Elem { array, index } => {
+                self.expr(f, array)?;
+                write!(f, "[")?;
+                self.expr(f, index)?;
+                write!(f, "]")?;
+            }
             Expr::Apply { func, arg } => {
                 write!(f, "(")?;
                 self.expr(f, func)?;
                 write!(f, " ")?;
+                self.expr(f, arg)?;
+                write!(f, ")")?;
+            }
+            Expr::Map { func, arg } => {
+                self.expr(f, func)?;
+                write!(f, ".(")?;
                 self.expr(f, arg)?;
                 write!(f, ")")?;
             }
@@ -125,6 +146,17 @@ impl Printer<'_> {
                 write!(f, " ")?;
                 self.expr(f, rhs)?;
                 write!(f, ")")?;
+            }
+            Expr::Lambda { param, ty, body } => {
+                write!(f, "(")?;
+                self.param(f, param)?;
+                write!(f, ")")?;
+                if let Some(ty) = ty {
+                    write!(f, " : ")?;
+                    self.ty(f, ty)?;
+                }
+                write!(f, " => ")?;
+                self.expr(f, body)?;
             }
         }
         Ok(())

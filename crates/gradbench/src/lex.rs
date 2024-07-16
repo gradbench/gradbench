@@ -41,8 +41,11 @@ pub enum TokenKind {
     #[regex(r"[A-Z_a-z]\w*")]
     Ident,
 
-    #[regex(r"\d+")]
+    #[regex(r"\d+(\.\d+)?")]
     Number,
+
+    #[regex(r#""[^"]*""#)]
+    String,
 
     #[token("(")]
     LParen,
@@ -65,6 +68,9 @@ pub enum TokenKind {
     #[token(",")]
     Comma,
 
+    #[token(".")]
+    Dot,
+
     #[token(":")]
     Colon,
 
@@ -86,11 +92,23 @@ pub enum TokenKind {
     #[token("/")]
     Slash,
 
+    #[token("=>")]
+    Arrow,
+
+    #[token("<-")]
+    Gets,
+
     #[token("def")]
     Def,
 
+    #[token("import")]
+    Import,
+
     #[token("let")]
     Let,
+
+    #[token("use")]
+    Use,
 }
 
 impl fmt::Display for TokenKind {
@@ -101,6 +119,7 @@ impl fmt::Display for TokenKind {
             Self::Comment => write!(f, "comment"),
             Self::Ident => write!(f, "identifier"),
             Self::Number => write!(f, "number"),
+            Self::String => write!(f, "string"),
             Self::LParen => write!(f, "`(`"),
             Self::RParen => write!(f, "`)`"),
             Self::LBracket => write!(f, "`[`"),
@@ -108,6 +127,7 @@ impl fmt::Display for TokenKind {
             Self::LBrace => write!(f, "`{{`"),
             Self::RBrace => write!(f, "`}}`"),
             Self::Comma => write!(f, "`,`"),
+            Self::Dot => write!(f, "`.`"),
             Self::Colon => write!(f, "`:`"),
             Self::Equal => write!(f, "`=`"),
             Self::Semicolon => write!(f, "`;`"),
@@ -115,8 +135,12 @@ impl fmt::Display for TokenKind {
             Self::Hyphen => write!(f, "`-`"),
             Self::Asterisk => write!(f, "`*`"),
             Self::Slash => write!(f, "`/`"),
+            Self::Arrow => write!(f, "`=>`"),
+            Self::Gets => write!(f, "`<-`"),
             Self::Def => write!(f, "`def`"),
+            Self::Import => write!(f, "`import`"),
             Self::Let => write!(f, "`let`"),
+            Self::Use => write!(f, "`use`"),
         }
     }
 }

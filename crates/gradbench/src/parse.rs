@@ -46,7 +46,9 @@ impl From<ExprId> for usize {
 pub enum Type {
     Unit,
     Name { name: TokenId },
-    Pair { fst: TypeId, snd: TypeId },
+    Prod { fst: TypeId, snd: TypeId },
+    Sum { left: TypeId, right: TypeId },
+    Array { index: TypeId, elem: TypeId },
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -83,7 +85,15 @@ pub enum Expr {
         fst: ExprId,
         snd: ExprId,
     },
+    Elem {
+        array: ExprId,
+        index: ExprId,
+    },
     Apply {
+        func: ExprId,
+        arg: ExprId,
+    },
+    Map {
         func: ExprId,
         arg: ExprId,
     },
@@ -97,11 +107,23 @@ pub enum Expr {
         op: Binop,
         rhs: ExprId,
     },
+    Lambda {
+        param: Param,
+        ty: Option<TypeId>,
+        body: ExprId,
+    },
+}
+
+#[derive(Debug)]
+pub struct Import {
+    pub module: TokenId,
+    pub names: Vec<TokenId>,
 }
 
 #[derive(Debug)]
 pub struct Def {
     pub name: TokenId,
+    pub types: Vec<TokenId>,
     pub params: Vec<Param>,
     pub ty: Option<TypeId>,
     pub body: ExprId,
@@ -109,6 +131,7 @@ pub struct Def {
 
 #[derive(Debug)]
 pub struct Module {
+    imports: Vec<Import>,
     types: Vec<Type>,
     binds: Vec<Bind>,
     exprs: Vec<Expr>,
@@ -241,19 +264,40 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn ty_elem(&mut self) -> Result<TypeId, ParseError> {
-        self.ty_atom()
+    fn ty_factor(&mut self) -> Result<TypeId, ParseError> {
+        match self.peek() {
+            LBracket => {
+                self.next();
+                let index = self.ty()?;
+                self.expect(RBracket)?;
+                let elem = self.ty_factor()?;
+                Ok(self.module.make_ty(Type::Array { index, elem }))
+            }
+            _ => self.ty_atom(),
+        }
     }
 
-    fn ty(&mut self) -> Result<TypeId, ParseError> {
-        let mut types = vec![self.ty_elem()?];
-        while let Comma = self.peek() {
+    fn ty_term(&mut self) -> Result<TypeId, ParseError> {
+        let mut types = vec![self.ty_factor()?];
+        while let Asterisk = self.peek() {
             self.next();
-            types.push(self.ty_elem()?);
+            types.push(self.ty_factor()?);
         }
         let last = types.pop().unwrap();
         Ok(types.into_iter().rfold(last, |snd, fst| {
-            self.module.make_ty(Type::Pair { fst, snd })
+            self.module.make_ty(Type::Prod { fst, snd })
+        }))
+    }
+
+    fn ty(&mut self) -> Result<TypeId, ParseError> {
+        let mut types = vec![self.ty_term()?];
+        while let Plus = self.peek() {
+            self.next();
+            types.push(self.ty_term()?);
+        }
+        let last = types.pop().unwrap();
+        Ok(types.into_iter().rfold(last, |right, left| {
+            self.module.make_ty(Type::Sum { left, right })
         }))
     }
 
@@ -300,7 +344,7 @@ impl<'a> Parser<'a> {
         let ty = match self.peek() {
             Colon => {
                 self.next();
-                Some(self.ty_elem()?)
+                Some(self.ty()?)
             }
             _ => None,
         };
@@ -339,7 +383,17 @@ impl<'a> Parser<'a> {
             Ident => {
                 let name = self.id;
                 self.next();
-                Ok(self.module.make_expr(Expr::Name { name }))
+                match self.peek() {
+                    Arrow => {
+                        self.next();
+                        let bind = self.module.make_bind(Bind::Name { name });
+                        let param = Param { bind, ty: None };
+                        let ty = None;
+                        let body = self.expr()?;
+                        Ok(self.module.make_expr(Expr::Lambda { param, ty, body }))
+                    }
+                    _ => Ok(self.module.make_expr(Expr::Name { name })),
+                }
             }
             Number => {
                 let val = self.id;
@@ -353,14 +407,34 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn expr_access(&mut self) -> Result<ExprId, ParseError> {
+        let expr = self.expr_atom()?;
+        match self.peek() {
+            LBracket => {
+                self.next();
+                let index = self.expr()?;
+                self.expect(RBracket)?;
+                Ok(self.module.make_expr(Expr::Elem { array: expr, index }))
+            }
+            Dot => {
+                self.next();
+                self.expect(LParen)?;
+                let arg = self.expr()?;
+                self.expect(RParen)?;
+                Ok(self.module.make_expr(Expr::Map { func: expr, arg }))
+            }
+            _ => Ok(expr),
+        }
+    }
+
     fn expr_factor(&mut self) -> Result<ExprId, ParseError> {
-        let mut f = self.expr_atom()?;
+        let mut f = self.expr_access()?;
         // function application is the only place we forbid line breaks
         while !self.newline() {
             match self.peek() {
                 // same set of tokens allowed at the start of an atomic expression
                 LParen | Ident | Number => {
-                    let x = self.expr_atom()?;
+                    let x = self.expr_access()?;
                     f = self.module.make_expr(Expr::Apply { func: f, arg: x });
                 }
                 _ => break,
@@ -428,9 +502,38 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn import(&mut self) -> Result<Import, ParseError> {
+        self.expect(Import)?;
+        let module = self.expect(String)?;
+        self.expect(Use)?;
+        let mut names = vec![];
+        while let Ident = self.peek() {
+            names.push(self.id);
+            self.next();
+            match self.peek() {
+                Comma => self.next(),
+                _ => break,
+            }
+        }
+        Ok(Import { module, names })
+    }
+
     fn def(&mut self) -> Result<Def, ParseError> {
         self.expect(Def)?;
         let name = self.expect(Ident)?;
+        let mut types = vec![];
+        if let LBrace = self.peek() {
+            self.next();
+            while let Ident = self.peek() {
+                types.push(self.id);
+                self.next();
+                match self.peek() {
+                    Comma => self.next(),
+                    _ => break,
+                }
+            }
+            self.expect(RBrace)?;
+        }
         let mut params = vec![];
         while let LParen = self.peek() {
             self.next();
@@ -457,6 +560,7 @@ impl<'a> Parser<'a> {
         let body = self.expr()?;
         Ok(Def {
             name,
+            types,
             params,
             ty,
             body,
@@ -466,6 +570,10 @@ impl<'a> Parser<'a> {
     fn module(mut self) -> Result<Module, ParseError> {
         loop {
             match self.peek() {
+                Import => {
+                    let import = self.import()?;
+                    self.module.imports.push(import);
+                }
                 Def => {
                     let def = self.def()?;
                     self.module.defs.push(def);
@@ -474,7 +582,7 @@ impl<'a> Parser<'a> {
                 _ => {
                     return Err(ParseError::Expected {
                         id: self.id,
-                        kinds: Def | Eof,
+                        kinds: Import | Def | Eof,
                     })
                 }
             }
@@ -489,6 +597,7 @@ pub fn parse(tokens: &Tokens) -> Result<Module, ParseError> {
         before_ws: id,
         id,
         module: Module {
+            imports: vec![],
             types: vec![],
             binds: vec![],
             exprs: vec![],
