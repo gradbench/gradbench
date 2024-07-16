@@ -316,8 +316,7 @@ impl<'a> Parser<'a> {
                         Ok(Bind::Unit)
                     }
                     _ => {
-                        let param = self.param()?;
-                        let Param { bind, ty } = self.module.param(param);
+                        let Param { bind, ty } = self.param()?;
                         let right = self.expect(RParen)?;
                         match ty {
                             Some(_) => Err(ParseError::Expected {
@@ -340,7 +339,7 @@ impl<'a> Parser<'a> {
         self.bind_atom()
     }
 
-    fn param_elem(&mut self) -> Result<ParamId, ParseError> {
+    fn param_elem(&mut self) -> Result<Param, ParseError> {
         let bind = self.bind_elem()?;
         let ty = match self.peek() {
             Colon => {
@@ -349,19 +348,22 @@ impl<'a> Parser<'a> {
             }
             _ => None,
         };
-        Ok(self.module.make_param(Param { bind, ty }))
+        Ok(Param { bind, ty })
     }
 
-    fn param(&mut self) -> Result<ParamId, ParseError> {
+    fn param(&mut self) -> Result<Param, ParseError> {
         let mut params = vec![self.param_elem()?];
         while let Comma = self.peek() {
             self.next();
             params.push(self.param_elem()?);
         }
         let last = params.pop().unwrap();
-        Ok(params.into_iter().rfold(last, |snd, fst| {
-            let bind = Bind::Pair { fst, snd };
-            self.module.make_param(Param { bind, ty: None })
+        Ok(params.into_iter().rfold(last, |snd, fst| Param {
+            bind: Bind::Pair {
+                fst: self.module.make_param(fst),
+                snd: self.module.make_param(snd),
+            },
+            ty: None,
         }))
     }
 
@@ -491,6 +493,7 @@ impl<'a> Parser<'a> {
             Let => {
                 self.next();
                 let param = self.param()?;
+                let param = self.module.make_param(param);
                 self.expect(Equal)?;
                 let val = self.expr_inner()?;
                 if !self.newline() {
@@ -545,7 +548,8 @@ impl<'a> Parser<'a> {
                     params.push(self.module.make_param(Param { bind, ty: None }));
                 }
                 _ => {
-                    params.push(self.param()?);
+                    let param = self.param()?;
+                    params.push(self.module.make_param(param));
                     self.expect(RParen)?;
                 }
             }
