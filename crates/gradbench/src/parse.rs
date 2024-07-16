@@ -54,8 +54,19 @@ pub enum Type {
 #[derive(Clone, Copy, Debug)]
 pub enum Bind {
     Unit,
-    Name { name: TokenId },
-    Pair { fst: ParamId, snd: ParamId },
+    Name {
+        name: TokenId,
+    },
+    Pair {
+        fst: ParamId,
+        snd: ParamId,
+    },
+    Record {
+        name: TokenId,
+        field: ParamId,
+        rest: ParamId,
+    },
+    End,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -327,6 +338,39 @@ impl<'a> Parser<'a> {
                         }
                     }
                 }
+            }
+            LBrace => {
+                self.next();
+                let mut fields = vec![];
+                while let Ident = self.peek() {
+                    let name = self.id;
+                    self.next();
+                    let bind = if let Equal = self.peek() {
+                        self.next();
+                        self.bind_elem()?
+                    } else {
+                        Bind::Name { name }
+                    };
+                    let ty = if let Colon = self.peek() {
+                        self.next();
+                        Some(self.ty()?)
+                    } else {
+                        None
+                    };
+                    fields.push((name, self.module.make_param(Param { bind, ty })));
+                    match self.peek() {
+                        Comma => self.next(),
+                        _ => break,
+                    }
+                }
+                self.expect(RBrace)?;
+                Ok(fields
+                    .into_iter()
+                    .rfold(Bind::End, |bind, (name, field)| Bind::Record {
+                        name,
+                        field,
+                        rest: self.module.make_param(Param { bind, ty: None }),
+                    }))
             }
             _ => Err(ParseError::Expected {
                 id: self.id,

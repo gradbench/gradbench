@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::{
     lex::{TokenId, Tokens},
-    parse::{Bind, Binop, Def, Expr, ExprId, Module, ParamId, Type, TypeId},
+    parse::{Bind, Binop, Def, Expr, ExprId, Module, Param, ParamId, Type, TypeId},
 };
 
 struct Printer<'a> {
@@ -61,6 +61,24 @@ impl Printer<'_> {
                 self.param(f, snd)?;
                 write!(f, ")")?;
             }
+            Bind::Record { name, field, rest } => {
+                write!(f, "{{")?;
+                let (mut n, mut p, mut r) = (name, field, rest);
+                loop {
+                    self.token(f, n)?;
+                    write!(f, " = ")?;
+                    self.param(f, p)?;
+                    let Param { bind, ty } = self.module.param(r);
+                    assert_eq!(ty, None);
+                    match bind {
+                        Bind::Record { name, field, rest } => (n, p, r) = (name, field, rest),
+                        Bind::End => break,
+                        _ => panic!("invalid record"),
+                    }
+                }
+                write!(f, "}}")?;
+            }
+            Bind::End => write!(f, "{{}}")?,
         }
         Ok(())
     }
