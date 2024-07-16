@@ -21,12 +21,12 @@ impl From<TypeId> for usize {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct BindId {
+pub struct ParamId {
     pub index: u32,
 }
 
-impl From<BindId> for usize {
-    fn from(id: BindId) -> Self {
+impl From<ParamId> for usize {
+    fn from(id: ParamId) -> Self {
         u32_to_usize(id.index)
     }
 }
@@ -55,12 +55,12 @@ pub enum Type {
 pub enum Bind {
     Unit,
     Name { name: TokenId },
-    Pair { fst: Param, snd: Param },
+    Pair { fst: ParamId, snd: ParamId },
 }
 
 #[derive(Clone, Copy, Debug)]
 pub struct Param {
-    pub bind: BindId,
+    pub bind: Bind,
     pub ty: Option<TypeId>,
 }
 
@@ -98,7 +98,7 @@ pub enum Expr {
         arg: ExprId,
     },
     Let {
-        param: Param,
+        param: ParamId,
         val: ExprId,
         body: ExprId,
     },
@@ -108,7 +108,7 @@ pub enum Expr {
         rhs: ExprId,
     },
     Lambda {
-        param: Param,
+        param: ParamId,
         ty: Option<TypeId>,
         body: ExprId,
     },
@@ -124,7 +124,7 @@ pub struct Import {
 pub struct Def {
     pub name: TokenId,
     pub types: Vec<TokenId>,
-    pub params: Vec<Param>,
+    pub params: Vec<ParamId>,
     pub ty: Option<TypeId>,
     pub body: ExprId,
 }
@@ -133,7 +133,7 @@ pub struct Def {
 pub struct Module {
     imports: Vec<Import>,
     types: Vec<Type>,
-    binds: Vec<Bind>,
+    params: Vec<Param>,
     exprs: Vec<Expr>,
     defs: Vec<Def>,
 }
@@ -147,11 +147,11 @@ impl Module {
         id
     }
 
-    fn make_bind(&mut self, bind: Bind) -> BindId {
-        let id = BindId {
-            index: self.binds.len().try_into().unwrap(),
+    fn make_param(&mut self, param: Param) -> ParamId {
+        let id = ParamId {
+            index: self.params.len().try_into().unwrap(),
         };
-        self.binds.push(bind);
+        self.params.push(param);
         id
     }
 
@@ -167,8 +167,8 @@ impl Module {
         self.types[usize::from(id)]
     }
 
-    pub fn bind(&self, id: BindId) -> Bind {
-        self.binds[usize::from(id)]
+    pub fn param(&self, id: ParamId) -> Param {
+        self.params[usize::from(id)]
     }
 
     pub fn expr(&self, id: ExprId) -> Expr {
@@ -301,22 +301,23 @@ impl<'a> Parser<'a> {
         }))
     }
 
-    fn bind_atom(&mut self) -> Result<BindId, ParseError> {
+    fn bind_atom(&mut self) -> Result<Bind, ParseError> {
         match self.peek() {
             Ident => {
                 let name = self.id;
                 self.next();
-                Ok(self.module.make_bind(Bind::Name { name }))
+                Ok(Bind::Name { name })
             }
             LParen => {
                 self.next();
                 match self.peek() {
                     RParen => {
                         self.next();
-                        Ok(self.module.make_bind(Bind::Unit))
+                        Ok(Bind::Unit)
                     }
                     _ => {
-                        let Param { bind, ty } = self.param()?;
+                        let param = self.param()?;
+                        let Param { bind, ty } = self.module.param(param);
                         let right = self.expect(RParen)?;
                         match ty {
                             Some(_) => Err(ParseError::Expected {
@@ -335,11 +336,11 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn bind_elem(&mut self) -> Result<BindId, ParseError> {
+    fn bind_elem(&mut self) -> Result<Bind, ParseError> {
         self.bind_atom()
     }
 
-    fn param_elem(&mut self) -> Result<Param, ParseError> {
+    fn param_elem(&mut self) -> Result<ParamId, ParseError> {
         let bind = self.bind_elem()?;
         let ty = match self.peek() {
             Colon => {
@@ -348,19 +349,19 @@ impl<'a> Parser<'a> {
             }
             _ => None,
         };
-        Ok(Param { bind, ty })
+        Ok(self.module.make_param(Param { bind, ty }))
     }
 
-    fn param(&mut self) -> Result<Param, ParseError> {
+    fn param(&mut self) -> Result<ParamId, ParseError> {
         let mut params = vec![self.param_elem()?];
         while let Comma = self.peek() {
             self.next();
             params.push(self.param_elem()?);
         }
         let last = params.pop().unwrap();
-        Ok(params.into_iter().rfold(last, |snd, fst| Param {
-            bind: self.module.make_bind(Bind::Pair { fst, snd }),
-            ty: None,
+        Ok(params.into_iter().rfold(last, |snd, fst| {
+            let bind = Bind::Pair { fst, snd };
+            self.module.make_param(Param { bind, ty: None })
         }))
     }
 
@@ -386,8 +387,8 @@ impl<'a> Parser<'a> {
                 match self.peek() {
                     Arrow => {
                         self.next();
-                        let bind = self.module.make_bind(Bind::Name { name });
-                        let param = Param { bind, ty: None };
+                        let bind = Bind::Name { name };
+                        let param = self.module.make_param(Param { bind, ty: None });
                         let ty = None;
                         let body = self.expr()?;
                         Ok(self.module.make_expr(Expr::Lambda { param, ty, body }))
@@ -540,8 +541,8 @@ impl<'a> Parser<'a> {
             match self.peek() {
                 RParen => {
                     self.next();
-                    let bind = self.module.make_bind(Bind::Unit);
-                    params.push(Param { bind, ty: None });
+                    let bind = Bind::Unit;
+                    params.push(self.module.make_param(Param { bind, ty: None }));
                 }
                 _ => {
                     params.push(self.param()?);
@@ -599,7 +600,7 @@ pub fn parse(tokens: &Tokens) -> Result<Module, ParseError> {
         module: Module {
             imports: vec![],
             types: vec![],
-            binds: vec![],
+            params: vec![],
             exprs: vec![],
             defs: vec![],
         },

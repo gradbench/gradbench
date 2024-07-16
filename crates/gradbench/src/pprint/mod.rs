@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::{
     lex::{TokenId, Tokens},
-    parse::{Bind, BindId, Binop, Def, Expr, ExprId, Module, Param, Type, TypeId},
+    parse::{Bind, Binop, Def, Expr, ExprId, Module, ParamId, Type, TypeId},
 };
 
 struct Printer<'a> {
@@ -50,8 +50,7 @@ impl Printer<'_> {
         Ok(())
     }
 
-    fn bind(&mut self, f: &mut fmt::Formatter, id: BindId) -> fmt::Result {
-        let bind = self.module.bind(id);
+    fn bind(&mut self, f: &mut fmt::Formatter, bind: Bind) -> fmt::Result {
         match bind {
             Bind::Unit => write!(f, "()")?,
             Bind::Name { name } => self.token(f, name)?,
@@ -66,7 +65,8 @@ impl Printer<'_> {
         Ok(())
     }
 
-    fn param(&mut self, f: &mut fmt::Formatter, param: Param) -> fmt::Result {
+    fn param(&mut self, f: &mut fmt::Formatter, id: ParamId) -> fmt::Result {
+        let param = self.module.param(id);
         self.bind(f, param.bind)?;
         if let Some(ty) = param.ty {
             write!(f, " : ")?;
