@@ -42,7 +42,9 @@ impl Printer<'_> {
             }
             Type::Array { index, elem } => {
                 write!(f, "[")?;
-                self.ty(f, index)?;
+                if let Some(i) = index {
+                    self.ty(f, i)?;
+                }
                 write!(f, "] ")?;
                 self.ty(f, elem)?;
             }

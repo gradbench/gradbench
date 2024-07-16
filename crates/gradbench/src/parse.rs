@@ -48,7 +48,7 @@ pub enum Type {
     Name { name: TokenId },
     Prod { fst: TypeId, snd: TypeId },
     Sum { left: TypeId, right: TypeId },
-    Array { index: TypeId, elem: TypeId },
+    Array { index: Option<TypeId>, elem: TypeId },
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -279,7 +279,10 @@ impl<'a> Parser<'a> {
         match self.peek() {
             LBracket => {
                 self.next();
-                let index = self.ty()?;
+                let index = match self.peek() {
+                    RBracket => None,
+                    _ => Some(self.ty()?),
+                };
                 self.expect(RBracket)?;
                 let elem = self.ty_factor()?;
                 Ok(self.module.make_ty(Type::Array { index, elem }))
