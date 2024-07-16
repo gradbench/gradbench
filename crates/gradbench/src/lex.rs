@@ -84,13 +84,19 @@ pub enum TokenKind {
     Plus,
 
     #[token("-")]
-    Hyphen,
+    Dash,
 
     #[token("*")]
-    Asterisk,
+    Star,
 
     #[token("/")]
     Slash,
+
+    #[token(".*")]
+    DotStar,
+
+    #[token("./")]
+    DotSlash,
 
     #[token("=>")]
     Arrow,
@@ -103,6 +109,9 @@ pub enum TokenKind {
 
     #[token("import")]
     Import,
+
+    #[token("index")]
+    Index,
 
     #[token("let")]
     Let,
@@ -132,13 +141,16 @@ impl fmt::Display for TokenKind {
             Self::Equal => write!(f, "`=`"),
             Self::Semicolon => write!(f, "`;`"),
             Self::Plus => write!(f, "`+`"),
-            Self::Hyphen => write!(f, "`-`"),
-            Self::Asterisk => write!(f, "`*`"),
+            Self::Dash => write!(f, "`-`"),
+            Self::Star => write!(f, "`*`"),
             Self::Slash => write!(f, "`/`"),
+            Self::DotStar => write!(f, "`.*`"),
+            Self::DotSlash => write!(f, "`./`"),
             Self::Arrow => write!(f, "`=>`"),
             Self::Gets => write!(f, "`<-`"),
             Self::Def => write!(f, "`def`"),
             Self::Import => write!(f, "`import`"),
+            Self::Index => write!(f, "`index`"),
             Self::Let => write!(f, "`let`"),
             Self::Use => write!(f, "`use`"),
         }
@@ -165,11 +177,8 @@ pub struct TokenId {
 }
 
 impl From<TokenId> for usize {
-    fn from(index: TokenId) -> Self {
-        index
-            .index
-            .try_into()
-            .expect("pointer size is assumed to be at least 32 bits")
+    fn from(id: TokenId) -> Self {
+        u32_to_usize(id.index)
     }
 }
 
@@ -179,6 +188,10 @@ pub struct Tokens {
 }
 
 impl Tokens {
+    pub fn len(&self) -> usize {
+        self.tokens.len()
+    }
+
     pub fn get(&self, index: TokenId) -> Token {
         self.tokens[usize::from(index)]
     }

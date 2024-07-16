@@ -2,7 +2,7 @@ use enumset::EnumSet;
 
 use crate::{
     lex::{
-        TokenId,
+        Token, TokenId,
         TokenKind::{self, *},
         Tokens,
     },
@@ -76,6 +76,11 @@ pub struct Param {
 }
 
 #[derive(Clone, Copy, Debug)]
+pub enum Unop {
+    Neg,
+}
+
+#[derive(Clone, Copy, Debug)]
 pub enum Binop {
     Add,
     Sub,
@@ -96,6 +101,12 @@ pub enum Expr {
         fst: ExprId,
         snd: ExprId,
     },
+    Record {
+        name: TokenId,
+        field: ExprId,
+        rest: ExprId,
+    },
+    End,
     Elem {
         array: ExprId,
         index: ExprId,
@@ -113,8 +124,18 @@ pub enum Expr {
         val: ExprId,
         body: ExprId,
     },
+    Index {
+        name: TokenId,
+        val: ExprId,
+        body: ExprId,
+    },
+    Unary {
+        op: Unop,
+        arg: ExprId,
+    },
     Binary {
         lhs: ExprId,
+        map: bool,
         op: Binop,
         rhs: ExprId,
     },
@@ -186,6 +207,10 @@ impl Module {
         self.exprs[usize::from(id)]
     }
 
+    pub fn imports(&self) -> &[Import] {
+        &self.imports
+    }
+
     pub fn defs(&self) -> &[Def] {
         &self.defs
     }
@@ -202,6 +227,7 @@ pub enum ParseError {
 #[derive(Debug)]
 struct Parser<'a> {
     tokens: &'a Tokens,
+    brackets: Vec<TokenId>,
     before_ws: TokenId,
     id: TokenId,
     module: Module,
@@ -247,6 +273,13 @@ impl<'a> Parser<'a> {
         self.before_ws < self.id
     }
 
+    fn after_close(&self) -> TokenKind {
+        let mut after = self.brackets[usize::from(self.id)];
+        assert!(after.index > self.id.index);
+        after.index += 1;
+        self.tokens.get(after).kind
+    }
+
     fn ty_atom(&mut self) -> Result<TypeId, ParseError> {
         match self.peek() {
             Ident => {
@@ -256,16 +289,13 @@ impl<'a> Parser<'a> {
             }
             LParen => {
                 self.next();
-                match self.peek() {
-                    RParen => {
-                        self.next();
-                        Ok(self.module.make_ty(Type::Unit))
-                    }
-                    _ => {
-                        let ty = self.ty()?;
-                        self.expect(RParen)?;
-                        Ok(ty)
-                    }
+                if let RParen = self.peek() {
+                    self.next();
+                    Ok(self.module.make_ty(Type::Unit))
+                } else {
+                    let ty = self.ty()?;
+                    self.expect(RParen)?;
+                    Ok(ty)
                 }
             }
             _ => Err(ParseError::Expected {
@@ -293,7 +323,7 @@ impl<'a> Parser<'a> {
 
     fn ty_term(&mut self) -> Result<TypeId, ParseError> {
         let mut types = vec![self.ty_factor()?];
-        while let Asterisk = self.peek() {
+        while let Star = self.peek() {
             self.next();
             types.push(self.ty_factor()?);
         }
@@ -388,12 +418,11 @@ impl<'a> Parser<'a> {
 
     fn param_elem(&mut self) -> Result<Param, ParseError> {
         let bind = self.bind_elem()?;
-        let ty = match self.peek() {
-            Colon => {
-                self.next();
-                Some(self.ty()?)
-            }
-            _ => None,
+        let ty = if let Colon = self.peek() {
+            self.next();
+            Some(self.ty()?)
+        } else {
+            None
         };
         Ok(Param { bind, ty })
     }
@@ -417,32 +446,75 @@ impl<'a> Parser<'a> {
     fn expr_atom(&mut self) -> Result<ExprId, ParseError> {
         match self.peek() {
             LParen => {
+                // lambda is the only place we peek after matching close bracket
+                let after = self.after_close();
                 self.next();
-                match self.peek() {
-                    RParen => {
+                if let Colon | Arrow = after {
+                    let param = if let RParen = self.peek() {
                         self.next();
-                        Ok(self.module.make_expr(Expr::Unit))
-                    }
-                    _ => {
-                        let expr = self.expr()?;
+                        let bind = Bind::Unit;
+                        Param { bind, ty: None }
+                    } else {
+                        let param = self.param()?;
                         self.expect(RParen)?;
-                        Ok(expr)
+                        param
+                    };
+                    let param = self.module.make_param(param);
+                    let ty = if let Colon = self.peek() {
+                        self.next();
+                        Some(self.ty()?)
+                    } else {
+                        None
+                    };
+                    self.expect(Arrow)?;
+                    let body = self.expr()?;
+                    Ok(self.module.make_expr(Expr::Lambda { param, ty, body }))
+                } else if let RParen = self.peek() {
+                    self.next();
+                    Ok(self.module.make_expr(Expr::Unit))
+                } else {
+                    let expr = self.expr()?;
+                    self.expect(RParen)?;
+                    Ok(expr)
+                }
+            }
+            LBrace => {
+                self.next();
+                let mut fields = vec![];
+                while let Ident = self.peek() {
+                    let name = self.id;
+                    self.next();
+                    let field = if let Equal = self.peek() {
+                        self.next();
+                        self.expr_elem()?
+                    } else {
+                        self.module.make_expr(Expr::Name { name })
+                    };
+                    fields.push((name, field));
+                    match self.peek() {
+                        Comma => self.next(),
+                        _ => break,
                     }
                 }
+                self.expect(RBrace)?;
+                Ok(fields
+                    .into_iter()
+                    .rfold(self.module.make_expr(Expr::End), |rest, (name, field)| {
+                        self.module.make_expr(Expr::Record { name, field, rest })
+                    }))
             }
             Ident => {
                 let name = self.id;
                 self.next();
-                match self.peek() {
-                    Arrow => {
-                        self.next();
-                        let bind = Bind::Name { name };
-                        let param = self.module.make_param(Param { bind, ty: None });
-                        let ty = None;
-                        let body = self.expr()?;
-                        Ok(self.module.make_expr(Expr::Lambda { param, ty, body }))
-                    }
-                    _ => Ok(self.module.make_expr(Expr::Name { name })),
+                if let Arrow = self.peek() {
+                    self.next();
+                    let bind = Bind::Name { name };
+                    let param = self.module.make_param(Param { bind, ty: None });
+                    let ty = None;
+                    let body = self.expr()?;
+                    Ok(self.module.make_expr(Expr::Lambda { param, ty, body }))
+                } else {
+                    Ok(self.module.make_expr(Expr::Name { name }))
                 }
             }
             Number => {
@@ -458,36 +530,45 @@ impl<'a> Parser<'a> {
     }
 
     fn expr_access(&mut self) -> Result<ExprId, ParseError> {
-        let expr = self.expr_atom()?;
-        match self.peek() {
-            LBracket => {
-                self.next();
-                let index = self.expr()?;
-                self.expect(RBracket)?;
-                Ok(self.module.make_expr(Expr::Elem { array: expr, index }))
-            }
-            Dot => {
-                self.next();
-                self.expect(LParen)?;
-                let arg = self.expr()?;
-                self.expect(RParen)?;
-                Ok(self.module.make_expr(Expr::Map { func: expr, arg }))
-            }
-            _ => Ok(expr),
+        let mut unops = vec![];
+        while let Dash = self.peek() {
+            self.next();
+            unops.push(Unop::Neg);
         }
+        let mut expr = self.expr_atom()?;
+        loop {
+            match self.peek() {
+                LBracket => {
+                    self.next();
+                    let index = self.expr()?;
+                    self.expect(RBracket)?;
+                    expr = self.module.make_expr(Expr::Elem { array: expr, index })
+                }
+                Dot => {
+                    self.next();
+                    self.expect(LParen)?;
+                    let arg = self.expr()?;
+                    self.expect(RParen)?;
+                    expr = self.module.make_expr(Expr::Map { func: expr, arg })
+                }
+                _ => break,
+            }
+        }
+        Ok(unops.into_iter().rfold(expr, |arg, op| {
+            self.module.make_expr(Expr::Unary { op, arg })
+        }))
     }
 
     fn expr_factor(&mut self) -> Result<ExprId, ParseError> {
         let mut f = self.expr_access()?;
         // function application is the only place we forbid line breaks
         while !self.newline() {
-            match self.peek() {
-                // same set of tokens allowed at the start of an atomic expression
-                LParen | Ident | Number => {
-                    let x = self.expr_access()?;
-                    f = self.module.make_expr(Expr::Apply { func: f, arg: x });
-                }
-                _ => break,
+            // same set of tokens allowed at the start of an atomic expression
+            if let LParen | LBrace | Ident | Number = self.peek() {
+                let x = self.expr_access()?;
+                f = self.module.make_expr(Expr::Apply { func: f, arg: x });
+            } else {
+                break;
             }
         }
         Ok(f)
@@ -496,14 +577,16 @@ impl<'a> Parser<'a> {
     fn expr_term(&mut self) -> Result<ExprId, ParseError> {
         let mut lhs = self.expr_factor()?;
         loop {
-            let op = match self.peek() {
-                Asterisk => Binop::Mul,
-                Slash => Binop::Div,
+            let (map, op) = match self.peek() {
+                Star => (false, Binop::Mul),
+                Slash => (false, Binop::Div),
+                DotStar => (true, Binop::Mul),
+                DotSlash => (true, Binop::Div),
                 _ => break,
             };
             self.next();
             let rhs = self.expr_factor()?;
-            lhs = self.module.make_expr(Expr::Binary { lhs, op, rhs });
+            lhs = self.module.make_expr(Expr::Binary { lhs, map, op, rhs });
         }
         Ok(lhs)
     }
@@ -511,14 +594,15 @@ impl<'a> Parser<'a> {
     fn expr_elem(&mut self) -> Result<ExprId, ParseError> {
         let mut lhs = self.expr_term()?;
         loop {
+            let map = false;
             let op = match self.peek() {
                 Plus => Binop::Add,
-                Hyphen => Binop::Sub,
+                Dash => Binop::Sub,
                 _ => break,
             };
             self.next();
             let rhs = self.expr_term()?;
-            lhs = self.module.make_expr(Expr::Binary { lhs, op, rhs });
+            lhs = self.module.make_expr(Expr::Binary { lhs, map, op, rhs });
         }
         Ok(lhs)
     }
@@ -535,6 +619,13 @@ impl<'a> Parser<'a> {
         }))
     }
 
+    fn stmt(&mut self) -> Result<ExprId, ParseError> {
+        if !self.newline() {
+            self.expect(Semicolon)?;
+        }
+        self.expr()
+    }
+
     fn expr(&mut self) -> Result<ExprId, ParseError> {
         match self.peek() {
             Let => {
@@ -543,11 +634,16 @@ impl<'a> Parser<'a> {
                 let param = self.module.make_param(param);
                 self.expect(Equal)?;
                 let val = self.expr_inner()?;
-                if !self.newline() {
-                    self.expect(Semicolon)?;
-                }
-                let body = self.expr()?;
+                let body = self.stmt()?;
                 Ok(self.module.make_expr(Expr::Let { param, val, body }))
+            }
+            Index => {
+                self.next();
+                let name = self.expect(Ident)?;
+                self.expect(Gets)?;
+                let val = self.expr_inner()?;
+                let body = self.stmt()?;
+                Ok(self.module.make_expr(Expr::Index { name, val, body }))
             }
             _ => self.expr_inner(),
         }
@@ -588,25 +684,22 @@ impl<'a> Parser<'a> {
         let mut params = vec![];
         while let LParen = self.peek() {
             self.next();
-            match self.peek() {
-                RParen => {
-                    self.next();
-                    let bind = Bind::Unit;
-                    params.push(self.module.make_param(Param { bind, ty: None }));
-                }
-                _ => {
-                    let param = self.param()?;
-                    params.push(self.module.make_param(param));
-                    self.expect(RParen)?;
-                }
-            }
-        }
-        let ty = match self.peek() {
-            Colon => {
+            let param = if let RParen = self.peek() {
                 self.next();
-                Some(self.ty()?)
-            }
-            _ => None,
+                let bind = Bind::Unit;
+                Param { bind, ty: None }
+            } else {
+                let param = self.param()?;
+                self.expect(RParen)?;
+                param
+            };
+            params.push(self.module.make_param(param));
+        }
+        let ty = if let Colon = self.peek() {
+            self.next();
+            Some(self.ty()?)
+        } else {
+            None
         };
         self.expect(Equal)?;
         let body = self.expr()?;
@@ -642,10 +735,59 @@ impl<'a> Parser<'a> {
     }
 }
 
+fn close(open: TokenKind) -> TokenKind {
+    match open {
+        LParen => RParen,
+        LBracket => RBracket,
+        LBrace => RBrace,
+        _ => unreachable!(),
+    }
+}
+
+fn brackets(tokens: &Tokens) -> Result<Vec<TokenId>, ParseError> {
+    let mut brackets: Vec<TokenId> = (0..=(tokens.len() - 1).try_into().unwrap())
+        .map(|index| TokenId { index })
+        .collect();
+    let mut id = TokenId { index: 0 };
+    let mut stack = vec![];
+    loop {
+        let Token { kind, .. } = tokens.get(id);
+        match kind {
+            Eof => break,
+            LParen | LBracket | LBrace => stack.push(id),
+            RParen | RBracket | RBrace => {
+                let open = stack.pop().ok_or(ParseError::Expected {
+                    id,
+                    kinds: EnumSet::only(Eof),
+                })?;
+                let expected = close(tokens.get(open).kind);
+                if tokens.get(id).kind != expected {
+                    return Err(ParseError::Expected {
+                        id,
+                        kinds: EnumSet::only(expected),
+                    });
+                }
+                brackets[usize::from(open)] = id;
+                brackets[usize::from(id)] = open;
+            }
+            _ => {}
+        }
+        id.index += 1;
+    }
+    match stack.pop() {
+        Some(open) => Err(ParseError::Expected {
+            id,
+            kinds: EnumSet::only(close(tokens.get(open).kind)),
+        }),
+        None => Ok(brackets),
+    }
+}
+
 pub fn parse(tokens: &Tokens) -> Result<Module, ParseError> {
     let id = TokenId { index: 0 };
     let mut parser = Parser {
         tokens,
+        brackets: brackets(tokens)?,
         before_ws: id,
         id,
         module: Module {
