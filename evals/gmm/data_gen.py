@@ -22,6 +22,14 @@
 
 # https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/data/gmm/gmm-data-gen.py
 
+"""
+Changes Made:
+- main() now takes in 3 parameters for a specifc d,k, and n.
+- generator() now takes in those specifc values rather than the arrays as a whole. It then calls generate once with those variables instead of using a for loop.
+- Instead of writing to a file, generate() creates a dictionary with the new data. This dictionary is then returned from main()
+- Commented out and removed support for 2.5M datapoints
+"""
+
 import os
 import sys
 

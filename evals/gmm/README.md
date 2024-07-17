@@ -17,16 +17,20 @@ The data generator returns a dictionary with the following inputs
 1. Alphas ($\alpha$): Mixing components, weights
 
    $$\alpha \in \mathbb{R}^K$$
-3. Means ($M$): Expected centroid points, $\mu_k \in \mathbb{R}^D$
+
+2. Means ($M$): Expected centroid points, $\mu_k \in \mathbb{R}^D$
 
    $$M \in \mathbb{R}^{K \times D}$$
-5. Inverse Covariance Factor ($ICF$): Parameteres for the inverse covariance matrix (precision matrix)
+
+3. Inverse Covariance Factor ($ICF$): Parameteres for the inverse covariance matrix (precision matrix)
 
    $$ICF \in \mathbb{R}^{K \times (D + \frac{D(D-1)}{2})}$$
-7. $X$: Data points being fitted
+
+4. $X$: Data points being fitted
 
    $$X \in \mathbb{R}^{N \times D}$$
-9. Wishart: Wishard distribution parameters to specify inital beliefs about scale and structure of precision matrcies stored in a tuple
+
+5. Wishart: Wishart distribution parameters to specify inital beliefs about scale and structure of precision matrcies stored in a tuple
 
 ### Outputs
 
