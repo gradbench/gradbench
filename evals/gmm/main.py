@@ -6,47 +6,10 @@ from random import Random
 
 import data_gen
 
-
-def parse(datafile):
-    lines = iter(Path(datafile).read_text().splitlines())
-    d, k, n = [int(v) for v in next(lines).split()]
-    alpha = []
-    for _ in range(k):
-        alpha.append(float(next(lines)))
-    means = []
-    for _ in range(k):
-        means.append([float(v) for v in next(lines).split()])
-    icf = []
-    for _ in range(k):
-        icf.append([float(v) for v in next(lines).split()])
-    x = []
-    if n == 2500000:
-        x = [float(v) for v in next(lines).split()]
-        # x = [x_ for _ in range(n)]
-    else:
-        for _ in range(n):
-            x.append([float(v) for v in next(lines).split()])
-    last = next(lines).split()
-    gamma = float(last[0])
-    m = int(last[1])
-    return {
-        "d": d,
-        "k": k,
-        "n": n,
-        "alpha": alpha,
-        "means": means,
-        "icf": icf,
-        "x": x,
-        "gamma": gamma,
-        "m": m,
-    }
-
-
 i = 0
 
 
 def main():
-    # this is where I would link adroit file for gmm functions
     # source = Path("gradbench.adroit").read_text()
     source = "PLACE HOLDER"
 
@@ -71,13 +34,11 @@ def main():
     module = "gmm"
     response = define(module=module, source=source)
     if response.get("success"):
-        data_gen.main()
-        files = []
-        for file in Path.cwd().iterdir():
-            if file.is_file() and file.name.startswith("gmm_d"):
-                x = parse(file)
-                evaluate(module=module, name="calculate_objectiveGMM", input=x)
-                evaluate(module=module, name="calculate_jacobianGMM", input=x)
+        for n in [1000, 10000]:
+            for k in [5, 10, 25, 50, 100, 200]:
+                input = data_gen.main(2, k, n)  # d k n
+                evaluate(module=module, name="calculate_objectiveGMM", input=input)
+                evaluate(module=module, name="calculate_jacobianGMM", input=input)
 
 
 if __name__ == "__main__":

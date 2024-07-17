@@ -8,11 +8,11 @@ Link to [I/O file](https://github.com/microsoft/ADBench/blob/38cb7931303a830c370
 
 ### Generation
 
-To generate files with the below inputs, 3 values are used: D, K, and N. D ranges from $2^1$ to $2^7$ and represents the dimension of the data points and means. K is the number of mixture components (clusters) where K $\in$ [5,10,25,50,100]. Additionally, GMM can be run with 1k, 10k, or 2.5 million data points, where N represents this value. These values/ranges are iterated over in the data generator.
+To generate files with the below inputs, 3 values are used: D, K, and N. D ranges from $2^1$ to $2^7$ and represents the dimension of the data points and means. K is the number of mixture components (clusters) where K $\in [5,10,25,50,100,200]$. Additionally, GMM can be run with $1000$ or $10000$ data points, where N represents this value. These values/ranges are iterated over to create various datasets.
 
 ### Inputs
 
-One file is read in that then extracts the following inputs
+The data generator returns a dictionary with the following inputs
 
 1. Alphas ($\alpha$): Mixing components, weights
 

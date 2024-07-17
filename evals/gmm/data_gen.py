@@ -38,8 +38,8 @@ def get_points_dir_name(n):
         return "1k"
     if n == 10000:
         return "10k"
-    if n == 2500000:
-        return "2.5M"
+    # if n == 2500000:
+    #     return "2.5M"
     raise ValueError("Undefined number of points: {n}")
 
 
@@ -48,8 +48,8 @@ def replicate_point(n):
         return False
     if n == 10000:
         return False
-    if n == 2500000:
-        return True
+    # if n == 2500000:
+    #     return True
     raise ValueError("Undefined number of points: {n}")
 
 
@@ -63,74 +63,70 @@ def generate(data_uniform, data_normal, D, k, n):
 
     filename = f"gmm_d{D}_K{k}_N{n}.txt"
 
-    # write data to file
-    with open(os.path.join(os.getcwd(), filename), "w") as outfile:
+    output = {}
 
-        outfile.write(f"{D} {k} {n}\n")
+    output["d"] = D
+    output["k"] = k
+    output["n"] = n
 
-        # alpha
-        for i in range(k):
-            outfile.write(f"{view_normal[0]:.6f}\n")
+    # alpha
+    output["alpha"] = []
+    for i in range(k):
+        output["alpha"].append(float(view_normal[0]))
+        view_normal = view_normal[1:]
+
+    # mu
+    output["means"] = [[] for _ in range(k)]
+    for i in range(k):
+        for j in range(D):
+            output["means"][i].append(float(view_uniform[0]))
+            view_uniform = view_uniform[1:]
+
+    # q
+    output["icf"] = [[] for _ in range(k)]
+    for i in range(k):
+        for j in range(D + D * (D - 1) // 2):
+            output["icf"][i].append(float(view_normal[0]))
             view_normal = view_normal[1:]
 
-        # mu
-        for i in range(k):
-            for j in range(D):
-                outfile.write(f"{view_uniform[0]:.6f} ")
-                view_uniform = view_uniform[1:]
-            outfile.write("\n")
+    # x
+    output["x"] = [[] for _ in range(n)]
+    for i in range(n):
+        for j in range(D):
+            output["x"][i].append(float(view_normal[0]))
+            view_normal = view_normal[1:]
 
-        # q
-        for i in range(k):
-            for j in range(D + D * (D - 1) // 2):
-                outfile.write(f"{view_normal[0]:.6f} ")
-                view_normal = view_normal[1:]
-            outfile.write("\n")
+    output["gamma"] = gamma
+    output["m"] = m
 
-        # x
-        if replicate_point(n):
-            for j in range(D):
-                outfile.write(f"{view_normal[0]:.6f} ")
-                view_normal = view_normal[1:]
-            outfile.write("\n")
-        else:
-            for i in range(n):
-                for j in range(D):
-                    outfile.write(f"{view_normal[0]:.6f} ")
-                    view_normal = view_normal[1:]
-                outfile.write("\n")
-
-        outfile.write(f"{gamma:.6f} {m} \n")
+    return output
 
 
-def generator(d, K, N):
+def generator(d_, k, n):
+
+    d = 2  # ADBench used powers of 2 up through 128 (2^7)
+    K_max = 200  # K[-1] from [5, 10, 25, 50, 100, 200]
+    N_max = 10000  # N[-2] from [1000,10000,2500000]
 
     # uniform distribution parameters
     low = 0
     high = 1
-    amount_of_uniform_numbers = K[-1] * d
+    amount_of_uniform_numbers = K_max * d
     data_uniform = np.random.uniform(low, high, amount_of_uniform_numbers)
 
     # normal distribution parameters
     mean = 0
     sigma = 1
-    amount_of_normal_numbers = K[-1] * (1 + d + d * (d - 1) // 2) + N[-2] * d
+    amount_of_normal_numbers = K_max * (1 + d + d * (d - 1) // 2) + N_max * d
     data_normal = np.random.normal(mean, sigma, amount_of_normal_numbers)
 
-    # only runs on 1000 for now
-    for k in K:
-        generate(data_uniform, data_normal, d, k, N[0])
+    return generate(data_uniform, data_normal, d_, k, n)
 
 
-def main():
+def main(d_, k, n):
     try:
 
-        d = 2  # ADBench used powers of 2 up through 128 (2^7)
-        K = [5, 10, 25, 50, 100, 200]
-        N = [1000, 10000, 2500000]
-
-        # generate GMM models with d dimensions
-        generator(d, K, N)
+        return generator(d_, k, n)
 
     except RuntimeError as ex:
         eprint("Runtime exception caught: ", ex)
@@ -138,7 +134,3 @@ def main():
         eprint("An exception caught: ", ex)
 
     return 0
-
-
-if __name__ == "__main__":
-    main(sys.argv[:])

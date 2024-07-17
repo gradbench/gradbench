@@ -72,17 +72,11 @@ class PyTorchGMM(ITest):
 
 
 def calculate_jacobianGMM(inputs):
-    n = inputs["n"]
-    data = []
-    if n == 2500000:
-        data = [inputs["x"] for _ in range(n)]
-    else:
-        data = inputs["x"]
     input = GMMInput(
         np.array(inputs["alpha"]),
         np.array(inputs["means"]),
         np.array(inputs["icf"]),
-        np.array(data),
+        np.array(inputs["x"]),
         Wishart(inputs["gamma"], inputs["m"]),
     )
     py = PyTorchGMM()
@@ -92,17 +86,11 @@ def calculate_jacobianGMM(inputs):
 
 
 def calculate_objectiveGMM(inputs):
-    n = inputs["n"]
-    data = []
-    if n == 2500000:
-        data = [inputs["x"] for _ in range(n)]
-    else:
-        data = inputs["x"]
     input = GMMInput(
         np.array(inputs["alpha"]),
         np.array(inputs["means"]),
         np.array(inputs["icf"]),
-        np.array(data),
+        np.array(inputs["x"]),
         Wishart(inputs["gamma"], inputs["m"]),
     )
     py = PyTorchGMM()
