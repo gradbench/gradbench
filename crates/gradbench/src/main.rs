@@ -1,3 +1,4 @@
+mod json;
 mod lex;
 mod parse;
 mod pprint;
@@ -7,7 +8,6 @@ use std::{fs, process::ExitCode};
 
 use ariadne::{Color, Label, Report, ReportKind, Source};
 use clap::Parser;
-use util::ModuleWithSource;
 
 #[derive(Debug, Parser)]
 struct Cli {
@@ -54,13 +54,9 @@ fn cli() -> Result<(), ()> {
             .eprint((path, Source::from(&source)))
             .unwrap();
     })?;
-    print!(
+    println!(
         "{}",
-        ModuleWithSource {
-            source,
-            tokens,
-            module
-        }
+        serde_json::to_string(&json::json(&source, &tokens, &module)).unwrap()
     );
     Ok(())
 }

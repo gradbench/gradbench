@@ -13,6 +13,8 @@ clap = { version = "4", features = ["cargo", "derive"] }
 enumset = "1"
 itertools = "0.13"
 logos = "0.14"
+serde = "1"
+serde_json = "1"
 
 [dev-dependencies]
 goldenfile = "1"
