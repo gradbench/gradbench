@@ -3,6 +3,11 @@
 
 # https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/shared/GMMData.py
 
+"""
+Changes Made:
+- Reformatted all "np.ndarray = field(default = np.empty(0, dtype = np.float64))" to "np.ndarray = field(default_factory=lambda: np.empty(0, dtype=np.float64))"
+"""
+
 from dataclasses import dataclass, field
 
 import numpy as np

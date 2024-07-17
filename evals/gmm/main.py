@@ -4,43 +4,12 @@ import sys
 from pathlib import Path
 from random import Random
 
-
-def parse(datafile):
-    lines = iter(Path(datafile).read_text().splitlines())
-    d, k, n = [int(v) for v in next(lines).split()]
-    alpha = []
-    for _ in range(k):
-        alpha.append(float(next(lines)))
-    means = []
-    for _ in range(k):
-        means.append([float(v) for v in next(lines).split()])
-    icf = []
-    for _ in range(k):
-        icf.append([float(v) for v in next(lines).split()])
-    x = []
-    for _ in range(n):
-        x.append([float(v) for v in next(lines).split()])
-    last = next(lines).split()
-    gamma = float(last[0])
-    m = int(last[1])
-    return {
-        "d": d,
-        "k": k,
-        "n": n,
-        "alpha": alpha,
-        "means": means,
-        "icf": icf,
-        "x": x,
-        "gamma": gamma,
-        "m": m,
-    }
-
+import data_gen
 
 i = 0
 
 
 def main():
-    # this is where I would link adroit file for gmm functions
     # source = Path("gradbench.adroit").read_text()
     source = "PLACE HOLDER"
 
@@ -65,11 +34,11 @@ def main():
     module = "gmm"
     response = define(module=module, source=source)
     if response.get("success"):
-        files = ["d2_k5.txt"]
-        for file in files:
-            x = parse(file)
-            evaluate(module=module, name="calculate_objectiveGMM", input=x)["output"]
-            evaluate(module=module, name="calculate_jacobianGMM", input=x)["output"]
+        for n in [1000, 10000]:
+            for k in [5, 10, 25, 50, 100, 200]:
+                input = data_gen.main(2, k, n)  # d k n
+                evaluate(module=module, name="calculate_objectiveGMM", input=input)
+                evaluate(module=module, name="calculate_jacobianGMM", input=input)
 
 
 if __name__ == "__main__":

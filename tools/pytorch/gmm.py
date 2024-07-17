@@ -22,15 +22,17 @@
 
 # https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/modules/PyTorch/PyTorchGMM.py
 
+"""
+Changes Made:
+- Added two functions to create a PyTorchGMM object and call calculate_objective and calculate_jacobian
+"""
+
+import numpy as np
 import torch
 from defs import Wishart
-
-# gmm
 from gmm_data import GMMInput
 from gmm_objective import gmm_objective
 from itest import ITest
-
-# shared
 from utils import to_torch_tensor, to_torch_tensors, torch_jacobian
 
 
