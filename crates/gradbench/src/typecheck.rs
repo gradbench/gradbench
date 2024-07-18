@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use indexmap::IndexSet;
+
 use crate::{
     lex::{TokenId, Tokens},
     parse,
@@ -39,27 +41,47 @@ impl From<ValId> for usize {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 enum Type {
-    Var { def: TokenId },
+    Var { module: Option<ModId>, def: TokenId },
+    Unit,
+    Func { dom: TypeId, cod: TypeId },
 }
 
-#[derive(Debug)]
-enum Val {
-    Use { module: ModId, name: ValId },
+#[derive(Clone, Copy, Debug)]
+enum Expr {
+    Use { module: ModId, id: ValId },
+    Lambda,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct Val {
+    ty: TypeId,
+    expr: Expr,
 }
 
 #[derive(Debug)]
 pub struct Module {
-    pub imports: Vec<String>,
-    pub exports: HashMap<String, ValId>,
-    pub types: Vec<Type>,
-    pub vals: Vec<Val>,
+    imports: Vec<String>,
+    exports: HashMap<String, ValId>,
+    types: IndexSet<Type>,
+    vals: Vec<Val>,
+}
+
+impl Module {
+    fn export(&self, name: &str) -> Option<ValId> {
+        self.exports.get(name).copied()
+    }
+
+    fn val(&self, id: ValId) -> Val {
+        self.vals[usize::from(id)]
+    }
 }
 
 #[derive(Debug)]
 pub enum TypeError {
     TooManyImports,
+    TooManyTypes,
     Undefined { name: TokenId },
 }
 
@@ -78,6 +100,15 @@ impl<'a> Typer<'a> {
         &self.source[self.tokens.get(id).byte_range()]
     }
 
+    fn ty(&mut self, ty: Type) -> Result<TypeId, TypeError> {
+        let (i, _) = self.module.types.insert_full(ty);
+        let id = TypeId {
+            // maybe more types than tokens, because of imports
+            index: i.try_into().map_err(|_| TypeError::TooManyTypes)?,
+        };
+        Ok(id)
+    }
+
     fn val(&mut self, val: Val) -> ValId {
         let id = ValId {
             // we assume there are at least as many tokens as values
@@ -94,15 +125,26 @@ impl<'a> Typer<'a> {
         }
         let imports = self.tree.imports();
         for index in 0..=(n - 1).try_into().map_err(|_| TypeError::TooManyImports)? {
-            let module = ModId { index };
-            let exports = &self.imports[usize::from(module)].exports;
-            for &token in &imports[usize::from(module)].names {
-                let name = self.token(token);
-                let val = self.val(Val::Use {
-                    module,
-                    name: *exports
-                        .get(name)
-                        .ok_or(TypeError::Undefined { name: token })?,
+            let mod_id = ModId { index };
+            let module = self.imports[usize::from(mod_id)];
+            let mut needed = vec![false; module.types.len()];
+            let uses = imports[usize::from(mod_id)]
+                .names
+                .iter()
+                .map(|&token| {
+                    let name = self.token(token);
+                    let id = module
+                        .export(name)
+                        .ok_or(TypeError::Undefined { name: token })?;
+                    needed[usize::from(module.val(id).ty)] = true;
+                    Ok((name, id))
+                })
+                .collect::<Result<Vec<(&'a str, ValId)>, TypeError>>()?;
+            for (name, id) in uses {
+                let ty = self.ty(Type::Unit)?;
+                let val = self.val(Val {
+                    ty,
+                    expr: Expr::Use { module: mod_id, id },
                 });
                 self.names.insert(name, vec![val]);
             }
@@ -140,7 +182,7 @@ pub fn typecheck<'a>(
         module: Module {
             imports,
             exports: HashMap::new(),
-            types: vec![],
+            types: IndexSet::new(),
             vals: vec![],
         },
         names: HashMap::new(),
@@ -169,8 +211,17 @@ pub fn array() -> Module {
             ]
             .map(|s| (s.to_owned(), ValId { index: 0 })),
         ),
-        types: vec![],
-        vals: vec![],
+        types: IndexSet::from([
+            Type::Unit,
+            Type::Func {
+                dom: TypeId { index: 0 },
+                cod: TypeId { index: 0 },
+            },
+        ]),
+        vals: vec![Val {
+            ty: TypeId { index: 1 },
+            expr: Expr::Lambda,
+        }],
     }
 }
 
@@ -181,7 +232,16 @@ pub fn math() -> Module {
             ["exp", "int", "lgamma", "log", "pi", "sqr", "sqrt"]
                 .map(|s| (s.to_owned(), ValId { index: 0 })),
         ),
-        types: vec![],
-        vals: vec![],
+        types: IndexSet::from([
+            Type::Unit,
+            Type::Func {
+                dom: TypeId { index: 0 },
+                cod: TypeId { index: 0 },
+            },
+        ]),
+        vals: vec![Val {
+            ty: TypeId { index: 1 },
+            expr: Expr::Lambda,
+        }],
     }
 }

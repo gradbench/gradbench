@@ -70,6 +70,7 @@ fn cli() -> Result<(), ()> {
     .map_err(|err| {
         let (id, message) = match err {
             typecheck::TypeError::TooManyImports => todo!(),
+            typecheck::TypeError::TooManyTypes => todo!(),
             typecheck::TypeError::Undefined { name } => (name, "undefined".to_owned()),
         };
         let range = tokens.get(id).byte_range();
@@ -84,7 +85,7 @@ fn cli() -> Result<(), ()> {
             .eprint((path, Source::from(&source)))
             .unwrap();
     })?;
-    println!("{module:?}");
+    println!("{module:#?}");
     Ok(())
 }
 
