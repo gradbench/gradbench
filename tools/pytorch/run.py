@@ -5,6 +5,7 @@ from importlib import import_module
 from pathlib import Path
 
 import torch
+from ba_sparse_mat import BASparseMat
 
 
 def resolve(module, name):
@@ -20,9 +21,19 @@ def tensor(x):
 
 
 def output(ret):
-    if ret.size() == 1:
-        return ret.item()
-    return ret.tolist()
+    try:
+        if type(ret) == BASparseMat:
+            return str(f"BASparseMat: {ret.nrows} rows by {ret.ncols} columns")
+        if type(ret) == tuple:
+            reproj, w = ret
+            len_r = len(reproj.tolist())
+            len_w = len(w.tolist())
+            return f"[{len_r/w}{reproj.tolist()[:2]},{len_w}{w.tolist()[0]}]"
+        elif ret.size() == 1:
+            return ret.item()
+        return ret.tolist()
+    except:
+        return ret
 
 
 def run(params):
