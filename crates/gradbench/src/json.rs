@@ -11,6 +11,7 @@ fn array(it: impl Iterator<Item = impl Serialize>) -> Value {
     json!(v)
 }
 
+#[derive(Debug)]
 struct Json<'a> {
     source: &'a str,
     tokens: &'a Tokens,

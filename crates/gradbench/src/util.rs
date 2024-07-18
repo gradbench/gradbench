@@ -7,6 +7,7 @@ pub fn u32_to_usize(n: u32) -> usize {
         .expect("pointer size is assumed to be at least 32 bits")
 }
 
+#[derive(Debug)]
 pub struct ModuleWithSource {
     pub source: String,
     pub tokens: Tokens,

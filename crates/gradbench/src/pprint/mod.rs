@@ -5,6 +5,7 @@ use crate::{
     parse::{Bind, Binop, Def, Expr, ExprId, Import, Module, Param, ParamId, Type, TypeId, Unop},
 };
 
+#[derive(Debug)]
 struct Printer<'a> {
     source: &'a str,
     tokens: &'a Tokens,
