@@ -2,6 +2,7 @@ mod json;
 mod lex;
 mod parse;
 mod pprint;
+mod typecheck;
 mod util;
 
 use std::{fs, process::ExitCode};
@@ -32,7 +33,7 @@ fn cli() -> Result<(), ()> {
             .eprint((path, Source::from(&source)))
             .unwrap();
     })?;
-    let module = parse::parse(&tokens).map_err(|err| {
+    let tree = parse::parse(&tokens).map_err(|err| {
         let (id, message) = match err {
             parse::ParseError::Expected { id, kinds } => (
                 id,
@@ -54,10 +55,36 @@ fn cli() -> Result<(), ()> {
             .eprint((path, Source::from(&source)))
             .unwrap();
     })?;
-    println!(
-        "{}",
-        serde_json::to_string(&json::json(&source, &tokens, &module)).unwrap()
-    );
+    let array = typecheck::array();
+    let math = typecheck::math();
+    let module = typecheck::typecheck(
+        |name| match name {
+            "array" => &array,
+            "math" => &math,
+            _ => panic!(),
+        },
+        &source,
+        &tokens,
+        &tree,
+    )
+    .map_err(|err| {
+        let (id, message) = match err {
+            typecheck::TypeError::TooManyImports => todo!(),
+            typecheck::TypeError::Undefined { name } => (name, "undefined".to_owned()),
+        };
+        let range = tokens.get(id).byte_range();
+        Report::build(ReportKind::Error, path, range.start)
+            .with_message("failed to typecheck")
+            .with_label(
+                Label::new((path, range))
+                    .with_message(message)
+                    .with_color(Color::Red),
+            )
+            .finish()
+            .eprint((path, Source::from(&source)))
+            .unwrap();
+    })?;
+    println!("{module:?}");
     Ok(())
 }
 

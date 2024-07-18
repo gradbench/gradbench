@@ -173,6 +173,7 @@ pub struct Module {
 impl Module {
     fn make_ty(&mut self, ty: Type) -> TypeId {
         let id = TypeId {
+            // we assume there are at least as many tokens as types
             index: self.types.len().try_into().unwrap(),
         };
         self.types.push(ty);
@@ -181,6 +182,7 @@ impl Module {
 
     fn make_param(&mut self, param: Param) -> ParamId {
         let id = ParamId {
+            // we assume there are at least as many tokens as parameters
             index: self.params.len().try_into().unwrap(),
         };
         self.params.push(param);
@@ -189,6 +191,7 @@ impl Module {
 
     fn make_expr(&mut self, expr: Expr) -> ExprId {
         let id = ExprId {
+            // we assume there are at least as many tokens as expressions
             index: self.exprs.len().try_into().unwrap(),
         };
         self.exprs.push(expr);
@@ -745,6 +748,7 @@ fn close(open: TokenKind) -> TokenKind {
 }
 
 fn brackets(tokens: &Tokens) -> Result<Vec<TokenId>, ParseError> {
+    // there is always an EOF, hence always at least one token
     let mut brackets: Vec<TokenId> = (0..=(tokens.len() - 1).try_into().unwrap())
         .map(|index| TokenId { index })
         .collect();
