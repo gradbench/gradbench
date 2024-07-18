@@ -1,5 +1,5 @@
 use serde::Serialize;
-use serde_json::{json, Number, Value};
+use serde_json::{json, Value};
 
 use crate::{
     lex::{TokenId, Tokens},
@@ -99,7 +99,7 @@ impl<'a> Json<'a> {
             Expr::Name { name } => json!({ "kind": "name", "name": self.token(name) }),
             Expr::Unit => json!({ "kind": "unit" }),
             Expr::Number { val } => {
-                let x: Number = serde_json::from_str(self.token(val)).unwrap();
+                let x = self.tokens.get(val).number(self.source);
                 json!({ "kind": "number", "value": x })
             }
             Expr::Pair { fst, snd } => json!({
@@ -172,7 +172,7 @@ impl<'a> Json<'a> {
     }
 
     fn import(&self, Import { module, names }: &Import) -> Value {
-        let name: String = serde_json::from_str(self.token(*module)).unwrap();
+        let name = self.tokens.get(*module).string(self.source);
         let uses = array(names.iter().map(|name| self.token(*name)));
         json!({ "name": name, "use": uses })
     }

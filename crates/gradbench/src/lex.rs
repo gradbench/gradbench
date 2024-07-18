@@ -169,6 +169,16 @@ impl Token {
         let start = usize::from(self.start);
         start..(start + usize::from(self.len))
     }
+
+    pub fn number(&self, source: &str) -> serde_json::Number {
+        assert_eq!(self.kind, TokenKind::Number);
+        serde_json::from_str(&source[self.byte_range()]).unwrap()
+    }
+
+    pub fn string(&self, source: &str) -> String {
+        assert_eq!(self.kind, TokenKind::String);
+        serde_json::from_str(&source[self.byte_range()]).unwrap()
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
