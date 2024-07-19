@@ -171,13 +171,15 @@ impl Token {
     }
 
     pub fn number(&self, source: &str) -> serde_json::Number {
-        assert_eq!(self.kind, TokenKind::Number);
-        serde_json::from_str(&source[self.byte_range()]).unwrap()
+        let kind = self.kind;
+        assert_eq!(kind, TokenKind::Number, "the {kind} token is not a number");
+        serde_json::from_str(&source[self.byte_range()]).expect("numbers should be valid JSON")
     }
 
     pub fn string(&self, source: &str) -> String {
-        assert_eq!(self.kind, TokenKind::String);
-        serde_json::from_str(&source[self.byte_range()]).unwrap()
+        let kind = self.kind;
+        assert_eq!(kind, TokenKind::String, "the {kind} token is not a string");
+        serde_json::from_str(&source[self.byte_range()]).expect("strings should be valid JSON")
     }
 }
 
@@ -250,10 +252,16 @@ pub fn lex(source: &str) -> Result<Tokens, LexError> {
     let mut tokens = Vec::new();
     for (result, range) in TokenKind::lexer(source).spanned() {
         let start = ByteIndex {
-            index: range.start.try_into().unwrap(),
+            index: range
+                .start
+                .try_into()
+                .expect("file size limit should ensure all token starts are in range"),
         };
         let end = ByteIndex {
-            index: range.end.try_into().unwrap(),
+            index: range
+                .end
+                .try_into()
+                .expect("file size limit should ensure all token ends are in range"),
         };
         let len = ByteLen {
             len: (end.index - start.index)

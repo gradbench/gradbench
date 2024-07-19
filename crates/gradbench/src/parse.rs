@@ -173,8 +173,11 @@ pub struct Module {
 impl Module {
     fn make_ty(&mut self, ty: Type) -> TypeId {
         let id = TypeId {
-            // we assume there are at least as many tokens as types
-            index: self.types.len().try_into().unwrap(),
+            index: self
+                .types
+                .len()
+                .try_into()
+                .expect("tokens should outnumber types"),
         };
         self.types.push(ty);
         id
@@ -182,8 +185,11 @@ impl Module {
 
     fn make_param(&mut self, param: Param) -> ParamId {
         let id = ParamId {
-            // we assume there are at least as many tokens as parameters
-            index: self.params.len().try_into().unwrap(),
+            index: self
+                .params
+                .len()
+                .try_into()
+                .expect("tokens should outnumber parameters"),
         };
         self.params.push(param);
         id
@@ -191,8 +197,11 @@ impl Module {
 
     fn make_expr(&mut self, expr: Expr) -> ExprId {
         let id = ExprId {
-            // we assume there are at least as many tokens as expressions
-            index: self.exprs.len().try_into().unwrap(),
+            index: self
+                .exprs
+                .len()
+                .try_into()
+                .expect("tokens should outnumber expressions"),
         };
         self.exprs.push(expr);
         id
@@ -330,7 +339,9 @@ impl<'a> Parser<'a> {
             self.next();
             types.push(self.ty_factor()?);
         }
-        let last = types.pop().unwrap();
+        let last = types
+            .pop()
+            .expect("every type term should have at least one factor");
         Ok(types.into_iter().rfold(last, |snd, fst| {
             self.module.make_ty(Type::Prod { fst, snd })
         }))
@@ -342,7 +353,9 @@ impl<'a> Parser<'a> {
             self.next();
             types.push(self.ty_term()?);
         }
-        let last = types.pop().unwrap();
+        let last = types
+            .pop()
+            .expect("every type should have at least one term");
         Ok(types.into_iter().rfold(last, |right, left| {
             self.module.make_ty(Type::Sum { left, right })
         }))
@@ -436,7 +449,9 @@ impl<'a> Parser<'a> {
             self.next();
             params.push(self.param_elem()?);
         }
-        let last = params.pop().unwrap();
+        let last = params
+            .pop()
+            .expect("every non-unit parameter should have at least one element");
         Ok(params.into_iter().rfold(last, |snd, fst| Param {
             bind: Bind::Pair {
                 fst: self.module.make_param(fst),
@@ -616,7 +631,9 @@ impl<'a> Parser<'a> {
             self.next();
             exprs.push(self.expr_elem()?);
         }
-        let last = exprs.pop().unwrap();
+        let last = exprs
+            .pop()
+            .expect("every non-statement expression should have at least one element");
         Ok(exprs.into_iter().rfold(last, |snd, fst| {
             self.module.make_expr(Expr::Pair { fst, snd })
         }))
@@ -743,13 +760,15 @@ fn close(open: TokenKind) -> TokenKind {
         LParen => RParen,
         LBracket => RBracket,
         LBrace => RBrace,
-        _ => unreachable!(),
+        _ => panic!("the {open} token is not an opening bracket"),
     }
 }
 
 fn brackets(tokens: &Tokens) -> Result<Vec<TokenId>, ParseError> {
     // there is always an EOF, hence always at least one token
-    let mut brackets: Vec<TokenId> = (0..=(tokens.len() - 1).try_into().unwrap())
+    let mut brackets: Vec<TokenId> = (0..=(tokens.len() - 1)
+        .try_into()
+        .expect("every token should have an index"))
         .map(|index| TokenId { index })
         .collect();
     let mut id = TokenId { index: 0 };
