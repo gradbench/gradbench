@@ -71,7 +71,9 @@ fn cli() -> Result<(), ()> {
         let (id, message) = match err {
             typecheck::TypeError::TooManyImports => todo!(),
             typecheck::TypeError::TooManyTypes => todo!(),
-            typecheck::TypeError::Undefined { name } => (name, "undefined".to_owned()),
+            typecheck::TypeError::Undefined { name } => (name, "undefined"),
+            typecheck::TypeError::Duplicate { name } => (name, "duplicate"),
+            typecheck::TypeError::Untyped { name } => (name, "untyped"),
         };
         let range = tokens.get(id).byte_range();
         Report::build(ReportKind::Error, path, range.start)

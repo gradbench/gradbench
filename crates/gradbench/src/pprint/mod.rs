@@ -49,6 +49,11 @@ impl Printer<'_> {
                 write!(f, "]")?;
                 self.ty(f, elem)?;
             }
+            Type::Func { dom, cod } => {
+                self.ty(f, dom)?;
+                write!(f, " -> ")?;
+                self.ty(f, cod)?;
+            }
         }
         Ok(())
     }

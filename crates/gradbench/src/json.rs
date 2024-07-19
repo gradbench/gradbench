@@ -42,6 +42,11 @@ impl<'a> Json<'a> {
                 "index": index.map(|i| self.ty(i)),
                 "element": self.ty(elem),
             }),
+            Type::Func { dom, cod } => json!({
+                "kind": "function",
+                "domain": self.ty(dom),
+                "codomain": self.ty(cod),
+            }),
         }
     }
 

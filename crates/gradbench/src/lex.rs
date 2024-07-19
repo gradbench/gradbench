@@ -98,6 +98,9 @@ pub enum TokenKind {
     #[token("./")]
     DotSlash,
 
+    #[token("->")]
+    To,
+
     #[token("=>")]
     Arrow,
 
@@ -146,6 +149,7 @@ impl fmt::Display for TokenKind {
             Self::Slash => write!(f, "`/`"),
             Self::DotStar => write!(f, "`.*`"),
             Self::DotSlash => write!(f, "`./`"),
+            Self::To => write!(f, "`->`"),
             Self::Arrow => write!(f, "`=>`"),
             Self::Gets => write!(f, "`<-`"),
             Self::Def => write!(f, "`def`"),

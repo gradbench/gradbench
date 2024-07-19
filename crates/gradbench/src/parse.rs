@@ -49,6 +49,7 @@ pub enum Type {
     Prod { fst: TypeId, snd: TypeId },
     Sum { left: TypeId, right: TypeId },
     Array { index: Option<TypeId>, elem: TypeId },
+    Func { dom: TypeId, cod: TypeId },
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -347,7 +348,7 @@ impl<'a> Parser<'a> {
         }))
     }
 
-    fn ty(&mut self) -> Result<TypeId, ParseError> {
+    fn ty_dom(&mut self) -> Result<TypeId, ParseError> {
         let mut types = vec![self.ty_term()?];
         while let Plus = self.peek() {
             self.next();
@@ -355,9 +356,23 @@ impl<'a> Parser<'a> {
         }
         let last = types
             .pop()
-            .expect("every type should have at least one term");
+            .expect("every domain type should have at least one term");
         Ok(types.into_iter().rfold(last, |right, left| {
             self.module.make_ty(Type::Sum { left, right })
+        }))
+    }
+
+    fn ty(&mut self) -> Result<TypeId, ParseError> {
+        let mut types = vec![self.ty_dom()?];
+        while let To = self.peek() {
+            self.next();
+            types.push(self.ty_dom()?);
+        }
+        let last = types
+            .pop()
+            .expect("every type should have at least one domain");
+        Ok(types.into_iter().rfold(last, |cod, dom| {
+            self.module.make_ty(Type::Func { cod, dom })
         }))
     }
 

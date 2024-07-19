@@ -1,3 +1,3 @@
-def square(x: Real) = x * x
+def square(x: Float): Float = x * x
 
-def double = grad square
+def double: Float -> Float = grad square
