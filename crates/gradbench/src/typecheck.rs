@@ -1,6 +1,6 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
-use indexmap::IndexSet;
+use indexmap::{map::RawEntryApiV1, IndexMap, IndexSet};
 
 use crate::{
     lex::{TokenId, Tokens},
@@ -16,6 +16,17 @@ pub struct ModId {
 impl From<ModId> for usize {
     fn from(id: ModId) -> Self {
         id.index.into()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct FieldId {
+    pub index: u32,
+}
+
+impl From<FieldId> for usize {
+    fn from(id: FieldId) -> Self {
+        u32_to_usize(id.index)
     }
 }
 
@@ -43,20 +54,41 @@ impl From<ValId> for usize {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 enum Type {
-    Var { module: Option<ModId>, def: TokenId },
+    Var {
+        src: Option<ModId>,
+        def: TokenId,
+    },
     Unit,
     Int,
     Float,
-    Prod { fst: TypeId, snd: TypeId },
-    Sum { left: TypeId, right: TypeId },
-    Array { index: TypeId, elem: TypeId },
-    Func { dom: TypeId, cod: TypeId },
+    Prod {
+        fst: TypeId,
+        snd: TypeId,
+    },
+    Sum {
+        left: TypeId,
+        right: TypeId,
+    },
+    Array {
+        index: TypeId,
+        elem: TypeId,
+    },
+    Record {
+        name: FieldId,
+        field: TypeId,
+        rest: TypeId,
+    },
+    End,
+    Func {
+        dom: TypeId,
+        cod: TypeId,
+    },
 }
 
 #[derive(Clone, Copy, Debug)]
 enum Expr {
     Undefined,
-    Use { module: ModId, id: ValId },
+    Use { src: ModId, id: ValId },
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -68,12 +100,22 @@ struct Val {
 #[derive(Debug)]
 pub struct Module {
     imports: Vec<String>,
+    fields: IndexMap<String, ()>,
     types: IndexSet<Type>,
     exports: HashMap<String, ValId>,
     vals: Vec<Val>,
 }
 
 impl Module {
+    fn field(&self, id: FieldId) -> &str {
+        let (s, _) = self.fields.get_index(usize::from(id)).unwrap();
+        s
+    }
+
+    fn ty(&self, id: TypeId) -> Type {
+        self.types[usize::from(id)]
+    }
+
     fn export(&self, name: &str) -> Option<ValId> {
         self.exports.get(name).copied()
     }
@@ -86,6 +128,7 @@ impl Module {
 #[derive(Debug)]
 pub enum TypeError {
     TooManyImports,
+    TooManyFields,
     TooManyTypes,
     Undefined { name: TokenId },
     Duplicate { name: TokenId },
@@ -105,6 +148,19 @@ struct Typer<'a> {
 impl<'a> Typer<'a> {
     fn token(&self, id: TokenId) -> &'a str {
         &self.source[self.tokens.get(id).byte_range()]
+    }
+
+    fn field(&mut self, name: &str) -> Result<FieldId, TypeError> {
+        let entry = self.module.fields.raw_entry_mut_v1().from_key(name);
+        let id = FieldId {
+            // maybe more fields than tokens, because of imports
+            index: entry
+                .index()
+                .try_into()
+                .map_err(|_| TypeError::TooManyFields)?,
+        };
+        entry.or_insert_with(|| (name.to_owned(), ()));
+        Ok(id)
     }
 
     fn ty(&mut self, ty: Type) -> Result<TypeId, TypeError> {
@@ -175,9 +231,35 @@ impl<'a> Typer<'a> {
         match bind {
             parse::Bind::Unit => self.ty(Type::Unit),
             parse::Bind::Name { name } => Err(TypeError::Untyped { name }),
-            parse::Bind::Pair { fst, snd } => todo!(),
-            parse::Bind::Record { name, field, rest } => todo!(),
-            parse::Bind::End => todo!(),
+            parse::Bind::Pair { fst, snd } => {
+                let fst = self.param_ty(names, fst)?;
+                let snd = self.param_ty(names, snd)?;
+                self.ty(Type::Prod { fst, snd })
+            }
+            parse::Bind::Record { name, field, rest } => {
+                let mut fields = BTreeMap::new();
+                let (mut n, mut v, mut r) = (name, field, rest);
+                loop {
+                    let ty = self.param_ty(names, v)?;
+                    if fields.insert(self.token(n), ty).is_some() {
+                        return Err(TypeError::Duplicate { name: n });
+                    }
+                    match self.tree.param(r).bind {
+                        parse::Bind::Record { name, field, rest } => {
+                            (n, v, r) = (name, field, rest);
+                        }
+                        parse::Bind::End => break,
+                        _ => panic!("invalid record"),
+                    }
+                }
+                fields
+                    .into_iter()
+                    .try_rfold(self.ty(Type::End)?, |rest, (s, field)| {
+                        let name = self.field(s)?;
+                        self.ty(Type::Record { name, field, rest })
+                    })
+            }
+            parse::Bind::End => self.ty(Type::End),
         }
     }
 
@@ -212,13 +294,11 @@ impl<'a> Typer<'a> {
         if let Some(&t) = ids.get(&t0) {
             return Ok(t);
         }
-        let t = match self.imports[usize::from(i)].types[usize::from(t0)] {
-            Type::Var { module, def } => {
-                assert!(module.is_none(), "type variable from transitive import");
-                self.ty(Type::Var {
-                    module: Some(i),
-                    def,
-                })?
+        let import = self.imports[usize::from(i)];
+        let t = match import.ty(t0) {
+            Type::Var { src, def } => {
+                assert!(src.is_none(), "type variable from transitive import");
+                self.ty(Type::Var { src: Some(i), def })?
             }
             Type::Unit => self.ty(Type::Unit)?,
             Type::Int => self.ty(Type::Int)?,
@@ -238,6 +318,13 @@ impl<'a> Typer<'a> {
                 let elem = self.translate(i, ids, elem)?;
                 self.ty(Type::Array { index, elem })?
             }
+            Type::Record { name, field, rest } => {
+                let name = self.field(import.field(name))?;
+                let field = self.translate(i, ids, field)?;
+                let rest = self.translate(i, ids, rest)?;
+                self.ty(Type::Record { name, field, rest })?
+            }
+            Type::End => self.ty(Type::End)?,
             Type::Func { dom, cod } => {
                 let dom = self.translate(i, ids, dom)?;
                 let cod = self.translate(i, ids, cod)?;
@@ -255,17 +342,17 @@ impl<'a> Typer<'a> {
         }
         let imports = self.tree.imports();
         for index in 0..=(n - 1).try_into().map_err(|_| TypeError::TooManyImports)? {
-            let mod_id = ModId { index };
-            let module = self.imports[usize::from(mod_id)];
+            let src = ModId { index };
+            let module = self.imports[usize::from(src)];
             let mut translated = HashMap::new();
-            for &token in imports[usize::from(mod_id)].names.iter() {
+            for &token in imports[usize::from(src)].names.iter() {
                 let id = module
                     .export(self.token(token))
                     .ok_or(TypeError::Undefined { name: token })?;
-                let ty = self.translate(mod_id, &mut translated, module.val(id).ty)?;
+                let ty = self.translate(src, &mut translated, module.val(id).ty)?;
                 let val = self.val(Val {
                     ty,
-                    expr: Expr::Use { module: mod_id, id },
+                    expr: Expr::Use { src, id },
                 });
                 self.toplevel(token, val)?;
             }
@@ -285,7 +372,7 @@ impl<'a> Typer<'a> {
         {
             let generics = types
                 .iter()
-                .map(|&def| Ok((self.token(def), self.ty(Type::Var { module: None, def })?)))
+                .map(|&def| Ok((self.token(def), self.ty(Type::Var { src: None, def })?)))
                 .collect::<Result<HashMap<&'a str, TypeId>, TypeError>>()?;
             let mut t = self.parse_ty(&generics, ty.ok_or(TypeError::Untyped { name: *name })?)?;
             for &param in params.iter().rev() {
@@ -326,8 +413,9 @@ pub fn typecheck<'a>(
         tree,
         module: Module {
             imports,
-            exports: HashMap::new(),
+            fields: IndexMap::new(),
             types: IndexSet::new(),
+            exports: HashMap::new(),
             vals: vec![],
         },
         names: HashMap::new(),
@@ -338,6 +426,14 @@ pub fn typecheck<'a>(
 pub fn array() -> Module {
     Module {
         imports: vec![],
+        fields: IndexMap::new(),
+        types: IndexSet::from([
+            Type::Unit,
+            Type::Func {
+                dom: TypeId { index: 0 },
+                cod: TypeId { index: 0 },
+            },
+        ]),
         exports: HashMap::from(
             [
                 "array",
@@ -356,13 +452,6 @@ pub fn array() -> Module {
             ]
             .map(|s| (s.to_owned(), ValId { index: 0 })),
         ),
-        types: IndexSet::from([
-            Type::Unit,
-            Type::Func {
-                dom: TypeId { index: 0 },
-                cod: TypeId { index: 0 },
-            },
-        ]),
         vals: vec![Val {
             ty: TypeId { index: 1 },
             expr: Expr::Undefined,
@@ -373,10 +462,7 @@ pub fn array() -> Module {
 pub fn math() -> Module {
     Module {
         imports: vec![],
-        exports: HashMap::from(
-            ["exp", "int", "lgamma", "log", "pi", "sqr", "sqrt"]
-                .map(|s| (s.to_owned(), ValId { index: 0 })),
-        ),
+        fields: IndexMap::new(),
         types: IndexSet::from([
             Type::Unit,
             Type::Func {
@@ -384,6 +470,10 @@ pub fn math() -> Module {
                 cod: TypeId { index: 0 },
             },
         ]),
+        exports: HashMap::from(
+            ["exp", "int", "lgamma", "log", "pi", "sqr", "sqrt"]
+                .map(|s| (s.to_owned(), ValId { index: 0 })),
+        ),
         vals: vec![Val {
             ty: TypeId { index: 1 },
             expr: Expr::Undefined,

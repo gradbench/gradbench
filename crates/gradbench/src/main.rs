@@ -71,6 +71,7 @@ fn cli() -> Result<(), ()> {
         let (id, message) = match err {
             typecheck::TypeError::TooManyImports => todo!(),
             typecheck::TypeError::TooManyTypes => todo!(),
+            typecheck::TypeError::TooManyFields => todo!(),
             typecheck::TypeError::Undefined { name } => (name, "undefined"),
             typecheck::TypeError::Duplicate { name } => (name, "duplicate"),
             typecheck::TypeError::Untyped { name } => (name, "untyped"),
@@ -87,7 +88,7 @@ fn cli() -> Result<(), ()> {
             .eprint((path, Source::from(&source)))
             .unwrap();
     })?;
-    println!("{module:#?}");
+    println!("{module:?}");
     Ok(())
 }
 
