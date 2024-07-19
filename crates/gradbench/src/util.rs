@@ -8,14 +8,14 @@ pub fn u32_to_usize(n: u32) -> usize {
 }
 
 #[derive(Debug)]
-pub struct ModuleWithSource {
+pub struct TreeWithSource {
     pub source: String,
     pub tokens: Tokens,
-    pub module: Module,
+    pub tree: Module,
 }
 
-impl fmt::Display for ModuleWithSource {
+impl fmt::Display for TreeWithSource {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        pprint(f, &self.source, &self.tokens, &self.module)
+        pprint(f, &self.source, &self.tokens, &self.tree)
     }
 }

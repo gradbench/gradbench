@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use indexmap::{map::RawEntryApiV1, IndexMap, IndexSet};
+use serde::{ser::SerializeSeq, Serialize, Serializer};
 
 use crate::{
     lex::{TokenId, Tokens},
@@ -8,7 +9,8 @@ use crate::{
     util::u32_to_usize,
 };
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(transparent)]
 pub struct ModId {
     pub index: u16,
 }
@@ -19,7 +21,8 @@ impl From<ModId> for usize {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(transparent)]
 pub struct FieldId {
     pub index: u32,
 }
@@ -30,7 +33,8 @@ impl From<FieldId> for usize {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(transparent)]
 pub struct TypeId {
     pub index: u32,
 }
@@ -41,7 +45,8 @@ impl From<TypeId> for usize {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(transparent)]
 pub struct ValId {
     pub index: u32,
 }
@@ -52,8 +57,9 @@ impl From<ValId> for usize {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-enum Type {
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize)]
+#[serde(tag = "kind")]
+pub enum Type {
     Var {
         src: Option<ModId>,
         def: TokenId,
@@ -85,42 +91,119 @@ enum Type {
     },
 }
 
-#[derive(Clone, Copy, Debug)]
-enum Expr {
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(tag = "kind")]
+pub enum Expr {
     Undefined,
     Use { src: ModId, id: ValId },
 }
 
-#[derive(Clone, Copy, Debug)]
-struct Val {
-    ty: TypeId,
-    expr: Expr,
+#[derive(Clone, Copy, Debug, Serialize)]
+pub struct Val {
+    pub ty: TypeId,
+    pub expr: Expr,
 }
 
 #[derive(Debug)]
+struct Fields {
+    fields: IndexMap<String, ()>,
+}
+
+impl Fields {
+    fn new() -> Self {
+        Self {
+            fields: IndexMap::new(),
+        }
+    }
+
+    fn get(&self, id: FieldId) -> &str {
+        let (s, _) = self.fields.get_index(usize::from(id)).unwrap();
+        s
+    }
+
+    fn make(&mut self, field: &str) -> Result<FieldId, TypeError> {
+        let entry = self.fields.raw_entry_mut_v1().from_key(field);
+        let id = FieldId {
+            // maybe more fields than tokens, because of imports
+            index: entry
+                .index()
+                .try_into()
+                .map_err(|_| TypeError::TooManyFields)?,
+        };
+        entry.or_insert_with(|| (field.to_owned(), ()));
+        Ok(id)
+    }
+}
+
+impl Serialize for Fields {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut seq = serializer.serialize_seq(Some(self.fields.len()))?;
+        for s in self.fields.keys() {
+            seq.serialize_element(s)?;
+        }
+        seq.end()
+    }
+}
+
+#[derive(Debug)]
+struct Types {
+    types: IndexSet<Type>,
+}
+
+impl Types {
+    fn new() -> Self {
+        Self {
+            types: IndexSet::new(),
+        }
+    }
+
+    fn get(&self, id: TypeId) -> Type {
+        self.types[usize::from(id)]
+    }
+
+    fn make(&mut self, ty: Type) -> Result<TypeId, TypeError> {
+        let (i, _) = self.types.insert_full(ty);
+        let id = TypeId {
+            // maybe more types than tokens, because of imports
+            index: i.try_into().map_err(|_| TypeError::TooManyTypes)?,
+        };
+        Ok(id)
+    }
+}
+
+impl Serialize for Types {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut seq = serializer.serialize_seq(Some(self.types.len()))?;
+        for ty in &self.types {
+            seq.serialize_element(ty)?;
+        }
+        seq.end()
+    }
+}
+
+#[derive(Debug, Serialize)]
 pub struct Module {
     imports: Vec<String>,
-    fields: IndexMap<String, ()>,
-    types: IndexSet<Type>,
+    fields: Fields,
+    types: Types,
     exports: HashMap<String, ValId>,
     vals: Vec<Val>,
 }
 
 impl Module {
-    fn field(&self, id: FieldId) -> &str {
-        let (s, _) = self.fields.get_index(usize::from(id)).unwrap();
-        s
+    pub fn field(&self, id: FieldId) -> &str {
+        self.fields.get(id)
     }
 
-    fn ty(&self, id: TypeId) -> Type {
-        self.types[usize::from(id)]
+    pub fn ty(&self, id: TypeId) -> Type {
+        self.types.get(id)
     }
 
-    fn export(&self, name: &str) -> Option<ValId> {
+    pub fn export(&self, name: &str) -> Option<ValId> {
         self.exports.get(name).copied()
     }
 
-    fn val(&self, id: ValId) -> Val {
+    pub fn val(&self, id: ValId) -> Val {
         self.vals[usize::from(id)]
     }
 }
@@ -151,25 +234,11 @@ impl<'a> Typer<'a> {
     }
 
     fn field(&mut self, name: &str) -> Result<FieldId, TypeError> {
-        let entry = self.module.fields.raw_entry_mut_v1().from_key(name);
-        let id = FieldId {
-            // maybe more fields than tokens, because of imports
-            index: entry
-                .index()
-                .try_into()
-                .map_err(|_| TypeError::TooManyFields)?,
-        };
-        entry.or_insert_with(|| (name.to_owned(), ()));
-        Ok(id)
+        self.module.fields.make(name)
     }
 
     fn ty(&mut self, ty: Type) -> Result<TypeId, TypeError> {
-        let (i, _) = self.module.types.insert_full(ty);
-        let id = TypeId {
-            // maybe more types than tokens, because of imports
-            index: i.try_into().map_err(|_| TypeError::TooManyTypes)?,
-        };
-        Ok(id)
+        self.module.types.make(ty)
     }
 
     fn val(&mut self, val: Val) -> ValId {
@@ -413,8 +482,8 @@ pub fn typecheck<'a>(
         tree,
         module: Module {
             imports,
-            fields: IndexMap::new(),
-            types: IndexSet::new(),
+            fields: Fields::new(),
+            types: Types::new(),
             exports: HashMap::new(),
             vals: vec![],
         },
@@ -424,16 +493,18 @@ pub fn typecheck<'a>(
 }
 
 pub fn array() -> Module {
+    let mut types = Types::new();
+    let unit = types.make(Type::Unit).unwrap();
+    let func = types
+        .make(Type::Func {
+            dom: unit,
+            cod: unit,
+        })
+        .unwrap();
     Module {
         imports: vec![],
-        fields: IndexMap::new(),
-        types: IndexSet::from([
-            Type::Unit,
-            Type::Func {
-                dom: TypeId { index: 0 },
-                cod: TypeId { index: 0 },
-            },
-        ]),
+        fields: Fields::new(),
+        types,
         exports: HashMap::from(
             [
                 "array",
@@ -453,29 +524,31 @@ pub fn array() -> Module {
             .map(|s| (s.to_owned(), ValId { index: 0 })),
         ),
         vals: vec![Val {
-            ty: TypeId { index: 1 },
+            ty: func,
             expr: Expr::Undefined,
         }],
     }
 }
 
 pub fn math() -> Module {
+    let mut types = Types::new();
+    let unit = types.make(Type::Unit).unwrap();
+    let func = types
+        .make(Type::Func {
+            dom: unit,
+            cod: unit,
+        })
+        .unwrap();
     Module {
         imports: vec![],
-        fields: IndexMap::new(),
-        types: IndexSet::from([
-            Type::Unit,
-            Type::Func {
-                dom: TypeId { index: 0 },
-                cod: TypeId { index: 0 },
-            },
-        ]),
+        fields: Fields::new(),
+        types,
         exports: HashMap::from(
             ["exp", "int", "lgamma", "log", "pi", "sqr", "sqrt"]
                 .map(|s| (s.to_owned(), ValId { index: 0 })),
         ),
         vals: vec![Val {
-            ty: TypeId { index: 1 },
+            ty: func,
             expr: Expr::Undefined,
         }],
     }

@@ -243,7 +243,7 @@ struct Parser<'a> {
     brackets: Vec<TokenId>,
     before_ws: TokenId,
     id: TokenId,
-    module: Module,
+    tree: Module,
 }
 
 impl<'a> Parser<'a> {
@@ -298,13 +298,13 @@ impl<'a> Parser<'a> {
             Ident => {
                 let name = self.id;
                 self.next();
-                Ok(self.module.make_ty(Type::Name { name }))
+                Ok(self.tree.make_ty(Type::Name { name }))
             }
             LParen => {
                 self.next();
                 if let RParen = self.peek() {
                     self.next();
-                    Ok(self.module.make_ty(Type::Unit))
+                    Ok(self.tree.make_ty(Type::Unit))
                 } else {
                     let ty = self.ty()?;
                     self.expect(RParen)?;
@@ -328,7 +328,7 @@ impl<'a> Parser<'a> {
                 };
                 self.expect(RBracket)?;
                 let elem = self.ty_factor()?;
-                Ok(self.module.make_ty(Type::Array { index, elem }))
+                Ok(self.tree.make_ty(Type::Array { index, elem }))
             }
             _ => self.ty_atom(),
         }
@@ -343,9 +343,9 @@ impl<'a> Parser<'a> {
         let last = types
             .pop()
             .expect("every type term should have at least one factor");
-        Ok(types.into_iter().rfold(last, |snd, fst| {
-            self.module.make_ty(Type::Prod { fst, snd })
-        }))
+        Ok(types
+            .into_iter()
+            .rfold(last, |snd, fst| self.tree.make_ty(Type::Prod { fst, snd })))
     }
 
     fn ty_dom(&mut self) -> Result<TypeId, ParseError> {
@@ -358,7 +358,7 @@ impl<'a> Parser<'a> {
             .pop()
             .expect("every domain type should have at least one term");
         Ok(types.into_iter().rfold(last, |right, left| {
-            self.module.make_ty(Type::Sum { left, right })
+            self.tree.make_ty(Type::Sum { left, right })
         }))
     }
 
@@ -371,9 +371,9 @@ impl<'a> Parser<'a> {
         let last = types
             .pop()
             .expect("every type should have at least one domain");
-        Ok(types.into_iter().rfold(last, |cod, dom| {
-            self.module.make_ty(Type::Func { cod, dom })
-        }))
+        Ok(types
+            .into_iter()
+            .rfold(last, |cod, dom| self.tree.make_ty(Type::Func { cod, dom })))
     }
 
     fn bind_atom(&mut self) -> Result<Bind, ParseError> {
@@ -421,7 +421,7 @@ impl<'a> Parser<'a> {
                     } else {
                         None
                     };
-                    fields.push((name, self.module.make_param(Param { bind, ty })));
+                    fields.push((name, self.tree.make_param(Param { bind, ty })));
                     match self.peek() {
                         Comma => self.next(),
                         _ => break,
@@ -433,7 +433,7 @@ impl<'a> Parser<'a> {
                     .rfold(Bind::End, |bind, (name, field)| Bind::Record {
                         name,
                         field,
-                        rest: self.module.make_param(Param { bind, ty: None }),
+                        rest: self.tree.make_param(Param { bind, ty: None }),
                     }))
             }
             _ => Err(ParseError::Expected {
@@ -469,8 +469,8 @@ impl<'a> Parser<'a> {
             .expect("every non-unit parameter should have at least one element");
         Ok(params.into_iter().rfold(last, |snd, fst| Param {
             bind: Bind::Pair {
-                fst: self.module.make_param(fst),
-                snd: self.module.make_param(snd),
+                fst: self.tree.make_param(fst),
+                snd: self.tree.make_param(snd),
             },
             ty: None,
         }))
@@ -492,7 +492,7 @@ impl<'a> Parser<'a> {
                         self.expect(RParen)?;
                         param
                     };
-                    let param = self.module.make_param(param);
+                    let param = self.tree.make_param(param);
                     let ty = if let Colon = self.peek() {
                         self.next();
                         Some(self.ty()?)
@@ -501,10 +501,10 @@ impl<'a> Parser<'a> {
                     };
                     self.expect(Arrow)?;
                     let body = self.expr()?;
-                    Ok(self.module.make_expr(Expr::Lambda { param, ty, body }))
+                    Ok(self.tree.make_expr(Expr::Lambda { param, ty, body }))
                 } else if let RParen = self.peek() {
                     self.next();
-                    Ok(self.module.make_expr(Expr::Unit))
+                    Ok(self.tree.make_expr(Expr::Unit))
                 } else {
                     let expr = self.expr()?;
                     self.expect(RParen)?;
@@ -521,7 +521,7 @@ impl<'a> Parser<'a> {
                         self.next();
                         self.expr_elem()?
                     } else {
-                        self.module.make_expr(Expr::Name { name })
+                        self.tree.make_expr(Expr::Name { name })
                     };
                     fields.push((name, field));
                     match self.peek() {
@@ -532,8 +532,8 @@ impl<'a> Parser<'a> {
                 self.expect(RBrace)?;
                 Ok(fields
                     .into_iter()
-                    .rfold(self.module.make_expr(Expr::End), |rest, (name, field)| {
-                        self.module.make_expr(Expr::Record { name, field, rest })
+                    .rfold(self.tree.make_expr(Expr::End), |rest, (name, field)| {
+                        self.tree.make_expr(Expr::Record { name, field, rest })
                     }))
             }
             Ident => {
@@ -542,18 +542,18 @@ impl<'a> Parser<'a> {
                 if let Arrow = self.peek() {
                     self.next();
                     let bind = Bind::Name { name };
-                    let param = self.module.make_param(Param { bind, ty: None });
+                    let param = self.tree.make_param(Param { bind, ty: None });
                     let ty = None;
                     let body = self.expr()?;
-                    Ok(self.module.make_expr(Expr::Lambda { param, ty, body }))
+                    Ok(self.tree.make_expr(Expr::Lambda { param, ty, body }))
                 } else {
-                    Ok(self.module.make_expr(Expr::Name { name }))
+                    Ok(self.tree.make_expr(Expr::Name { name }))
                 }
             }
             Number => {
                 let val = self.id;
                 self.next();
-                Ok(self.module.make_expr(Expr::Number { val }))
+                Ok(self.tree.make_expr(Expr::Number { val }))
             }
             _ => Err(ParseError::Expected {
                 id: self.id,
@@ -575,21 +575,21 @@ impl<'a> Parser<'a> {
                     self.next();
                     let index = self.expr()?;
                     self.expect(RBracket)?;
-                    expr = self.module.make_expr(Expr::Elem { array: expr, index })
+                    expr = self.tree.make_expr(Expr::Elem { array: expr, index })
                 }
                 Dot => {
                     self.next();
                     self.expect(LParen)?;
                     let arg = self.expr()?;
                     self.expect(RParen)?;
-                    expr = self.module.make_expr(Expr::Map { func: expr, arg })
+                    expr = self.tree.make_expr(Expr::Map { func: expr, arg })
                 }
                 _ => break,
             }
         }
-        Ok(unops.into_iter().rfold(expr, |arg, op| {
-            self.module.make_expr(Expr::Unary { op, arg })
-        }))
+        Ok(unops
+            .into_iter()
+            .rfold(expr, |arg, op| self.tree.make_expr(Expr::Unary { op, arg })))
     }
 
     fn expr_factor(&mut self) -> Result<ExprId, ParseError> {
@@ -599,7 +599,7 @@ impl<'a> Parser<'a> {
             // same set of tokens allowed at the start of an atomic expression
             if let LParen | LBrace | Ident | Number = self.peek() {
                 let x = self.expr_access()?;
-                f = self.module.make_expr(Expr::Apply { func: f, arg: x });
+                f = self.tree.make_expr(Expr::Apply { func: f, arg: x });
             } else {
                 break;
             }
@@ -619,7 +619,7 @@ impl<'a> Parser<'a> {
             };
             self.next();
             let rhs = self.expr_factor()?;
-            lhs = self.module.make_expr(Expr::Binary { lhs, map, op, rhs });
+            lhs = self.tree.make_expr(Expr::Binary { lhs, map, op, rhs });
         }
         Ok(lhs)
     }
@@ -635,7 +635,7 @@ impl<'a> Parser<'a> {
             };
             self.next();
             let rhs = self.expr_term()?;
-            lhs = self.module.make_expr(Expr::Binary { lhs, map, op, rhs });
+            lhs = self.tree.make_expr(Expr::Binary { lhs, map, op, rhs });
         }
         Ok(lhs)
     }
@@ -650,7 +650,7 @@ impl<'a> Parser<'a> {
             .pop()
             .expect("every non-statement expression should have at least one element");
         Ok(exprs.into_iter().rfold(last, |snd, fst| {
-            self.module.make_expr(Expr::Pair { fst, snd })
+            self.tree.make_expr(Expr::Pair { fst, snd })
         }))
     }
 
@@ -666,11 +666,11 @@ impl<'a> Parser<'a> {
             Let => {
                 self.next();
                 let param = self.param()?;
-                let param = self.module.make_param(param);
+                let param = self.tree.make_param(param);
                 self.expect(Equal)?;
                 let val = self.expr_inner()?;
                 let body = self.stmt()?;
-                Ok(self.module.make_expr(Expr::Let { param, val, body }))
+                Ok(self.tree.make_expr(Expr::Let { param, val, body }))
             }
             Index => {
                 self.next();
@@ -678,7 +678,7 @@ impl<'a> Parser<'a> {
                 self.expect(Gets)?;
                 let val = self.expr_inner()?;
                 let body = self.stmt()?;
-                Ok(self.module.make_expr(Expr::Index { name, val, body }))
+                Ok(self.tree.make_expr(Expr::Index { name, val, body }))
             }
             _ => self.expr_inner(),
         }
@@ -728,7 +728,7 @@ impl<'a> Parser<'a> {
                 self.expect(RParen)?;
                 param
             };
-            params.push(self.module.make_param(param));
+            params.push(self.tree.make_param(param));
         }
         let ty = if let Colon = self.peek() {
             self.next();
@@ -752,13 +752,13 @@ impl<'a> Parser<'a> {
             match self.peek() {
                 Import => {
                     let import = self.import()?;
-                    self.module.imports.push(import);
+                    self.tree.imports.push(import);
                 }
                 Def => {
                     let def = self.def()?;
-                    self.module.defs.push(def);
+                    self.tree.defs.push(def);
                 }
-                Eof => return Ok(self.module),
+                Eof => return Ok(self.tree),
                 _ => {
                     return Err(ParseError::Expected {
                         id: self.id,
@@ -828,7 +828,7 @@ pub fn parse(tokens: &Tokens) -> Result<Module, ParseError> {
         brackets: brackets(tokens)?,
         before_ws: id,
         id,
-        module: Module {
+        tree: Module {
             imports: vec![],
             types: vec![],
             params: vec![],

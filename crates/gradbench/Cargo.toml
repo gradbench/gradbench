@@ -14,7 +14,7 @@ enumset = "1"
 indexmap = "2"
 itertools = "0.13"
 logos = "0.14"
-serde = "1"
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1"
 
 [dev-dependencies]

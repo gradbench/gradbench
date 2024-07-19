@@ -9,7 +9,7 @@ use crate::{
 struct Printer<'a> {
     source: &'a str,
     tokens: &'a Tokens,
-    module: &'a Module,
+    tree: &'a Module,
     indent: usize,
 }
 
@@ -27,7 +27,7 @@ impl Printer<'_> {
     }
 
     fn ty(&mut self, f: &mut fmt::Formatter, id: TypeId) -> fmt::Result {
-        let ty = self.module.ty(id);
+        let ty = self.tree.ty(id);
         match ty {
             Type::Unit => write!(f, "()")?,
             Type::Name { name } => self.token(f, name)?,
@@ -76,7 +76,7 @@ impl Printer<'_> {
                     self.token(f, n)?;
                     write!(f, " = ")?;
                     self.param(f, v)?;
-                    let Param { bind, ty } = self.module.param(r);
+                    let Param { bind, ty } = self.tree.param(r);
                     assert_eq!(ty, None);
                     match bind {
                         Bind::Record { name, field, rest } => {
@@ -95,7 +95,7 @@ impl Printer<'_> {
     }
 
     fn param(&mut self, f: &mut fmt::Formatter, id: ParamId) -> fmt::Result {
-        let param = self.module.param(id);
+        let param = self.tree.param(id);
         self.bind(f, param.bind)?;
         if let Some(ty) = param.ty {
             write!(f, " : ")?;
@@ -124,7 +124,7 @@ impl Printer<'_> {
     }
 
     fn val(&mut self, f: &mut fmt::Formatter, id: ExprId) -> fmt::Result {
-        if let Expr::Let { .. } | Expr::Index { .. } = self.module.expr(id) {
+        if let Expr::Let { .. } | Expr::Index { .. } = self.tree.expr(id) {
             writeln!(f, "(")?;
             self.indent += 1;
             self.indent(f)?;
@@ -141,7 +141,7 @@ impl Printer<'_> {
     }
 
     fn expr(&mut self, f: &mut fmt::Formatter, id: ExprId) -> fmt::Result {
-        match self.module.expr(id) {
+        match self.tree.expr(id) {
             Expr::Name { name } => self.token(f, name)?,
             Expr::Unit => write!(f, "()")?,
             Expr::Number { val } => self.token(f, val)?,
@@ -159,7 +159,7 @@ impl Printer<'_> {
                     self.token(f, n)?;
                     write!(f, " = ")?;
                     self.expr(f, v)?;
-                    match self.module.expr(r) {
+                    match self.tree.expr(r) {
                         Expr::Record { name, field, rest } => {
                             write!(f, ", ")?;
                             (n, v, r) = (name, field, rest);
@@ -295,11 +295,11 @@ impl Printer<'_> {
 
     fn module(&mut self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut first = true;
-        for import in self.module.imports() {
+        for import in self.tree.imports() {
             first = false;
             self.import(f, import)?;
         }
-        for def in self.module.defs() {
+        for def in self.tree.defs() {
             if !first {
                 writeln!(f)?;
             }
@@ -311,16 +311,11 @@ impl Printer<'_> {
     }
 }
 
-pub fn pprint(
-    f: &mut fmt::Formatter,
-    source: &str,
-    tokens: &Tokens,
-    module: &Module,
-) -> fmt::Result {
+pub fn pprint(f: &mut fmt::Formatter, source: &str, tokens: &Tokens, tree: &Module) -> fmt::Result {
     Printer {
         source,
         tokens,
-        module,
+        tree,
         indent: 0,
     }
     .module(f)
@@ -332,7 +327,7 @@ mod tests {
 
     use goldenfile::Mint;
 
-    use crate::{lex::lex, parse::parse, util::ModuleWithSource};
+    use crate::{lex::lex, parse::parse, util::TreeWithSource};
 
     #[test]
     fn test_examples() {
@@ -344,11 +339,11 @@ mod tests {
             let stripped = path.strip_prefix(&input).unwrap().to_str().unwrap();
             let source = fs::read_to_string(&path).expect(stripped);
             let tokens = lex(&source).expect(stripped);
-            let module = parse(&tokens).expect(stripped);
-            let pprinted = ModuleWithSource {
+            let tree = parse(&tokens).expect(stripped);
+            let pprinted = TreeWithSource {
                 source,
                 tokens,
-                module,
+                tree,
             }
             .to_string();
             let mut file = mint.new_goldenfile(stripped).expect(stripped);

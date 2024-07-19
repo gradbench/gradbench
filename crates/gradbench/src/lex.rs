@@ -2,6 +2,7 @@ use std::{fmt, ops::Range};
 
 use enumset::EnumSetType;
 use logos::Logos;
+use serde::Serialize;
 
 use crate::util::u32_to_usize;
 
@@ -174,12 +175,6 @@ impl Token {
         start..(start + usize::from(self.len))
     }
 
-    pub fn number(&self, source: &str) -> serde_json::Number {
-        let kind = self.kind;
-        assert_eq!(kind, TokenKind::Number, "the {kind} token is not a number");
-        serde_json::from_str(&source[self.byte_range()]).expect("numbers should be valid JSON")
-    }
-
     pub fn string(&self, source: &str) -> String {
         let kind = self.kind;
         assert_eq!(kind, TokenKind::String, "the {kind} token is not a string");
@@ -187,7 +182,8 @@ impl Token {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(transparent)]
 pub struct TokenId {
     pub index: u32,
 }

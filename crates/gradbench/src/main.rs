@@ -1,11 +1,10 @@
-mod json;
 mod lex;
 mod parse;
 mod pprint;
 mod typecheck;
 mod util;
 
-use std::{fs, process::ExitCode};
+use std::{fs, io, process::ExitCode};
 
 use ariadne::{Color, Label, Report, ReportKind, Source};
 use clap::Parser;
@@ -88,7 +87,9 @@ fn cli() -> Result<(), ()> {
             .eprint((path, Source::from(&source)))
             .unwrap();
     })?;
-    println!("{module:?}");
+    serde_json::to_writer(io::stdout(), &module)
+        .map_err(|err| eprintln!("error serializing module: {err}"))?;
+    println!();
     Ok(())
 }
 
