@@ -1,4 +1,4 @@
 def foo (x) =
-  let y = (x * 2)
-  let z = (y - 1)
-  (y / z)
+  let y = x * 2
+  let z = y - 1
+  y / z

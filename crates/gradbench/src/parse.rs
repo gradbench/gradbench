@@ -44,7 +44,8 @@ impl From<ExprId> for usize {
 
 #[derive(Clone, Copy, Debug)]
 pub enum Type {
-    Unit,
+    Paren { inner: TypeId },
+    Unit { open: TokenId, close: TokenId },
     Name { name: TokenId },
     Prod { fst: TypeId, snd: TypeId },
     Sum { left: TypeId, right: TypeId },
@@ -54,7 +55,13 @@ pub enum Type {
 
 #[derive(Clone, Copy, Debug)]
 pub enum Bind {
-    Unit,
+    Paren {
+        inner: ParamId,
+    },
+    Unit {
+        open: TokenId,
+        close: TokenId,
+    },
     Name {
         name: TokenId,
     },
@@ -67,7 +74,10 @@ pub enum Bind {
         field: ParamId,
         rest: ParamId,
     },
-    End,
+    End {
+        open: TokenId,
+        close: TokenId,
+    },
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -91,10 +101,16 @@ pub enum Binop {
 
 #[derive(Clone, Copy, Debug)]
 pub enum Expr {
+    Paren {
+        inner: ExprId,
+    },
     Name {
         name: TokenId,
     },
-    Unit,
+    Unit {
+        open: TokenId,
+        close: TokenId,
+    },
     Number {
         val: TokenId,
     },
@@ -107,7 +123,10 @@ pub enum Expr {
         field: ExprId,
         rest: ExprId,
     },
-    End,
+    End {
+        open: TokenId,
+        close: TokenId,
+    },
     Elem {
         array: ExprId,
         index: ExprId,
@@ -252,7 +271,7 @@ impl<'a> Parser<'a> {
     }
 
     fn find_non_ws(&mut self) {
-        while let Newline | Comment = self.peek() {
+        while self.peek().ignore() {
             self.id.index += 1;
         }
     }
@@ -301,14 +320,16 @@ impl<'a> Parser<'a> {
                 Ok(self.tree.make_ty(Type::Name { name }))
             }
             LParen => {
+                let open = self.id;
                 self.next();
                 if let RParen = self.peek() {
+                    let close = self.id;
                     self.next();
-                    Ok(self.tree.make_ty(Type::Unit))
+                    Ok(self.tree.make_ty(Type::Unit { open, close }))
                 } else {
-                    let ty = self.ty()?;
+                    let inner = self.ty()?;
                     self.expect(RParen)?;
-                    Ok(ty)
+                    Ok(self.tree.make_ty(Type::Paren { inner }))
                 }
             }
             _ => Err(ParseError::Expected {
@@ -384,26 +405,20 @@ impl<'a> Parser<'a> {
                 Ok(Bind::Name { name })
             }
             LParen => {
+                let open = self.id;
                 self.next();
-                match self.peek() {
-                    RParen => {
-                        self.next();
-                        Ok(Bind::Unit)
-                    }
-                    _ => {
-                        let Param { bind, ty } = self.param()?;
-                        let right = self.expect(RParen)?;
-                        match ty {
-                            Some(_) => Err(ParseError::Expected {
-                                id: right,
-                                kinds: EnumSet::only(Comma),
-                            }),
-                            None => Ok(bind),
-                        }
-                    }
+                if let RParen = self.peek() {
+                    let close = self.id;
+                    self.next();
+                    Ok(Bind::Unit { open, close })
+                } else {
+                    let inner = self.param()?;
+                    self.expect(RParen)?;
+                    Ok(Bind::Paren { inner })
                 }
             }
             LBrace => {
+                let open = self.id;
                 self.next();
                 let mut fields = vec![];
                 while let Ident = self.peek() {
@@ -427,13 +442,15 @@ impl<'a> Parser<'a> {
                         _ => break,
                     }
                 }
-                self.expect(RBrace)?;
+                let close = self.expect(RBrace)?;
                 Ok(fields
                     .into_iter()
-                    .rfold(Bind::End, |bind, (name, field)| Bind::Record {
-                        name,
-                        field,
-                        rest: self.tree.make_param(Param { bind, ty: None }),
+                    .rfold(Bind::End { open, close }, |bind, (name, field)| {
+                        Bind::Record {
+                            name,
+                            field,
+                            rest: self.tree.make_param(Param { bind, ty: None }),
+                        }
                     }))
             }
             _ => Err(ParseError::Expected {
@@ -447,7 +464,7 @@ impl<'a> Parser<'a> {
         self.bind_atom()
     }
 
-    fn param_elem(&mut self) -> Result<Param, ParseError> {
+    fn param_elem(&mut self) -> Result<ParamId, ParseError> {
         let bind = self.bind_elem()?;
         let ty = if let Colon = self.peek() {
             self.next();
@@ -455,10 +472,10 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
-        Ok(Param { bind, ty })
+        Ok(self.tree.make_param(Param { bind, ty }))
     }
 
-    fn param(&mut self) -> Result<Param, ParseError> {
+    fn param(&mut self) -> Result<ParamId, ParseError> {
         let mut params = vec![self.param_elem()?];
         while let Comma = self.peek() {
             self.next();
@@ -467,32 +484,32 @@ impl<'a> Parser<'a> {
         let last = params
             .pop()
             .expect("every non-unit parameter should have at least one element");
-        Ok(params.into_iter().rfold(last, |snd, fst| Param {
-            bind: Bind::Pair {
-                fst: self.tree.make_param(fst),
-                snd: self.tree.make_param(snd),
-            },
-            ty: None,
+        Ok(params.into_iter().rfold(last, |snd, fst| {
+            self.tree.make_param(Param {
+                bind: Bind::Pair { fst, snd },
+                ty: None,
+            })
         }))
     }
 
     fn expr_atom(&mut self) -> Result<ExprId, ParseError> {
         match self.peek() {
             LParen => {
+                let open = self.id;
                 // lambda is the only place we peek after matching close bracket
                 let after = self.after_close();
                 self.next();
                 if let Colon | Arrow = after {
                     let param = if let RParen = self.peek() {
+                        let close = self.id;
                         self.next();
-                        let bind = Bind::Unit;
-                        Param { bind, ty: None }
+                        let bind = Bind::Unit { open, close };
+                        self.tree.make_param(Param { bind, ty: None })
                     } else {
                         let param = self.param()?;
                         self.expect(RParen)?;
                         param
                     };
-                    let param = self.tree.make_param(param);
                     let ty = if let Colon = self.peek() {
                         self.next();
                         Some(self.ty()?)
@@ -503,15 +520,17 @@ impl<'a> Parser<'a> {
                     let body = self.expr()?;
                     Ok(self.tree.make_expr(Expr::Lambda { param, ty, body }))
                 } else if let RParen = self.peek() {
+                    let close = self.id;
                     self.next();
-                    Ok(self.tree.make_expr(Expr::Unit))
+                    Ok(self.tree.make_expr(Expr::Unit { open, close }))
                 } else {
-                    let expr = self.expr()?;
+                    let inner = self.expr()?;
                     self.expect(RParen)?;
-                    Ok(expr)
+                    Ok(self.tree.make_expr(Expr::Paren { inner }))
                 }
             }
             LBrace => {
+                let open = self.id;
                 self.next();
                 let mut fields = vec![];
                 while let Ident = self.peek() {
@@ -529,12 +548,11 @@ impl<'a> Parser<'a> {
                         _ => break,
                     }
                 }
-                self.expect(RBrace)?;
-                Ok(fields
-                    .into_iter()
-                    .rfold(self.tree.make_expr(Expr::End), |rest, (name, field)| {
-                        self.tree.make_expr(Expr::Record { name, field, rest })
-                    }))
+                let close = self.expect(RBrace)?;
+                Ok(fields.into_iter().rfold(
+                    self.tree.make_expr(Expr::End { open, close }),
+                    |rest, (name, field)| self.tree.make_expr(Expr::Record { name, field, rest }),
+                ))
             }
             Ident => {
                 let name = self.id;
@@ -666,7 +684,6 @@ impl<'a> Parser<'a> {
             Let => {
                 self.next();
                 let param = self.param()?;
-                let param = self.tree.make_param(param);
                 self.expect(Equal)?;
                 let val = self.expr_inner()?;
                 let body = self.stmt()?;
@@ -718,17 +735,19 @@ impl<'a> Parser<'a> {
         }
         let mut params = vec![];
         while let LParen = self.peek() {
+            let open = self.id;
             self.next();
             let param = if let RParen = self.peek() {
+                let close = self.id;
                 self.next();
-                let bind = Bind::Unit;
-                Param { bind, ty: None }
+                let bind = Bind::Unit { open, close };
+                self.tree.make_param(Param { bind, ty: None })
             } else {
                 let param = self.param()?;
                 self.expect(RParen)?;
                 param
             };
-            params.push(self.tree.make_param(param));
+            params.push(param);
         }
         let ty = if let Colon = self.peek() {
             self.next();

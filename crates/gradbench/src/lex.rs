@@ -124,6 +124,12 @@ pub enum TokenKind {
     Use,
 }
 
+impl TokenKind {
+    pub fn ignore(self) -> bool {
+        matches!(self, Self::Newline | Self::Comment)
+    }
+}
+
 impl fmt::Display for TokenKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {

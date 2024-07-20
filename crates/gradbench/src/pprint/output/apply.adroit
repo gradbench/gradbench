@@ -1,2 +1,2 @@
-def apply ((f, x)) =
-  (f x)
+def apply (f, x) =
+  f x

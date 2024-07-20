@@ -1,2 +1,2 @@
-def foo ((x : Int, (y : Int, z : Int))) =
-  (x - (y - z))
+def foo (x : Int, y : Int, z : Int) =
+  x - (y - z)

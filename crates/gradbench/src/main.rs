@@ -1,6 +1,7 @@
 mod lex;
 mod parse;
 mod pprint;
+mod range;
 mod typecheck;
 mod util;
 
@@ -67,15 +68,18 @@ fn cli() -> Result<(), ()> {
         &tree,
     )
     .map_err(|err| {
-        let (id, message) = match err {
+        let (range, message) = match err {
             typecheck::TypeError::TooManyImports => todo!(),
             typecheck::TypeError::TooManyTypes => todo!(),
             typecheck::TypeError::TooManyFields => todo!(),
-            typecheck::TypeError::Undefined { name } => (name, "undefined"),
-            typecheck::TypeError::Duplicate { name } => (name, "duplicate"),
-            typecheck::TypeError::Untyped { name } => (name, "untyped"),
+            typecheck::TypeError::Undefined { name } => {
+                (tokens.get(name).byte_range(), "undefined")
+            }
+            typecheck::TypeError::Duplicate { name } => {
+                (tokens.get(name).byte_range(), "duplicate")
+            }
+            typecheck::TypeError::Untyped { name } => (tokens.get(name).byte_range(), "untyped"),
         };
-        let range = tokens.get(id).byte_range();
         Report::build(ReportKind::Error, path, range.start)
             .with_message("failed to typecheck")
             .with_label(

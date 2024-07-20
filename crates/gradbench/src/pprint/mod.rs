@@ -29,7 +29,15 @@ impl Printer<'_> {
     fn ty(&mut self, w: &mut impl fmt::Write, id: TypeId) -> fmt::Result {
         let ty = self.tree.ty(id);
         match ty {
-            Type::Unit => write!(w, "()")?,
+            Type::Paren { inner } => {
+                write!(w, "(")?;
+                self.ty(w, inner)?;
+                write!(w, ")")?;
+            }
+            Type::Unit { open, close } => {
+                self.token(w, open)?;
+                self.token(w, close)?;
+            }
             Type::Name { name } => self.token(w, name)?,
             Type::Prod { fst, snd } => {
                 self.ty(w, fst)?;
@@ -60,14 +68,20 @@ impl Printer<'_> {
 
     fn bind(&mut self, w: &mut impl fmt::Write, bind: Bind) -> fmt::Result {
         match bind {
-            Bind::Unit => write!(w, "()")?,
+            Bind::Paren { inner } => {
+                write!(w, "(")?;
+                self.param(w, inner)?;
+                write!(w, ")")?;
+            }
+            Bind::Unit { open, close } => {
+                self.token(w, open)?;
+                self.token(w, close)?;
+            }
             Bind::Name { name } => self.token(w, name)?,
             Bind::Pair { fst, snd } => {
-                write!(w, "(")?;
                 self.param(w, fst)?;
                 write!(w, ", ")?;
                 self.param(w, snd)?;
-                write!(w, ")")?;
             }
             Bind::Record { name, field, rest } => {
                 write!(w, "{{")?;
@@ -83,13 +97,16 @@ impl Printer<'_> {
                             write!(w, ", ")?;
                             (n, v, r) = (name, field, rest);
                         }
-                        Bind::End => break,
+                        Bind::End { open: _, close: _ } => break,
                         _ => panic!("invalid record"),
                     }
                 }
                 write!(w, "}}")?;
             }
-            Bind::End => write!(w, "{{}}")?,
+            Bind::End { open, close } => {
+                self.token(w, open)?;
+                self.token(w, close)?;
+            }
         }
         Ok(())
     }
@@ -123,34 +140,33 @@ impl Printer<'_> {
         Ok(())
     }
 
-    fn val(&mut self, w: &mut impl fmt::Write, id: ExprId) -> fmt::Result {
-        if let Expr::Let { .. } | Expr::Index { .. } = self.tree.expr(id) {
-            writeln!(w, "(")?;
-            self.indent += 1;
-            self.indent(w)?;
-            self.expr(w, id)?;
-            self.indent -= 1;
-            writeln!(w)?;
-            self.indent(w)?;
-            writeln!(w, ")")?;
-        } else {
-            self.expr(w, id)?;
-            writeln!(w)?;
-        }
-        Ok(())
-    }
-
     fn expr(&mut self, w: &mut impl fmt::Write, id: ExprId) -> fmt::Result {
         match self.tree.expr(id) {
+            Expr::Paren { inner } => {
+                write!(w, "(")?;
+                if let Expr::Let { .. } | Expr::Index { .. } = self.tree.expr(inner) {
+                    writeln!(w)?;
+                    self.indent += 1;
+                    self.indent(w)?;
+                    self.expr(w, inner)?;
+                    self.indent -= 1;
+                    writeln!(w)?;
+                    self.indent(w)?;
+                } else {
+                    self.expr(w, inner)?;
+                }
+                write!(w, ")")?;
+            }
             Expr::Name { name } => self.token(w, name)?,
-            Expr::Unit => write!(w, "()")?,
+            Expr::Unit { open, close } => {
+                self.token(w, open)?;
+                self.token(w, close)?;
+            }
             Expr::Number { val } => self.token(w, val)?,
             Expr::Pair { fst, snd } => {
-                write!(w, "(")?;
                 self.expr(w, fst)?;
                 write!(w, ", ")?;
                 self.expr(w, snd)?;
-                write!(w, ")")?;
             }
             Expr::Record { name, field, rest } => {
                 write!(w, "{{")?;
@@ -164,13 +180,16 @@ impl Printer<'_> {
                             write!(w, ", ")?;
                             (n, v, r) = (name, field, rest);
                         }
-                        Expr::End => break,
+                        Expr::End { open: _, close: _ } => break,
                         _ => panic!("invalid record"),
                     }
                 }
                 write!(w, "}}")?;
             }
-            Expr::End => write!(w, "{{}}")?,
+            Expr::End { open, close } => {
+                self.token(w, open)?;
+                self.token(w, close)?;
+            }
             Expr::Elem { array, index } => {
                 self.expr(w, array)?;
                 write!(w, "[")?;
@@ -178,11 +197,9 @@ impl Printer<'_> {
                 write!(w, "]")?;
             }
             Expr::Apply { func, arg } => {
-                write!(w, "(")?;
                 self.expr(w, func)?;
                 write!(w, " ")?;
                 self.expr(w, arg)?;
-                write!(w, ")")?;
             }
             Expr::Map { func, arg } => {
                 self.expr(w, func)?;
@@ -194,7 +211,8 @@ impl Printer<'_> {
                 write!(w, "let ")?;
                 self.param(w, param)?;
                 write!(w, " = ")?;
-                self.val(w, val)?;
+                self.expr(w, val)?;
+                writeln!(w)?;
                 self.indent(w)?;
                 self.expr(w, body)?;
             }
@@ -202,7 +220,8 @@ impl Printer<'_> {
                 write!(w, "index ")?;
                 self.token(w, name)?;
                 write!(w, " <- ")?;
-                self.val(w, val)?;
+                self.expr(w, val)?;
+                writeln!(w)?;
                 self.indent(w)?;
                 self.expr(w, body)?;
             }
@@ -211,7 +230,6 @@ impl Printer<'_> {
                 self.expr(w, arg)?;
             }
             Expr::Binary { lhs, map, op, rhs } => {
-                write!(w, "(")?;
                 self.expr(w, lhs)?;
                 write!(w, " ")?;
                 if map {
@@ -220,7 +238,6 @@ impl Printer<'_> {
                 self.binop(w, op)?;
                 write!(w, " ")?;
                 self.expr(w, rhs)?;
-                write!(w, ")")?;
             }
             Expr::Lambda { param, ty, body } => {
                 write!(w, "(")?;

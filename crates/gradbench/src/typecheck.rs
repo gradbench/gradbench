@@ -260,7 +260,8 @@ impl<'a> Typer<'a> {
         id: parse::TypeId,
     ) -> Result<TypeId, TypeError> {
         match self.tree.ty(id) {
-            parse::Type::Unit => todo!(),
+            parse::Type::Paren { inner } => self.parse_ty(names, inner),
+            parse::Type::Unit { open: _, close: _ } => self.ty(Type::Unit),
             parse::Type::Name { name } => match self.token(name) {
                 "Int" => self.ty(Type::Int),
                 "Float" => self.ty(Type::Float),
@@ -298,7 +299,8 @@ impl<'a> Typer<'a> {
         bind: parse::Bind,
     ) -> Result<TypeId, TypeError> {
         match bind {
-            parse::Bind::Unit => self.ty(Type::Unit),
+            parse::Bind::Paren { inner } => self.param_ty(names, inner),
+            parse::Bind::Unit { open: _, close: _ } => self.ty(Type::Unit),
             parse::Bind::Name { name } => Err(TypeError::Untyped { name }),
             parse::Bind::Pair { fst, snd } => {
                 let fst = self.param_ty(names, fst)?;
@@ -317,7 +319,7 @@ impl<'a> Typer<'a> {
                         parse::Bind::Record { name, field, rest } => {
                             (n, v, r) = (name, field, rest);
                         }
-                        parse::Bind::End => break,
+                        parse::Bind::End { open: _, close: _ } => break,
                         _ => panic!("invalid record"),
                     }
                 }
@@ -328,7 +330,7 @@ impl<'a> Typer<'a> {
                         self.ty(Type::Record { name, field, rest })
                     })
             }
-            parse::Bind::End => self.ty(Type::End),
+            parse::Bind::End { open: _, close: _ } => self.ty(Type::End),
         }
     }
 
