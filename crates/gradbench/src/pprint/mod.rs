@@ -14,247 +14,247 @@ struct Printer<'a> {
 }
 
 impl Printer<'_> {
-    fn indent(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn indent(&self, w: &mut impl fmt::Write) -> fmt::Result {
         for _ in 0..self.indent {
-            write!(f, "  ")?;
+            write!(w, "  ")?;
         }
         Ok(())
     }
 
-    fn token(&self, f: &mut fmt::Formatter, id: TokenId) -> fmt::Result {
-        write!(f, "{}", &self.source[self.tokens.get(id).byte_range()])?;
+    fn token(&self, w: &mut impl fmt::Write, id: TokenId) -> fmt::Result {
+        write!(w, "{}", &self.source[self.tokens.get(id).byte_range()])?;
         Ok(())
     }
 
-    fn ty(&mut self, f: &mut fmt::Formatter, id: TypeId) -> fmt::Result {
+    fn ty(&mut self, w: &mut impl fmt::Write, id: TypeId) -> fmt::Result {
         let ty = self.tree.ty(id);
         match ty {
-            Type::Unit => write!(f, "()")?,
-            Type::Name { name } => self.token(f, name)?,
+            Type::Unit => write!(w, "()")?,
+            Type::Name { name } => self.token(w, name)?,
             Type::Prod { fst, snd } => {
-                self.ty(f, fst)?;
-                write!(f, " * ")?;
-                self.ty(f, snd)?;
+                self.ty(w, fst)?;
+                write!(w, " * ")?;
+                self.ty(w, snd)?;
             }
             Type::Sum { left, right } => {
-                self.ty(f, left)?;
-                write!(f, " + ")?;
-                self.ty(f, right)?;
+                self.ty(w, left)?;
+                write!(w, " + ")?;
+                self.ty(w, right)?;
             }
             Type::Array { index, elem } => {
-                write!(f, "[")?;
+                write!(w, "[")?;
                 if let Some(i) = index {
-                    self.ty(f, i)?;
+                    self.ty(w, i)?;
                 }
-                write!(f, "]")?;
-                self.ty(f, elem)?;
+                write!(w, "]")?;
+                self.ty(w, elem)?;
             }
             Type::Func { dom, cod } => {
-                self.ty(f, dom)?;
-                write!(f, " -> ")?;
-                self.ty(f, cod)?;
+                self.ty(w, dom)?;
+                write!(w, " -> ")?;
+                self.ty(w, cod)?;
             }
         }
         Ok(())
     }
 
-    fn bind(&mut self, f: &mut fmt::Formatter, bind: Bind) -> fmt::Result {
+    fn bind(&mut self, w: &mut impl fmt::Write, bind: Bind) -> fmt::Result {
         match bind {
-            Bind::Unit => write!(f, "()")?,
-            Bind::Name { name } => self.token(f, name)?,
+            Bind::Unit => write!(w, "()")?,
+            Bind::Name { name } => self.token(w, name)?,
             Bind::Pair { fst, snd } => {
-                write!(f, "(")?;
-                self.param(f, fst)?;
-                write!(f, ", ")?;
-                self.param(f, snd)?;
-                write!(f, ")")?;
+                write!(w, "(")?;
+                self.param(w, fst)?;
+                write!(w, ", ")?;
+                self.param(w, snd)?;
+                write!(w, ")")?;
             }
             Bind::Record { name, field, rest } => {
-                write!(f, "{{")?;
+                write!(w, "{{")?;
                 let (mut n, mut v, mut r) = (name, field, rest);
                 loop {
-                    self.token(f, n)?;
-                    write!(f, " = ")?;
-                    self.param(f, v)?;
+                    self.token(w, n)?;
+                    write!(w, " = ")?;
+                    self.param(w, v)?;
                     let Param { bind, ty } = self.tree.param(r);
                     assert_eq!(ty, None);
                     match bind {
                         Bind::Record { name, field, rest } => {
-                            write!(f, ", ")?;
+                            write!(w, ", ")?;
                             (n, v, r) = (name, field, rest);
                         }
                         Bind::End => break,
                         _ => panic!("invalid record"),
                     }
                 }
-                write!(f, "}}")?;
+                write!(w, "}}")?;
             }
-            Bind::End => write!(f, "{{}}")?,
+            Bind::End => write!(w, "{{}}")?,
         }
         Ok(())
     }
 
-    fn param(&mut self, f: &mut fmt::Formatter, id: ParamId) -> fmt::Result {
+    fn param(&mut self, w: &mut impl fmt::Write, id: ParamId) -> fmt::Result {
         let param = self.tree.param(id);
-        self.bind(f, param.bind)?;
+        self.bind(w, param.bind)?;
         if let Some(ty) = param.ty {
-            write!(f, " : ")?;
-            self.ty(f, ty)?;
+            write!(w, " : ")?;
+            self.ty(w, ty)?;
         }
         Ok(())
     }
 
-    fn unop(&mut self, f: &mut fmt::Formatter, op: Unop) -> fmt::Result {
+    fn unop(&mut self, w: &mut impl fmt::Write, op: Unop) -> fmt::Result {
         let s = match op {
             Unop::Neg => "-",
         };
-        write!(f, "{}", s)?;
+        write!(w, "{}", s)?;
         Ok(())
     }
 
-    fn binop(&mut self, f: &mut fmt::Formatter, op: Binop) -> fmt::Result {
+    fn binop(&mut self, w: &mut impl fmt::Write, op: Binop) -> fmt::Result {
         let s = match op {
             Binop::Add => "+",
             Binop::Sub => "-",
             Binop::Mul => "*",
             Binop::Div => "/",
         };
-        write!(f, "{}", s)?;
+        write!(w, "{}", s)?;
         Ok(())
     }
 
-    fn val(&mut self, f: &mut fmt::Formatter, id: ExprId) -> fmt::Result {
+    fn val(&mut self, w: &mut impl fmt::Write, id: ExprId) -> fmt::Result {
         if let Expr::Let { .. } | Expr::Index { .. } = self.tree.expr(id) {
-            writeln!(f, "(")?;
+            writeln!(w, "(")?;
             self.indent += 1;
-            self.indent(f)?;
-            self.expr(f, id)?;
+            self.indent(w)?;
+            self.expr(w, id)?;
             self.indent -= 1;
-            writeln!(f)?;
-            self.indent(f)?;
-            writeln!(f, ")")?;
+            writeln!(w)?;
+            self.indent(w)?;
+            writeln!(w, ")")?;
         } else {
-            self.expr(f, id)?;
-            writeln!(f)?;
+            self.expr(w, id)?;
+            writeln!(w)?;
         }
         Ok(())
     }
 
-    fn expr(&mut self, f: &mut fmt::Formatter, id: ExprId) -> fmt::Result {
+    fn expr(&mut self, w: &mut impl fmt::Write, id: ExprId) -> fmt::Result {
         match self.tree.expr(id) {
-            Expr::Name { name } => self.token(f, name)?,
-            Expr::Unit => write!(f, "()")?,
-            Expr::Number { val } => self.token(f, val)?,
+            Expr::Name { name } => self.token(w, name)?,
+            Expr::Unit => write!(w, "()")?,
+            Expr::Number { val } => self.token(w, val)?,
             Expr::Pair { fst, snd } => {
-                write!(f, "(")?;
-                self.expr(f, fst)?;
-                write!(f, ", ")?;
-                self.expr(f, snd)?;
-                write!(f, ")")?;
+                write!(w, "(")?;
+                self.expr(w, fst)?;
+                write!(w, ", ")?;
+                self.expr(w, snd)?;
+                write!(w, ")")?;
             }
             Expr::Record { name, field, rest } => {
-                write!(f, "{{")?;
+                write!(w, "{{")?;
                 let (mut n, mut v, mut r) = (name, field, rest);
                 loop {
-                    self.token(f, n)?;
-                    write!(f, " = ")?;
-                    self.expr(f, v)?;
+                    self.token(w, n)?;
+                    write!(w, " = ")?;
+                    self.expr(w, v)?;
                     match self.tree.expr(r) {
                         Expr::Record { name, field, rest } => {
-                            write!(f, ", ")?;
+                            write!(w, ", ")?;
                             (n, v, r) = (name, field, rest);
                         }
                         Expr::End => break,
                         _ => panic!("invalid record"),
                     }
                 }
-                write!(f, "}}")?;
+                write!(w, "}}")?;
             }
-            Expr::End => write!(f, "{{}}")?,
+            Expr::End => write!(w, "{{}}")?,
             Expr::Elem { array, index } => {
-                self.expr(f, array)?;
-                write!(f, "[")?;
-                self.expr(f, index)?;
-                write!(f, "]")?;
+                self.expr(w, array)?;
+                write!(w, "[")?;
+                self.expr(w, index)?;
+                write!(w, "]")?;
             }
             Expr::Apply { func, arg } => {
-                write!(f, "(")?;
-                self.expr(f, func)?;
-                write!(f, " ")?;
-                self.expr(f, arg)?;
-                write!(f, ")")?;
+                write!(w, "(")?;
+                self.expr(w, func)?;
+                write!(w, " ")?;
+                self.expr(w, arg)?;
+                write!(w, ")")?;
             }
             Expr::Map { func, arg } => {
-                self.expr(f, func)?;
-                write!(f, ".(")?;
-                self.expr(f, arg)?;
-                write!(f, ")")?;
+                self.expr(w, func)?;
+                write!(w, ".(")?;
+                self.expr(w, arg)?;
+                write!(w, ")")?;
             }
             Expr::Let { param, val, body } => {
-                write!(f, "let ")?;
-                self.param(f, param)?;
-                write!(f, " = ")?;
-                self.val(f, val)?;
-                self.indent(f)?;
-                self.expr(f, body)?;
+                write!(w, "let ")?;
+                self.param(w, param)?;
+                write!(w, " = ")?;
+                self.val(w, val)?;
+                self.indent(w)?;
+                self.expr(w, body)?;
             }
             Expr::Index { name, val, body } => {
-                write!(f, "index ")?;
-                self.token(f, name)?;
-                write!(f, " <- ")?;
-                self.val(f, val)?;
-                self.indent(f)?;
-                self.expr(f, body)?;
+                write!(w, "index ")?;
+                self.token(w, name)?;
+                write!(w, " <- ")?;
+                self.val(w, val)?;
+                self.indent(w)?;
+                self.expr(w, body)?;
             }
             Expr::Unary { op, arg } => {
-                self.unop(f, op)?;
-                self.expr(f, arg)?;
+                self.unop(w, op)?;
+                self.expr(w, arg)?;
             }
             Expr::Binary { lhs, map, op, rhs } => {
-                write!(f, "(")?;
-                self.expr(f, lhs)?;
-                write!(f, " ")?;
+                write!(w, "(")?;
+                self.expr(w, lhs)?;
+                write!(w, " ")?;
                 if map {
-                    write!(f, ".")?;
+                    write!(w, ".")?;
                 }
-                self.binop(f, op)?;
-                write!(f, " ")?;
-                self.expr(f, rhs)?;
-                write!(f, ")")?;
+                self.binop(w, op)?;
+                write!(w, " ")?;
+                self.expr(w, rhs)?;
+                write!(w, ")")?;
             }
             Expr::Lambda { param, ty, body } => {
-                write!(f, "(")?;
-                self.param(f, param)?;
-                write!(f, ")")?;
+                write!(w, "(")?;
+                self.param(w, param)?;
+                write!(w, ")")?;
                 if let Some(ty) = ty {
-                    write!(f, " : ")?;
-                    self.ty(f, ty)?;
+                    write!(w, " : ")?;
+                    self.ty(w, ty)?;
                 }
-                write!(f, " => ")?;
-                self.expr(f, body)?;
+                write!(w, " => ")?;
+                self.expr(w, body)?;
             }
         }
         Ok(())
     }
 
-    fn import(&mut self, f: &mut fmt::Formatter, import: &Import) -> fmt::Result {
+    fn import(&mut self, w: &mut impl fmt::Write, import: &Import) -> fmt::Result {
         let Import { module, names } = import;
-        write!(f, "import ")?;
-        self.token(f, *module)?;
-        write!(f, " use ")?;
+        write!(w, "import ")?;
+        self.token(w, *module)?;
+        write!(w, " use ")?;
         let mut first = true;
         for &name in names {
             if !first {
-                write!(f, ", ")?;
+                write!(w, ", ")?;
             }
             first = false;
-            self.token(f, name)?;
+            self.token(w, name)?;
         }
-        writeln!(f)?;
+        writeln!(w)?;
         Ok(())
     }
 
-    fn def(&mut self, f: &mut fmt::Formatter, def: &Def) -> fmt::Result {
+    fn def(&mut self, w: &mut impl fmt::Write, def: &Def) -> fmt::Result {
         let Def {
             name,
             types,
@@ -262,63 +262,68 @@ impl Printer<'_> {
             ty,
             body,
         } = def;
-        write!(f, "def ")?;
-        self.token(f, *name)?;
+        write!(w, "def ")?;
+        self.token(w, *name)?;
         if !types.is_empty() {
             let mut first = true;
-            write!(f, " {{")?;
+            write!(w, " {{")?;
             for &t in types {
                 if !first {
-                    write!(f, ", ")?;
+                    write!(w, ", ")?;
                 }
                 first = false;
-                self.token(f, t)?;
+                self.token(w, t)?;
             }
-            write!(f, "}}")?;
+            write!(w, "}}")?;
         }
         for &param in params {
-            write!(f, " (")?;
-            self.param(f, param)?;
-            write!(f, ")")?;
+            write!(w, " (")?;
+            self.param(w, param)?;
+            write!(w, ")")?;
         }
         if let Some(ty) = ty {
-            write!(f, " : ")?;
-            self.ty(f, *ty)?;
+            write!(w, " : ")?;
+            self.ty(w, *ty)?;
         }
-        writeln!(f, " =")?;
+        writeln!(w, " =")?;
         self.indent += 1;
-        self.indent(f)?;
-        self.expr(f, *body)?;
+        self.indent(w)?;
+        self.expr(w, *body)?;
         self.indent -= 1;
         Ok(())
     }
 
-    fn module(&mut self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn module(&mut self, w: &mut impl fmt::Write) -> fmt::Result {
         let mut first = true;
         for import in self.tree.imports() {
             first = false;
-            self.import(f, import)?;
+            self.import(w, import)?;
         }
         for def in self.tree.defs() {
             if !first {
-                writeln!(f)?;
+                writeln!(w)?;
             }
             first = false;
-            self.def(f, def)?;
-            writeln!(f)?;
+            self.def(w, def)?;
+            writeln!(w)?;
         }
         Ok(())
     }
 }
 
-pub fn pprint(f: &mut fmt::Formatter, source: &str, tokens: &Tokens, tree: &Module) -> fmt::Result {
+pub fn pprint(
+    w: &mut impl fmt::Write,
+    source: &str,
+    tokens: &Tokens,
+    tree: &Module,
+) -> fmt::Result {
     Printer {
         source,
         tokens,
         tree,
         indent: 0,
     }
-    .module(f)
+    .module(w)
 }
 
 #[cfg(test)]
@@ -327,7 +332,9 @@ mod tests {
 
     use goldenfile::Mint;
 
-    use crate::{lex::lex, parse::parse, util::TreeWithSource};
+    use crate::{lex::lex, parse::parse};
+
+    use super::*;
 
     #[test]
     fn test_examples() {
@@ -340,12 +347,8 @@ mod tests {
             let source = fs::read_to_string(&path).expect(stripped);
             let tokens = lex(&source).expect(stripped);
             let tree = parse(&tokens).expect(stripped);
-            let pprinted = TreeWithSource {
-                source,
-                tokens,
-                tree,
-            }
-            .to_string();
+            let mut pprinted = String::new();
+            pprint(&mut pprinted, &source, &tokens, &tree).unwrap();
             let mut file = mint.new_goldenfile(stripped).expect(stripped);
             file.write_all(pprinted.as_bytes()).expect(stripped);
         }
