@@ -47,6 +47,18 @@ impl From<TypeId> for usize {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(transparent)]
+pub struct VarId {
+    pub index: u32,
+}
+
+impl From<VarId> for usize {
+    fn from(id: VarId) -> Self {
+        u32_to_usize(id.index)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(transparent)]
 pub struct ValId {
     pub index: u32,
 }
@@ -60,6 +72,7 @@ impl From<ValId> for usize {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize)]
 #[serde(tag = "kind")]
 pub enum Type {
+    Untyped,
     Var {
         src: Option<ModId>,
         def: TokenId,
@@ -93,15 +106,18 @@ pub enum Type {
 
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(tag = "kind")]
-pub enum Expr {
+pub enum Src {
     Undefined,
-    Use { src: ModId, id: ValId },
+    Import { src: ModId, id: ValId },
+    Param { id: parse::ParamId },
+    Expr { id: parse::ExprId },
+    Def { id: parse::DefId },
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
 pub struct Val {
     pub ty: TypeId,
-    pub expr: Expr,
+    pub src: Src,
 }
 
 #[derive(Debug)]
@@ -121,7 +137,7 @@ impl Fields {
         s
     }
 
-    fn make(&mut self, field: &str) -> Result<FieldId, TypeError> {
+    fn make(&mut self, field: &str) -> TypeResult<FieldId> {
         let entry = self.fields.raw_entry_mut_v1().from_key(field);
         let id = FieldId {
             // maybe more fields than tokens, because of imports
@@ -161,7 +177,7 @@ impl Types {
         self.types[usize::from(id)]
     }
 
-    fn make(&mut self, ty: Type) -> Result<TypeId, TypeError> {
+    fn make(&mut self, ty: Type) -> TypeResult<TypeId> {
         let (i, _) = self.types.insert_full(ty);
         let id = TypeId {
             // maybe more types than tokens, because of imports
@@ -186,11 +202,32 @@ pub struct Module {
     imports: Vec<String>,
     fields: Fields,
     types: Types,
-    exports: HashMap<String, ValId>,
     vals: Vec<Val>,
+    exports: HashMap<String, ValId>,
+    params: Box<[ValId]>,
+    exprs: Box<[ValId]>,
+    defs: Box<[ValId]>,
 }
 
 impl Module {
+    fn new(imports: Vec<String>, num_params: usize, num_exprs: usize, num_defs: usize) -> Self {
+        let mut types = Types::new();
+        let ty = types.make(Type::Untyped).unwrap();
+        let src = Src::Undefined;
+        let vals = vec![Val { ty, src }];
+        let undefined = ValId { index: 0 };
+        Self {
+            imports,
+            fields: Fields::new(),
+            types,
+            vals,
+            exports: HashMap::new(),
+            params: vec![undefined; num_params].into_boxed_slice(),
+            exprs: vec![undefined; num_exprs].into_boxed_slice(),
+            defs: vec![undefined; num_defs].into_boxed_slice(),
+        }
+    }
+
     pub fn field(&self, id: FieldId) -> &str {
         self.fields.get(id)
     }
@@ -213,10 +250,27 @@ pub enum TypeError {
     TooManyImports,
     TooManyFields,
     TooManyTypes,
-    Undefined { name: TokenId },
-    Duplicate { name: TokenId },
-    Untyped { name: TokenId },
+    Undefined {
+        name: TokenId,
+    },
+    Duplicate {
+        name: TokenId,
+    },
+    Untyped {
+        name: TokenId,
+    },
+    Mismatch {
+        expr: parse::ExprId,
+        expected: TypeId,
+        actual: TypeId,
+    },
+    NotFunction {
+        expr: parse::ExprId,
+        ty: TypeId,
+    },
 }
+
+type TypeResult<T> = Result<T, TypeError>;
 
 #[derive(Debug)]
 struct Typer<'a> {
@@ -233,11 +287,11 @@ impl<'a> Typer<'a> {
         &self.source[self.tokens.get(id).byte_range()]
     }
 
-    fn field(&mut self, name: &str) -> Result<FieldId, TypeError> {
+    fn field(&mut self, name: &str) -> TypeResult<FieldId> {
         self.module.fields.make(name)
     }
 
-    fn ty(&mut self, ty: Type) -> Result<TypeId, TypeError> {
+    fn ty(&mut self, ty: Type) -> TypeResult<TypeId> {
         self.module.types.make(ty)
     }
 
@@ -254,40 +308,58 @@ impl<'a> Typer<'a> {
         id
     }
 
+    fn scope<T, U>(
+        &mut self,
+        x: T,
+        bind: impl FnOnce(&mut Self, &T, &mut Vec<&'a str>) -> TypeResult<()>,
+        f: impl FnOnce(&mut Self, T) -> TypeResult<U>,
+    ) -> TypeResult<U> {
+        let mut names = vec![];
+        let res = bind(self, &x, &mut names).and_then(|()| f(self, x));
+        for name in names.into_iter().rev() {
+            self.names
+                .get_mut(name)
+                .expect("popped name should be present in the map")
+                .pop()
+                .expect("popped name should have at least one binding");
+        }
+        res
+    }
+
     fn parse_ty(
         &mut self,
-        names: &HashMap<&'a str, TypeId>,
+        types: &HashMap<&'a str, TypeId>,
         id: parse::TypeId,
-    ) -> Result<TypeId, TypeError> {
+    ) -> TypeResult<TypeId> {
         match self.tree.ty(id) {
-            parse::Type::Paren { inner } => self.parse_ty(names, inner),
+            parse::Type::Paren { inner } => self.parse_ty(types, inner),
             parse::Type::Unit { open: _, close: _ } => self.ty(Type::Unit),
             parse::Type::Name { name } => match self.token(name) {
                 "Int" => self.ty(Type::Int),
                 "Float" => self.ty(Type::Float),
-                s => names.get(s).ok_or(TypeError::Undefined { name }).copied(),
+                s => types.get(s).ok_or(TypeError::Undefined { name }).copied(),
             },
             parse::Type::Prod { fst, snd } => {
-                let fst = self.parse_ty(names, fst)?;
-                let snd = self.parse_ty(names, snd)?;
+                let fst = self.parse_ty(types, fst)?;
+                let snd = self.parse_ty(types, snd)?;
                 self.ty(Type::Prod { fst, snd })
             }
             parse::Type::Sum { left, right } => {
-                let left = self.parse_ty(names, left)?;
-                let right = self.parse_ty(names, right)?;
+                let left = self.parse_ty(types, left)?;
+                let right = self.parse_ty(types, right)?;
                 self.ty(Type::Sum { left, right })
             }
             parse::Type::Array { index, elem } => {
                 let index = match index {
-                    Some(i) => self.parse_ty(names, i),
+                    Some(i) => self.parse_ty(types, i),
                     None => self.ty(Type::Int),
                 }?;
-                let elem = self.parse_ty(names, elem)?;
+                let elem = self.parse_ty(types, elem)?;
                 self.ty(Type::Array { index, elem })
             }
             parse::Type::Func { dom, cod } => {
-                let dom = self.parse_ty(names, dom)?;
-                let cod = self.parse_ty(names, cod)?;
+                let dom = self.parse_ty(types, dom)?;
+                let cod = self.parse_ty(types, cod)?;
                 self.ty(Type::Func { dom, cod })
             }
         }
@@ -295,23 +367,23 @@ impl<'a> Typer<'a> {
 
     fn bind_ty(
         &mut self,
-        names: &HashMap<&'a str, TypeId>,
+        types: &HashMap<&'a str, TypeId>,
         bind: parse::Bind,
-    ) -> Result<TypeId, TypeError> {
+    ) -> TypeResult<TypeId> {
         match bind {
-            parse::Bind::Paren { inner } => self.param_ty(names, inner),
+            parse::Bind::Paren { inner } => self.param_ty(types, inner),
             parse::Bind::Unit { open: _, close: _ } => self.ty(Type::Unit),
             parse::Bind::Name { name } => Err(TypeError::Untyped { name }),
             parse::Bind::Pair { fst, snd } => {
-                let fst = self.param_ty(names, fst)?;
-                let snd = self.param_ty(names, snd)?;
+                let fst = self.param_ty(types, fst)?;
+                let snd = self.param_ty(types, snd)?;
                 self.ty(Type::Prod { fst, snd })
             }
             parse::Bind::Record { name, field, rest } => {
                 let mut fields = BTreeMap::new();
                 let (mut n, mut v, mut r) = (name, field, rest);
                 loop {
-                    let ty = self.param_ty(names, v)?;
+                    let ty = self.param_ty(types, v)?;
                     if fields.insert(self.token(n), ty).is_some() {
                         return Err(TypeError::Duplicate { name: n });
                     }
@@ -336,17 +408,132 @@ impl<'a> Typer<'a> {
 
     fn param_ty(
         &mut self,
-        names: &HashMap<&'a str, TypeId>,
+        types: &HashMap<&'a str, TypeId>,
         id: parse::ParamId,
-    ) -> Result<TypeId, TypeError> {
+    ) -> TypeResult<TypeId> {
         let parse::Param { bind, ty } = self.tree.param(id);
         match ty {
-            Some(t) => self.parse_ty(names, t),
-            None => self.bind_ty(names, bind),
+            Some(t) => self.parse_ty(types, t),
+            None => self.bind_ty(types, bind),
         }
     }
 
-    fn toplevel(&mut self, name: TokenId, val: ValId) -> Result<(), TypeError> {
+    fn param(
+        &mut self,
+        types: &HashMap<&'a str, TypeId>,
+        names: &mut Vec<&'a str>,
+        id: parse::ParamId,
+        ty: TypeId,
+    ) -> TypeResult<ValId> {
+        let src = Src::Param { id };
+        let val = self.val(Val { src, ty });
+        self.module.params[usize::from(id)] = val;
+        let t = match self.tree.param(id).bind {
+            parse::Bind::Paren { inner } => {
+                self.param(types, names, inner, ty)?;
+                ty
+            }
+            parse::Bind::Unit { open: _, close: _ } => self.ty(Type::Unit)?,
+            parse::Bind::Name { name } => {
+                let s = self.token(name);
+                self.names.entry(s).or_default().push(val);
+                names.push(s);
+                ty
+            }
+            parse::Bind::Pair { fst, snd } => todo!(),
+            parse::Bind::Record { name, field, rest } => todo!(),
+            parse::Bind::End { open, close } => todo!(),
+        };
+        Ok(val)
+    }
+
+    fn expr(
+        &mut self,
+        types: &mut HashMap<&'a str, TypeId>,
+        id: parse::ExprId,
+    ) -> TypeResult<ValId> {
+        let ty = match self.tree.expr(id) {
+            parse::Expr::Paren { inner } => {
+                let val = self.expr(types, inner)?;
+                self.module.val(val).ty
+            }
+            parse::Expr::Name { name } => {
+                let val = self
+                    .names
+                    .get(self.token(name))
+                    .and_then(|stack| stack.last().copied())
+                    .ok_or(TypeError::Undefined { name })?;
+                self.module.val(val).ty
+            }
+            parse::Expr::Unit { open: _, close: _ } => todo!(),
+            parse::Expr::Number { val } => todo!(),
+            parse::Expr::Pair { fst, snd } => todo!(),
+            parse::Expr::Record { name, field, rest } => todo!(),
+            parse::Expr::End { open: _, close: _ } => todo!(),
+            parse::Expr::Elem { array, index } => todo!(),
+            parse::Expr::Apply { func, arg } => {
+                let f = self.expr(types, func)?;
+                let fty = self.module.val(f).ty;
+                let (dom, cod) = match self.module.ty(fty) {
+                    Type::Func { dom, cod } => Ok((dom, cod)),
+                    _ => Err(TypeError::NotFunction { expr: id, ty: fty }),
+                }?;
+                self.expect(types, arg, dom)?;
+                cod
+            }
+            parse::Expr::Map { func, arg } => todo!(),
+            parse::Expr::Let { param, val, body } => {
+                let bound = self.expr(types, val)?;
+                let xty = self.module.val(bound).ty;
+                let rest = self.scope(
+                    types,
+                    |this, types, names| {
+                        this.param(types, names, param, xty)?;
+                        Ok(())
+                    },
+                    |this, types| this.expr(types, body),
+                )?;
+                self.module.val(rest).ty
+            }
+            parse::Expr::Index { name, val, body } => todo!(),
+            parse::Expr::Unary { op, arg } => todo!(),
+            parse::Expr::Binary { lhs, map, op, rhs } => {
+                if map {
+                    todo!()
+                }
+                let float = self.ty(Type::Float)?;
+                let l = self.expect(types, lhs, float)?;
+                let r = self.expect(types, rhs, float)?;
+                float
+            }
+            parse::Expr::Lambda { param, ty, body } => todo!(),
+        };
+        let src = Src::Expr { id };
+        let val = self.val(Val { src, ty });
+        self.module.exprs[usize::from(id)] = val;
+        Ok(val)
+    }
+
+    fn expect(
+        &mut self,
+        types: &mut HashMap<&'a str, TypeId>,
+        id: parse::ExprId,
+        ty: TypeId,
+    ) -> TypeResult<ValId> {
+        let val = self.expr(types, id)?;
+        let t = self.module.val(val).ty;
+        if t == ty {
+            Ok(val)
+        } else {
+            Err(TypeError::Mismatch {
+                expr: id,
+                expected: ty,
+                actual: t,
+            })
+        }
+    }
+
+    fn toplevel(&mut self, name: TokenId, val: ValId) -> TypeResult<()> {
         let stack = self.names.entry(self.token(name)).or_default();
         if stack.is_empty() {
             stack.push(val);
@@ -361,12 +548,13 @@ impl<'a> Typer<'a> {
         i: ModId,
         ids: &mut HashMap<TypeId, TypeId>,
         t0: TypeId,
-    ) -> Result<TypeId, TypeError> {
+    ) -> TypeResult<TypeId> {
         if let Some(&t) = ids.get(&t0) {
             return Ok(t);
         }
         let import = self.imports[usize::from(i)];
         let t = match import.ty(t0) {
+            Type::Untyped => self.ty(Type::Untyped)?,
             Type::Var { src, def } => {
                 assert!(src.is_none(), "type variable from transitive import");
                 self.ty(Type::Var { src: Some(i), def })?
@@ -406,7 +594,7 @@ impl<'a> Typer<'a> {
         Ok(t)
     }
 
-    fn imports(&mut self) -> Result<(), TypeError> {
+    fn imports(&mut self) -> TypeResult<()> {
         let n = self.tree.imports().len();
         if n == 0 {
             return Ok(()); // avoid underflow when we decrement below
@@ -423,7 +611,7 @@ impl<'a> Typer<'a> {
                 let ty = self.translate(src, &mut translated, module.val(id).ty)?;
                 let val = self.val(Val {
                     ty,
-                    expr: Expr::Use { src, id },
+                    src: Src::Import { src, id },
                 });
                 self.toplevel(token, val)?;
             }
@@ -431,33 +619,68 @@ impl<'a> Typer<'a> {
         Ok(())
     }
 
-    fn module(mut self) -> Result<Module, TypeError> {
+    fn module(&mut self) -> TypeResult<()> {
         self.imports()?;
-        for parse::Def {
-            name,
-            types,
-            params,
-            ty,
-            body: _,
-        } in self.tree.defs()
+        let defs = self
+            .tree
+            .defs()
+            .iter()
+            .enumerate()
+            .map(|(i, def)| {
+                let parse::Def {
+                    name,
+                    types,
+                    params,
+                    ty,
+                    body: _,
+                } = def;
+                let names = types
+                    .iter()
+                    .map(|&def| Ok((self.token(def), self.ty(Type::Var { src: None, def })?)))
+                    .collect::<TypeResult<HashMap<&'a str, TypeId>>>()?;
+                let doms = params
+                    .iter()
+                    .map(|&param| self.param_ty(&names, param))
+                    .collect::<TypeResult<Vec<TypeId>>>()?;
+                let cod = self.parse_ty(&names, ty.ok_or(TypeError::Untyped { name: *name })?)?;
+                let t = doms
+                    .iter()
+                    .try_rfold(cod, |b, &a| self.ty(Type::Func { dom: a, cod: b }))?;
+                let id = parse::DefId {
+                    index: i.try_into().unwrap(),
+                };
+                let src = Src::Def { id };
+                let val = self.val(Val { ty: t, src });
+                self.toplevel(*name, val)?;
+                self.module
+                    .exports
+                    .insert(self.token(*name).to_owned(), val);
+                Ok((names, doms, cod, val))
+            })
+            .collect::<TypeResult<Vec<_>>>()?;
+        for (
+            parse::Def {
+                name,
+                types: _,
+                params,
+                ty,
+                body,
+            },
+            (types, doms, cod, id),
+        ) in self.tree.defs().iter().zip(defs)
         {
-            let generics = types
-                .iter()
-                .map(|&def| Ok((self.token(def), self.ty(Type::Var { src: None, def })?)))
-                .collect::<Result<HashMap<&'a str, TypeId>, TypeError>>()?;
-            let mut t = self.parse_ty(&generics, ty.ok_or(TypeError::Untyped { name: *name })?)?;
-            for &param in params.iter().rev() {
-                let dom = self.param_ty(&generics, param)?;
-                t = self.ty(Type::Func { dom, cod: t })?;
-            }
-            let expr = Expr::Undefined;
-            let val = self.val(Val { ty: t, expr });
-            self.toplevel(*name, val)?;
-            self.module
-                .exports
-                .insert(self.token(*name).to_owned(), val);
+            self.scope(
+                types,
+                |this, types, names| {
+                    for (&param, t) in params.iter().zip(doms) {
+                        this.param(types, names, param, t)?;
+                    }
+                    Ok(())
+                },
+                |this, mut types| this.expect(&mut types, *body, cod),
+            )?;
         }
-        Ok(self.module)
+        Ok(())
     }
 }
 
@@ -466,13 +689,13 @@ pub fn typecheck<'a>(
     source: &'a str,
     tokens: &'a Tokens,
     tree: &'a parse::Module,
-) -> Result<Module, TypeError> {
+) -> Result<Module, (Box<Module>, TypeError)> {
     let imports: Vec<String> = tree
         .imports()
         .iter()
         .map(|imp| tokens.get(imp.module).string(source))
         .collect();
-    Typer {
+    let mut typer = Typer {
         imports: tree
             .imports()
             .iter()
@@ -482,76 +705,94 @@ pub fn typecheck<'a>(
         source,
         tokens,
         tree,
-        module: Module {
+        module: Module::new(
             imports,
-            fields: Fields::new(),
-            types: Types::new(),
-            exports: HashMap::new(),
-            vals: vec![],
-        },
+            tree.params().len(),
+            tree.exprs().len(),
+            tree.defs().len(),
+        ),
         names: HashMap::new(),
+    };
+    match typer.module() {
+        Ok(()) => Ok(typer.module),
+        Err(err) => Err((Box::new(typer.module), err)),
     }
-    .module()
 }
 
 pub fn array() -> Module {
-    let mut types = Types::new();
-    let unit = types.make(Type::Unit).unwrap();
-    let func = types
+    let defs = [
+        "array",
+        "concat",
+        "for",
+        "map",
+        "max",
+        "range",
+        "row",
+        "scan",
+        "slice",
+        "stack",
+        "sum",
+        "transpose",
+        "zeros",
+    ];
+    let mut module = Module::new(vec![], 0, 1, defs.len());
+    let unit = module.types.make(Type::Unit).unwrap();
+    let func = module
+        .types
         .make(Type::Func {
             dom: unit,
             cod: unit,
         })
         .unwrap();
-    Module {
-        imports: vec![],
-        fields: Fields::new(),
-        types,
-        exports: HashMap::from(
-            [
-                "array",
-                "concat",
-                "for",
-                "map",
-                "max",
-                "range",
-                "row",
-                "scan",
-                "slice",
-                "stack",
-                "sum",
-                "transpose",
-                "zeros",
-            ]
-            .map(|s| (s.to_owned(), ValId { index: 0 })),
-        ),
-        vals: vec![Val {
-            ty: func,
-            expr: Expr::Undefined,
-        }],
-    }
+    module.vals = vec![Val {
+        ty: func,
+        src: Src::Undefined,
+    }];
+    module.exports = HashMap::from(defs.map(|s| (s.to_owned(), ValId { index: 0 })));
+    module
+}
+
+pub fn autodiff() -> Module {
+    let defs = ["grad"];
+    let mut module = Module::new(vec![], 0, 1, defs.len());
+    let float = module.types.make(Type::Float).unwrap();
+    let func = module
+        .types
+        .make(Type::Func {
+            dom: float,
+            cod: float,
+        })
+        .unwrap();
+    let grad = module
+        .types
+        .make(Type::Func {
+            dom: func,
+            cod: func,
+        })
+        .unwrap();
+    module.vals = vec![Val {
+        ty: grad,
+        src: Src::Undefined,
+    }];
+    module.exports = HashMap::from(defs.map(|s| (s.to_owned(), ValId { index: 0 })));
+    module
 }
 
 pub fn math() -> Module {
-    let mut types = Types::new();
-    let unit = types.make(Type::Unit).unwrap();
-    let func = types
+    let defs = ["exp", "int", "lgamma", "log", "pi", "sqr", "sqrt"];
+    let mut module = Module::new(vec![], 0, 1, defs.len());
+    let unit = module.types.make(Type::Unit).unwrap();
+    let func = module
+        .types
         .make(Type::Func {
             dom: unit,
             cod: unit,
         })
         .unwrap();
-    Module {
-        imports: vec![],
-        fields: Fields::new(),
-        types,
-        exports: HashMap::from(
-            ["exp", "int", "lgamma", "log", "pi", "sqr", "sqrt"]
-                .map(|s| (s.to_owned(), ValId { index: 0 })),
-        ),
-        vals: vec![Val {
-            ty: func,
-            expr: Expr::Undefined,
-        }],
-    }
+    module.vals = vec![Val {
+        ty: func,
+        src: Src::Undefined,
+    }];
+    module.exports = HashMap::from(defs.map(|s| (s.to_owned(), ValId { index: 0 })));
+    module
 }

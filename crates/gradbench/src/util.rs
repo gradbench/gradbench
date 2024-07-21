@@ -21,8 +21,9 @@ impl Printer<'_> {
 
     pub fn print_ty(&self, w: &mut impl fmt::Write, id: typecheck::TypeId) -> fmt::Result {
         match self.module.ty(id) {
+            typecheck::Type::Untyped => write!(w, "?"),
             typecheck::Type::Var { src, def } => todo!(),
-            typecheck::Type::Unit => todo!(),
+            typecheck::Type::Unit => write!(w, "()"),
             typecheck::Type::Int => todo!(),
             typecheck::Type::Float => write!(w, "Float"),
             typecheck::Type::Prod { fst, snd } => todo!(),

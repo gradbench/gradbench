@@ -1,4 +1,5 @@
 use enumset::EnumSet;
+use serde::Serialize;
 
 use crate::{
     lex::{
@@ -20,7 +21,8 @@ impl From<TypeId> for usize {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(transparent)]
 pub struct ParamId {
     pub index: u32,
 }
@@ -31,13 +33,26 @@ impl From<ParamId> for usize {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(transparent)]
 pub struct ExprId {
     pub index: u32,
 }
 
 impl From<ExprId> for usize {
     fn from(id: ExprId) -> Self {
+        u32_to_usize(id.index)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(transparent)]
+pub struct DefId {
+    pub index: u32,
+}
+
+impl From<DefId> for usize {
+    fn from(id: DefId) -> Self {
         u32_to_usize(id.index)
     }
 }
@@ -241,6 +256,18 @@ impl Module {
 
     pub fn imports(&self) -> &[Import] {
         &self.imports
+    }
+
+    pub fn types(&self) -> &[Type] {
+        &self.types
+    }
+
+    pub fn params(&self) -> &[Param] {
+        &self.params
+    }
+
+    pub fn exprs(&self) -> &[Expr] {
+        &self.exprs
     }
 
     pub fn defs(&self) -> &[Def] {

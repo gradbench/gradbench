@@ -56,29 +56,54 @@ fn cli() -> Result<(), ()> {
             .unwrap();
     })?;
     let array = typecheck::array();
+    let autodiff = typecheck::autodiff();
     let math = typecheck::math();
     let module = typecheck::typecheck(
         |name| match name {
             "array" => &array,
+            "autodiff" => &autodiff,
             "math" => &math,
-            _ => panic!(),
+            _ => panic!("unknown module: {name}"),
         },
         &source,
         &tokens,
         &tree,
     )
-    .map_err(|err| {
+    .map_err(|(module, err)| {
+        let printer = util::Printer {
+            source: &source,
+            tokens: &tokens,
+            module: &module,
+        };
         let (range, message) = match err {
             typecheck::TypeError::TooManyImports => todo!(),
             typecheck::TypeError::TooManyTypes => todo!(),
             typecheck::TypeError::TooManyFields => todo!(),
             typecheck::TypeError::Undefined { name } => {
-                (tokens.get(name).byte_range(), "undefined")
+                (tokens.get(name).byte_range(), "undefined".to_owned())
             }
             typecheck::TypeError::Duplicate { name } => {
-                (tokens.get(name).byte_range(), "duplicate")
+                (tokens.get(name).byte_range(), "duplicate".to_owned())
             }
-            typecheck::TypeError::Untyped { name } => (tokens.get(name).byte_range(), "untyped"),
+            typecheck::TypeError::Untyped { name } => {
+                (tokens.get(name).byte_range(), "untyped".to_owned())
+            }
+            typecheck::TypeError::Mismatch {
+                expr,
+                expected,
+                actual,
+            } => (
+                range::expr_range(&tokens, &tree, expr),
+                format!(
+                    "expected `{}`, got `{}`",
+                    printer.ty(expected),
+                    printer.ty(actual)
+                ),
+            ),
+            typecheck::TypeError::NotFunction { expr, ty } => (
+                range::expr_range(&tokens, &tree, expr),
+                format!("expected function, got `{}`", printer.ty(ty)),
+            ),
         };
         Report::build(ReportKind::Error, path, range.start)
             .with_message("failed to typecheck")
