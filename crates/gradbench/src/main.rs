@@ -88,17 +88,33 @@ fn cli() -> Result<(), ()> {
             typecheck::TypeError::Untyped { name } => {
                 (tokens.get(name).byte_range(), "untyped".to_owned())
             }
-            typecheck::TypeError::Mismatch {
-                expr,
+            typecheck::TypeError::Param {
+                id,
                 expected,
                 actual,
             } => (
-                range::expr_range(&tokens, &tree, expr),
+                range::param_range(&tokens, &tree, id),
                 format!(
                     "expected `{}`, got `{}`",
                     printer.ty(expected),
                     printer.ty(actual)
                 ),
+            ),
+            typecheck::TypeError::Expr {
+                id,
+                expected,
+                actual,
+            } => (
+                range::expr_range(&tokens, &tree, id),
+                format!(
+                    "expected `{}`, got `{}`",
+                    printer.ty(expected),
+                    printer.ty(actual)
+                ),
+            ),
+            typecheck::TypeError::NotPair { param, ty } => (
+                range::param_range(&tokens, &tree, param),
+                format!("expected tuple, got `{}`", printer.ty(ty)),
             ),
             typecheck::TypeError::NotFunction { expr, ty } => (
                 range::expr_range(&tokens, &tree, expr),

@@ -259,10 +259,19 @@ pub enum TypeError {
     Untyped {
         name: TokenId,
     },
-    Mismatch {
-        expr: parse::ExprId,
+    Param {
+        id: parse::ParamId,
         expected: TypeId,
         actual: TypeId,
+    },
+    Expr {
+        id: parse::ExprId,
+        expected: TypeId,
+        actual: TypeId,
+    },
+    NotPair {
+        param: parse::ParamId,
+        ty: TypeId,
     },
     NotFunction {
         expr: parse::ExprId,
@@ -424,27 +433,52 @@ impl<'a> Typer<'a> {
         names: &mut Vec<&'a str>,
         id: parse::ParamId,
         ty: TypeId,
-    ) -> TypeResult<ValId> {
+    ) -> TypeResult<()> {
         let src = Src::Param { id };
         let val = self.val(Val { src, ty });
         self.module.params[usize::from(id)] = val;
-        let t = match self.tree.param(id).bind {
-            parse::Bind::Paren { inner } => {
-                self.param(types, names, inner, ty)?;
-                ty
+        match self.tree.param(id).bind {
+            parse::Bind::Paren { inner } => self.param(types, names, inner, ty),
+            parse::Bind::Unit { open: _, close: _ } => {
+                let actual = self.ty(Type::Unit)?;
+                if actual == ty {
+                    Ok(())
+                } else {
+                    Err(TypeError::Param {
+                        id,
+                        expected: ty,
+                        actual,
+                    })
+                }
             }
-            parse::Bind::Unit { open: _, close: _ } => self.ty(Type::Unit)?,
             parse::Bind::Name { name } => {
                 let s = self.token(name);
                 self.names.entry(s).or_default().push(val);
                 names.push(s);
-                ty
+                Ok(())
             }
-            parse::Bind::Pair { fst, snd } => todo!(),
+            parse::Bind::Pair { fst, snd } => match self.module.ty(ty) {
+                Type::Prod { fst: dom, snd: cod } => {
+                    self.param(types, names, fst, dom)?;
+                    self.param(types, names, snd, cod)?;
+                    Ok(())
+                }
+                _ => Err(TypeError::NotPair { param: id, ty }),
+            },
             parse::Bind::Record { name, field, rest } => todo!(),
-            parse::Bind::End { open, close } => todo!(),
-        };
-        Ok(val)
+            parse::Bind::End { open: _, close: _ } => {
+                let actual = self.ty(Type::End)?;
+                if actual == ty {
+                    Ok(())
+                } else {
+                    Err(TypeError::Param {
+                        id,
+                        expected: ty,
+                        actual,
+                    })
+                }
+            }
+        }
     }
 
     fn expr(
@@ -487,10 +521,7 @@ impl<'a> Typer<'a> {
                 let xty = self.module.val(bound).ty;
                 let rest = self.scope(
                     types,
-                    |this, types, names| {
-                        this.param(types, names, param, xty)?;
-                        Ok(())
-                    },
+                    |this, types, names| this.param(types, names, param, xty),
                     |this, types| this.expr(types, body),
                 )?;
                 self.module.val(rest).ty
@@ -525,8 +556,8 @@ impl<'a> Typer<'a> {
         if t == ty {
             Ok(val)
         } else {
-            Err(TypeError::Mismatch {
-                expr: id,
+            Err(TypeError::Expr {
+                id,
                 expected: ty,
                 actual: t,
             })
