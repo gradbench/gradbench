@@ -240,9 +240,7 @@ impl Printer<'_> {
                 self.expr(w, rhs)?;
             }
             Expr::Lambda { param, ty, body } => {
-                write!(w, "(")?;
                 self.param(w, param)?;
-                write!(w, ")")?;
                 if let Some(ty) = ty {
                     write!(w, " : ")?;
                     self.ty(w, ty)?;

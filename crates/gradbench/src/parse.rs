@@ -500,16 +500,16 @@ impl<'a> Parser<'a> {
                 let after = self.after_close();
                 self.next();
                 if let Colon | Arrow = after {
-                    let param = if let RParen = self.peek() {
+                    let bind = if let RParen = self.peek() {
                         let close = self.id;
                         self.next();
-                        let bind = Bind::Unit { open, close };
-                        self.tree.make_param(Param { bind, ty: None })
+                        Bind::Unit { open, close }
                     } else {
-                        let param = self.param()?;
+                        let inner = self.param()?;
                         self.expect(RParen)?;
-                        param
+                        Bind::Paren { inner }
                     };
+                    let param = self.tree.make_param(Param { bind, ty: None });
                     let ty = if let Colon = self.peek() {
                         self.next();
                         Some(self.ty()?)
