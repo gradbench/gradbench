@@ -134,7 +134,7 @@ impl Ranger<'_> {
                 map: _,
                 op: _,
                 rhs: _,
-            } => self.before(self.expr_start(lhs)),
+            } => self.expr_start(lhs),
             Expr::Lambda {
                 param,
                 ty: _,
