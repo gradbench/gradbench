@@ -158,6 +158,7 @@ impl Printer<'_> {
                 write!(w, ")")?;
             }
             Expr::Name { name } => self.token(w, name)?,
+            Expr::Undefined { token } => self.token(w, token)?,
             Expr::Unit { open, close } => {
                 self.token(w, open)?;
                 self.token(w, close)?;

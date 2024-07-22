@@ -39,7 +39,7 @@
         },
         {
           "name": "keyword.other.adroit",
-          "match": "\\b(and|in|or)\\b"
+          "match": "\\b(and|in|or|undefined)\\b"
         },
         {
           "name": "storage.type.adroit",

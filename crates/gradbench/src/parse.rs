@@ -122,6 +122,9 @@ pub enum Expr {
     Name {
         name: TokenId,
     },
+    Undefined {
+        token: TokenId,
+    },
     Unit {
         open: TokenId,
         close: TokenId,
@@ -595,6 +598,11 @@ impl<'a> Parser<'a> {
                     Ok(self.tree.make_expr(Expr::Name { name }))
                 }
             }
+            Undefined => {
+                let token = self.id;
+                self.next();
+                Ok(self.tree.make_expr(Expr::Undefined { token }))
+            }
             Number => {
                 let val = self.id;
                 self.next();
@@ -602,7 +610,7 @@ impl<'a> Parser<'a> {
             }
             _ => Err(ParseError::Expected {
                 id: self.id,
-                kinds: LParen | Ident | Number,
+                kinds: LParen | LBrace | Ident | Undefined | Number,
             }),
         }
     }
@@ -642,7 +650,7 @@ impl<'a> Parser<'a> {
         // function application is the only place we forbid line breaks
         while !self.newline() {
             // same set of tokens allowed at the start of an atomic expression
-            if let LParen | LBrace | Ident | Number = self.peek() {
+            if let LParen | LBrace | Ident | Undefined | Number = self.peek() {
                 let x = self.expr_access()?;
                 f = self.tree.make_expr(Expr::Apply { func: f, arg: x });
             } else {
@@ -748,7 +756,7 @@ impl<'a> Parser<'a> {
         self.expect(Def)?;
         let name = self.expect(Ident)?;
         let mut types = vec![];
-        if let LBrace = self.peek() {
+        if let LBracket = self.peek() {
             self.next();
             while let Ident = self.peek() {
                 types.push(self.id);
@@ -758,7 +766,7 @@ impl<'a> Parser<'a> {
                     _ => break,
                 }
             }
-            self.expect(RBrace)?;
+            self.expect(RBracket)?;
         }
         let mut params = vec![];
         while let LParen = self.peek() {

@@ -3,8 +3,10 @@ import "array" use
   concat,
   for,
   map,
+  matrix,
   max,
   range,
+  reshape,
   row,
   scan,
   slice,
@@ -14,12 +16,12 @@ import "array" use
   zeros,
 import "math" use exp, int, lgamma, log, pi, sqr, sqrt
 
-def logsumexp{K}(x: [K]Float): Float =
+def logsumexp[K](x: [K]Float): Float =
   let mx = max(x)
   let emx = exp.(for i => x[i] - mx)
   log(sum(emx) + mx)
 
-def logsumexpvec{N, K}(x: [N * K]Float): [N]Float =
+def logsumexpvec[K, N](x: [N * K]Float): [N]Float =
   for i => logsumexp(row(x, i))
 
 def log_gamma_distrib(a: Float, p: Int): Float =
@@ -29,7 +31,7 @@ def log_gamma_distrib(a: Float, p: Int): Float =
     lgamma(a + 0.5 * (1 - j))
   ))
 
-def log_wishart_prior{D, K}({
+def log_wishart_prior[D, K]({
   p: Int,
   wishart_gamma: Float,
   wishart_m: Int,
@@ -51,17 +53,17 @@ def log_wishart_prior{D, K}({
   let c = n * p * log(wishart_gamma / sqrt(2))
   out - k * (c - log_gamma_distrib(0.5 * n, p))
 
-def construct_l{D}(icf: []Float): [D * D]Float =
+def construct_l[D](icf: []Float): [D * D]Float =
   let d = int[D]
   let cols = scan((d, zeros[D]()), range(d - 1), ((j, _), i) =>
     let k = i + 1
     index K <- k
     let n = d - k
-    j + n, array(concat(zeros[K](), slice(icf, j, j + n)))
+    j + n, reshape(concat(zeros[K](), slice(icf, j, j + n)))
   )
-  transpose(stack(map(cols, (_, v) => v)))
+  transpose(stack(reshape(map(cols, (_, v) => v))))
 
-def qtimesx{D, K, N}({
+def qtimesx[D, K, N]({
   qdiag: [K * D]Float,
   l: [K * D * D]Float,
   x: [N * K * D]Float,
@@ -69,7 +71,7 @@ def qtimesx{D, K, N}({
   let f = for (m, i, j) => sum(for k => l[i, j, k] * x[m, i, k])
   stack(for i => qdiag .* row(x, i)) + f
 
-def gmm_objective{D, K, N}({
+def gmm_objective[D, K, N]({
   alphas: [K]Float,
   means: [K * D]Float,
   qs: [K * D]Float,
@@ -117,10 +119,10 @@ def gmm({
   index N <- n
   gmm_objective({
     alphas = array(alpha),
-    means = array(means),
-    qs = array(map(icf, curr_icf => slice(curr_icf, 0, d))),
-    ls = array(map(icf, construct_l{D})),
-    x = array(x),
+    means = matrix(means),
+    qs = matrix(map(icf, curr_icf => slice(curr_icf, 0, d))),
+    ls = stack(reshape(map(icf, construct_l{D}))),
+    x = matrix(x),
     wishart_gamma = gamma,
     wishart_m = m,
   })

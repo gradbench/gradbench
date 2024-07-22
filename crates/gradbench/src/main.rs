@@ -10,17 +10,16 @@ use std::{fs, io, process::ExitCode};
 use ariadne::{Color, Label, Report, ReportKind, Source};
 use clap::Parser;
 
-#[derive(Debug, Parser)]
-struct Cli {
-    file: String,
-}
+const ARRAY: &str = include_str!("array.adroit");
+const AUTODIFF: &str = include_str!("autodiff.adroit");
+const MATH: &str = include_str!("math.adroit");
 
-fn cli() -> Result<(), ()> {
-    let args = Cli::parse();
-    let path = &args.file;
-    let source =
-        fs::read_to_string(path).map_err(|err| eprintln!("error reading {path}: {err}"))?;
-    let tokens = lex::lex(&source).map_err(|err| {
+fn process<'a>(
+    path: &str,
+    source: &str,
+    import: impl FnMut(&str) -> &'a typecheck::Module,
+) -> Result<typecheck::Module, ()> {
+    let tokens = lex::lex(source).map_err(|err| {
         let range = err.byte_range();
         Report::build(ReportKind::Error, path, range.start)
             .with_message("failed to tokenize")
@@ -55,23 +54,9 @@ fn cli() -> Result<(), ()> {
             .eprint((path, Source::from(&source)))
             .unwrap();
     })?;
-    let array = typecheck::array();
-    let autodiff = typecheck::autodiff();
-    let math = typecheck::math();
-    let module = typecheck::typecheck(
-        |name| match name {
-            "array" => &array,
-            "autodiff" => &autodiff,
-            "math" => &math,
-            _ => panic!("unknown module: {name}"),
-        },
-        &source,
-        &tokens,
-        &tree,
-    )
-    .map_err(|(module, err)| {
+    typecheck::typecheck(import, source, &tokens, &tree).map_err(|(module, err)| {
         let printer = util::Printer {
-            source: &source,
+            source,
             tokens: &tokens,
             module: &module,
         };
@@ -131,6 +116,27 @@ fn cli() -> Result<(), ()> {
             .finish()
             .eprint((path, Source::from(&source)))
             .unwrap();
+    })
+}
+
+#[derive(Debug, Parser)]
+struct Cli {
+    file: String,
+}
+
+fn cli() -> Result<(), ()> {
+    let args = Cli::parse();
+    let array = process("", ARRAY, |_| unreachable!()).unwrap();
+    let autodiff = process("", AUTODIFF, |_| unreachable!()).unwrap();
+    let math = process("", MATH, |_| unreachable!()).unwrap();
+    let path = &args.file;
+    let source =
+        fs::read_to_string(path).map_err(|err| eprintln!("error reading {path}: {err}"))?;
+    let module = process(path, &source, |name| match name {
+        "array" => &array,
+        "autodiff" => &autodiff,
+        "math" => &math,
+        _ => panic!("unknown module: {name}"),
     })?;
     serde_json::to_writer(io::stdout(), &module)
         .map_err(|err| eprintln!("error serializing module: {err}"))?;

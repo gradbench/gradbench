@@ -203,31 +203,13 @@ pub struct Module {
     fields: Fields,
     types: Types,
     vals: Vec<Val>,
-    exports: HashMap<String, ValId>,
     params: Box<[ValId]>,
     exprs: Box<[ValId]>,
     defs: Box<[ValId]>,
+    exports: HashMap<String, parse::DefId>,
 }
 
 impl Module {
-    fn new(imports: Vec<String>, num_params: usize, num_exprs: usize, num_defs: usize) -> Self {
-        let mut types = Types::new();
-        let ty = types.make(Type::Untyped).unwrap();
-        let src = Src::Undefined;
-        let vals = vec![Val { ty, src }];
-        let undefined = ValId { index: 0 };
-        Self {
-            imports,
-            fields: Fields::new(),
-            types,
-            vals,
-            exports: HashMap::new(),
-            params: vec![undefined; num_params].into_boxed_slice(),
-            exprs: vec![undefined; num_exprs].into_boxed_slice(),
-            defs: vec![undefined; num_defs].into_boxed_slice(),
-        }
-    }
-
     pub fn field(&self, id: FieldId) -> &str {
         self.fields.get(id)
     }
@@ -236,12 +218,24 @@ impl Module {
         self.types.get(id)
     }
 
-    pub fn export(&self, name: &str) -> Option<ValId> {
-        self.exports.get(name).copied()
-    }
-
     pub fn val(&self, id: ValId) -> Val {
         self.vals[usize::from(id)]
+    }
+
+    pub fn param(&self, id: parse::ParamId) -> ValId {
+        self.params[usize::from(id)]
+    }
+
+    pub fn expr(&self, id: parse::ExprId) -> ValId {
+        self.exprs[usize::from(id)]
+    }
+
+    pub fn def(&self, id: parse::DefId) -> ValId {
+        self.defs[usize::from(id)]
+    }
+
+    pub fn export(&self, name: &str) -> Option<parse::DefId> {
+        self.exports.get(name).copied()
     }
 }
 
@@ -499,6 +493,7 @@ impl<'a> Typer<'a> {
                     .ok_or(TypeError::Undefined { name })?;
                 self.module.val(val).ty
             }
+            parse::Expr::Undefined { token: _ } => self.ty(Type::Untyped)?,
             parse::Expr::Unit { open: _, close: _ } => todo!(),
             parse::Expr::Number { val } => todo!(),
             parse::Expr::Pair { fst, snd } => todo!(),
@@ -636,9 +631,11 @@ impl<'a> Typer<'a> {
             let module = self.imports[usize::from(src)];
             let mut translated = HashMap::new();
             for &token in imports[usize::from(src)].names.iter() {
-                let id = module
-                    .export(self.token(token))
-                    .ok_or(TypeError::Undefined { name: token })?;
+                let id = module.def(
+                    module
+                        .export(self.token(token))
+                        .ok_or(TypeError::Undefined { name: token })?,
+                );
                 let ty = self.translate(src, &mut translated, module.val(id).ty)?;
                 let val = self.val(Val {
                     ty,
@@ -683,21 +680,20 @@ impl<'a> Typer<'a> {
                 let src = Src::Def { id };
                 let val = self.val(Val { ty: t, src });
                 self.toplevel(*name, val)?;
-                self.module
-                    .exports
-                    .insert(self.token(*name).to_owned(), val);
-                Ok((names, doms, cod, val))
+                self.module.defs[usize::from(id)] = val;
+                self.module.exports.insert(self.token(*name).to_owned(), id);
+                Ok((names, doms, cod))
             })
             .collect::<TypeResult<Vec<_>>>()?;
         for (
             parse::Def {
-                name,
+                name: _,
                 types: _,
                 params,
-                ty,
+                ty: _,
                 body,
             },
-            (types, doms, cod, id),
+            (types, doms, cod),
         ) in self.tree.defs().iter().zip(defs)
         {
             self.scope(
@@ -708,7 +704,14 @@ impl<'a> Typer<'a> {
                     }
                     Ok(())
                 },
-                |this, mut types| this.expect(&mut types, *body, cod),
+                |this, mut types| {
+                    let ty = if let parse::Expr::Undefined { token: _ } = this.tree.expr(*body) {
+                        this.ty(Type::Untyped)? // escape hatch if the entire body is undefined
+                    } else {
+                        cod
+                    };
+                    this.expect(&mut types, *body, ty)
+                },
             )?;
         }
         Ok(())
@@ -717,15 +720,20 @@ impl<'a> Typer<'a> {
 
 pub fn typecheck<'a>(
     mut import: impl FnMut(&str) -> &'a Module,
-    source: &'a str,
-    tokens: &'a Tokens,
-    tree: &'a parse::Module,
+    source: &str,
+    tokens: &Tokens,
+    tree: &parse::Module,
 ) -> Result<Module, (Box<Module>, TypeError)> {
     let imports: Vec<String> = tree
         .imports()
         .iter()
         .map(|imp| tokens.get(imp.module).string(source))
         .collect();
+    let mut types = Types::new();
+    let ty = types.make(Type::Untyped).unwrap();
+    let src = Src::Undefined;
+    let vals = vec![Val { ty, src }];
+    let undefined = ValId { index: 0 };
     let mut typer = Typer {
         imports: tree
             .imports()
@@ -736,94 +744,20 @@ pub fn typecheck<'a>(
         source,
         tokens,
         tree,
-        module: Module::new(
+        module: Module {
             imports,
-            tree.params().len(),
-            tree.exprs().len(),
-            tree.defs().len(),
-        ),
+            fields: Fields::new(),
+            types,
+            vals,
+            params: vec![undefined; tree.params().len()].into_boxed_slice(),
+            exprs: vec![undefined; tree.exprs().len()].into_boxed_slice(),
+            defs: vec![undefined; tree.defs().len()].into_boxed_slice(),
+            exports: HashMap::new(),
+        },
         names: HashMap::new(),
     };
     match typer.module() {
         Ok(()) => Ok(typer.module),
         Err(err) => Err((Box::new(typer.module), err)),
     }
-}
-
-pub fn array() -> Module {
-    let defs = [
-        "array",
-        "concat",
-        "for",
-        "map",
-        "max",
-        "range",
-        "row",
-        "scan",
-        "slice",
-        "stack",
-        "sum",
-        "transpose",
-        "zeros",
-    ];
-    let mut module = Module::new(vec![], 0, 1, defs.len());
-    let unit = module.types.make(Type::Unit).unwrap();
-    let func = module
-        .types
-        .make(Type::Func {
-            dom: unit,
-            cod: unit,
-        })
-        .unwrap();
-    module.vals = vec![Val {
-        ty: func,
-        src: Src::Undefined,
-    }];
-    module.exports = HashMap::from(defs.map(|s| (s.to_owned(), ValId { index: 0 })));
-    module
-}
-
-pub fn autodiff() -> Module {
-    let defs = ["grad"];
-    let mut module = Module::new(vec![], 0, 1, defs.len());
-    let float = module.types.make(Type::Float).unwrap();
-    let func = module
-        .types
-        .make(Type::Func {
-            dom: float,
-            cod: float,
-        })
-        .unwrap();
-    let grad = module
-        .types
-        .make(Type::Func {
-            dom: func,
-            cod: func,
-        })
-        .unwrap();
-    module.vals = vec![Val {
-        ty: grad,
-        src: Src::Undefined,
-    }];
-    module.exports = HashMap::from(defs.map(|s| (s.to_owned(), ValId { index: 0 })));
-    module
-}
-
-pub fn math() -> Module {
-    let defs = ["exp", "int", "lgamma", "log", "pi", "sqr", "sqrt"];
-    let mut module = Module::new(vec![], 0, 1, defs.len());
-    let unit = module.types.make(Type::Unit).unwrap();
-    let func = module
-        .types
-        .make(Type::Func {
-            dom: unit,
-            cod: unit,
-        })
-        .unwrap();
-    module.vals = vec![Val {
-        ty: func,
-        src: Src::Undefined,
-    }];
-    module.exports = HashMap::from(defs.map(|s| (s.to_owned(), ValId { index: 0 })));
-    module
 }

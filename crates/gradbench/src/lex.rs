@@ -120,6 +120,9 @@ pub enum TokenKind {
     #[token("let")]
     Let,
 
+    #[token("undefined")]
+    Undefined,
+
     #[token("use")]
     Use,
 }
@@ -163,6 +166,7 @@ impl fmt::Display for TokenKind {
             Self::Import => write!(f, "`import`"),
             Self::Index => write!(f, "`index`"),
             Self::Let => write!(f, "`let`"),
+            Self::Undefined => write!(f, "`undefined`"),
             Self::Use => write!(f, "`use`"),
         }
     }

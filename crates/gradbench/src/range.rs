@@ -106,6 +106,7 @@ impl Ranger<'_> {
         match self.tree.expr(expr) {
             Expr::Paren { inner } => self.before(self.expr_start(inner)),
             Expr::Name { name } => name,
+            Expr::Undefined { token } => token,
             Expr::Unit { open, close: _ } => open,
             Expr::Number { val } => val,
             Expr::Pair { fst, snd: _ } => self.expr_start(fst),
@@ -147,6 +148,7 @@ impl Ranger<'_> {
         match self.tree.expr(expr) {
             Expr::Paren { inner } => self.after(self.expr_end(inner)),
             Expr::Name { name } => name,
+            Expr::Undefined { token } => token,
             Expr::Unit { open: _, close } => close,
             Expr::Number { val } => val,
             Expr::Pair { fst: _, snd } => self.expr_end(snd),
