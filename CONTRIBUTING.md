@@ -83,22 +83,38 @@ images, first [log in to GHCR][], then use `manual.sh`:
 ./manual.sh mathlib4
 ```
 
-## VS Code
+## Node
 
-This repo includes a VS Code extension for the Adroit language used by
-GradBench. To build it, first install the necessary npm packages:
+We use Node.js for our website and for our VS Code extension. To work with the
+Node packages in this repository, first install all dependencies from npm:
 
 ```sh
 npm install
 ```
 
-Then build the extension itself:
+### Website
+
+We use [Vite][] for the website. To develop the website locally, run this
+command:
+
+```sh
+npm run --workspace=gradbench dev
+```
+
+This will log a `localhost` URL to your terminal; open that URL in your browser.
+Any changes you make to files in `packages/gradbench/src` should automatically
+appear.
+
+### VS Code
+
+Run this command to build the VS Code extension for the Adroit language used by
+GradBench:
 
 ```sh
 npm run --workspace=adroit-vscode build
 ```
 
-Finally, in the VS Code Explorer, right-click on the
+Then in the VS Code Explorer, right-click on the
 `packages/vscode/adroit-vscode-*.vsix` file that has been created, and click
 **Install Extension VSIX**.
 
@@ -128,3 +144,4 @@ Then you can use `poetry run` to run a command in this virtual environment:
 [poetry]: https://python-poetry.org/docs/
 [python]: https://www.python.org/downloads/
 [qemu]: https://docs.docker.com/build/building/multi-platform/#qemu-without-docker-desktop
+[vite]: https://vitejs.dev/
