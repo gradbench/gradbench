@@ -732,7 +732,7 @@ pub fn typecheck(
     tokens: &Tokens,
     tree: &parse::Module,
     imports: Vec<&Module>,
-) -> Result<Module, (Box<Module>, TypeError)> {
+) -> (Module, Result<(), TypeError>) {
     let mut types = Types::new();
     let ty = types.make(Type::Untyped).unwrap();
     let src = Src::Undefined;
@@ -754,8 +754,6 @@ pub fn typecheck(
         },
         names: HashMap::new(),
     };
-    match typer.module() {
-        Ok(()) => Ok(typer.module),
-        Err(err) => Err((Box::new(typer.module), err)),
-    }
+    let res = typer.module();
+    (typer.module, res)
 }

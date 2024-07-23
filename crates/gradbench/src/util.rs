@@ -1,59 +1,372 @@
-use std::fmt;
+use std::{
+    fmt, fs, io,
+    path::{Path, PathBuf},
+};
 
-use crate::{lex, typecheck};
+use ariadne::{Color, Label, Report, ReportKind, Source};
+use indexmap::IndexMap;
+
+use crate::{lex, parse, range, typecheck};
 
 pub fn u32_to_usize(n: u32) -> usize {
     n.try_into()
         .expect("pointer size is assumed to be at least 32 bits")
 }
 
+fn builtin(name: &str) -> Option<&'static str> {
+    match name {
+        "array" => Some(include_str!("modules/array.adroit")),
+        "autodiff" => Some(include_str!("modules/autodiff.adroit")),
+        "math" => Some(include_str!("modules/math.adroit")),
+        _ => None,
+    }
+}
+
+fn resolve(from: &Path, name: &str) -> io::Result<PathBuf> {
+    if builtin(name).is_some() {
+        let mut path = dirs::cache_dir()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no cache directory"))?;
+        path.push("adroit/modules");
+        path.push(name);
+        assert!(path.set_extension("adroit"));
+        Ok(path)
+    } else {
+        let dir = from
+            .parent()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no parent directory"))?;
+        dir.join(name).canonicalize()
+    }
+}
+
+fn read(name: &str, path: &Path) -> io::Result<String> {
+    if let Some(source) = builtin(name) {
+        fs::create_dir_all(path.parent().expect("join should imply parent"))?;
+        fs::write(path, source)?;
+        Ok(source.to_owned())
+    } else {
+        fs::read_to_string(path)
+    }
+}
+
+#[derive(Debug)]
+pub struct FullModule {
+    pub source: String,
+    pub tokens: lex::Tokens,
+    pub tree: parse::Module,
+    pub imports: Vec<usize>,
+    pub module: typecheck::Module,
+}
+
+#[derive(Debug)]
+pub enum Error {
+    Resolve {
+        err: io::Error,
+    },
+    Read {
+        path: PathBuf,
+        err: io::Error,
+    },
+    Lex {
+        path: PathBuf,
+        source: String,
+        err: lex::LexError,
+    },
+    Parse {
+        path: PathBuf,
+        source: String,
+        tokens: lex::Tokens,
+        err: parse::ParseError,
+    },
+    Import {
+        path: PathBuf,
+        source: String,
+        tokens: lex::Tokens,
+        token: lex::TokenId,
+        err: Box<Error>,
+    },
+    Type {
+        path: PathBuf,
+        full: Box<FullModule>,
+        err: typecheck::TypeError,
+    },
+}
+
+pub fn import(
+    modules: &mut IndexMap<PathBuf, FullModule>,
+    from: &Path,
+    name: &str,
+) -> Result<usize, Box<Error>> {
+    let path = resolve(from, name).map_err(|err| Error::Resolve { err })?;
+    if let Some(i) = modules.get_index_of(&path) {
+        return Ok(i);
+    }
+    let source = match read(name, &path) {
+        Ok(source) => source,
+        Err(err) => return Err(Box::new(Error::Read { path, err })),
+    };
+    let (path, full) = process(modules, path, source)?;
+    let (i, prev) = modules.insert_full(path, full);
+    assert!(prev.is_none(), "cyclic import should yield stack overflow");
+    Ok(i)
+}
+
+pub fn process(
+    modules: &mut IndexMap<PathBuf, FullModule>,
+    path: PathBuf,
+    source: String,
+) -> Result<(PathBuf, FullModule), Box<Error>> {
+    let tokens = match lex::lex(&source) {
+        Ok(tokens) => tokens,
+        Err(err) => {
+            return Err(Box::new(Error::Lex {
+                path,
+                source: source.to_owned(),
+                err,
+            }))
+        }
+    };
+    let tree = match parse::parse(&tokens) {
+        Ok(tree) => tree,
+        Err(err) => {
+            return Err(Box::new(Error::Parse {
+                path,
+                source: source.to_owned(),
+                tokens,
+                err,
+            }))
+        }
+    };
+    let mut imports = vec![];
+    for node in tree.imports().iter() {
+        let token = node.module;
+        match import(modules, &path, &tokens.get(token).string(&source)) {
+            Ok(i) => imports.push(i),
+            Err(err) => {
+                return Err(Box::new(Error::Import {
+                    path,
+                    source: source.to_owned(),
+                    tokens,
+                    token,
+                    err,
+                }))
+            }
+        }
+    }
+    let (module, res) = typecheck::typecheck(
+        &source,
+        &tokens,
+        &tree,
+        imports.iter().map(|&i| &modules[i].module).collect(),
+    );
+    let full = FullModule {
+        source,
+        tokens,
+        tree,
+        imports,
+        module,
+    };
+    match res {
+        Ok(()) => Ok((path, full)),
+        Err(err) => Err(Box::new(Error::Type {
+            path,
+            full: Box::new(full),
+            err,
+        })),
+    }
+}
+
+pub fn error(modules: &IndexMap<PathBuf, FullModule>, err: Error) {
+    match err {
+        Error::Resolve { err } => eprintln!("error resolving module: {err}"),
+        Error::Read { path, err } => eprintln!("error reading {}: {err}", path.display()),
+        Error::Lex { path, source, err } => {
+            let path = &path.display().to_string();
+            let range = err.byte_range();
+            Report::build(ReportKind::Error, path, range.start)
+                .with_message("failed to tokenize")
+                .with_label(
+                    Label::new((path, range))
+                        .with_message(err.message())
+                        .with_color(Color::Red),
+                )
+                .finish()
+                .eprint((path, Source::from(&source)))
+                .unwrap();
+        }
+        Error::Parse {
+            path,
+            source,
+            tokens,
+            err,
+        } => {
+            let path = &path.display().to_string();
+            let (id, message) = match err {
+                parse::ParseError::Expected { id, kinds } => (
+                    id,
+                    format!(
+                        "expected {}",
+                        itertools::join(kinds.into_iter().map(|kind| kind.to_string()), " or ")
+                    ),
+                ),
+            };
+            let range = tokens.get(id).byte_range();
+            Report::build(ReportKind::Error, path, range.start)
+                .with_message("failed to parse")
+                .with_label(
+                    Label::new((path, range))
+                        .with_message(message)
+                        .with_color(Color::Red),
+                )
+                .finish()
+                .eprint((path, Source::from(&source)))
+                .unwrap();
+        }
+        Error::Import {
+            path,
+            source,
+            tokens,
+            token,
+            err,
+        } => {
+            error(modules, *err);
+            let path = &path.display().to_string();
+            let range = tokens.get(token).byte_range();
+            Report::build(ReportKind::Error, path, range.start)
+                .with_message("failed to import")
+                .with_label(Label::new((path, range)).with_color(Color::Red))
+                .finish()
+                .eprint((path, Source::from(&source)))
+                .unwrap();
+        }
+        Error::Type { path, full, err } => {
+            let path = &path.display().to_string();
+            let FullModule {
+                source,
+                tokens,
+                tree,
+                imports: _,
+                module: _,
+            } = &*full;
+            let printer = Printer {
+                modules,
+                full: &full,
+            };
+            let (range, message) = match err {
+                typecheck::TypeError::TooManyImports => todo!(),
+                typecheck::TypeError::TooManyTypes => todo!(),
+                typecheck::TypeError::TooManyFields => todo!(),
+                typecheck::TypeError::Undefined { name } => {
+                    (tokens.get(name).byte_range(), "undefined".to_owned())
+                }
+                typecheck::TypeError::Duplicate { name } => {
+                    (tokens.get(name).byte_range(), "duplicate".to_owned())
+                }
+                typecheck::TypeError::Untyped { name } => {
+                    (tokens.get(name).byte_range(), "untyped".to_owned())
+                }
+                typecheck::TypeError::Param {
+                    id,
+                    expected,
+                    actual,
+                } => (
+                    range::param_range(tokens, tree, id),
+                    format!(
+                        "expected `{}`, got `{}`",
+                        printer.ty(expected),
+                        printer.ty(actual)
+                    ),
+                ),
+                typecheck::TypeError::Expr {
+                    id,
+                    expected,
+                    actual,
+                } => (
+                    range::expr_range(tokens, tree, id),
+                    format!(
+                        "expected `{}`, got `{}`",
+                        printer.ty(expected),
+                        printer.ty(actual)
+                    ),
+                ),
+                typecheck::TypeError::NotPair { param, ty } => (
+                    range::param_range(tokens, tree, param),
+                    format!("expected tuple, got `{}`", printer.ty(ty)),
+                ),
+                typecheck::TypeError::NotFunction { expr, ty } => (
+                    range::expr_range(tokens, tree, expr),
+                    format!("expected function, got `{}`", printer.ty(ty)),
+                ),
+            };
+            Report::build(ReportKind::Error, path, range.start)
+                .with_message("failed to typecheck")
+                .with_label(
+                    Label::new((path, range))
+                        .with_message(message)
+                        .with_color(Color::Red),
+                )
+                .finish()
+                .eprint((path, Source::from(&source)))
+                .unwrap();
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
-pub struct Printer<'a> {
-    pub source: &'a str,
-    pub tokens: &'a lex::Tokens,
-    pub module: &'a typecheck::Module,
+struct Printer<'a> {
+    modules: &'a IndexMap<PathBuf, FullModule>,
+    full: &'a FullModule,
 }
 
 impl Printer<'_> {
-    pub fn ty(&self, id: typecheck::TypeId) -> Type {
+    fn ty(&self, id: typecheck::TypeId) -> Type {
         Type { printer: *self, id }
     }
 
-    pub fn print_ty(&self, w: &mut impl fmt::Write, id: typecheck::TypeId) -> fmt::Result {
+    fn get_ty(&self, id: typecheck::TypeId) -> typecheck::Type {
+        self.full.module.ty(id)
+    }
+
+    fn print_ty(&self, w: &mut impl fmt::Write, id: typecheck::TypeId) -> fmt::Result {
         use typecheck::Type::*;
-        match self.module.ty(id) {
+        match self.get_ty(id) {
             Untyped => write!(w, "?")?,
             Var { src, def } => {
-                assert!(src.is_none(), "printed type var source should be local");
-                write!(w, "{}", &self.source[self.tokens.get(def).byte_range()])?;
+                let full = match src {
+                    Some(id) => {
+                        let (_, full) = self.modules.get_index(usize::from(id)).unwrap();
+                        full
+                    }
+                    None => self.full,
+                };
+                write!(w, "{}", &full.source[full.tokens.get(def).byte_range()])?;
             }
-            Poly { var: _, inner: _ } => {
-                panic!("polymorphic type should be instantiated before printing");
+            Poly { var, inner } => {
+                write!(w, "{} => {}", self.ty(var), self.ty(inner))?;
             }
             Unit => write!(w, "()")?,
             Int => write!(w, "Int")?,
             Float => write!(w, "Float")?,
             Prod { fst, snd } => {
-                if let Prod { .. } | Sum { .. } | Func { .. } = self.module.ty(fst) {
+                if let Prod { .. } | Sum { .. } | Func { .. } = self.get_ty(fst) {
                     write!(w, "({})", self.ty(fst))
                 } else {
                     write!(w, "{}", self.ty(fst))
                 }?;
                 write!(w, " * ")?;
-                if let Sum { .. } | Func { .. } = self.module.ty(snd) {
+                if let Sum { .. } | Func { .. } = self.get_ty(snd) {
                     write!(w, "({})", self.ty(snd))
                 } else {
                     write!(w, "{}", self.ty(snd))
                 }?;
             }
             Sum { left, right } => {
-                if let Prod { .. } | Sum { .. } | Func { .. } = self.module.ty(left) {
+                if let Prod { .. } | Sum { .. } | Func { .. } = self.get_ty(left) {
                     write!(w, "({})", self.ty(left))
                 } else {
                     write!(w, "{}", self.ty(left))
                 }?;
                 write!(w, " + ")?;
-                if let Func { .. } = self.module.ty(right) {
+                if let Func { .. } = self.get_ty(right) {
                     write!(w, "({})", self.ty(right))
                 } else {
                     write!(w, "{}", self.ty(right))
@@ -61,7 +374,7 @@ impl Printer<'_> {
             }
             Array { index, elem } => {
                 write!(w, "[{}]", self.ty(index))?;
-                if let Prod { .. } | Sum { .. } | Func { .. } = self.module.ty(elem) {
+                if let Prod { .. } | Sum { .. } | Func { .. } = self.get_ty(elem) {
                     write!(w, "({})", self.ty(elem))
                 } else {
                     write!(w, "{}", self.ty(elem))
@@ -71,8 +384,8 @@ impl Printer<'_> {
                 write!(w, "{{")?;
                 let (mut n, mut v, mut r) = (name, field, rest);
                 loop {
-                    write!(w, "{}: {}", self.module.field(n), self.ty(v))?;
-                    match self.module.ty(r) {
+                    write!(w, "{}: {}", self.full.module.field(n), self.ty(v))?;
+                    match self.get_ty(r) {
                         Record { name, field, rest } => {
                             write!(w, ", ")?;
                             (n, v, r) = (name, field, rest);
@@ -85,7 +398,7 @@ impl Printer<'_> {
             }
             End => write!(w, "{{}}")?,
             Func { dom, cod } => {
-                if let Func { .. } = self.module.ty(dom) {
+                if let Func { .. } = self.get_ty(dom) {
                     write!(w, "({})", self.ty(dom))
                 } else {
                     write!(w, "{}", self.ty(dom))
