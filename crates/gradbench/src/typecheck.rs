@@ -203,7 +203,6 @@ impl Serialize for Types {
 
 #[derive(Debug, Serialize)]
 pub struct Module {
-    imports: Vec<String>,
     fields: Fields,
     types: Types,
     vals: Vec<Val>,
@@ -728,34 +727,23 @@ impl<'a> Typer<'a> {
     }
 }
 
-pub fn typecheck<'a>(
-    mut import: impl FnMut(&str) -> &'a Module,
+pub fn typecheck(
     source: &str,
     tokens: &Tokens,
     tree: &parse::Module,
+    imports: Vec<&Module>,
 ) -> Result<Module, (Box<Module>, TypeError)> {
-    let imports: Vec<String> = tree
-        .imports()
-        .iter()
-        .map(|imp| tokens.get(imp.module).string(source))
-        .collect();
     let mut types = Types::new();
     let ty = types.make(Type::Untyped).unwrap();
     let src = Src::Undefined;
     let vals = vec![Val { ty, src }];
     let undefined = ValId { index: 0 };
     let mut typer = Typer {
-        imports: tree
-            .imports()
-            .iter()
-            .enumerate()
-            .map(|(i, _)| import(&imports[i]))
-            .collect(),
+        imports,
         source,
         tokens,
         tree,
         module: Module {
-            imports,
             fields: Fields::new(),
             types,
             vals,
