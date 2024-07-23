@@ -59,6 +59,7 @@ def main():
             {"kind": "evaluate", "module": module, "name": name, "input": input}
         )
 
+    print("Constructing Define", file=sys.stderr)
     module = "ba"
     response = define(module=module, source=source)
     if response.get("success"):
@@ -67,7 +68,7 @@ def main():
                 input = parse(datafile)
                 print(f"calculating objective for {datafile}", file=sys.stderr)
                 evaluate(module=module, name="calculate_objectiveBA", input=input)
-                print(f"finished calculating objective for {datafile}", file=sys.stderr)
+                print(f"finished calculating jacobian for {datafile}", file=sys.stderr)
                 evaluate(module=module, name="calculate_jacobianBA", input=input)
                 print(f"finished calculating jacobian for {datafile}", file=sys.stderr)
                 exit()
