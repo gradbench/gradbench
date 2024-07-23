@@ -268,6 +268,12 @@ pub enum TypeError {
     NotPoly {
         expr: parse::ExprId,
     },
+    NotNumber {
+        expr: parse::ExprId,
+    },
+    NotVector {
+        expr: parse::ExprId,
+    },
     NotPair {
         param: parse::ParamId,
     },
@@ -473,7 +479,7 @@ impl<'a> Typer<'a> {
         types: &IndexMap<&'a str, TypeId>,
         names: &mut Vec<&'a str>,
         id: parse::ParamId,
-        ty: TypeId,
+        mut ty: TypeId,
     ) -> TypeResult<()> {
         let src = Src::Param { id };
         let val = self.val(Val { src, ty });
@@ -506,7 +512,37 @@ impl<'a> Typer<'a> {
                 }
                 _ => Err(TypeError::NotPair { param: id }),
             },
-            parse::Bind::Record { name, field, rest } => todo!(),
+            parse::Bind::Record { name, field, rest } => {
+                let mut fields = BTreeMap::new();
+                let (mut n, mut v, mut r) = (name, field, rest);
+                loop {
+                    if fields.insert(self.token(n), v).is_some() {
+                        return Err(TypeError::Duplicate { name: n });
+                    }
+                    match self.tree.param(r).bind {
+                        parse::Bind::Record { name, field, rest } => {
+                            (n, v, r) = (name, field, rest);
+                        }
+                        parse::Bind::End { open: _, close: _ } => break,
+                        _ => panic!("invalid record"),
+                    }
+                }
+                for (s, param) in fields {
+                    if let Type::Record { name, field, rest } = self.module.ty(ty) {
+                        if s != self.module.field(name) {
+                            todo!()
+                        }
+                        self.param(types, names, param, field)?;
+                        ty = rest;
+                    } else {
+                        todo!()
+                    }
+                }
+                match self.module.ty(ty) {
+                    Type::End => Ok(()),
+                    _ => todo!(),
+                }
+            }
             parse::Bind::End { open: _, close: _ } => {
                 let actual = self.ty(Type::End)?;
                 if actual == ty {
@@ -541,8 +577,14 @@ impl<'a> Typer<'a> {
                 self.module.val(val).ty
             }
             parse::Expr::Undefined { token: _ } => self.ty(Type::Untyped)?,
-            parse::Expr::Unit { open: _, close: _ } => todo!(),
-            parse::Expr::Number { val } => todo!(),
+            parse::Expr::Unit { open: _, close: _ } => self.ty(Type::Unit)?,
+            parse::Expr::Number { val } => {
+                if self.token(val).contains('.') {
+                    self.ty(Type::Float)?
+                } else {
+                    self.ty(Type::Int)?
+                }
+            }
             parse::Expr::Pair { fst, snd } => {
                 let f = self.expr(types, fst)?;
                 let s = self.expr(types, snd)?;
@@ -608,21 +650,53 @@ impl<'a> Typer<'a> {
                 )?;
                 self.module.val(rest).ty
             }
-            parse::Expr::Index { name, val, body } => todo!(),
-            parse::Expr::Unary { op, arg } => todo!(),
-            parse::Expr::Binary {
-                lhs,
-                map,
-                op: _,
-                rhs,
-            } => {
-                if map {
-                    todo!()
+            parse::Expr::Index { name, val, body } => {
+                let int = self.ty(Type::Int)?;
+                self.expect(types, val, int)?;
+                let s = self.token(name);
+                let t = self.ty(Type::Var {
+                    src: None,
+                    def: name,
+                })?;
+                if types.insert(s, t).is_some() {
+                    return Err(TypeError::Duplicate { name });
                 }
-                let float = self.ty(Type::Float)?;
-                self.expect(types, lhs, float)?;
-                self.expect(types, rhs, float)?;
-                float
+                let res = self.expr(types, body);
+                assert_eq!(types.pop(), Some((s, t)));
+                self.module.val(res?).ty
+            }
+            parse::Expr::Unary { op, arg } => todo!(),
+            parse::Expr::Binary { lhs, map, op, rhs } => {
+                let r = self.expr(types, rhs)?;
+                let t = self.module.val(r).ty;
+                match self.module.ty(t) {
+                    Type::Int | Type::Float => {
+                        self.expect(types, lhs, t)?;
+                        t
+                    }
+                    Type::Array { index: _, elem } => match self.module.ty(elem) {
+                        Type::Int | Type::Float => {
+                            let tl = match op {
+                                parse::Binop::Add => t,
+                                parse::Binop::Sub => t,
+                                parse::Binop::Mul => {
+                                    if map {
+                                        t
+                                    } else {
+                                        elem
+                                    }
+                                }
+                                parse::Binop::Div => {
+                                    return Err(TypeError::NotNumber { expr: rhs });
+                                }
+                            };
+                            self.expect(types, lhs, tl)?;
+                            t
+                        }
+                        _ => return Err(TypeError::NotVector { expr: rhs }),
+                    },
+                    _ => return Err(TypeError::NotVector { expr: rhs }),
+                }
             }
             parse::Expr::Lambda { param, ty, body } => {
                 let dom = self.param_ty(types, param)?;

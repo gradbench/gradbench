@@ -14,7 +14,7 @@ import "array" use
   sum,
   transpose,
   zeros,
-import "math" use exp, int, lgamma, log, pi, sqr, sqrt
+import "math" use exp, float, int, lgamma, log, pi, sqr, sqrt
 
 def logsumexp[K](x: [K]Float): Float =
   let mx = max[K](x)
@@ -25,10 +25,10 @@ def logsumexpvec[K, N](x: [N * K]Float): [N]Float =
   for[N, Float] (i: N) => logsumexp[K](row[N, K, Float](x, i))
 
 def log_gamma_distrib(a: Float, p: Int): Float =
-  let out = 0.25 * p * (p - 1) * log(pi)
-  out + sum(map(range(p), i =>
+  let out = (let p = float(p); 0.25 * p * (p - 1.0) * log(pi))
+  out + sum[Int](map[Int, Int, Float](range(p), (i: Int) =>
     let j = i + 1
-    lgamma(a + 0.5 * (1 - j))
+    lgamma(a + 0.5 * float(1 - j))
   ))
 
 def log_wishart_prior[D, K]({
@@ -40,36 +40,52 @@ def log_wishart_prior[D, K]({
   ls: [K * D * D]Float,
 }): Float =
   let n = p + wishart_m + 1
-  let k = int[K]
+  let k = int[K]()
 
-  let out = sum(
+  let out = sum[K](
     0.5
     * wishart_gamma
     * wishart_gamma
-    * (for i => sum(sqr.(row(qdiags, i))) + sum(sqr.(row(ls, i))))
-    - wishart_m * sum_qs
+    * (for[K, Float] (i: K) =>
+      sum[D](sqr.(row[K, D, Float](qdiags, i)))
+      + sum[D * D](sqr.(row[K, D * D, Float](ls, i)))
+    )
+    - float(wishart_m) * sum_qs
   )
 
-  let c = n * p * log(wishart_gamma / sqrt(2))
-  out - k * (c - log_gamma_distrib(0.5 * n, p))
+  let c = float(n * p) * log(wishart_gamma / sqrt(2.0))
+  out - float(k) * (c - log_gamma_distrib(0.5 * float(n), p))
 
 def construct_l[D](icf: []Float): [D * D]Float =
-  let d = int[D]
-  let cols = scan((d, zeros[D]()), range(d - 1), ((j, _), i) =>
-    let k = i + 1
-    index K <- k
-    let n = d - k
-    j + n, reshape(concat(zeros[K](), slice(icf, j, j + n)))
+  let d = int[D]()
+  let cols = scan[Int * [D]Float, Int](
+    (d, zeros[D]()), range(d - 1),
+    ((j: Int, _: [D]Float), i: Int) =>
+      let k = i + 1
+      index K <- k
+      let n = d - k
+      j + n, reshape[D, K + Int, Float](
+        concat[K, Int, Float](zeros[K](), slice[Float](icf, j, j + n))
+      )
   )
-  transpose(stack(reshape(map(cols, (_, v) => v))))
+  transpose[D, D, Float](
+    stack[D, D, Float](
+      reshape[D, Int, [D]Float](
+        map[Int, Int * [D]Float, [D]Float](cols, (_: Int, v: [D]Float) => v)
+      )
+    )
+  )
 
 def qtimesx[D, K, N]({
   qdiag: [K * D]Float,
   l: [K * D * D]Float,
   x: [N * K * D]Float,
 }): [N * K * D]Float =
-  let f = for (m, i, j) => sum(for k => l[i, j, k] * x[m, i, k])
-  stack(for i => qdiag .* row(x, i)) + f
+  let f = for[N * K * D, Float] (m: N, i: K, j: D) =>
+    sum[D](for[D, Float] (k: D) => l[i, j, k] * x[m, i, k])
+  stack[N, K * D, Float](
+    for[N, [K * D]Float] (i: N) => qdiag .* row[N, K * D, Float](x, i)
+  ) + f
 
 def gmm_objective[D, K, N]({
   alphas: [K]Float,
@@ -80,8 +96,8 @@ def gmm_objective[D, K, N]({
   wishart_gamma: Float,
   wishart_m: Int,
 }): Float =
-  let n = int[N]
-  let d = int[D]
+  let n = int[N]()
+  let d = int[D]()
 
   let qdiags = exp.(qs)
   let sum_qs = for i => sum(for j => qs[i, j])

@@ -1,6 +1,8 @@
 def exp: Float -> Float = undefined
 
-def int[N]: Int = undefined
+def float: Int -> Float = undefined
+
+def int[N]: () -> Int = undefined
 
 def lgamma: Float -> Float = undefined
 

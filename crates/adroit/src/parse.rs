@@ -632,7 +632,8 @@ impl<'a> Parser<'a> {
                     // lambda and generics are the only places we peek after matching close bracket
                     let after = self.after_close();
                     self.next();
-                    if let LParen = after {
+                    // same set of tokens allowed at the start of an atomic expression
+                    if let LParen | LBrace | Ident | Undefined | Number = after {
                         while self.peek() != RBracket {
                             let ty = self.ty()?;
                             expr = self.tree.make_expr(Expr::Inst { val: expr, ty });

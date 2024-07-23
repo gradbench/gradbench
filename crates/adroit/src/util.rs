@@ -310,6 +310,20 @@ pub fn error(modules: &IndexMap<PathBuf, FullModule>, err: Error) {
                         format!("expected polymorphic type, got `{}`", printer.ty(ty)),
                     )
                 }
+                typecheck::TypeError::NotNumber { expr } => {
+                    let ty = module.val(module.expr(expr)).ty;
+                    (
+                        range::expr_range(tokens, tree, expr),
+                        format!("expected number, got `{}`", printer.ty(ty)),
+                    )
+                }
+                typecheck::TypeError::NotVector { expr } => {
+                    let ty = module.val(module.expr(expr)).ty;
+                    (
+                        range::expr_range(tokens, tree, expr),
+                        format!("expected number or vector, got `{}`", printer.ty(ty)),
+                    )
+                }
                 typecheck::TypeError::NotPair { param } => {
                     let ty = module.val(module.param(param)).ty;
                     (
