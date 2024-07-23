@@ -197,6 +197,21 @@ impl Printer<'_> {
                 self.expr(w, index)?;
                 write!(w, "]")?;
             }
+            Expr::Inst { mut val, ty } => {
+                let mut types = vec![];
+                while let Expr::Inst { val: v, ty: t } = self.tree.expr(val) {
+                    val = v;
+                    types.push(t);
+                }
+                self.expr(w, val)?;
+                write!(w, "[")?;
+                for t in types.into_iter().rev() {
+                    self.ty(w, t)?;
+                    write!(w, ", ")?;
+                }
+                self.ty(w, ty)?;
+                write!(w, "]")?;
+            }
             Expr::Apply { func, arg } => {
                 self.expr(w, func)?;
                 write!(w, " ")?;

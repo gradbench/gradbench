@@ -149,6 +149,10 @@ pub enum Expr {
         array: ExprId,
         index: ExprId,
     },
+    Inst {
+        val: ExprId,
+        ty: TypeId,
+    },
     Apply {
         func: ExprId,
         arg: ExprId,
@@ -526,7 +530,7 @@ impl<'a> Parser<'a> {
         match self.peek() {
             LParen => {
                 let open = self.id;
-                // lambda is the only place we peek after matching close bracket
+                // lambda and generics are the only places we peek after matching close bracket
                 let after = self.after_close();
                 self.next();
                 if let Colon | Arrow = after {
@@ -625,17 +629,31 @@ impl<'a> Parser<'a> {
         loop {
             match self.peek() {
                 LBracket => {
+                    // lambda and generics are the only places we peek after matching close bracket
+                    let after = self.after_close();
                     self.next();
-                    let index = self.expr()?;
-                    self.expect(RBracket)?;
-                    expr = self.tree.make_expr(Expr::Elem { array: expr, index })
+                    if let LParen = after {
+                        while self.peek() != RBracket {
+                            let ty = self.ty()?;
+                            expr = self.tree.make_expr(Expr::Inst { val: expr, ty });
+                            match self.peek() {
+                                Comma => self.next(),
+                                _ => break,
+                            }
+                        }
+                        self.expect(RBracket)?;
+                    } else {
+                        let index = self.expr()?;
+                        self.expect(RBracket)?;
+                        expr = self.tree.make_expr(Expr::Elem { array: expr, index });
+                    }
                 }
                 Dot => {
                     self.next();
                     self.expect(LParen)?;
                     let arg = self.expr()?;
                     self.expect(RParen)?;
-                    expr = self.tree.make_expr(Expr::Map { func: expr, arg })
+                    expr = self.tree.make_expr(Expr::Map { func: expr, arg });
                 }
                 _ => break,
             }

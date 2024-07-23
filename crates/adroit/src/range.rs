@@ -117,6 +117,7 @@ impl Ranger<'_> {
             } => self.expr_start(rest),
             Expr::End { open, close: _ } => open,
             Expr::Elem { array, index: _ } => self.expr_start(array),
+            Expr::Inst { val, ty: _ } => self.expr_start(val),
             Expr::Apply { func, arg: _ } => self.expr_start(func),
             Expr::Map { func, arg: _ } => self.expr_start(func),
             Expr::Let {
@@ -159,6 +160,7 @@ impl Ranger<'_> {
             } => self.expr_end(rest),
             Expr::End { open: _, close } => close,
             Expr::Elem { array: _, index } => self.after(self.expr_end(index)),
+            Expr::Inst { val: _, ty } => self.after(self.ty_end(ty)),
             Expr::Apply { func: _, arg } => self.expr_end(arg),
             Expr::Map { func: _, arg } => self.after(self.expr_end(arg)),
             Expr::Let {

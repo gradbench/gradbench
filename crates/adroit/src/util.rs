@@ -261,7 +261,7 @@ pub fn error(modules: &IndexMap<PathBuf, FullModule>, err: Error) {
                 tokens,
                 tree,
                 imports: _,
-                module: _,
+                module,
             } = &*full;
             let printer = Printer {
                 modules,
@@ -292,26 +292,42 @@ pub fn error(modules: &IndexMap<PathBuf, FullModule>, err: Error) {
                         printer.ty(actual)
                     ),
                 ),
-                typecheck::TypeError::Expr {
-                    id,
-                    expected,
-                    actual,
-                } => (
-                    range::expr_range(tokens, tree, id),
-                    format!(
-                        "expected `{}`, got `{}`",
-                        printer.ty(expected),
-                        printer.ty(actual)
-                    ),
-                ),
+                typecheck::TypeError::Expr { id, expected } => {
+                    let actual = module.val(module.expr(id)).ty;
+                    (
+                        range::expr_range(tokens, tree, id),
+                        format!(
+                            "expected `{}`, got `{}`",
+                            printer.ty(expected),
+                            printer.ty(actual)
+                        ),
+                    )
+                }
+                typecheck::TypeError::NotPoly { expr } => {
+                    let ty = module.val(module.expr(expr)).ty;
+                    (
+                        range::expr_range(tokens, tree, expr),
+                        format!("expected polymorphic type, got `{}`", printer.ty(ty)),
+                    )
+                }
                 typecheck::TypeError::NotPair { param, ty } => (
                     range::param_range(tokens, tree, param),
                     format!("expected tuple, got `{}`", printer.ty(ty)),
                 ),
-                typecheck::TypeError::NotFunction { expr, ty } => (
-                    range::expr_range(tokens, tree, expr),
-                    format!("expected function, got `{}`", printer.ty(ty)),
-                ),
+                typecheck::TypeError::NotArray { expr } => {
+                    let ty = module.val(module.expr(expr)).ty;
+                    (
+                        range::expr_range(tokens, tree, expr),
+                        format!("expected array, got `{}`", printer.ty(ty)),
+                    )
+                }
+                typecheck::TypeError::NotFunc { expr } => {
+                    let ty = module.val(module.expr(expr)).ty;
+                    (
+                        range::expr_range(tokens, tree, expr),
+                        format!("expected function, got `{}`", printer.ty(ty)),
+                    )
+                }
             };
             Report::build(ReportKind::Error, path, range.start)
                 .with_message("failed to typecheck")
