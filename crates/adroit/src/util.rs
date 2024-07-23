@@ -5,6 +5,7 @@ use std::{
 
 use ariadne::{Color, Label, Report, ReportKind, Source};
 use indexmap::IndexMap;
+use serde::{ser::SerializeSeq, Serialize, Serializer};
 
 use crate::{lex, parse, range, typecheck};
 
@@ -48,13 +49,52 @@ fn read(name: &str, path: &Path) -> io::Result<String> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(transparent)]
+pub struct ModuleId {
+    pub index: usize, // just for convenience for now; can definitely choose a smaller type
+}
+
+impl From<ModuleId> for usize {
+    fn from(id: ModuleId) -> Self {
+        id.index
+    }
+}
+
+#[derive(Debug, Serialize)]
 pub struct FullModule {
     pub source: String,
     pub tokens: lex::Tokens,
     pub tree: parse::Module,
-    pub imports: Vec<usize>,
+    pub imports: Vec<ModuleId>,
     pub module: typecheck::Module,
+}
+
+#[derive(Debug)]
+pub struct Modules {
+    modules: IndexMap<PathBuf, FullModule>,
+}
+
+impl Modules {
+    pub fn new() -> Self {
+        Self {
+            modules: IndexMap::new(),
+        }
+    }
+
+    pub fn get(&self, id: ModuleId) -> &FullModule {
+        &self.modules[usize::from(id)]
+    }
+}
+
+impl Serialize for Modules {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut seq = serializer.serialize_seq(Some(self.modules.len()))?;
+        for full in self.modules.values() {
+            seq.serialize_element(full)?;
+        }
+        seq.end()
+    }
 }
 
 #[derive(Debug)]
@@ -114,7 +154,7 @@ pub fn parse(
 }
 
 pub fn process(
-    modules: &mut IndexMap<PathBuf, FullModule>,
+    modules: &mut Modules,
     path: PathBuf,
     source: String,
 ) -> Result<(PathBuf, FullModule), Box<Error>> {
@@ -123,7 +163,7 @@ pub fn process(
     for node in tree.imports().iter() {
         let token = node.module;
         match import(modules, &path, &tokens.get(token).string(&source)) {
-            Ok(i) => imports.push(i),
+            Ok(id) => imports.push(id),
             Err(err) => {
                 return Err(Box::new(Error::Import {
                     path,
@@ -139,7 +179,7 @@ pub fn process(
         &source,
         &tokens,
         &tree,
-        imports.iter().map(|&i| &modules[i].module).collect(),
+        imports.iter().map(|&id| &modules.get(id).module).collect(),
     );
     let full = FullModule {
         source,
@@ -158,26 +198,22 @@ pub fn process(
     }
 }
 
-pub fn import(
-    modules: &mut IndexMap<PathBuf, FullModule>,
-    from: &Path,
-    name: &str,
-) -> Result<usize, Box<Error>> {
+pub fn import(modules: &mut Modules, from: &Path, name: &str) -> Result<ModuleId, Box<Error>> {
     let path = resolve(from, name).map_err(|err| Error::Resolve { err })?;
-    if let Some(i) = modules.get_index_of(&path) {
-        return Ok(i);
+    if let Some(index) = modules.modules.get_index_of(&path) {
+        return Ok(ModuleId { index });
     }
     let source = match read(name, &path) {
         Ok(source) => source,
         Err(err) => return Err(Box::new(Error::Read { path, err })),
     };
     let (path, full) = process(modules, path, source)?;
-    let (i, prev) = modules.insert_full(path, full);
+    let (index, prev) = modules.modules.insert_full(path, full);
     assert!(prev.is_none(), "cyclic import should yield stack overflow");
-    Ok(i)
+    Ok(ModuleId { index })
 }
 
-pub fn error(modules: &IndexMap<PathBuf, FullModule>, err: Error) {
+pub fn error(modules: &Modules, err: Error) {
     match err {
         Error::Resolve { err } => eprintln!("error resolving module: {err}"),
         Error::Read { path, err } => eprintln!("error reading {}: {err}", path.display()),
@@ -348,7 +384,7 @@ pub fn error(modules: &IndexMap<PathBuf, FullModule>, err: Error) {
 
 #[derive(Clone, Copy, Debug)]
 struct Printer<'a> {
-    modules: &'a IndexMap<PathBuf, FullModule>,
+    modules: &'a Modules,
     full: &'a FullModule,
 }
 
@@ -367,10 +403,7 @@ impl Printer<'_> {
             Untyped => write!(w, "?")?,
             Var { src, def } => {
                 let full = match src {
-                    Some(id) => {
-                        let (_, full) = self.modules.get_index(usize::from(id)).unwrap();
-                        full
-                    }
+                    Some(id) => self.modules.get(self.full.imports[usize::from(id)]),
                     None => self.full,
                 };
                 write!(w, "{}", &full.source[full.tokens.get(def).byte_range()])?;

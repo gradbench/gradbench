@@ -6,7 +6,8 @@ use serde::Serialize;
 
 use crate::util::u32_to_usize;
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(transparent)]
 pub struct ByteIndex {
     pub index: u32,
 }
@@ -17,7 +18,8 @@ impl From<ByteIndex> for usize {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(transparent)]
 pub struct ByteLen {
     pub len: u16,
 }
@@ -28,7 +30,7 @@ impl From<ByteLen> for usize {
     }
 }
 
-#[derive(Debug, EnumSetType, Hash, Logos)]
+#[derive(Debug, EnumSetType, Hash, Logos, Serialize)]
 #[logos(skip r"[^\S\r\n]+")]
 pub enum TokenKind {
     Eof,
@@ -172,7 +174,7 @@ impl fmt::Display for TokenKind {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize)]
 pub struct Token {
     pub start: ByteIndex,
     pub len: ByteLen,
@@ -204,7 +206,8 @@ impl From<TokenId> for usize {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
+#[serde(transparent)]
 pub struct Tokens {
     tokens: Vec<Token>,
 }

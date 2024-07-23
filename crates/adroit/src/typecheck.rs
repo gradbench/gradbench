@@ -11,12 +11,12 @@ use crate::{
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(transparent)]
-pub struct ModId {
+pub struct ImportId {
     pub index: u16,
 }
 
-impl From<ModId> for usize {
-    fn from(id: ModId) -> Self {
+impl From<ImportId> for usize {
+    fn from(id: ImportId) -> Self {
         id.index.into()
     }
 }
@@ -74,7 +74,7 @@ impl From<ValId> for usize {
 pub enum Type {
     Untyped,
     Var {
-        src: Option<ModId>,
+        src: Option<ImportId>,
         def: TokenId,
     },
     Poly {
@@ -112,7 +112,7 @@ pub enum Type {
 #[serde(tag = "kind")]
 pub enum Src {
     Undefined,
-    Import { src: ModId, id: parse::DefId },
+    Import { src: ImportId, id: parse::DefId },
     Param { id: parse::ParamId },
     Expr { id: parse::ExprId },
     Def { id: parse::DefId },
@@ -789,7 +789,7 @@ impl<'a> Typer<'a> {
 
     fn translate(
         &mut self,
-        i: ModId,
+        i: ImportId,
         ids: &mut HashMap<TypeId, TypeId>,
         t0: TypeId,
     ) -> TypeResult<TypeId> {
@@ -850,7 +850,7 @@ impl<'a> Typer<'a> {
         }
         let imports = self.tree.imports();
         for index in 0..=(n - 1).try_into().map_err(|_| TypeError::TooManyImports)? {
-            let src = ModId { index };
+            let src = ImportId { index };
             let module = self.imports[usize::from(src)];
             let mut translated = HashMap::new();
             for &token in imports[usize::from(src)].names.iter() {

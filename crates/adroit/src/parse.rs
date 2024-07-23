@@ -10,7 +10,8 @@ use crate::{
     util::u32_to_usize,
 };
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(transparent)]
 pub struct TypeId {
     pub index: u32,
 }
@@ -57,7 +58,8 @@ impl From<DefId> for usize {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(tag = "kind")]
 pub enum Type {
     Paren { inner: TypeId },
     Unit { open: TokenId, close: TokenId },
@@ -68,7 +70,8 @@ pub enum Type {
     Func { dom: TypeId, cod: TypeId },
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(tag = "kind")]
 pub enum Bind {
     Paren {
         inner: ParamId,
@@ -95,18 +98,18 @@ pub enum Bind {
     },
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize)]
 pub struct Param {
     pub bind: Bind,
     pub ty: Option<TypeId>,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize)]
 pub enum Unop {
     Neg,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize)]
 pub enum Binop {
     Add,
     Sub,
@@ -114,7 +117,8 @@ pub enum Binop {
     Div,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(tag = "kind")]
 pub enum Expr {
     Paren {
         inner: ExprId,
@@ -188,13 +192,13 @@ pub enum Expr {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Import {
     pub module: TokenId,
     pub names: Vec<TokenId>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Def {
     pub name: TokenId,
     pub types: Vec<TokenId>,
@@ -203,7 +207,7 @@ pub struct Def {
     pub body: ExprId,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Module {
     imports: Vec<Import>,
     types: Vec<Type>,

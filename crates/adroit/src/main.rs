@@ -8,7 +8,7 @@ mod util;
 use std::{fs, io, path::PathBuf, process::ExitCode};
 
 use clap::{Parser, Subcommand};
-use indexmap::IndexMap;
+use serde::Serialize;
 
 fn read(path: PathBuf) -> Result<(PathBuf, String), Box<util::Error>> {
     match fs::read_to_string(&path) {
@@ -23,16 +23,23 @@ fn fmt(path: PathBuf) -> Result<(String, lex::Tokens, parse::Module), Box<util::
     Ok((source, tokens, tree))
 }
 
-fn entrypoint(
-    path: PathBuf,
-) -> Result<util::FullModule, (IndexMap<PathBuf, util::FullModule>, Box<util::Error>)> {
-    let mut modules = IndexMap::new();
+#[derive(Debug, Serialize)]
+struct Graph {
+    modules: util::Modules,
+    module: util::FullModule,
+}
+
+fn entrypoint(path: PathBuf) -> Result<Graph, (util::Modules, Box<util::Error>)> {
+    let mut modules = util::Modules::new();
     let (path, source) = match read(path) {
         Ok(ok) => ok,
         Err(err) => return Err((modules, err)),
     };
-    let (_, full) = util::process(&mut modules, path, source).map_err(|err| (modules, err))?;
-    Ok(full)
+    let (_, module) = match util::process(&mut modules, path, source) {
+        Ok(ok) => ok,
+        Err(err) => return Err((modules, err)),
+    };
+    Ok(Graph { modules, module })
 }
 
 #[derive(Debug, Parser)]
@@ -59,13 +66,13 @@ fn cli() -> Result<(), ()> {
                 Ok(())
             }
             Err(err) => {
-                util::error(&IndexMap::new(), *err);
+                util::error(&util::Modules::new(), *err);
                 Err(())
             }
         },
         Commands::Json { file } => match entrypoint(file) {
-            Ok(full) => {
-                serde_json::to_writer(io::stdout(), &full.module)
+            Ok(graph) => {
+                serde_json::to_writer(io::stdout(), &graph)
                     .map_err(|err| eprintln!("error serializing module: {err}"))?;
                 println!();
                 Ok(())
