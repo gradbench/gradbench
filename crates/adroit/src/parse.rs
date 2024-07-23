@@ -342,7 +342,7 @@ impl<'a> Parser<'a> {
     fn after_close(&self) -> TokenKind {
         let mut after = self.brackets[usize::from(self.id)];
         assert!(after.index > self.id.index);
-        after.index += 1;
+        after.index += 1; // TODO: be consistent about forbidding newlines when we peek ahead
         self.tokens.get(after).kind
     }
 

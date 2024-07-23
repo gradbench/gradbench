@@ -100,23 +100,34 @@ def gmm_objective[D, K, N]({
   let d = int[D]()
 
   let qdiags = exp.(qs)
-  let sum_qs = for i => sum(for j => qs[i, j])
+  let sum_qs = for[K, Float] (i: K) => sum[D](for[D, Float] (j: D) => qs[i, j])
 
-  let xcentered = stack(for (i, j) => row(x, i) - row(means, j))
-  let lxcentered = qtimesx({qdiag = qdiags, l = ls, x = xcentered})
-  let sqsum_lxcentered = for (i, j) => sum(for k => sqr(lxcentered[i, j, k]))
-  let inner_term = stack(for i =>
-    alphas + sum_qs - 0.5 * row(sqsum_lxcentered, i)
+  let xcentered = reshape[N * K * D, (N * K) * D, Float](stack[N * K, D, Float](
+    for[N * K, [D]Float] (i: N, j: K) =>
+      row[N, D, Float](x, i) - row[K, D, Float](means, j)
+  ))
+  let lxcentered = qtimesx[D, K, N]({qdiag = qdiags, l = ls, x = xcentered})
+  let sqsum_lxcentered = for[N * K, Float] (i: N, j: K) =>
+    sum[D](for[D, Float] (k: D) => sqr(lxcentered[i, j, k]))
+  let inner_term = stack[N, K, Float](for[N, [K]Float] (i: N) =>
+    alphas + sum_qs - 0.5 * row[N, K, Float](sqsum_lxcentered, i)
   )
-  let lse = logsumexpvec(inner_term)
-  let slse = sum(lse)
+  let lse = logsumexpvec[K, N](inner_term)
+  let slse = sum[N](lse)
 
-  let constant = -n * d * 0.5 * log(2 * pi)
+  let constant = float(-n * d) * 0.5 * log(2.0 * pi)
   (
     constant
     + slse
-    - n * logsumexp(alphas)
-    + log_wishart_prior({p = d, wishart_gamma, wishart_m, sum_qs, qdiags, ls})
+    - float(n) * logsumexp[K](alphas)
+    + log_wishart_prior[D, K]({
+      p = d,
+      wishart_gamma,
+      wishart_m,
+      sum_qs,
+      qdiags,
+      ls,
+    })
   )
 
 def gmm({
@@ -133,12 +144,18 @@ def gmm({
   index D <- d
   index K <- k
   index N <- n
-  gmm_objective({
-    alphas = array(alpha),
-    means = matrix(means),
-    qs = matrix(map(icf, curr_icf => slice(curr_icf, 0, d))),
-    ls = stack(reshape(map(icf, construct_l{D}))),
-    x = matrix(x),
+  gmm_objective[D, K, N]({
+    alphas = array[K, Float](alpha),
+    means = matrix[K, D, Float](means),
+    qs = matrix[K, D, Float](map[Int, []Float, []Float](icf,
+      (curr_icf: []Float) => slice[Float](curr_icf, 0, d)
+    )),
+    ls = stack[K, D * D, Float](reshape[K, Int, [D * D]Float](
+      map[Int, []Float, [D * D]Float](icf,
+        (curr_icf: []Float) => construct_l[D](curr_icf)
+      )
+    )),
+    x = matrix[N, D, Float](x),
     wishart_gamma = gamma,
     wishart_m = m,
   })

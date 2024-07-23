@@ -592,8 +592,33 @@ impl<'a> Typer<'a> {
                 let snd = self.module.val(s).ty;
                 self.ty(Type::Prod { fst, snd })?
             }
-            parse::Expr::Record { name, field, rest } => todo!(),
-            parse::Expr::End { open: _, close: _ } => todo!(),
+            parse::Expr::Record { name, field, rest } => {
+                let mut fields = BTreeMap::new();
+                let (mut n, mut v, mut r) = (name, field, rest);
+                loop {
+                    let val = self.expr(types, v)?;
+                    if fields
+                        .insert(self.token(n), self.module.val(val).ty)
+                        .is_some()
+                    {
+                        return Err(TypeError::Duplicate { name: n });
+                    }
+                    match self.tree.expr(r) {
+                        parse::Expr::Record { name, field, rest } => {
+                            (n, v, r) = (name, field, rest);
+                        }
+                        parse::Expr::End { open: _, close: _ } => break,
+                        _ => panic!("invalid record"),
+                    }
+                }
+                fields
+                    .into_iter()
+                    .try_rfold(self.ty(Type::End)?, |rest, (s, field)| {
+                        let name = self.field(s)?;
+                        self.ty(Type::Record { name, field, rest })
+                    })?
+            }
+            parse::Expr::End { open: _, close: _ } => self.ty(Type::End)?,
             parse::Expr::Elem { array, index } => {
                 let a = self.expr(types, array)?;
                 let (i, elem) = match self.module.ty(self.module.val(a).ty) {
@@ -665,7 +690,20 @@ impl<'a> Typer<'a> {
                 assert_eq!(types.pop(), Some((s, t)));
                 self.module.val(res?).ty
             }
-            parse::Expr::Unary { op, arg } => todo!(),
+            parse::Expr::Unary { op, arg } => {
+                let val = self.expr(types, arg)?;
+                let t = self.module.val(val).ty;
+                match (op, self.module.ty(t)) {
+                    (parse::Unop::Neg, Type::Int | Type::Float) => t,
+                    (parse::Unop::Neg, Type::Array { index: _, elem }) => {
+                        match self.module.ty(elem) {
+                            Type::Int | Type::Float => t,
+                            _ => return Err(TypeError::NotVector { expr: arg }),
+                        }
+                    }
+                    _ => return Err(TypeError::NotVector { expr: arg }),
+                }
+            }
             parse::Expr::Binary { lhs, map, op, rhs } => {
                 let r = self.expr(types, rhs)?;
                 let t = self.module.val(r).ty;
