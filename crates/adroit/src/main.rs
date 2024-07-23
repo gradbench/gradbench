@@ -19,7 +19,8 @@ fn read(path: PathBuf) -> Result<(PathBuf, String), Box<util::Error>> {
 
 fn fmt(path: PathBuf) -> Result<(String, lex::Tokens, parse::Module), Box<util::Error>> {
     let (path, source) = read(path)?;
-    util::parse(path, source)
+    let (_, source, tokens, tree) = util::parse(path, source)?;
+    Ok((source, tokens, tree))
 }
 
 fn entrypoint(

@@ -94,7 +94,7 @@ pub enum Error {
 pub fn parse(
     path: PathBuf,
     source: String,
-) -> Result<(String, lex::Tokens, parse::Module), Box<Error>> {
+) -> Result<(PathBuf, String, lex::Tokens, parse::Module), Box<Error>> {
     let tokens = match lex::lex(&source) {
         Ok(tokens) => tokens,
         Err(err) => return Err(Box::new(Error::Lex { path, source, err })),
@@ -110,7 +110,7 @@ pub fn parse(
             }))
         }
     };
-    Ok((source, tokens, tree))
+    Ok((path, source, tokens, tree))
 }
 
 pub fn process(
@@ -118,21 +118,7 @@ pub fn process(
     path: PathBuf,
     source: String,
 ) -> Result<(PathBuf, FullModule), Box<Error>> {
-    let tokens = match lex::lex(&source) {
-        Ok(tokens) => tokens,
-        Err(err) => return Err(Box::new(Error::Lex { path, source, err })),
-    };
-    let tree = match parse::parse(&tokens) {
-        Ok(tree) => tree,
-        Err(err) => {
-            return Err(Box::new(Error::Parse {
-                path,
-                source,
-                tokens,
-                err,
-            }))
-        }
-    };
+    let (path, source, tokens, tree) = parse(path, source)?;
     let mut imports = vec![];
     for node in tree.imports().iter() {
         let token = node.module;
