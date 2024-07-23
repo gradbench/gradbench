@@ -3,6 +3,22 @@
 version = 3
 
 [[package]]
+name = "adroit"
+version = "0.2.0"
+dependencies = [
+ "ariadne",
+ "clap",
+ "dirs",
+ "enumset",
+ "goldenfile",
+ "indexmap",
+ "itertools",
+ "logos",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "anstream"
 version = "0.6.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -285,22 +301,6 @@ dependencies = [
  "similar-asserts",
  "tempfile",
  "yansi",
-]
-
-[[package]]
-name = "gradbench"
-version = "0.0.0"
-dependencies = [
- "ariadne",
- "clap",
- "dirs",
- "enumset",
- "goldenfile",
- "indexmap",
- "itertools",
- "logos",
- "serde",
- "serde_json",
 ]
 
 [[package]]
