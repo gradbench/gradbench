@@ -27,6 +27,9 @@ impl Printer<'_> {
                 assert!(src.is_none(), "printed type var source should be local");
                 write!(w, "{}", &self.source[self.tokens.get(def).byte_range()])?;
             }
+            Poly { var: _, inner: _ } => {
+                panic!("polymorphic type should be instantiated before printing");
+            }
             Unit => write!(w, "()")?,
             Int => write!(w, "Int")?,
             Float => write!(w, "Float")?,

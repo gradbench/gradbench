@@ -77,6 +77,10 @@ pub enum Type {
         src: Option<ModId>,
         def: TokenId,
     },
+    Poly {
+        var: TypeId,
+        inner: TypeId,
+    },
     Unit,
     Int,
     Float,
@@ -108,7 +112,7 @@ pub enum Type {
 #[serde(tag = "kind")]
 pub enum Src {
     Undefined,
-    Import { src: ModId, id: ValId },
+    Import { src: ModId, id: parse::DefId },
     Param { id: parse::ParamId },
     Expr { id: parse::ExprId },
     Def { id: parse::DefId },
@@ -331,7 +335,7 @@ impl<'a> Typer<'a> {
 
     fn parse_ty(
         &mut self,
-        types: &HashMap<&'a str, TypeId>,
+        types: &IndexMap<&'a str, TypeId>,
         id: parse::TypeId,
     ) -> TypeResult<TypeId> {
         match self.tree.ty(id) {
@@ -370,7 +374,7 @@ impl<'a> Typer<'a> {
 
     fn bind_ty(
         &mut self,
-        types: &HashMap<&'a str, TypeId>,
+        types: &IndexMap<&'a str, TypeId>,
         bind: parse::Bind,
     ) -> TypeResult<TypeId> {
         match bind {
@@ -411,7 +415,7 @@ impl<'a> Typer<'a> {
 
     fn param_ty(
         &mut self,
-        types: &HashMap<&'a str, TypeId>,
+        types: &IndexMap<&'a str, TypeId>,
         id: parse::ParamId,
     ) -> TypeResult<TypeId> {
         let parse::Param { bind, ty } = self.tree.param(id);
@@ -423,7 +427,7 @@ impl<'a> Typer<'a> {
 
     fn param(
         &mut self,
-        types: &HashMap<&'a str, TypeId>,
+        types: &IndexMap<&'a str, TypeId>,
         names: &mut Vec<&'a str>,
         id: parse::ParamId,
         ty: TypeId,
@@ -477,7 +481,7 @@ impl<'a> Typer<'a> {
 
     fn expr(
         &mut self,
-        types: &mut HashMap<&'a str, TypeId>,
+        types: &mut IndexMap<&'a str, TypeId>,
         id: parse::ExprId,
     ) -> TypeResult<ValId> {
         let ty = match self.tree.expr(id) {
@@ -542,7 +546,7 @@ impl<'a> Typer<'a> {
 
     fn expect(
         &mut self,
-        types: &mut HashMap<&'a str, TypeId>,
+        types: &mut IndexMap<&'a str, TypeId>,
         id: parse::ExprId,
         ty: TypeId,
     ) -> TypeResult<ValId> {
@@ -584,6 +588,11 @@ impl<'a> Typer<'a> {
             Type::Var { src, def } => {
                 assert!(src.is_none(), "type variable from transitive import");
                 self.ty(Type::Var { src: Some(i), def })?
+            }
+            Type::Poly { var, inner } => {
+                let var = self.translate(i, ids, var)?;
+                let inner = self.translate(i, ids, inner)?;
+                self.ty(Type::Poly { var, inner })?
             }
             Type::Unit => self.ty(Type::Unit)?,
             Type::Int => self.ty(Type::Int)?,
@@ -631,12 +640,11 @@ impl<'a> Typer<'a> {
             let module = self.imports[usize::from(src)];
             let mut translated = HashMap::new();
             for &token in imports[usize::from(src)].names.iter() {
-                let id = module.def(
-                    module
-                        .export(self.token(token))
-                        .ok_or(TypeError::Undefined { name: token })?,
-                );
-                let ty = self.translate(src, &mut translated, module.val(id).ty)?;
+                let id = module
+                    .export(self.token(token))
+                    .ok_or(TypeError::Undefined { name: token })?;
+                let val = module.def(id);
+                let ty = self.translate(src, &mut translated, module.val(val).ty)?;
                 let val = self.val(Val {
                     ty,
                     src: Src::Import { src, id },
@@ -665,15 +673,17 @@ impl<'a> Typer<'a> {
                 let names = types
                     .iter()
                     .map(|&def| Ok((self.token(def), self.ty(Type::Var { src: None, def })?)))
-                    .collect::<TypeResult<HashMap<&'a str, TypeId>>>()?;
+                    .collect::<TypeResult<IndexMap<&'a str, TypeId>>>()?;
                 let doms = params
                     .iter()
                     .map(|&param| self.param_ty(&names, param))
                     .collect::<TypeResult<Vec<TypeId>>>()?;
                 let cod = self.parse_ty(&names, ty.ok_or(TypeError::Untyped { name: *name })?)?;
-                let t = doms
-                    .iter()
-                    .try_rfold(cod, |b, &a| self.ty(Type::Func { dom: a, cod: b }))?;
+                let t = names.values().try_rfold(
+                    doms.iter()
+                        .try_rfold(cod, |cod, &dom| self.ty(Type::Func { dom, cod }))?,
+                    |inner, &var| self.ty(Type::Poly { var, inner }),
+                )?;
                 let id = parse::DefId {
                     index: i.try_into().unwrap(),
                 };
