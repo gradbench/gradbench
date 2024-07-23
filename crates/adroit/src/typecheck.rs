@@ -270,7 +270,6 @@ pub enum TypeError {
     },
     NotPair {
         param: parse::ParamId,
-        ty: TypeId,
     },
     NotArray {
         expr: parse::ExprId,
@@ -459,10 +458,14 @@ impl<'a> Typer<'a> {
         id: parse::ParamId,
     ) -> TypeResult<TypeId> {
         let parse::Param { bind, ty } = self.tree.param(id);
-        match ty {
+        let t = match ty {
             Some(t) => self.parse_ty(types, t),
             None => self.bind_ty(types, bind),
-        }
+        }?;
+        let src = Src::Param { id };
+        let val = self.val(Val { src, ty: t });
+        self.module.params[usize::from(id)] = val;
+        Ok(t)
     }
 
     fn param(
@@ -501,7 +504,7 @@ impl<'a> Typer<'a> {
                     self.param(types, names, snd, cod)?;
                     Ok(())
                 }
-                _ => Err(TypeError::NotPair { param: id, ty }),
+                _ => Err(TypeError::NotPair { param: id }),
             },
             parse::Bind::Record { name, field, rest } => todo!(),
             parse::Bind::End { open: _, close: _ } => {
@@ -540,10 +543,24 @@ impl<'a> Typer<'a> {
             parse::Expr::Undefined { token: _ } => self.ty(Type::Untyped)?,
             parse::Expr::Unit { open: _, close: _ } => todo!(),
             parse::Expr::Number { val } => todo!(),
-            parse::Expr::Pair { fst, snd } => todo!(),
+            parse::Expr::Pair { fst, snd } => {
+                let f = self.expr(types, fst)?;
+                let s = self.expr(types, snd)?;
+                let fst = self.module.val(f).ty;
+                let snd = self.module.val(s).ty;
+                self.ty(Type::Prod { fst, snd })?
+            }
             parse::Expr::Record { name, field, rest } => todo!(),
             parse::Expr::End { open: _, close: _ } => todo!(),
-            parse::Expr::Elem { array, index } => todo!(),
+            parse::Expr::Elem { array, index } => {
+                let a = self.expr(types, array)?;
+                let (i, elem) = match self.module.ty(self.module.val(a).ty) {
+                    Type::Array { index, elem } => Ok((index, elem)),
+                    _ => Err(TypeError::NotArray { expr: array }),
+                }?;
+                self.expect(types, index, i)?;
+                elem
+            }
             parse::Expr::Inst { val, ty } => {
                 let v = self.expr(types, val)?;
                 let (var, inner) = match self.module.ty(self.module.val(v).ty) {
@@ -607,7 +624,25 @@ impl<'a> Typer<'a> {
                 self.expect(types, rhs, float)?;
                 float
             }
-            parse::Expr::Lambda { param, ty, body } => todo!(),
+            parse::Expr::Lambda { param, ty, body } => {
+                let dom = self.param_ty(types, param)?;
+                let (types, val) = self.scope(
+                    types,
+                    |this, types, names| this.param(types, names, param, dom),
+                    |this, types| {
+                        let val = this.expr(types, body)?;
+                        Ok((types, val))
+                    },
+                )?;
+                let cod = self.module.val(val).ty;
+                if let Some(t) = ty {
+                    let expected = self.parse_ty(types, t)?;
+                    if cod != expected {
+                        return Err(TypeError::Expr { id: body, expected });
+                    }
+                }
+                self.ty(Type::Func { dom, cod })?
+            }
         };
         let src = Src::Expr { id };
         let val = self.val(Val { src, ty });

@@ -18,11 +18,11 @@ import "math" use exp, int, lgamma, log, pi, sqr, sqrt
 
 def logsumexp[K](x: [K]Float): Float =
   let mx = max[K](x)
-  let emx = exp.(for[K, Float](i => x[i] - mx))
-  log(sum(emx) + mx)
+  let emx = exp.(for[K, Float] (i: K) => x[i] - mx)
+  log(sum[K](emx) + mx)
 
 def logsumexpvec[K, N](x: [N * K]Float): [N]Float =
-  for i => logsumexp(row(x, i))
+  for[N, Float] (i: N) => logsumexp[K](row[N, K, Float](x, i))
 
 def log_gamma_distrib(a: Float, p: Int): Float =
   let out = 0.25 * p * (p - 1) * log(pi)

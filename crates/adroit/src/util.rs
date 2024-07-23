@@ -310,10 +310,13 @@ pub fn error(modules: &IndexMap<PathBuf, FullModule>, err: Error) {
                         format!("expected polymorphic type, got `{}`", printer.ty(ty)),
                     )
                 }
-                typecheck::TypeError::NotPair { param, ty } => (
-                    range::param_range(tokens, tree, param),
-                    format!("expected tuple, got `{}`", printer.ty(ty)),
-                ),
+                typecheck::TypeError::NotPair { param } => {
+                    let ty = module.val(module.param(param)).ty;
+                    (
+                        range::param_range(tokens, tree, param),
+                        format!("expected tuple, got `{}`", printer.ty(ty)),
+                    )
+                }
                 typecheck::TypeError::NotArray { expr } => {
                     let ty = module.val(module.expr(expr)).ty;
                     (
