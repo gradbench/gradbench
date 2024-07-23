@@ -91,23 +91,26 @@ pub enum Error {
     },
 }
 
-pub fn import(
-    modules: &mut IndexMap<PathBuf, FullModule>,
-    from: &Path,
-    name: &str,
-) -> Result<usize, Box<Error>> {
-    let path = resolve(from, name).map_err(|err| Error::Resolve { err })?;
-    if let Some(i) = modules.get_index_of(&path) {
-        return Ok(i);
-    }
-    let source = match read(name, &path) {
-        Ok(source) => source,
-        Err(err) => return Err(Box::new(Error::Read { path, err })),
+pub fn parse(
+    path: PathBuf,
+    source: String,
+) -> Result<(String, lex::Tokens, parse::Module), Box<Error>> {
+    let tokens = match lex::lex(&source) {
+        Ok(tokens) => tokens,
+        Err(err) => return Err(Box::new(Error::Lex { path, source, err })),
     };
-    let (path, full) = process(modules, path, source)?;
-    let (i, prev) = modules.insert_full(path, full);
-    assert!(prev.is_none(), "cyclic import should yield stack overflow");
-    Ok(i)
+    let tree = match parse::parse(&tokens) {
+        Ok(tree) => tree,
+        Err(err) => {
+            return Err(Box::new(Error::Parse {
+                path,
+                source,
+                tokens,
+                err,
+            }))
+        }
+    };
+    Ok((source, tokens, tree))
 }
 
 pub fn process(
@@ -117,20 +120,14 @@ pub fn process(
 ) -> Result<(PathBuf, FullModule), Box<Error>> {
     let tokens = match lex::lex(&source) {
         Ok(tokens) => tokens,
-        Err(err) => {
-            return Err(Box::new(Error::Lex {
-                path,
-                source: source.to_owned(),
-                err,
-            }))
-        }
+        Err(err) => return Err(Box::new(Error::Lex { path, source, err })),
     };
     let tree = match parse::parse(&tokens) {
         Ok(tree) => tree,
         Err(err) => {
             return Err(Box::new(Error::Parse {
                 path,
-                source: source.to_owned(),
+                source,
                 tokens,
                 err,
             }))
@@ -144,7 +141,7 @@ pub fn process(
             Err(err) => {
                 return Err(Box::new(Error::Import {
                     path,
-                    source: source.to_owned(),
+                    source,
                     tokens,
                     token,
                     err,
@@ -173,6 +170,25 @@ pub fn process(
             err,
         })),
     }
+}
+
+pub fn import(
+    modules: &mut IndexMap<PathBuf, FullModule>,
+    from: &Path,
+    name: &str,
+) -> Result<usize, Box<Error>> {
+    let path = resolve(from, name).map_err(|err| Error::Resolve { err })?;
+    if let Some(i) = modules.get_index_of(&path) {
+        return Ok(i);
+    }
+    let source = match read(name, &path) {
+        Ok(source) => source,
+        Err(err) => return Err(Box::new(Error::Read { path, err })),
+    };
+    let (path, full) = process(modules, path, source)?;
+    let (i, prev) = modules.insert_full(path, full);
+    assert!(prev.is_none(), "cyclic import should yield stack overflow");
+    Ok(i)
 }
 
 pub fn error(modules: &IndexMap<PathBuf, FullModule>, err: Error) {

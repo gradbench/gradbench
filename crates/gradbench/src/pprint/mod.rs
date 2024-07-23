@@ -1,4 +1,4 @@
-use std::fmt;
+use std::io;
 
 use crate::{
     lex::{TokenId, Tokens},
@@ -14,19 +14,19 @@ struct Printer<'a> {
 }
 
 impl Printer<'_> {
-    fn indent(&self, w: &mut impl fmt::Write) -> fmt::Result {
+    fn indent(&self, w: &mut impl io::Write) -> io::Result<()> {
         for _ in 0..self.indent {
             write!(w, "  ")?;
         }
         Ok(())
     }
 
-    fn token(&self, w: &mut impl fmt::Write, id: TokenId) -> fmt::Result {
+    fn token(&self, w: &mut impl io::Write, id: TokenId) -> io::Result<()> {
         write!(w, "{}", &self.source[self.tokens.get(id).byte_range()])?;
         Ok(())
     }
 
-    fn ty(&mut self, w: &mut impl fmt::Write, id: TypeId) -> fmt::Result {
+    fn ty(&mut self, w: &mut impl io::Write, id: TypeId) -> io::Result<()> {
         let ty = self.tree.ty(id);
         match ty {
             Type::Paren { inner } => {
@@ -66,7 +66,7 @@ impl Printer<'_> {
         Ok(())
     }
 
-    fn bind(&mut self, w: &mut impl fmt::Write, bind: Bind) -> fmt::Result {
+    fn bind(&mut self, w: &mut impl io::Write, bind: Bind) -> io::Result<()> {
         match bind {
             Bind::Paren { inner } => {
                 write!(w, "(")?;
@@ -111,7 +111,7 @@ impl Printer<'_> {
         Ok(())
     }
 
-    fn param(&mut self, w: &mut impl fmt::Write, id: ParamId) -> fmt::Result {
+    fn param(&mut self, w: &mut impl io::Write, id: ParamId) -> io::Result<()> {
         let param = self.tree.param(id);
         self.bind(w, param.bind)?;
         if let Some(ty) = param.ty {
@@ -121,7 +121,7 @@ impl Printer<'_> {
         Ok(())
     }
 
-    fn unop(&mut self, w: &mut impl fmt::Write, op: Unop) -> fmt::Result {
+    fn unop(&mut self, w: &mut impl io::Write, op: Unop) -> io::Result<()> {
         let s = match op {
             Unop::Neg => "-",
         };
@@ -129,7 +129,7 @@ impl Printer<'_> {
         Ok(())
     }
 
-    fn binop(&mut self, w: &mut impl fmt::Write, op: Binop) -> fmt::Result {
+    fn binop(&mut self, w: &mut impl io::Write, op: Binop) -> io::Result<()> {
         let s = match op {
             Binop::Add => "+",
             Binop::Sub => "-",
@@ -140,7 +140,7 @@ impl Printer<'_> {
         Ok(())
     }
 
-    fn expr(&mut self, w: &mut impl fmt::Write, id: ExprId) -> fmt::Result {
+    fn expr(&mut self, w: &mut impl io::Write, id: ExprId) -> io::Result<()> {
         match self.tree.expr(id) {
             Expr::Paren { inner } => {
                 write!(w, "(")?;
@@ -253,7 +253,7 @@ impl Printer<'_> {
         Ok(())
     }
 
-    fn import(&mut self, w: &mut impl fmt::Write, import: &Import) -> fmt::Result {
+    fn import(&mut self, w: &mut impl io::Write, import: &Import) -> io::Result<()> {
         let Import { module, names } = import;
         write!(w, "import ")?;
         self.token(w, *module)?;
@@ -270,7 +270,7 @@ impl Printer<'_> {
         Ok(())
     }
 
-    fn def(&mut self, w: &mut impl fmt::Write, def: &Def) -> fmt::Result {
+    fn def(&mut self, w: &mut impl io::Write, def: &Def) -> io::Result<()> {
         let Def {
             name,
             types,
@@ -282,7 +282,7 @@ impl Printer<'_> {
         self.token(w, *name)?;
         if !types.is_empty() {
             let mut first = true;
-            write!(w, " {{")?;
+            write!(w, " [")?;
             for &t in types {
                 if !first {
                     write!(w, ", ")?;
@@ -290,7 +290,7 @@ impl Printer<'_> {
                 first = false;
                 self.token(w, t)?;
             }
-            write!(w, "}}")?;
+            write!(w, "]")?;
         }
         for &param in params {
             write!(w, " (")?;
@@ -309,7 +309,7 @@ impl Printer<'_> {
         Ok(())
     }
 
-    fn module(&mut self, w: &mut impl fmt::Write) -> fmt::Result {
+    fn module(&mut self, w: &mut impl io::Write) -> io::Result<()> {
         let mut first = true;
         for import in self.tree.imports() {
             first = false;
@@ -328,11 +328,11 @@ impl Printer<'_> {
 }
 
 pub fn pprint(
-    w: &mut impl fmt::Write,
+    w: &mut impl io::Write,
     source: &str,
     tokens: &Tokens,
     tree: &Module,
-) -> fmt::Result {
+) -> io::Result<()> {
     Printer {
         source,
         tokens,
@@ -344,7 +344,7 @@ pub fn pprint(
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, io::Write, path::Path};
+    use std::{fs, path::Path};
 
     use goldenfile::Mint;
 
@@ -363,10 +363,8 @@ mod tests {
             let source = fs::read_to_string(&path).expect(stripped);
             let tokens = lex(&source).expect(stripped);
             let tree = parse(&tokens).expect(stripped);
-            let mut pprinted = String::new();
-            pprint(&mut pprinted, &source, &tokens, &tree).unwrap();
             let mut file = mint.new_goldenfile(stripped).expect(stripped);
-            file.write_all(pprinted.as_bytes()).expect(stripped);
+            pprint(&mut file, &source, &tokens, &tree).expect(stripped);
         }
     }
 }
