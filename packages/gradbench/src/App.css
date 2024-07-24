@@ -23,6 +23,13 @@ body {
   padding-left: 15px;
   font-size: 25px;
 }
+.hidden {
+  font-size: 0px;
+}
+
+ul {
+  padding-left: 50px;
+}
 
 li::marker {
   color: var(--blue_grey);
@@ -30,18 +37,25 @@ li::marker {
 
 /* table */
 table {
+  width: 100%;
   font-size: 0.8rem;
   letter-spacing: 1px;
   text-align: center;
-  padding-left: 20px;
-  padding-bottom: 20px;
+}
+
+.tbody {
+  width: 1500px;
+  /* height: 200px; */
+  overflow: auto;
+  margin-left: 20px;
+  margin-bottom: 20px;
 }
 
 th,
 td {
   border: 1px solid var(--dark_blue);
   font-size: 1em;
-  padding: 10px 10px;
+  padding: 5px 5px;
   width: 9%;
   height: 25px;
   background-color: Gainsboro;
@@ -109,6 +123,7 @@ tr:last-child td:last-child {
   background-color: var(--blue_grey);
   padding: 10px;
   margin-left: 10px;
+  margin-right: 10px;
   border-radius: 5px;
 }
 
@@ -116,14 +131,11 @@ tr:last-child td:last-child {
 .container {
   display: flex;
   align-items: flex-start;
+  margin-bottom: 20px;
 }
 
 .text {
   padding: 0px 50px 50px 50px;
-}
-
-.hidden {
-  font-size: 0px;
 }
 
 /* unvisited link */
@@ -150,9 +162,10 @@ a:hover {
   .subtitle {
     font-size: 20px;
   }
-  table {
-    font-size: 0.7rem;
-    padding-left: 10px;
+
+  .github-corner {
+    height: 60px;
+    width: 60px;
   }
 }
 
@@ -175,16 +188,13 @@ a:hover {
     margin-left: 0;
   }
   .fillspace {
-    margin: 0;
-    /* padding: 6px; */
+    margin-left: 5px;
+    margin-right: 5px;
   }
-  table {
-    padding-left: 0px;
-  }
-  th,
-  td {
-    padding: 2px 2px;
-    width: 9%;
+
+  .tbody {
+    width: 750px;
+    margin: 5px 5px 5px 5px;
   }
 
   .emoji {
@@ -196,9 +206,22 @@ a:hover {
   .container {
     flex-direction: column;
     align-items: stretch;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    width: 100%;
   }
   .text {
     padding: 0px 20px 20px 20px;
+  }
+  ul {
+    padding-left: 30px;
+  }
+  .github-corner {
+    height: 56px;
+    width: 56px;
   }
 }
 
@@ -214,10 +237,16 @@ a:hover {
     font-size: medium;
     padding: 10px;
   }
-  table {
-    font-size: 0.42rem;
-  }
+
   .text {
     padding: 10px;
+  }
+
+  .tbody {
+    width: 350px;
+  }
+  .github-corner {
+    height: 52px;
+    width: 52px;
   }
 }
