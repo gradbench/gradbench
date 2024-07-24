@@ -8,13 +8,12 @@
 }
 
 body {
-  font-family: sans-serif; /* Replace 'Arial' with your desired font */
+  font-family: sans-serif;
 }
 
 /* Banner */
 .header {
   padding: 10px;
-  padding-left: 10px;
   text-align: left;
   background-image: linear-gradient(to right, var(--dark_blue), Gainsboro);
   color: white;
@@ -25,12 +24,17 @@ body {
   font-size: 25px;
 }
 
+li::marker {
+  color: var(--blue_grey);
+}
+
 /* table */
 table {
   font-size: 0.8rem;
   letter-spacing: 1px;
   text-align: center;
-  padding-left: 50px;
+  padding-left: 20px;
+  padding-bottom: 20px;
 }
 
 th,
@@ -54,6 +58,12 @@ td {
   color: white;
   font-weight: bold;
   border: none;
+}
+
+.tool:hover,
+.module:hover {
+  background-color: var(--dark_blue);
+  opacity: 0.9;
 }
 
 .emoji {
@@ -85,7 +95,6 @@ tr:last-child td:last-child {
 .subheading {
   padding: 10px;
   font-size: 36px;
-  font-weight: bold;
   color: var(--blue_grey);
 }
 
@@ -100,7 +109,7 @@ tr:last-child td:last-child {
   background-color: var(--blue_grey);
   padding: 10px;
   margin-left: 10px;
-  border-radius: 10px;
+  border-radius: 5px;
 }
 
 /* general */
@@ -111,6 +120,10 @@ tr:last-child td:last-child {
 
 .text {
   padding: 0px 50px 50px 50px;
+}
+
+.hidden {
+  font-size: 0px;
 }
 
 /* unvisited link */
@@ -126,4 +139,85 @@ a:visited {
 /* mouse over link */
 a:hover {
   color: #cc7f97;
+}
+
+/* Medium Screen */
+@media (max-width: 1289px) {
+  .header {
+    font-size: 43px;
+    padding: 5px;
+  }
+  .subtitle {
+    font-size: 20px;
+  }
+  table {
+    font-size: 0.7rem;
+    padding-left: 10px;
+  }
+}
+
+/* Small Screen */
+@media (max-width: 1000px) {
+  .header {
+    font-size: 40px;
+  }
+  .subtitle {
+    font-size: 14px;
+  }
+  .row {
+    align-items: left;
+    padding: 0px;
+  }
+  .subheading {
+    font-size: 24px;
+    padding: 5px;
+    text-align: left;
+    margin-left: 0;
+  }
+  .fillspace {
+    margin: 0;
+    /* padding: 6px; */
+  }
+  table {
+    padding-left: 0px;
+  }
+  th,
+  td {
+    padding: 2px 2px;
+    width: 9%;
+  }
+
+  .emoji {
+    color: #588970;
+    font-size: 10px;
+  }
+  /*  */
+
+  .container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .text {
+    padding: 0px 20px 20px 20px;
+  }
+}
+
+/* Mobile view adjustments */
+@media (max-width: 768px) {
+  .header {
+    font-size: 36px;
+  }
+  .subtitle {
+    font-size: 0px;
+  }
+  .hidden {
+    font-size: medium;
+    padding: 10px;
+  }
+  table {
+    font-size: 0.42rem;
+  }
+  .text {
+    padding: 10px;
+  }
 }

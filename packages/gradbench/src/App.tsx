@@ -3,38 +3,38 @@ import "./App.css";
 const App = () => {
   return (
     <>
-      <div className="header-cont">
-        <a href="https://github.com/gradbench/gradbench" target="_blank">
-          <h1 className="header">
-            GradBench
-            <span className="subtitle">
-              A Benchmark for Differentiable Programming Across Languages and
-              Domains
-            </span>
-            {/* <a className="repo" href="https://github.com/gradbench/gradbench">
-            GitHub Repository
-          </a> */}
-          </h1>
-        </a>
-      </div>
+      <a href="https://github.com/gradbench/gradbench" target="_blank">
+        <h1 className="header">
+          GradBench
+          <span className="subtitle">
+            A Benchmark for Differentiable Programming Across Languages and
+            Domains
+          </span>
+        </h1>
+      </a>
 
-      {/* <h2>Automatic Differentiation</h2>
-      <p>
-        Automatic Differentiation (AD) is the process of differentiation a
-        mathematical function with respect to its inputs. Fields such as
-        interactivity and machine learning benefit greatly when programs can
-        automatically compute derivatives.{" "}
-      </p> */}
+      {/* Appears for mobile view only */}
+      <p className="hidden">
+        <b style={{ color: "#3e4756" }}>
+          A Benchmark for Differentiable Programming Across Languages and
+          Domains
+        </b>
+      </p>
 
       <div className="row">
         <h2 className="subheading">Benchmarking</h2>
         <div className="fillspace"></div>
       </div>
       <p className="text">
-        GradBench is designed to work across languages and domains. Functions
-        are written in <b style={{ color: "#3e4756" }}>Adroit</b> and
-        automatically translated to a tool's native language. The architecture
-        allows for the easy addition of new functions and tools.
+        <li> GradBench is designed to work across languages and domains. </li>
+        <li>
+          Functions are written in <b style={{ color: "#3e4756" }}>Adroit</b>{" "}
+          and automatically translated to a tool's native language.
+        </li>
+        <li>
+          The architecture allows for the easy addition of new functions and
+          tools.
+        </li>
       </p>
 
       <div className="row">
@@ -181,7 +181,21 @@ const App = () => {
           </tr>
         </table>
         <div>
-          <p className="text">TODO: Explain Table</p>
+          <p className="text">
+            This table displays the current supported tools and functions in
+            GradBench. Our first eval is a simple{" "}
+            <b style={{ color: "#3e4756" }}>Hello</b> module that computes the
+            derivative of x&sup2;. <b style={{ color: "#3e4756" }}>Hello</b> can
+            be run on any of the tools listed in the table.
+            <br />
+            <br />
+            We are currently working on implementing functions from Microsoft's
+            ADBench suite. The Gaussian Mixture Model Fitting (
+            <b style={{ color: "#3e4756" }}>GMM</b>) equation is currently only
+            supported by PyTorch. Additionally, PyTorch's support for the Bundle
+            Adjustement (<b style={{ color: "#3e4756" }}>BA</b>) equation is
+            in-progress.
+          </p>
         </div>
       </div>
     </>
