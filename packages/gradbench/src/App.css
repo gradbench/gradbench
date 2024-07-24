@@ -1,0 +1,129 @@
+:root {
+  --dark_blue: #336699;
+  --blue_grey: #3e4756;
+}
+
+* {
+  margin: 0;
+}
+
+body {
+  font-family: sans-serif; /* Replace 'Arial' with your desired font */
+}
+
+/* Banner */
+.header {
+  padding: 10px;
+  padding-left: 10px;
+  text-align: left;
+  background-image: linear-gradient(to right, var(--dark_blue), Gainsboro);
+  color: white;
+  font-size: 60px;
+}
+.subtitle {
+  padding-left: 15px;
+  font-size: 25px;
+}
+
+/* table */
+table {
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+  text-align: center;
+  padding-left: 50px;
+}
+
+th,
+td {
+  border: 1px solid var(--dark_blue);
+  font-size: 1em;
+  padding: 10px 10px;
+  width: 9%;
+  height: 25px;
+  background-color: Gainsboro;
+}
+
+.no-border {
+  border: none;
+  background-color: transparent;
+}
+
+.tool,
+.module {
+  background-color: var(--dark_blue);
+  color: white;
+  font-weight: bold;
+  border: none;
+}
+
+.emoji {
+  color: #588970;
+  font-size: 24px;
+}
+
+tr:first-child th:nth-child(2) {
+  border-top-left-radius: 10px;
+}
+
+tr:nth-child(2) td:first-child {
+  border-top-left-radius: 10px;
+}
+
+th:last-child {
+  border-top-right-radius: 10px;
+}
+
+tr:last-child td:first-child {
+  border-bottom-left-radius: 10px;
+}
+
+tr:last-child td:last-child {
+  border-bottom-right-radius: 10px;
+}
+
+/* subtitles */
+.subheading {
+  padding: 10px;
+  font-size: 36px;
+  font-weight: bold;
+  color: var(--blue_grey);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+}
+
+.fillspace {
+  flex-grow: 1;
+  background-color: var(--blue_grey);
+  padding: 10px;
+  margin-left: 10px;
+  border-radius: 10px;
+}
+
+/* general */
+.container {
+  display: flex;
+  align-items: flex-start;
+}
+
+.text {
+  padding: 0px 50px 50px 50px;
+}
+
+/* unvisited link */
+a:link {
+  color: white;
+  text-decoration: none;
+}
+
+/* visited link */
+a:visited {
+  color: white;
+}
+/* mouse over link */
+a:hover {
+  color: #cc7f97;
+}
