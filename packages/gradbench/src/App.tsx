@@ -246,7 +246,7 @@ const App = () => {
             ADBench suite. The Gaussian Mixture Model Fitting (
             <b style={{ color: "#3e4756" }}>GMM</b>) equation is currently only
             supported by PyTorch. Additionally, PyTorch's support for the Bundle
-            Adjustement (<b style={{ color: "#3e4756" }}>BA</b>) equation is
+            Adjustment (<b style={{ color: "#3e4756" }}>BA</b>) equation is
             in-progress.
           </p>
         </div>
