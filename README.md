@@ -1,4 +1,4 @@
-<div align="center"><img height="256" src="logo.svg" /></div>
+<div align="center"><img height="256" src="packages/gradbench/src/logo.svg" /></div>
 <h1 align="center">GradBench</h1>
 
 Benchmark for differentiable programming across languages and domains.
