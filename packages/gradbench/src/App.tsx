@@ -1,4 +1,5 @@
 import "./App.css";
+import logo from "./logo_t.svg";
 
 const App = () => {
   return (
@@ -55,7 +56,7 @@ const App = () => {
         </a>
       </div>
       <h1 className="header">
-        <img src="/src/logo_t.svg"></img>
+        <img src={logo}></img>
         GradBench
         <span className="subtitle">
           A Benchmark for Differentiable Programming Across Languages and
@@ -95,8 +96,8 @@ const App = () => {
         <h2 className="subheading">Adroit</h2>
         <div className="box">
           <div className="text">
-            <b>Adroit</b> is a new differentiable programming language designed
-            to be
+            <span className="bold">Adroit</span> is a new differentiable
+            programming language designed to be
             <ul style={{ padding: "0.5em 1.5em" }}>
               <li>
                 flexible enough to easily express many numerical functions
@@ -164,10 +165,11 @@ const App = () => {
             those index types can be algebraic types (similar to tuples or enums
             in many languages) as in{" "}
             <a href="https://github.com/google-research/dex-lang">Dex</a>. The
-            Adroit compiler is <b>fast</b>: it can lex, parse, and typecheck
-            over a million lines of code per second, causing little overhead as
-            an initial preprocessing step before passing typed IR as JSON to
-            another tool to perform automatic differentiation.
+            Adroit compiler is <span className="bold">fast</span>: it can lex,
+            parse, and typecheck over a million lines of code per second,
+            causing little overhead as an initial preprocessing step before
+            passing typed IR as JSON to another tool to perform automatic
+            differentiation.
           </div>
         </div>
       </div>
