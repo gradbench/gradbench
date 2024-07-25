@@ -2,6 +2,9 @@
   margin: 0;
   --dark_blue: #336699;
   --blue_grey: #3e4756;
+}
+
+body {
   font-family: sans-serif;
 }
 

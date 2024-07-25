@@ -94,7 +94,81 @@ const App = () => {
       <div className="subheader-container">
         <h2 className="subheading">Adroit</h2>
         <div className="box">
-          <p className="text">TODO: Explain Adroit</p>
+          <div className="text">
+            <b>Adroit</b> is a new differentiable programming language designed
+            to be
+            <ul style={{ padding: "0.5em 1.5em" }}>
+              <li>
+                flexible enough to easily express many numerical functions
+                (whether involving arrays, recursion, higher-order functions,
+                nested derivatives, custom derivatives, etc.), but also
+              </li>
+              <li>
+                simple enough to mechanically translate from Adroit source code
+                to a variety of different existing tools for automatic
+                differentiation.
+              </li>
+            </ul>
+            As an example, here is how you might define matrix multiplication in
+            Adroit:
+            <div
+              style={{
+                padding: "1em 2em",
+              }}
+            >
+              <pre style={{ margin: 0, lineHeight: "125%" }}>
+                <span style={{ color: "#008800", fontWeight: "bold" }}>
+                  def
+                </span>{" "}
+                mmul[
+                <span style={{ color: "#003366", fontWeight: "bold" }}>
+                  M
+                </span>,{" "}
+                <span style={{ color: "#003366", fontWeight: "bold" }}>N</span>,{" "}
+                <span style={{ color: "#003366", fontWeight: "bold" }}>P</span>
+                ](
+                {"\n"}
+                {"  "}
+                <span style={{ color: "#AA6600" }}>a:</span> [
+                <span style={{ color: "#003366", fontWeight: "bold" }}>M</span>{" "}
+                <span style={{ color: "#333333" }}>*</span>{" "}
+                <span style={{ color: "#003366", fontWeight: "bold" }}>N</span>]
+                <span style={{ color: "#003366", fontWeight: "bold" }}>
+                  Float
+                </span>
+                ,{"\n"}
+                {"  "}
+                <span style={{ color: "#AA6600" }}>b:</span> [
+                <span style={{ color: "#003366", fontWeight: "bold" }}>N</span>{" "}
+                <span style={{ color: "#333333" }}>*</span>{" "}
+                <span style={{ color: "#003366", fontWeight: "bold" }}>P</span>]
+                <span style={{ color: "#003366", fontWeight: "bold" }}>
+                  Float
+                </span>
+                ,{"\n"}
+                ):{" "}
+                <span style={{ color: "#003366", fontWeight: "bold" }}>
+                  Float
+                </span>{" "}
+                <span style={{ color: "#333333" }}>=</span>
+                {"\n"}
+                {"  "}for (i, j) <span style={{ color: "#333333" }}>=&gt;</span>
+                {"\n"}
+                {"    "}sum(for k{" "}
+                <span style={{ color: "#333333" }}>=&gt;</span> a[i, k]{" "}
+                <span style={{ color: "#333333" }}>*</span> b[k, j]){"\n"}
+              </pre>
+            </div>
+            As shown in this example, Adroit supports typed indexes for arrays
+            similar to <a href="https://futhark-lang.org/">Futhark</a>, and
+            those index types can be algebraic types (similar to tuples or enums
+            in many languages) as in{" "}
+            <a href="https://github.com/google-research/dex-lang">Dex</a>. The
+            Adroit compiler is <b>fast</b>: it can lex, parse, and typecheck
+            over a million lines of code per second, causing little overhead as
+            an initial preprocessing step before passing typed IR as JSON to
+            another tool to perform automatic differentiation.
+          </div>
         </div>
       </div>
       <div className="subheader-container">
