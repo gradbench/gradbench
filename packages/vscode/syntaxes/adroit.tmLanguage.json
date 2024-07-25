@@ -35,15 +35,15 @@
       "patterns": [
         {
           "name": "keyword.control.adroit",
-          "match": "\\b(else|if|then)\\b"
+          "match": "\\b(as|else|if|import|then|use)\\b"
         },
         {
           "name": "keyword.other.adroit",
-          "match": "\\b(and|in|or)\\b"
+          "match": "\\b(and|in|or|undefined)\\b"
         },
         {
           "name": "storage.type.adroit",
-          "match": "\\b(def|let|type)\\b"
+          "match": "\\b(def|index|let|type)\\b"
         }
       ]
     },

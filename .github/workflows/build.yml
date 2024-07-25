@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - run: cargo run evals/hello/gradbench.adroit
+      - run: cargo run json evals/hello/gradbench.adroit
 
   site:
     runs-on: ubuntu-22.04

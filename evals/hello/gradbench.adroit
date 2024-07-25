@@ -1,3 +1,5 @@
-def square(x: Real) = x * x
+import "autodiff" use grad
 
-def double = grad square
+def square(x: Float): Float = x * x
+
+def double: Float -> Float = grad square

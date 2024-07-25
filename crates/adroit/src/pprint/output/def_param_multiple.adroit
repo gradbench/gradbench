@@ -1,2 +1,2 @@
 def foo (x : Int) (y : Int) =
-  (x + y)
+  x + y
