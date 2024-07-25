@@ -15,9 +15,16 @@ body {
 .header {
   padding: 10px;
   text-align: left;
-  background-image: linear-gradient(to right, var(--dark_blue), Gainsboro);
+  background-color: var(--dark_blue);
+  /* background-image: linear-gradient(to right, var(--dark_blue), Gainsboro); */
   color: white;
   font-size: 60px;
+}
+.header img {
+  vertical-align: middle;
+  margin-right: 10px;
+  margin-bottom: 5px;
+  width: 60px;
 }
 .subtitle {
   padding-left: 15px;
@@ -36,48 +43,54 @@ li::marker {
 }
 
 /* table */
+.tbody {
+  width: 1500px;
+  overflow: auto;
+  margin-left: 20px;
+  margin-bottom: 20px;
+}
+
 table {
   width: 100%;
   font-size: 0.8rem;
   letter-spacing: 1px;
   text-align: center;
-}
-
-.tbody {
-  width: 1500px;
-  /* height: 200px; */
-  overflow: auto;
-  margin-left: 20px;
-  margin-bottom: 20px;
+  border-collapse: collapse;
+  border: none;
 }
 
 th,
 td {
   border: 1px solid var(--dark_blue);
   font-size: 1em;
-  padding: 5px 5px;
-  width: 9%;
+  padding: 10px;
   height: 25px;
-  background-color: Gainsboro;
-}
-
-.no-border {
-  border: none;
-  background-color: transparent;
 }
 
 .tool,
 .module {
+  border: none;
   background-color: var(--dark_blue);
   color: white;
   font-weight: bold;
   border: none;
+  border-radius: 10px;
+  padding: 5px;
+  width: 100px;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3); /* Adds drop shadow */
 }
 
-.tool:hover,
-.module:hover {
-  background-color: var(--dark_blue);
-  opacity: 0.9;
+/* Alternating row colors */
+tr:nth-child(even) td:not(:first-child) {
+  background-color: #f2f2f2;
+}
+
+tr:nth-child(odd) td:not(:first-child) {
+  background-color: #ffffff;
+}
+
+.no-border {
+  border: none;
 }
 
 .emoji {
@@ -85,76 +98,42 @@ td {
   font-size: 24px;
 }
 
-tr:first-child th:nth-child(2) {
-  border-top-left-radius: 10px;
+.subheader-container {
+  position: relative;
+  width: 100%;
+  margin-bottom: 10px;
+  margin-top: 10px;
 }
-
-tr:nth-child(2) td:first-child {
-  border-top-left-radius: 10px;
-}
-
-th:last-child {
-  border-top-right-radius: 10px;
-}
-
-tr:last-child td:first-child {
-  border-bottom-left-radius: 10px;
-}
-
-tr:last-child td:last-child {
-  border-bottom-right-radius: 10px;
-}
-
-/* subtitles */
 .subheading {
-  padding: 10px;
-  font-size: 36px;
+  display: inline-block;
+  margin-left: 15px;
+  padding-bottom: 0px;
   color: var(--blue_grey);
+  font-size: 36px;
 }
-
-.row {
-  display: flex;
-  align-items: center;
-  padding: 10px;
-}
-
-.fillspace {
-  flex-grow: 1;
-  background-color: var(--blue_grey);
-  padding: 10px;
+.box {
+  background-color: #f2f2f2;
+  border-radius: 10px;
+  padding: 20px 20px 20px 0px;
   margin-left: 10px;
   margin-right: 10px;
-  border-radius: 5px;
+  box-sizing: border-box; /* Include padding in the width and height */
 }
 
 /* general */
 .container {
   display: flex;
   align-items: flex-start;
+  align-items: stretch;
   margin-bottom: 20px;
+  margin-right: 20px;
 }
 
 .text {
   padding: 0px 50px 50px 50px;
 }
-
-/* unvisited link */
-a:link {
-  color: white;
-  text-decoration: none;
-}
-
-/* visited link */
-a:visited {
-  color: white;
-}
-/* mouse over link */
-a:hover {
-  color: #cc7f97;
-}
-
 /* Medium Screen */
-@media (max-width: 1289px) {
+@media (max-width: 1400px) {
   .header {
     font-size: 43px;
     padding: 5px;
@@ -163,16 +142,25 @@ a:hover {
     font-size: 20px;
   }
 
+  .header img {
+    margin-right: 5px;
+    margin-bottom: 2px;
+    width: 50px;
+  }
+
   .github-corner {
-    height: 60px;
-    width: 60px;
+    height: 64px;
+    width: 64px;
   }
 }
 
 /* Small Screen */
-@media (max-width: 1000px) {
+@media (max-width: 1100px) {
   .header {
     font-size: 40px;
+  }
+  .header img {
+    width: 47px;
   }
   .subtitle {
     font-size: 14px;
@@ -220,18 +208,22 @@ a:hover {
     padding-left: 30px;
   }
   .github-corner {
-    height: 56px;
-    width: 56px;
+    height: 60px;
+    width: 60px;
   }
 }
 
 /* Mobile view adjustments */
-@media (max-width: 768px) {
+@media (max-width: 850px) {
   .header {
     font-size: 36px;
   }
   .subtitle {
     font-size: 0px;
+  }
+  .header img {
+    width: 43px;
+    margin-bottom: 1.25px;
   }
   .hidden {
     font-size: medium;
@@ -246,7 +238,7 @@ a:hover {
     width: 350px;
   }
   .github-corner {
-    height: 52px;
-    width: 52px;
+    height: 55px;
+    width: 55px;
   }
 }
