@@ -288,6 +288,10 @@ pub enum TypeError {
     NotFunc {
         expr: parse::ExprId,
     },
+    WrongRecord {
+        param: parse::ParamId,
+        ty: TypeId,
+    },
 }
 
 type TypeResult<T> = Result<T, TypeError>;
@@ -554,19 +558,21 @@ impl<'a> Typer<'a> {
                 }
                 let mut t = ty;
                 for (s, param) in fields {
-                    if let Type::Record { name, field, rest } = self.module.ty(t) {
-                        if s != self.module.field(name) {
-                            todo!()
+                    match self.module.ty(t) {
+                        Type::Record { name, field, rest } => {
+                            if s != self.module.field(name) {
+                                return Err(TypeError::WrongRecord { param: id, ty });
+                            }
+                            self.param(types, names, param, field)?;
+                            t = rest;
                         }
-                        self.param(types, names, param, field)?;
-                        t = rest;
-                    } else {
-                        todo!()
+                        Type::End => return Err(TypeError::WrongRecord { param: id, ty }),
+                        _ => panic!("invalid record"),
                     }
                 }
                 match self.module.ty(t) {
                     Type::End => Ok(()),
-                    _ => todo!(),
+                    _ => Err(TypeError::WrongRecord { param: id, ty }),
                 }
             }
             parse::Bind::End { open: _, close: _ } => {

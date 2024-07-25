@@ -290,9 +290,9 @@ pub fn error(modules: &Modules, err: Error) {
                 full: &full,
             };
             let (range, message) = match err {
-                typecheck::TypeError::TooManyImports => todo!(),
-                typecheck::TypeError::TooManyTypes => todo!(),
-                typecheck::TypeError::TooManyFields => todo!(),
+                typecheck::TypeError::TooManyImports => todo!("too many imports"),
+                typecheck::TypeError::TooManyTypes => todo!("too many types"),
+                typecheck::TypeError::TooManyFields => todo!("too many fields"),
                 typecheck::TypeError::Undefined { name } => {
                     (tokens.get(name).byte_range(), "undefined".to_owned())
                 }
@@ -379,6 +379,10 @@ pub fn error(modules: &Modules, err: Error) {
                         format!("expected function, got `{}`", printer.ty(ty)),
                     )
                 }
+                typecheck::TypeError::WrongRecord { param, ty } => (
+                    range::param_range(tokens, tree, param),
+                    format!("expected `{}`", printer.ty(ty)),
+                ),
             };
             Report::build(ReportKind::Error, path, range.start)
                 .with_message("failed to typecheck")

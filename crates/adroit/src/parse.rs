@@ -300,14 +300,23 @@ struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
+    fn get(&self, id: TokenId) -> TokenKind {
+        self.tokens.get(id).kind
+    }
+
     fn peek(&self) -> TokenKind {
-        self.tokens.get(self.id).kind
+        self.get(self.id)
+    }
+
+    fn non_ws(&self, mut id: TokenId) -> TokenId {
+        while self.get(id).ignore() {
+            id.index += 1;
+        }
+        id
     }
 
     fn find_non_ws(&mut self) {
-        while self.peek().ignore() {
-            self.id.index += 1;
-        }
+        self.id = self.non_ws(self.id);
     }
 
     fn next(&mut self) {
@@ -339,11 +348,11 @@ impl<'a> Parser<'a> {
         self.before_ws < self.id
     }
 
-    fn after_close(&self) -> TokenKind {
+    fn after_close(&self) -> TokenId {
         let mut after = self.brackets[usize::from(self.id)];
         assert!(after.index > self.id.index);
-        after.index += 1; // TODO: be consistent about forbidding newlines when we peek ahead
-        self.tokens.get(after).kind
+        after.index += 1; // this function does not automatically ignore whitespace
+        after
     }
 
     fn ty_atom(&mut self) -> Result<TypeId, ParseError> {
@@ -531,7 +540,7 @@ impl<'a> Parser<'a> {
             LParen => {
                 let open = self.id;
                 // lambda and generics are the only places we peek after matching close bracket
-                let after = self.after_close();
+                let after = self.get(self.non_ws(self.after_close()));
                 self.next();
                 if let Colon | Arrow = after {
                     let bind = if let RParen = self.peek() {
@@ -630,7 +639,7 @@ impl<'a> Parser<'a> {
             match self.peek() {
                 LBracket => {
                     // lambda and generics are the only places we peek after matching close bracket
-                    let after = self.after_close();
+                    let after = self.get(self.after_close());
                     self.next();
                     // same set of tokens allowed at the start of an atomic expression
                     if let LParen | LBrace | Ident | Undefined | Number = after {
