@@ -90,7 +90,6 @@ td {
   padding: 5px;
   width: 100px;
   box-shadow: 2px 2px 3px rgba(0, 0, 0, 0.3);
-  /* box-shadow: 4px 4px 3px var(--blue_grey); */
   cursor: pointer;
 }
 

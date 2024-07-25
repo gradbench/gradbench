@@ -73,22 +73,36 @@ const App = () => {
       </p>
 
       <div className="subheader-container">
+        <h2 className="subheading">Differentiable Programming</h2>
+        <div className="box">
+          <p className="text">
+            Differentiable programming is an approach that leverages{" "}
+            <span className="bold">automatic differentiation</span> (autodiff).
+            It involves programs capable of automatically computing the
+            derivatives of mathematical functions with respect to their inputs.
+            This capability is particularly useful for
+            <ul style={{ padding: "0.5em 1.5em" }}>
+              <li>implementing interactivity in programs,</li>
+              <li>training machine learning models with gradient descent,</li>
+              <li>and solving optimization problems.</li>
+            </ul>
+            Overall, differentiable programming is a powerful tool that leads to
+            more effective and adaptive code.
+          </p>
+        </div>
+      </div>
+
+      <div className="subheader-container">
         <h2 className="subheading">Benchmarking</h2>
         <div className="box">
-          <ul>
-            <li>
-              {" "}
-              GradBench is designed to work across languages and domains.{" "}
-            </li>
-            <li>
-              Functions are written in <span className="bold">Adroit</span> and
-              automatically translated to a tool's native language.
-            </li>
-            <li>
-              The architecture allows for the easy addition of new functions and
-              tools.
-            </li>
-          </ul>
+          <div className="text">
+            GradBench is a benchmarking suite for autodiff tools. It is designed
+            to work across languages and domains. This is possible because
+            functions are written in <span className="bold">Adroit</span> and
+            automatically translated to a given tool's native language. This
+            architecture allows for the easy addition of new functions and
+            tools.
+          </div>
         </div>
       </div>
 
@@ -161,12 +175,20 @@ const App = () => {
               </pre>
             </div>
             As shown in this example, Adroit supports typed indexes for arrays
-            similar to <a href="https://futhark-lang.org/">Futhark</a>, and
-            those index types can be algebraic types (similar to tuples or enums
-            in many languages) as in{" "}
-            <a href="https://github.com/google-research/dex-lang">Dex</a>. The
-            Adroit compiler is <span className="bold">fast</span>: it can lex,
-            parse, and typecheck over a million lines of code per second,
+            similar to{" "}
+            <a href="https://futhark-lang.org/" target="_blank">
+              Futhark
+            </a>
+            , and those index types can be algebraic types (similar to tuples or
+            enums in many languages) as in{" "}
+            <a
+              href="https://github.com/google-research/dex-lang"
+              target="_blank"
+            >
+              Dex
+            </a>
+            . The Adroit compiler is <span className="bold">fast</span>: it can
+            lex, parse, and typecheck over a million lines of code per second,
             causing little overhead as an initial preprocessing step before
             passing typed IR as JSON to another tool to perform automatic
             differentiation.
@@ -186,10 +208,11 @@ const App = () => {
               <br />
               <br />
               We are currently working on implementing functions from
-              Microsoft's ADBench suite. The Gaussian Mixture Model Fitting (
-              <span className="bold">GMM</span>) equation is currently only
-              supported by PyTorch. Additionally, PyTorch's support for the
-              Bundle Adjustment (<span className="bold">BA</span>) equation is
+              Microsoft's ADBench suite. The{" "}
+              <span className="bold">Gaussian Mixture Model Fitting</span> (GMM)
+              equation is currently only supported by PyTorch. Additionally,
+              PyTorch's support for the{" "}
+              <span className="bold">Bundle Adjustment</span> (BA) equation is
               in-progress.
             </p>
           </div>
