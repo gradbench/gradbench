@@ -1,14 +1,12 @@
-:root {
-  --dark_blue: #336699;
-  --blue_grey: #3e4756;
-}
-
 * {
   margin: 0;
+  --dark_blue: #336699;
+  --blue_grey: #3e4756;
+  font-family: sans-serif;
 }
 
-body {
-  font-family: sans-serif;
+#content {
+  margin-top: 100px;
 }
 
 /* Banner */
@@ -16,10 +14,19 @@ body {
   padding: 10px;
   text-align: left;
   background-color: var(--dark_blue);
-  /* background-image: linear-gradient(to right, var(--dark_blue), Gainsboro); */
   color: white;
   font-size: 60px;
+  position: sticky;
+  top: 0;
+  z-index: 999;
 }
+
+.stick {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
 .header img {
   vertical-align: middle;
   margin-right: 10px;
@@ -35,7 +42,9 @@ body {
 }
 
 ul {
-  padding-left: 50px;
+  padding-left: 40px;
+  padding-top: 20px;
+  padding-bottom: 20px;
 }
 
 li::marker {
@@ -77,7 +86,15 @@ td {
   border-radius: 10px;
   padding: 5px;
   width: 100px;
-  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3); /* Adds drop shadow */
+  box-shadow: 2px 2px 3px rgba(0, 0, 0, 0.3);
+  /* box-shadow: 4px 4px 3px var(--blue_grey); */
+  cursor: pointer;
+}
+
+.tool:hover,
+.module:hover {
+  background-color: var(--dark_blue);
+  opacity: 0.8;
 }
 
 /* Alternating row colors */
@@ -107,31 +124,33 @@ tr:nth-child(odd) td:not(:first-child) {
 .subheading {
   display: inline-block;
   margin-left: 15px;
-  padding-bottom: 0px;
   color: var(--blue_grey);
   font-size: 36px;
 }
 .box {
   background-color: #f2f2f2;
   border-radius: 10px;
-  padding: 20px 20px 20px 0px;
-  margin-left: 10px;
-  margin-right: 10px;
-  box-sizing: border-box; /* Include padding in the width and height */
+  margin: 20px;
+  box-sizing: border-box;
 }
 
 /* general */
 .container {
   display: flex;
-  align-items: flex-start;
   align-items: stretch;
   margin-bottom: 20px;
   margin-right: 20px;
 }
 
 .text {
-  padding: 0px 50px 50px 50px;
+  padding: 20px;
 }
+
+.bold {
+  font-weight: bold;
+  color: var(--blue_grey);
+}
+
 /* Medium Screen */
 @media (max-width: 1400px) {
   .header {
@@ -171,13 +190,8 @@ tr:nth-child(odd) td:not(:first-child) {
   }
   .subheading {
     font-size: 24px;
-    padding: 5px;
     text-align: left;
-    margin-left: 0;
-  }
-  .fillspace {
-    margin-left: 5px;
-    margin-right: 5px;
+    margin-left: 10px;
   }
 
   .tbody {
@@ -193,20 +207,11 @@ tr:nth-child(odd) td:not(:first-child) {
 
   .container {
     flex-direction: column;
-    align-items: stretch;
-
-    display: flex;
     justify-content: center;
-    align-items: center;
     height: 100%;
     width: 100%;
   }
-  .text {
-    padding: 0px 20px 20px 20px;
-  }
-  ul {
-    padding-left: 30px;
-  }
+
   .github-corner {
     height: 60px;
     width: 60px;
@@ -227,10 +232,6 @@ tr:nth-child(odd) td:not(:first-child) {
   }
   .hidden {
     font-size: medium;
-    padding: 10px;
-  }
-
-  .text {
     padding: 10px;
   }
 
