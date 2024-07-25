@@ -269,10 +269,6 @@ impl Module {
         &self.imports
     }
 
-    pub fn types(&self) -> &[Type] {
-        &self.types
-    }
-
     pub fn params(&self) -> &[Param] {
         &self.params
     }

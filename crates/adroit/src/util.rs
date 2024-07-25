@@ -302,6 +302,18 @@ pub fn error(modules: &Modules, err: Error) {
                 typecheck::TypeError::Untyped { name } => {
                     (tokens.get(name).byte_range(), "untyped".to_owned())
                 }
+                typecheck::TypeError::Type {
+                    id,
+                    expected,
+                    actual,
+                } => (
+                    range::ty_range(tokens, tree, id),
+                    format!(
+                        "expected `{}`, got `{}`",
+                        printer.ty(expected),
+                        printer.ty(actual)
+                    ),
+                ),
                 typecheck::TypeError::Param {
                     id,
                     expected,

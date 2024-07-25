@@ -256,6 +256,11 @@ pub enum TypeError {
     Untyped {
         name: TokenId,
     },
+    Type {
+        id: parse::TypeId,
+        expected: TypeId,
+        actual: TypeId,
+    },
     Param {
         id: parse::ParamId,
         expected: TypeId,
@@ -479,12 +484,32 @@ impl<'a> Typer<'a> {
         types: &IndexMap<&'a str, TypeId>,
         names: &mut Vec<&'a str>,
         id: parse::ParamId,
-        mut ty: TypeId,
+        t: TypeId,
     ) -> TypeResult<()> {
         let src = Src::Param { id };
-        let val = self.val(Val { src, ty });
-        self.module.params[usize::from(id)] = val;
-        match self.tree.param(id).bind {
+        let param = self.tree.param(id);
+        let (ty, val) = match param.ty {
+            Some(ast) => {
+                let ty = self.parse_ty(types, ast)?;
+                let val = self.val(Val { src, ty });
+                self.module.params[usize::from(id)] = val;
+                if ty == t {
+                    (ty, val)
+                } else {
+                    return Err(TypeError::Type {
+                        id: ast,
+                        expected: t,
+                        actual: ty,
+                    });
+                }
+            }
+            None => {
+                let val = self.val(Val { src, ty: t });
+                self.module.params[usize::from(id)] = val;
+                (t, val)
+            }
+        };
+        match param.bind {
             parse::Bind::Paren { inner } => self.param(types, names, inner, ty),
             parse::Bind::Unit { open: _, close: _ } => {
                 let actual = self.ty(Type::Unit)?;
@@ -527,18 +552,19 @@ impl<'a> Typer<'a> {
                         _ => panic!("invalid record"),
                     }
                 }
+                let mut t = ty;
                 for (s, param) in fields {
-                    if let Type::Record { name, field, rest } = self.module.ty(ty) {
+                    if let Type::Record { name, field, rest } = self.module.ty(t) {
                         if s != self.module.field(name) {
                             todo!()
                         }
                         self.param(types, names, param, field)?;
-                        ty = rest;
+                        t = rest;
                     } else {
                         todo!()
                     }
                 }
-                match self.module.ty(ty) {
+                match self.module.ty(t) {
                     Type::End => Ok(()),
                     _ => todo!(),
                 }
