@@ -1,8 +1,6 @@
-import argparse
 import json
 import sys
 from pathlib import Path
-from random import Random
 
 import numpy as np
 
@@ -59,19 +57,16 @@ def main():
             {"kind": "evaluate", "module": module, "name": name, "input": input}
         )
 
-    print("Constructing Define", file=sys.stderr)
     module = "ba"
     response = define(module=module, source=source)
     if response.get("success"):
-        for datafile in Path("data").iterdir():
-            if datafile.is_file():
+        for i in range(1,21):
+            datafile = next(Path("data").glob(f"ba{i}_*.txt"), None)
+            if datafile:
                 input = parse(datafile)
-                print(f"calculating objective for {datafile}", file=sys.stderr)
                 evaluate(module=module, name="calculate_objectiveBA", input=input)
-                print(f"finished calculating jacobian for {datafile}", file=sys.stderr)
                 evaluate(module=module, name="calculate_jacobianBA", input=input)
-                print(f"finished calculating jacobian for {datafile}", file=sys.stderr)
-                exit()
+                exit() #stop for now as larger files do not work
 
 
 if __name__ == "__main__":

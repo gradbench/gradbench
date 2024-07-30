@@ -38,13 +38,10 @@ def output(ret):
 
 def run(params):
     func = resolve(params["module"], params["name"])
-    print("Got function", file=sys.stderr)
     arg = tensor(params["input"])
-    print("Calling Function", file=sys.stderr)
     start = time.perf_counter_ns()
     ret = func(arg)
     end = time.perf_counter_ns()
-    print("Successfully called function", file=sys.stderr)
     return {"output": output(ret), "nanoseconds": {"evaluate": end - start}}
 
 
@@ -53,11 +50,8 @@ def main():
         message = json.loads(line)
         response = {}
         if message["kind"] == "evaluate":
-            print("Recieved evaluate", file=sys.stderr)
             response = run(message)
-            print("Returing response", file=sys.stderr)
         elif message["kind"] == "define":
-            print("Recieved define", file=sys.stderr)
             try:
                 import_module(message["module"])
                 response["success"] = True

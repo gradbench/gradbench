@@ -3,17 +3,17 @@
 
 """
 Changes Made:
-- Added two functions to create a PyTorchBA object and call calculate_objective and calculate_jacobian
+- Added two functions to create a PyTorchBA object and call calculate_objective and calculate_jacobian within a given time frame
 """
 
-import numpy as np
 import torch
 from ba_data import BAInput, BAOutput
 from ba_objective import compute_reproj_err, compute_w_err
 from ba_sparse_mat import BASparseMat
 from itest import ITest
-from utils import to_torch_tensor, to_torch_tensors, torch_jacobian
+from utils import to_torch_tensor, torch_jacobian
 
+import signal
 
 class PyTorchBA(ITest):
     """Test class for BA diferentiation by PyTorch."""
@@ -94,6 +94,14 @@ class PyTorchBA(ITest):
             self.reproj_error = reproj_error.flatten()
 
 
+TIMEOUT = 300
+
+class TimeoutException(Exception):
+    pass
+
+def timeout_handler(signum, frame):
+    raise TimeoutException()
+
 def calculate_jacobianBA(inputs):
     input = BAInput(
         inputs["cams"],
@@ -104,8 +112,16 @@ def calculate_jacobianBA(inputs):
     )
     py = PyTorchBA()
     py.prepare(input)
-    py.calculate_jacobian(1)
-    return py.jacobian
+
+    signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(TIMEOUT)
+
+    try:
+        py.calculate_jacobian(1)
+        signal.alarm(0)  # Disable the alarm
+        return py.jacobian
+    except TimeoutException:
+        return "Process terminated due to timeout."
 
 
 def calculate_objectiveBA(inputs):
@@ -118,5 +134,13 @@ def calculate_objectiveBA(inputs):
     )
     py = PyTorchBA()
     py.prepare(input)
-    py.calculate_objective(1)
-    return (py.reproj_error, py.w_err)
+
+    signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(TIMEOUT)
+
+    try:
+        py.calculate_objective(1)
+        signal.alarm(0)  # Disable the alarm
+        return (py.reproj_error, py.w_err)
+    except TimeoutException:
+        return "Process terminated due to timeout."
