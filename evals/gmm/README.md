@@ -1,6 +1,6 @@
 # Gaussian Mixture Model Fitting (GMM)
 
-Information on functions from Microsoft's [ADBench](https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87) based on their python implementation
+Information on the GMM equation from Microsoft's [ADBench](https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87) based on their python implementation
 
 ## Gaussian Mixture Model Fitting (GMM)
 
