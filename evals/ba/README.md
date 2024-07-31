@@ -12,7 +12,7 @@ Files are provided with information to generate the below inputs. 3 values, N, M
 
 The data generator returns a dictionary with the following inputs
 
-1. Cams: Set of camera parameteres used. The parameters are rotation, camera center, focal length, principal point, and radial distortion. $c$ is duplicated N times to create
+1. Cams: Set of camera parameters used. The parameters are rotation, camera center, focal length, principal point, and radial distortion. $c$ is duplicated N times to create
 
    $$cams \in \mathbb{R}^{N \times 11}$$
 
@@ -42,7 +42,7 @@ $$reproj_{error} \in \mathbb{R}^{2P}$$
 
 $$w_{error} \in \mathbb{R}^{P}$$
 
-3. Jacobian ($J$): How the reprojetion errir will change given adjustements to the above inputs.
+3. Jacobian ($J$): How the reprojection error will change given adjustments to the above inputs.
 
 $$BASparseMat \in \mathbb{R}^{(2P + P) \times (11N +3M + P)}$$
 

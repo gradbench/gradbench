@@ -1,9 +1,33 @@
 # Copyright (c) Microsoft Corporation.
-# Licensed under the MIT license.
+
+# MIT License
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/modules/PyTorch/PyTorchBA.py
 
 """
 Changes Made:
-- Added two functions to create a PyTorchBA object and call calculate_objective and calculate_jacobian within a given time frame
+- Added two functions to create a PyTorchBA object and call calculate_objective and calculate_jacobian
+- Added timeout feature for function calls
+- Added two functions to convert BA output to JSON serializable objects
+- Added a function to create BA input based on data provided in files
 """
 
 import torch
@@ -14,6 +38,8 @@ from itest import ITest
 from utils import to_torch_tensor, torch_jacobian
 
 import signal
+import numpy as np
+import sys
 
 class PyTorchBA(ITest):
     """Test class for BA diferentiation by PyTorch."""
@@ -102,14 +128,50 @@ class TimeoutException(Exception):
 def timeout_handler(signum, frame):
     raise TimeoutException()
 
-def calculate_jacobianBA(inputs):
-    input = BAInput(
-        inputs["cams"],
-        inputs["X"],
-        inputs["w"],
-        inputs["obs"],
-        inputs["feats"],
-    )
+# Convert objective output to dictionary
+def objective_output(errors):
+    try:
+        r_err, w_err = errors
+        num_r = len(r_err.tolist())/2
+        num_w = len(w_err.tolist())
+        return {"reproj_error": {"elements": r_err.tolist()[:2], "repeated": num_r}, "w_err":{"element": w_err.tolist()[0], "repeared": num_w}}
+    except:
+        return errors
+
+# Convert jacobian output to dictionary
+def jacobian_output(ba_mat):
+    try:
+        return {"BASparseMat": {"rows": ba_mat.nrows, "columns": ba_mat.ncols }}
+    except:
+        return ba_mat
+
+# Parse JSON input and convert to BAInput
+def parse_input(inputs):
+    n = inputs["n"]
+    m = inputs["m"]
+    p = inputs["p"]
+    one_cam = inputs["cam"]
+    one_X = inputs["x"]
+    one_w = inputs["w"]
+    one_feat = inputs["feat"]
+
+    cams = np.tile(one_cam, (n, 1)).tolist()
+    X = np.tile(one_X, (m, 1)).tolist()
+    w = np.tile(one_w, p).tolist()
+    feats = np.tile(one_feat, (p, 1)).tolist()
+
+    camIdx = 0
+    ptIdx = 0
+    obs = []
+    for i in range(p):
+        obs.append((camIdx, ptIdx))
+        camIdx = (camIdx + 1) % n
+        ptIdx = (ptIdx + 1) % m
+
+    return BAInput(cams, X, w, obs, feats)
+
+
+def calculate_jacobianBA(input):
     py = PyTorchBA()
     py.prepare(input)
 
@@ -124,14 +186,7 @@ def calculate_jacobianBA(inputs):
         return "Process terminated due to timeout."
 
 
-def calculate_objectiveBA(inputs):
-    input = BAInput(
-        inputs["cams"],
-        inputs["X"],
-        inputs["w"],
-        inputs["obs"],
-        inputs["feats"],
-    )
+def calculate_objectiveBA(input):
     py = PyTorchBA()
     py.prepare(input)
 
