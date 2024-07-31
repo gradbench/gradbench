@@ -1,0 +1,29 @@
+def array[N, T]: []T -> [N]T = undefined
+
+def concat[M, N, T]: [M]T * [N]T -> [M + N]T = undefined
+
+def for[N, T]: (N -> T) -> [N]T = undefined
+
+def map[N, T, U]: [N]T * (T -> U) -> [N]U = undefined
+
+def max[N]: [N]Float -> Float = undefined
+
+def matrix[M, N, T]: [][]T -> [M * N]T = undefined
+
+def range: Int -> []Int = undefined
+
+def reshape[M, N, T]: [N]T -> [M]T = undefined
+
+def row[M, N, T]: [M * N]T * M -> [N]T = undefined
+
+def scan[T, U]: T * []U * (T * U -> T) -> []T = undefined
+
+def slice[T]: []T * Int * Int -> []T = undefined
+
+def stack[M, N, T]: [M][N]T -> [M * N]T = undefined
+
+def sum[N]: [N]Float -> Float = undefined
+
+def transpose[M, N, T]: [M * N]T -> [N * M]T = undefined
+
+def zeros[N]: () -> [N]Float = undefined

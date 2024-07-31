@@ -1,0 +1,15 @@
+def exp: Float -> Float = undefined
+
+def float: Int -> Float = undefined
+
+def int[N]: () -> Int = undefined
+
+def lgamma: Float -> Float = undefined
+
+def log: Float -> Float = undefined
+
+def pi: Float = undefined
+
+def sqr(x: Float): Float = x * x
+
+def sqrt: Float -> Float = undefined
