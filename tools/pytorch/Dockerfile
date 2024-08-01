@@ -7,6 +7,7 @@ RUN pip install numpy==1.26.0 && \
 WORKDIR /home/gradbench
 
 COPY tools/pytorch/ .
+COPY shared/wrap_module.py .
 COPY shared/ADBench/ .
 
 ENTRYPOINT ["python", "/home/gradbench/run.py"]

@@ -27,11 +27,11 @@ Changes Made:
 - Added two functions to create a PyTorchBA object and call calculate_objective and calculate_jacobian
 - Added timeout feature for function calls
 - Added two functions to convert BA output to JSON serializable objects
+- Added decorator to wrap funciton call
 - Added a function to create BA input based on data provided in files
 """
 
 import signal
-import sys
 
 import numpy as np
 import torch
@@ -40,6 +40,7 @@ from ba_objective import compute_reproj_err, compute_w_err
 from ba_sparse_mat import BASparseMat
 from itest import ITest
 from utils import to_torch_tensor, torch_jacobian
+from wrap_module import wrap
 
 
 class PyTorchBA(ITest):
@@ -180,21 +181,7 @@ def parse_input(inputs):
     return BAInput(cams, X, w, obs, feats)
 
 
-def calculate_jacobianBA(input):
-    py = PyTorchBA()
-    py.prepare(input)
-
-    signal.signal(signal.SIGALRM, timeout_handler)
-    signal.alarm(TIMEOUT)
-
-    try:
-        py.calculate_jacobian(1)
-        signal.alarm(0)  # Disable the alarm
-        return py.jacobian
-    except TimeoutException:
-        return "Process terminated due to timeout."
-
-
+@wrap(parse_input, objective_output)
 def calculate_objectiveBA(input):
     py = PyTorchBA()
     py.prepare(input)
@@ -206,5 +193,21 @@ def calculate_objectiveBA(input):
         py.calculate_objective(1)
         signal.alarm(0)  # Disable the alarm
         return (py.reproj_error, py.w_err)
+    except TimeoutException:
+        return "Process terminated due to timeout."
+
+
+@wrap(parse_input, jacobian_output)
+def calculate_jacobianBA(input):
+    py = PyTorchBA()
+    py.prepare(input)
+
+    signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(TIMEOUT)
+
+    try:
+        py.calculate_jacobian(1)
+        signal.alarm(0)  # Disable the alarm
+        return py.jacobian
     except TimeoutException:
         return "Process terminated due to timeout."
