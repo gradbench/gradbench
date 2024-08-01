@@ -25,6 +25,8 @@
 """
 Changes Made:
 - Added two functions to create a PyTorchGMM object and call calculate_objective and calculate_jacobian
+- Added function to create GMMInput object
+- Import a decorator to convert input and outputs to necessary types
 """
 
 import numpy as np
@@ -34,6 +36,7 @@ from gmm_data import GMMInput
 from gmm_objective import gmm_objective
 from itest import ITest
 from utils import to_torch_tensor, to_torch_tensors, torch_jacobian
+from wrap_module import wrap
 
 
 class PyTorchGMM(ITest):
@@ -72,28 +75,26 @@ class PyTorchGMM(ITest):
             )
 
 
-def calculate_jacobianGMM(inputs):
-    input = GMMInput(
-        inputs["alpha"],
-        inputs["means"],
-        inputs["icf"],
-        inputs["x"],
-        Wishart(inputs["gamma"], inputs["m"]),
+def prepare_input(input):
+    return GMMInput(
+        input["alpha"],
+        input["means"],
+        input["icf"],
+        input["x"],
+        Wishart(input["gamma"], input["m"]),
     )
+
+
+@wrap(prepare_input, lambda x: x.tolist())
+def calculate_jacobianGMM(input):
     py = PyTorchGMM()
     py.prepare(input)
     py.calculate_jacobian(1)
     return py.gradient
 
 
-def calculate_objectiveGMM(inputs):
-    input = GMMInput(
-        inputs["alpha"],
-        inputs["means"],
-        inputs["icf"],
-        inputs["x"],
-        Wishart(inputs["gamma"], inputs["m"]),
-    )
+@wrap(prepare_input, lambda x: x.tolist())
+def calculate_objectiveGMM(input):
     py = PyTorchGMM()
     py.prepare(input)
     py.calculate_objective(1)
