@@ -27,7 +27,7 @@ Changes Made:
 - Added two functions to create a PyTorchBA object and call calculate_objective and calculate_jacobian
 - Added timeout feature for function calls
 - Added two functions to convert BA output to JSON serializable objects
-- Added decorator to wrap funciton call
+- Import a dectorator to use converter functions
 - Added a function to create BA input based on data provided in files
 """
 
@@ -156,14 +156,14 @@ def jacobian_output(ba_mat):
 
 
 # Parse JSON input and convert to BAInput
-def parse_input(inputs):
-    n = inputs["n"]
-    m = inputs["m"]
-    p = inputs["p"]
-    one_cam = inputs["cam"]
-    one_X = inputs["x"]
-    one_w = inputs["w"]
-    one_feat = inputs["feat"]
+def prepare_input(input):
+    n = input["n"]
+    m = input["m"]
+    p = input["p"]
+    one_cam = input["cam"]
+    one_X = input["x"]
+    one_w = input["w"]
+    one_feat = input["feat"]
 
     cams = np.tile(one_cam, (n, 1)).tolist()
     X = np.tile(one_X, (m, 1)).tolist()
@@ -181,7 +181,7 @@ def parse_input(inputs):
     return BAInput(cams, X, w, obs, feats)
 
 
-@wrap(parse_input, objective_output)
+@wrap(prepare_input, objective_output)
 def calculate_objectiveBA(input):
     py = PyTorchBA()
     py.prepare(input)
@@ -197,7 +197,7 @@ def calculate_objectiveBA(input):
         return "Process terminated due to timeout."
 
 
-@wrap(parse_input, jacobian_output)
+@wrap(prepare_input, jacobian_output)
 def calculate_jacobianBA(input):
     py = PyTorchBA()
     py.prepare(input)

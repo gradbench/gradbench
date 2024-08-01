@@ -1,5 +1,11 @@
+from functools import wraps
+
+
 def wrap(wrap_in, wrap_out):
+
     def main_decorator(func):
+
+        @wraps(func)
         def args(input):
             inputs = wrap_in(input)
             ret = func(inputs)
