@@ -13,7 +13,6 @@ def square(x):
 
 @wrap(to_tensor, lambda x: x.item())
 def double(x):
-    # call the function without the decorator, could also write second function or call x*x here
-    y = square.__wrapped__(x)
+    y = square(x)
     y.backward()
     return x.grad

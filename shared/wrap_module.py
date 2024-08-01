@@ -1,16 +1,19 @@
-from functools import wraps
+from dataclasses import dataclass
+
+
+@dataclass
+class Functions:
+    original: callable
+    prepare: callable
+    unwrap: callable
+
+    def __call__(self, *args, **kwargs):
+        return self.original(*args, **kwargs)
 
 
 def wrap(wrap_in, wrap_out):
 
     def main_decorator(func):
-
-        @wraps(func)
-        def args(input):
-            inputs = wrap_in(input)
-            ret = func(inputs)
-            return wrap_out(ret)
-
-        return args
+        return Functions(original=func, prepare=wrap_in, unwrap=wrap_out)
 
     return main_decorator
