@@ -30,6 +30,10 @@ Changes Made:
 - Added a function to create BA input based on data provided in files
 """
 
+import signal
+import sys
+
+import numpy as np
 import torch
 from ba_data import BAInput, BAOutput
 from ba_objective import compute_reproj_err, compute_w_err
@@ -37,9 +41,6 @@ from ba_sparse_mat import BASparseMat
 from itest import ITest
 from utils import to_torch_tensor, torch_jacobian
 
-import signal
-import numpy as np
-import sys
 
 class PyTorchBA(ITest):
     """Test class for BA diferentiation by PyTorch."""
@@ -122,28 +123,36 @@ class PyTorchBA(ITest):
 
 TIMEOUT = 300
 
+
 class TimeoutException(Exception):
     pass
 
+
 def timeout_handler(signum, frame):
     raise TimeoutException()
+
 
 # Convert objective output to dictionary
 def objective_output(errors):
     try:
         r_err, w_err = errors
-        num_r = len(r_err.tolist())/2
+        num_r = len(r_err.tolist()) / 2
         num_w = len(w_err.tolist())
-        return {"reproj_error": {"elements": r_err.tolist()[:2], "repeated": num_r}, "w_err":{"element": w_err.tolist()[0], "repeared": num_w}}
+        return {
+            "reproj_error": {"elements": r_err.tolist()[:2], "repeated": num_r},
+            "w_err": {"element": w_err.tolist()[0], "repeared": num_w},
+        }
     except:
         return errors
+
 
 # Convert jacobian output to dictionary
 def jacobian_output(ba_mat):
     try:
-        return {"BASparseMat": {"rows": ba_mat.nrows, "columns": ba_mat.ncols }}
+        return {"BASparseMat": {"rows": ba_mat.nrows, "columns": ba_mat.ncols}}
     except:
         return ba_mat
+
 
 # Parse JSON input and convert to BAInput
 def parse_input(inputs):

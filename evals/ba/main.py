@@ -18,7 +18,15 @@ def parse(file):
 
     one_feat = [float(x) for x in next(lines).split()]
 
-    return {"n": n, "m": m, "p": p, "cam": one_cam, "x": one_X, "w": one_w, "feat": one_feat }
+    return {
+        "n": n,
+        "m": m,
+        "p": p,
+        "cam": one_cam,
+        "x": one_X,
+        "w": one_w,
+        "feat": one_feat,
+    }
 
 
 def main():
@@ -48,7 +56,7 @@ def main():
     if response.get("success"):
         # NOTE: data files are taken directly from ADBench. See README for more information.
         # Currently set to run on the smallest two data files. To run on all 20 set loop range to be: range(1,21)
-        for i in range(1,3):
+        for i in range(1, 3):
             datafile = next(Path("data").glob(f"ba{i}_*.txt"), None)
             if datafile:
                 input = parse(datafile)
