@@ -30,7 +30,7 @@ Changes Made:
 - Commented out and removed support for 2.5M datapoints
 """
 
-import os
+
 import sys
 
 import numpy as np
