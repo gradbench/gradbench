@@ -1,0 +1,47 @@
+[
+  {
+    "message": {"id": 1654615998, "kind": "define", "module": "gradbench", "source": "import \"autodiff\" use grad\n\ndef square(x: Float): Float = x * x\n\ndef double: Float -> Float = grad square\n"},
+    "nanoseconds": 2044724947,
+    "response": {"id": 1654615998, "success": true}
+  },
+  {
+    "message": {"id": 1806341205, "kind": "evaluate", "module": "gradbench", "name": "square", "input": 1.0},
+    "nanoseconds": 20810162,
+    "response": {"id": 1806341205, "output": 1.0, "nanoseconds": {"evaluate": 19797250}}
+  },
+  {
+    "message": {"id": 173879092, "kind": "evaluate", "module": "gradbench", "name": "double", "input": 1.0},
+    "nanoseconds": 1044328,
+    "response": {"id": 173879092, "output": 2.0, "nanoseconds": {"evaluate": 556270}}
+  },
+  {
+    "message": {"id": 1112038970, "kind": "evaluate", "module": "gradbench", "name": "square", "input": 2.0},
+    "nanoseconds": 422858,
+    "response": {"id": 1112038970, "output": 4.0, "nanoseconds": {"evaluate": 26440}}
+  },
+  {
+    "message": {"id": 2087043557, "kind": "evaluate", "module": "gradbench", "name": "double", "input": 4.0},
+    "nanoseconds": 509545,
+    "response": {"id": 2087043557, "output": 8.0, "nanoseconds": {"evaluate": 172637}}
+  },
+  {
+    "message": {"id": 1739178872, "kind": "evaluate", "module": "gradbench", "name": "square", "input": 8.0},
+    "nanoseconds": 338533,
+    "response": {"id": 1739178872, "output": 64.0, "nanoseconds": {"evaluate": 23740}}
+  },
+  {
+    "message": {"id": 1302718217, "kind": "evaluate", "module": "gradbench", "name": "double", "input": 64.0},
+    "nanoseconds": 461038,
+    "response": {"id": 1302718217, "output": 128.0, "nanoseconds": {"evaluate": 139875}}
+  },
+  {
+    "message": {"id": 2046968324, "kind": "evaluate", "module": "gradbench", "name": "square", "input": 128.0},
+    "nanoseconds": 392056,
+    "response": {"id": 2046968324, "output": 16384.0, "nanoseconds": {"evaluate": 26568}}
+  },
+  {
+    "message": {"id": 1537810351, "kind": "evaluate", "module": "gradbench", "name": "double", "input": 16384.0},
+    "nanoseconds": 460977,
+    "response": {"id": 1537810351, "output": 32768.0, "nanoseconds": {"evaluate": 152454}}
+  }
+]
