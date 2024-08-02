@@ -3,26 +3,19 @@ import sys
 import time
 from importlib import import_module
 
-import tensorflow as tf
-
 
 def resolve(module, name):
     functions = import_module(module)
     return getattr(functions, name)
 
 
-def tensor(x):
-    return tf.Variable(x, dtype=tf.float64)
-
-
 def run(params):
     func = resolve(params["module"], params["name"])
-    arg = tensor(params["input"])
+    input = func.prepare(params["input"])
     start = time.perf_counter_ns()
-    ret = func(arg)
+    ret = func(input)
     end = time.perf_counter_ns()
-
-    return {"output": ret.numpy(), "nanoseconds": {"evaluate": end - start}}
+    return {"output": func.unwrap(ret), "nanoseconds": {"evaluate": end - start}}
 
 
 def main():

@@ -3,6 +3,8 @@ import sys
 import time
 from importlib import import_module
 
+# NOTE: The current implementation for Tapenade only supports passing in individual scalar inputs.
+
 
 def resolve(module, name):
     functions = import_module(module)
