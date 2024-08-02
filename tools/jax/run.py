@@ -3,31 +3,19 @@ import sys
 import time
 from importlib import import_module
 
-import jax.numpy as jnp
-
-# from jax import grad, jit
-
 
 def resolve(module, name):
     functions = import_module(module)
     return getattr(functions, name)
 
 
-def tensor(x):
-    return jnp.array(x, dtype=jnp.float32)
-
-
 def run(params):
     func = resolve(params["module"], params["name"])
-    arg = tensor(params["input"])
-
-    # jfunc = jit(func)
-
+    input = func.prepare(params["input"])
     start = time.perf_counter_ns()
-    ret = func(arg)
+    ret = func(input)
     end = time.perf_counter_ns()
-
-    return {"output": ret.item(), "nanoseconds": {"evaluate": end - start}}
+    return {"output": func.unwrap(ret), "nanoseconds": {"evaluate": end - start}}
 
 
 def main():

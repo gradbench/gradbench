@@ -11,7 +11,7 @@ def resolve(module, name):
 
 def run(params):
     func = resolve(params["module"], params["name"])
-    arg = params["input"] * 1.0
+    arg = params["input"]
     start = time.perf_counter_ns()
     ret = func(arg)
     end = time.perf_counter_ns()

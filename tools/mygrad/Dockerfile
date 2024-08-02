@@ -4,6 +4,7 @@ RUN pip install mygrad
 WORKDIR /home/gradbench
 
 COPY tools/mygrad/ .
+COPY shared/wrap_module.py .
 
 ENTRYPOINT ["python", "/home/gradbench/run.py"]
 LABEL org.opencontainers.image.source https://github.com/gradbench/gradbench
