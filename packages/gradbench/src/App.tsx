@@ -208,12 +208,15 @@ const App = () => {
               <br />
               <br />
               We are currently working on implementing functions from
-              Microsoft's ADBench suite. The{" "}
+              Microsoft's{" "}
+              <a href="https://github.com/microsoft/ADBench" target="_blank">
+                ADBench
+              </a>{" "}
+              suite. The{" "}
               <span className="bold">Gaussian Mixture Model Fitting</span> (GMM)
-              equation is currently only supported by PyTorch. Additionally,
-              PyTorch's support for the{" "}
-              <span className="bold">Bundle Adjustment</span> (BA) equation is
-              in-progress.
+              and <span className="bold">Bundle Adjustment</span> (BA) equations
+              are currently only supported by PyTorch. We have yet to implement
+              the <span className="bold">Hand Tracking</span> (HT) equation.
             </p>
           </div>
           <div className="tbody">
@@ -320,7 +323,7 @@ const App = () => {
               <tr>
                 <td className="no-border">
                   <a
-                    href="https://github.com/microsoft/ADBench"
+                    href="https://github.com/gradbench/gradbench/tree/main/evals/ba"
                     target="_blank"
                   >
                     <button className="tool">BA</button>
@@ -330,7 +333,7 @@ const App = () => {
                 <td></td>
                 <td></td>
                 <td></td>
-                <td className="emoji">&#8987;</td>
+                <td className="emoji">&#10004;</td>
                 <td></td>
                 <td></td>
                 <td></td>
