@@ -8,6 +8,7 @@ edition = "2021"
 ariadne = "0.4"
 clap = { version = "4", features = ["cargo", "derive"] }
 dirs = "5"
+disjoint-sets = "0.4"
 enumset = "1"
 indexmap = "2"
 itertools = "0.13"
