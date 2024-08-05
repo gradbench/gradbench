@@ -1,5 +1,6 @@
 use std::{fmt, ops::Range};
 
+use disjoint_sets::ElementType;
 use enumset::EnumSetType;
 use logos::Logos;
 use serde::Serialize;
@@ -12,9 +13,16 @@ pub struct ByteIndex {
     pub index: u32,
 }
 
-impl From<ByteIndex> for usize {
-    fn from(index: ByteIndex) -> Self {
-        u32_to_usize(index.index)
+impl ElementType for ByteIndex {
+    fn from_usize(n: usize) -> Option<Self> {
+        match n.try_into() {
+            Ok(index) => Some(Self { index }),
+            Err(_) => None,
+        }
+    }
+
+    fn to_usize(self) -> usize {
+        u32_to_usize(self.index)
     }
 }
 
@@ -24,9 +32,16 @@ pub struct ByteLen {
     pub len: u16,
 }
 
-impl From<ByteLen> for usize {
-    fn from(len: ByteLen) -> Self {
-        len.len.into()
+impl ElementType for ByteLen {
+    fn from_usize(n: usize) -> Option<Self> {
+        match n.try_into() {
+            Ok(len) => Some(Self { len }),
+            Err(_) => None,
+        }
+    }
+
+    fn to_usize(self) -> usize {
+        self.len.into()
     }
 }
 
@@ -183,8 +198,8 @@ pub struct Token {
 
 impl Token {
     pub fn byte_range(&self) -> Range<usize> {
-        let start = usize::from(self.start);
-        start..(start + usize::from(self.len))
+        let start = self.start.to_usize();
+        start..(start + self.len.to_usize())
     }
 
     pub fn string(&self, source: &str) -> String {
@@ -200,9 +215,16 @@ pub struct TokenId {
     pub index: u32,
 }
 
-impl From<TokenId> for usize {
-    fn from(id: TokenId) -> Self {
-        u32_to_usize(id.index)
+impl ElementType for TokenId {
+    fn from_usize(n: usize) -> Option<Self> {
+        match n.try_into() {
+            Ok(index) => Some(Self { index }),
+            Err(_) => None,
+        }
+    }
+
+    fn to_usize(self) -> usize {
+        u32_to_usize(self.index)
     }
 }
 
@@ -218,7 +240,7 @@ impl Tokens {
     }
 
     pub fn get(&self, index: TokenId) -> Token {
-        self.tokens[usize::from(index)]
+        self.tokens[index.to_usize()]
     }
 }
 
@@ -233,13 +255,13 @@ impl LexError {
     pub fn byte_range(&self) -> Range<usize> {
         match *self {
             LexError::SourceTooLong => {
-                let max = usize::from(ByteIndex { index: u32::MAX });
+                let max = ByteIndex { index: u32::MAX }.to_usize();
                 max..max
             }
-            LexError::TokenTooLong { start, end } => usize::from(start)..usize::from(end),
+            LexError::TokenTooLong { start, end } => start.to_usize()..end.to_usize(),
             LexError::InvalidToken { start, len } => {
-                let start = usize::from(start);
-                start..(start + usize::from(len))
+                let start = start.to_usize();
+                start..(start + len.to_usize())
             }
         }
     }
@@ -264,18 +286,10 @@ pub fn lex(source: &str) -> Result<Tokens, LexError> {
     };
     let mut tokens = Vec::new();
     for (result, range) in TokenKind::lexer(source).spanned() {
-        let start = ByteIndex {
-            index: range
-                .start
-                .try_into()
-                .expect("file size limit should ensure all token starts are in range"),
-        };
-        let end = ByteIndex {
-            index: range
-                .end
-                .try_into()
-                .expect("file size limit should ensure all token ends are in range"),
-        };
+        let start = ByteIndex::from_usize(range.start)
+            .expect("file size limit should ensure all token starts are in range");
+        let end = ByteIndex::from_usize(range.end)
+            .expect("file size limit should ensure all token ends are in range");
         let len = ByteLen {
             len: (end.index - start.index)
                 .try_into()

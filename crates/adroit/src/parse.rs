@@ -1,3 +1,4 @@
+use disjoint_sets::ElementType;
 use enumset::EnumSet;
 use serde::Serialize;
 
@@ -16,9 +17,16 @@ pub struct TypeId {
     pub index: u32,
 }
 
-impl From<TypeId> for usize {
-    fn from(id: TypeId) -> Self {
-        u32_to_usize(id.index)
+impl ElementType for TypeId {
+    fn from_usize(n: usize) -> Option<Self> {
+        match n.try_into() {
+            Ok(index) => Some(Self { index }),
+            Err(_) => None,
+        }
+    }
+
+    fn to_usize(self) -> usize {
+        u32_to_usize(self.index)
     }
 }
 
@@ -28,9 +36,16 @@ pub struct ParamId {
     pub index: u32,
 }
 
-impl From<ParamId> for usize {
-    fn from(id: ParamId) -> Self {
-        u32_to_usize(id.index)
+impl ElementType for ParamId {
+    fn from_usize(n: usize) -> Option<Self> {
+        match n.try_into() {
+            Ok(index) => Some(Self { index }),
+            Err(_) => None,
+        }
+    }
+
+    fn to_usize(self) -> usize {
+        u32_to_usize(self.index)
     }
 }
 
@@ -40,9 +55,16 @@ pub struct ExprId {
     pub index: u32,
 }
 
-impl From<ExprId> for usize {
-    fn from(id: ExprId) -> Self {
-        u32_to_usize(id.index)
+impl ElementType for ExprId {
+    fn from_usize(n: usize) -> Option<Self> {
+        match n.try_into() {
+            Ok(index) => Some(Self { index }),
+            Err(_) => None,
+        }
+    }
+
+    fn to_usize(self) -> usize {
+        u32_to_usize(self.index)
     }
 }
 
@@ -52,9 +74,16 @@ pub struct DefId {
     pub index: u32,
 }
 
-impl From<DefId> for usize {
-    fn from(id: DefId) -> Self {
-        u32_to_usize(id.index)
+impl ElementType for DefId {
+    fn from_usize(n: usize) -> Option<Self> {
+        match n.try_into() {
+            Ok(index) => Some(Self { index }),
+            Err(_) => None,
+        }
+    }
+
+    fn to_usize(self) -> usize {
+        u32_to_usize(self.index)
     }
 }
 
@@ -218,51 +247,34 @@ pub struct Module {
 
 impl Module {
     fn make_ty(&mut self, ty: Type) -> TypeId {
-        let id = TypeId {
-            index: self
-                .types
-                .len()
-                .try_into()
-                .expect("tokens should outnumber types"),
-        };
+        let id = TypeId::from_usize(self.types.len()).expect("tokens should outnumber types");
         self.types.push(ty);
         id
     }
 
     fn make_param(&mut self, param: Param) -> ParamId {
-        let id = ParamId {
-            index: self
-                .params
-                .len()
-                .try_into()
-                .expect("tokens should outnumber parameters"),
-        };
+        let id =
+            ParamId::from_usize(self.params.len()).expect("tokens should outnumber parameters");
         self.params.push(param);
         id
     }
 
     fn make_expr(&mut self, expr: Expr) -> ExprId {
-        let id = ExprId {
-            index: self
-                .exprs
-                .len()
-                .try_into()
-                .expect("tokens should outnumber expressions"),
-        };
+        let id = ExprId::from_usize(self.exprs.len()).expect("tokens should outnumber expressions");
         self.exprs.push(expr);
         id
     }
 
     pub fn ty(&self, id: TypeId) -> Type {
-        self.types[usize::from(id)]
+        self.types[id.to_usize()]
     }
 
     pub fn param(&self, id: ParamId) -> Param {
-        self.params[usize::from(id)]
+        self.params[id.to_usize()]
     }
 
     pub fn expr(&self, id: ExprId) -> Expr {
-        self.exprs[usize::from(id)]
+        self.exprs[id.to_usize()]
     }
 
     pub fn imports(&self) -> &[Import] {
@@ -349,7 +361,7 @@ impl<'a> Parser<'a> {
     }
 
     fn after_close(&self) -> TokenId {
-        let mut after = self.brackets[usize::from(self.id)];
+        let mut after = self.brackets[self.id.to_usize()];
         assert!(after.index > self.id.index);
         after.index += 1; // this function does not automatically ignore whitespace
         after
@@ -887,8 +899,8 @@ fn brackets(tokens: &Tokens) -> Result<Vec<TokenId>, ParseError> {
                         kinds: EnumSet::only(expected),
                     });
                 }
-                brackets[usize::from(open)] = id;
-                brackets[usize::from(id)] = open;
+                brackets[open.to_usize()] = id;
+                brackets[id.to_usize()] = open;
             }
             _ => {}
         }

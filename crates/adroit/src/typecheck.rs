@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
+use disjoint_sets::ElementType;
 use indexmap::{map::RawEntryApiV1, IndexMap, IndexSet};
 use serde::{ser::SerializeSeq, Serialize, Serializer};
 
@@ -15,9 +16,16 @@ pub struct ImportId {
     pub index: u16,
 }
 
-impl From<ImportId> for usize {
-    fn from(id: ImportId) -> Self {
-        id.index.into()
+impl ElementType for ImportId {
+    fn from_usize(n: usize) -> Option<Self> {
+        match n.try_into() {
+            Ok(index) => Some(Self { index }),
+            Err(_) => None,
+        }
+    }
+
+    fn to_usize(self) -> usize {
+        self.index.into()
     }
 }
 
@@ -27,9 +35,16 @@ pub struct FieldId {
     pub index: u32,
 }
 
-impl From<FieldId> for usize {
-    fn from(id: FieldId) -> Self {
-        u32_to_usize(id.index)
+impl ElementType for FieldId {
+    fn from_usize(n: usize) -> Option<Self> {
+        match n.try_into() {
+            Ok(index) => Some(Self { index }),
+            Err(_) => None,
+        }
+    }
+
+    fn to_usize(self) -> usize {
+        u32_to_usize(self.index)
     }
 }
 
@@ -39,9 +54,16 @@ pub struct TypeId {
     pub index: u32,
 }
 
-impl From<TypeId> for usize {
-    fn from(id: TypeId) -> Self {
-        u32_to_usize(id.index)
+impl ElementType for TypeId {
+    fn from_usize(n: usize) -> Option<Self> {
+        match n.try_into() {
+            Ok(index) => Some(Self { index }),
+            Err(_) => None,
+        }
+    }
+
+    fn to_usize(self) -> usize {
+        u32_to_usize(self.index)
     }
 }
 
@@ -51,9 +73,16 @@ pub struct VarId {
     pub index: u32,
 }
 
-impl From<VarId> for usize {
-    fn from(id: VarId) -> Self {
-        u32_to_usize(id.index)
+impl ElementType for VarId {
+    fn from_usize(n: usize) -> Option<Self> {
+        match n.try_into() {
+            Ok(index) => Some(Self { index }),
+            Err(_) => None,
+        }
+    }
+
+    fn to_usize(self) -> usize {
+        u32_to_usize(self.index)
     }
 }
 
@@ -63,9 +92,16 @@ pub struct ValId {
     pub index: u32,
 }
 
-impl From<ValId> for usize {
-    fn from(id: ValId) -> Self {
-        u32_to_usize(id.index)
+impl ElementType for ValId {
+    fn from_usize(n: usize) -> Option<Self> {
+        match n.try_into() {
+            Ok(index) => Some(Self { index }),
+            Err(_) => None,
+        }
+    }
+
+    fn to_usize(self) -> usize {
+        u32_to_usize(self.index)
     }
 }
 
@@ -137,19 +173,14 @@ impl Fields {
     }
 
     fn get(&self, id: FieldId) -> &str {
-        let (s, _) = self.fields.get_index(usize::from(id)).unwrap();
+        let (s, _) = self.fields.get_index(id.to_usize()).unwrap();
         s
     }
 
     fn make(&mut self, field: &str) -> TypeResult<FieldId> {
         let entry = self.fields.raw_entry_mut_v1().from_key(field);
-        let id = FieldId {
-            // maybe more fields than tokens, because of imports
-            index: entry
-                .index()
-                .try_into()
-                .map_err(|_| TypeError::TooManyFields)?,
-        };
+        // maybe more fields than tokens, because of imports
+        let id = FieldId::from_usize(entry.index()).ok_or(TypeError::TooManyFields)?;
         entry.or_insert_with(|| (field.to_owned(), ()));
         Ok(id)
     }
@@ -178,15 +209,13 @@ impl Types {
     }
 
     fn get(&self, id: TypeId) -> Type {
-        self.types[usize::from(id)]
+        self.types[id.to_usize()]
     }
 
     fn make(&mut self, ty: Type) -> TypeResult<TypeId> {
         let (i, _) = self.types.insert_full(ty);
-        let id = TypeId {
-            // maybe more types than tokens, because of imports
-            index: i.try_into().map_err(|_| TypeError::TooManyTypes)?,
-        };
+        // maybe more types than tokens, because of imports
+        let id = TypeId::from_usize(i).ok_or(TypeError::TooManyTypes)?;
         Ok(id)
     }
 }
@@ -222,23 +251,35 @@ impl Module {
     }
 
     pub fn val(&self, id: ValId) -> Val {
-        self.vals[usize::from(id)]
+        self.vals[id.to_usize()]
     }
 
     pub fn param(&self, id: parse::ParamId) -> ValId {
-        self.params[usize::from(id)]
+        self.params[id.to_usize()]
     }
 
     pub fn expr(&self, id: parse::ExprId) -> ValId {
-        self.exprs[usize::from(id)]
+        self.exprs[id.to_usize()]
     }
 
     pub fn def(&self, id: parse::DefId) -> ValId {
-        self.defs[usize::from(id)]
+        self.defs[id.to_usize()]
     }
 
     pub fn export(&self, name: &str) -> Option<parse::DefId> {
         self.exports.get(name).copied()
+    }
+
+    fn set_param(&mut self, id: parse::ParamId, val: ValId) {
+        self.params[id.to_usize()] = val;
+    }
+
+    fn set_expr(&mut self, id: parse::ExprId, val: ValId) {
+        self.exprs[id.to_usize()] = val;
+    }
+
+    fn set_def(&mut self, id: parse::DefId, val: ValId) {
+        self.defs[id.to_usize()] = val;
     }
 }
 
@@ -357,14 +398,7 @@ impl<'a> Typer<'a> {
     }
 
     fn val(&mut self, val: Val) -> ValId {
-        let id = ValId {
-            index: self
-                .module
-                .vals
-                .len()
-                .try_into()
-                .expect("tokens should outnumber values"),
-        };
+        let id = ValId::from_usize(self.module.vals.len()).expect("tokens should outnumber values");
         self.module.vals.push(val);
         id
     }
@@ -479,7 +513,7 @@ impl<'a> Typer<'a> {
         }?;
         let src = Src::Param { id };
         let val = self.val(Val { src, ty: t });
-        self.module.params[usize::from(id)] = val;
+        self.module.set_param(id, val);
         Ok(t)
     }
 
@@ -496,7 +530,7 @@ impl<'a> Typer<'a> {
             Some(ast) => {
                 let ty = self.parse_ty(types, ast)?;
                 let val = self.val(Val { src, ty });
-                self.module.params[usize::from(id)] = val;
+                self.module.set_param(id, val);
                 if ty == t {
                     (ty, val)
                 } else {
@@ -509,7 +543,7 @@ impl<'a> Typer<'a> {
             }
             None => {
                 let val = self.val(Val { src, ty: t });
-                self.module.params[usize::from(id)] = val;
+                self.module.set_param(id, val);
                 (t, val)
             }
         };
@@ -790,7 +824,7 @@ impl<'a> Typer<'a> {
         };
         let src = Src::Expr { id };
         let val = self.val(Val { src, ty });
-        self.module.exprs[usize::from(id)] = val;
+        self.module.set_expr(id, val);
         Ok(val)
     }
 
@@ -828,7 +862,7 @@ impl<'a> Typer<'a> {
         if let Some(&t) = ids.get(&t0) {
             return Ok(t);
         }
-        let import = self.imports[usize::from(i)];
+        let import = self.imports[i.to_usize()];
         let t = match import.ty(t0) {
             Type::Untyped => self.ty(Type::Untyped)?,
             Type::Var { src, def } => {
@@ -883,9 +917,9 @@ impl<'a> Typer<'a> {
         let imports = self.tree.imports();
         for index in 0..=(n - 1).try_into().map_err(|_| TypeError::TooManyImports)? {
             let src = ImportId { index };
-            let module = self.imports[usize::from(src)];
+            let module = self.imports[src.to_usize()];
             let mut translated = HashMap::new();
-            for &token in imports[usize::from(src)].names.iter() {
+            for &token in imports[src.to_usize()].names.iter() {
                 let id = module
                     .export(self.token(token))
                     .ok_or(TypeError::Undefined { name: token })?;
@@ -930,13 +964,11 @@ impl<'a> Typer<'a> {
                         .try_rfold(cod, |cod, &dom| self.ty(Type::Func { dom, cod }))?,
                     |inner, &var| self.ty(Type::Poly { var, inner }),
                 )?;
-                let id = parse::DefId {
-                    index: i.try_into().unwrap(),
-                };
+                let id = parse::DefId::from_usize(i).unwrap();
                 let src = Src::Def { id };
                 let val = self.val(Val { ty: t, src });
                 self.toplevel(*name, val)?;
-                self.module.defs[usize::from(id)] = val;
+                self.module.set_def(id, val);
                 self.module.exports.insert(self.token(*name).to_owned(), id);
                 Ok((names, doms, cod))
             })

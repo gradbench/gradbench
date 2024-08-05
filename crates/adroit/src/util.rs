@@ -4,6 +4,7 @@ use std::{
 };
 
 use ariadne::{Color, Label, Report, ReportKind, Source};
+use disjoint_sets::ElementType;
 use indexmap::IndexMap;
 use serde::{ser::SerializeSeq, Serialize, Serializer};
 
@@ -55,9 +56,13 @@ pub struct ModuleId {
     pub index: usize, // just for convenience for now; can definitely choose a smaller type
 }
 
-impl From<ModuleId> for usize {
-    fn from(id: ModuleId) -> Self {
-        id.index
+impl ElementType for ModuleId {
+    fn from_usize(n: usize) -> Option<Self> {
+        Some(Self { index: n })
+    }
+
+    fn to_usize(self) -> usize {
+        self.index
     }
 }
 
@@ -83,7 +88,7 @@ impl Modules {
     }
 
     pub fn get(&self, id: ModuleId) -> &FullModule {
-        &self.modules[usize::from(id)]
+        &self.modules[id.to_usize()]
     }
 }
 
@@ -419,7 +424,7 @@ impl Printer<'_> {
             Untyped => write!(w, "?")?,
             Var { src, def } => {
                 let full = match src {
-                    Some(id) => self.modules.get(self.full.imports[usize::from(id)]),
+                    Some(id) => self.modules.get(self.full.imports[id.to_usize()]),
                     None => self.full,
                 };
                 write!(w, "{}", &full.source[full.tokens.get(def).byte_range()])?;
