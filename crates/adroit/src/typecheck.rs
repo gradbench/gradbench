@@ -216,6 +216,7 @@ impl Serialize for Fields {
     }
 }
 
+#[derive(Debug)]
 enum BasicError {
     TooManyTypes,
     FailedToUnify,
@@ -891,8 +892,10 @@ impl<'a> Typer<'a> {
                 assert_eq!(types.pop(), Some((s, t)));
                 self.unify_assert(res?, unknown)
             }
-            parse::Expr::Unary { op, arg } => todo!(),
-            parse::Expr::Binary { lhs, map, op, rhs } => todo!(),
+            parse::Expr::Unary { op, arg } => match op {
+                parse::Unop::Neg => todo!(),
+            },
+            parse::Expr::Binary { lhs, op, rhs } => todo!(),
             parse::Expr::Lambda { param, ty, body } => {
                 let cod = match ty {
                     Some(t) => self.parse_ty(types, t)?,

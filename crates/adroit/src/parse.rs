@@ -143,6 +143,8 @@ pub enum Binop {
     Sub,
     Mul,
     Div,
+    ElemMul,
+    ElemDiv,
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -209,7 +211,6 @@ pub enum Expr {
     },
     Binary {
         lhs: ExprId,
-        map: bool,
         op: Binop,
         rhs: ExprId,
     },
@@ -702,16 +703,16 @@ impl<'a> Parser<'a> {
     fn expr_term(&mut self) -> Result<ExprId, ParseError> {
         let mut lhs = self.expr_factor()?;
         loop {
-            let (map, op) = match self.peek() {
-                Star => (false, Binop::Mul),
-                Slash => (false, Binop::Div),
-                DotStar => (true, Binop::Mul),
-                DotSlash => (true, Binop::Div),
+            let op = match self.peek() {
+                Star => Binop::Mul,
+                Slash => Binop::Div,
+                DotStar => Binop::ElemMul,
+                DotSlash => Binop::ElemDiv,
                 _ => break,
             };
             self.next();
             let rhs = self.expr_factor()?;
-            lhs = self.tree.make_expr(Expr::Binary { lhs, map, op, rhs });
+            lhs = self.tree.make_expr(Expr::Binary { lhs, op, rhs });
         }
         Ok(lhs)
     }
@@ -719,7 +720,6 @@ impl<'a> Parser<'a> {
     fn expr_elem(&mut self) -> Result<ExprId, ParseError> {
         let mut lhs = self.expr_term()?;
         loop {
-            let map = false;
             let op = match self.peek() {
                 Plus => Binop::Add,
                 Dash => Binop::Sub,
@@ -727,7 +727,7 @@ impl<'a> Parser<'a> {
             };
             self.next();
             let rhs = self.expr_term()?;
-            lhs = self.tree.make_expr(Expr::Binary { lhs, map, op, rhs });
+            lhs = self.tree.make_expr(Expr::Binary { lhs, op, rhs });
         }
         Ok(lhs)
     }

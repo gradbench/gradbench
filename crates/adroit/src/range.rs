@@ -131,12 +131,7 @@ impl Ranger<'_> {
                 body: _,
             } => self.before(name),
             Expr::Unary { op: _, arg } => self.before(self.expr_start(arg)),
-            Expr::Binary {
-                lhs,
-                map: _,
-                op: _,
-                rhs: _,
-            } => self.expr_start(lhs),
+            Expr::Binary { lhs, op: _, rhs: _ } => self.expr_start(lhs),
             Expr::Lambda {
                 param,
                 ty: _,
@@ -174,12 +169,7 @@ impl Ranger<'_> {
                 body,
             } => self.expr_end(body),
             Expr::Unary { op: _, arg } => self.expr_end(arg),
-            Expr::Binary {
-                lhs: _,
-                map: _,
-                op: _,
-                rhs,
-            } => self.expr_end(rhs),
+            Expr::Binary { lhs: _, op: _, rhs } => self.expr_end(rhs),
             Expr::Lambda {
                 param: _,
                 ty: _,

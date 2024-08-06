@@ -135,6 +135,8 @@ impl Printer<'_> {
             Binop::Sub => "-",
             Binop::Mul => "*",
             Binop::Div => "/",
+            Binop::ElemMul => ".*",
+            Binop::ElemDiv => "./",
         };
         write!(w, "{}", s)?;
         Ok(())
@@ -245,12 +247,9 @@ impl Printer<'_> {
                 self.unop(w, op)?;
                 self.expr(w, arg)?;
             }
-            Expr::Binary { lhs, map, op, rhs } => {
+            Expr::Binary { lhs, op, rhs } => {
                 self.expr(w, lhs)?;
                 write!(w, " ")?;
-                if map {
-                    write!(w, ".")?;
-                }
                 self.binop(w, op)?;
                 write!(w, " ")?;
                 self.expr(w, rhs)?;
