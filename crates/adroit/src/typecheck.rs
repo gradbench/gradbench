@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
-use indexmap::{map::RawEntryApiV1, IndexMap};
+use indexmap::{map::RawEntryApiV1, IndexMap, IndexSet};
 use serde::{ser::SerializeSeq, Serialize, Serializer};
 
 use crate::{
@@ -171,7 +171,7 @@ pub enum Type {
     },
 }
 
-#[derive(Clone, Copy, Debug, Serialize)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize)]
 #[serde(tag = "kind")]
 pub enum Src {
     Import { src: ImportId, id: parse::DefId },
@@ -181,7 +181,7 @@ pub enum Src {
     Inst { val: ValId, ty: TypeId },
 }
 
-#[derive(Clone, Copy, Debug, Serialize)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize)]
 pub struct Val {
     pub ty: TypeId,
     pub src: Src,
@@ -403,7 +403,7 @@ struct Canonizer {
     new_types: Types,
     vals: HashMap<ValId, ValId>,
     old_vals: Vec<Val>,
-    new_vals: Vec<Val>,
+    new_vals: IndexSet<Val>,
 }
 
 impl Canonizer {
@@ -483,10 +483,8 @@ impl Canonizer {
                 ty: self.ty(ty),
             };
         }
-        let id =
-            ValId::from_usize(self.new_vals.len()).expect("old values should outnumber new values");
-        self.new_vals.push(Val { ty: t, src });
-        id
+        let (i, _) = self.new_vals.insert_full(Val { ty: t, src });
+        ValId::from_usize(i).expect("old values should outnumber new values")
     }
 
     fn vals(&mut self, v: Vec<ValId>) -> Vec<ValId> {
@@ -545,13 +543,13 @@ impl Module {
             new_types: Types::new(),
             vals: HashMap::new(),
             old_vals: self.vals,
-            new_vals: vec![],
+            new_vals: IndexSet::new(),
         };
         self.params = canonizer.vals(self.params);
         self.exprs = canonizer.vals(self.exprs);
         self.defs = canonizer.vals(self.defs);
         self.types = canonizer.new_types;
-        self.vals = canonizer.new_vals;
+        self.vals = canonizer.new_vals.into_iter().collect();
         self
     }
 }
