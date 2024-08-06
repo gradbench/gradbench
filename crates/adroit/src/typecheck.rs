@@ -136,6 +136,7 @@ pub enum Type {
         id: UnknownId,
         scalar: TypeId,
     },
+    Fragment,
     Var {
         src: Option<ImportId>,
         def: TokenId,
@@ -263,7 +264,12 @@ impl Types {
             Type::Unknown { id: _ }
             | Type::Scalar { id: _ }
             | Type::Vector { id: _, scalar: _ } => false,
-            Type::Var { src: _, def: _ } | Type::Unit | Type::Int | Type::Float | Type::End => true,
+            Type::Fragment
+            | Type::Var { src: _, def: _ }
+            | Type::Unit
+            | Type::Int
+            | Type::Float
+            | Type::End => true,
             Type::Poly { var, inner } => self.resolved(var) && self.resolved(inner),
             Type::Prod { fst, snd } => self.resolved(fst) && self.resolved(snd),
             Type::Sum { left, right } => self.resolved(left) && self.resolved(right),
@@ -458,6 +464,7 @@ impl Canonizer {
                 let scalar = self.ty(scalar);
                 self.unknown(|id| Type::Vector { id, scalar })
             }
+            Type::Fragment => self.make(Type::Fragment),
             Type::Var { src, def } => self.make(Type::Var { src, def }),
             Type::Poly { var, inner } => {
                 let var = self.ty(var);
@@ -513,7 +520,7 @@ impl Canonizer {
         let (i, _) = self.new_vals.insert_full(Val { ty: t, src });
         let v = ValId::from_usize(i).expect("old values should outnumber new values");
         if !self.new_types.resolved(t) {
-            self.errors.push(TypeError::Unresolved { id: v0 });
+            self.errors.push(TypeError::Unresolved { id: v });
         }
         self.vals.insert(v0, v);
         v
@@ -711,6 +718,7 @@ impl<'a> Typer<'a> {
                 panic!("unresolved polymorphic type")
             }
             Type::Unit | Type::Int | Type::Float | Type::End => Ok(inner),
+            Type::Fragment => self.ty(Type::Fragment),
             Type::Var { src: _, def: _ } => Ok(if inner == var { ty } else { inner }),
             Type::Poly { var: x, inner: t } => {
                 assert_ne!(x, var, "type variables should be unique");
@@ -835,9 +843,12 @@ impl<'a> Typer<'a> {
                 self.ty(Type::Prod { fst, snd })?
             }
             parse::Bind::Record { name, field, rest } => {
+                let fragment = self.ty(Type::Fragment)?;
                 let mut fields = BTreeMap::new();
                 let (mut n, mut v, mut r) = (name, field, rest);
                 loop {
+                    let partial = self.module.val(self.module.param(r)).ty;
+                    self.unify_assert(fragment, partial)?;
                     let ty = self.param(types, names, v)?;
                     if fields.insert(self.token(n), ty).is_some() {
                         return Err(TypeError::Duplicate { name: n });
@@ -941,9 +952,12 @@ impl<'a> Typer<'a> {
                 self.unify_assert(prod, unknown)
             }
             parse::Expr::Record { name, field, rest } => {
+                let fragment = self.ty(Type::Fragment)?;
                 let mut fields = BTreeMap::new();
                 let (mut n, mut v, mut r) = (name, field, rest);
                 loop {
+                    let partial = self.module.val(self.module.expr(r)).ty;
+                    self.unify_assert(fragment, partial)?;
                     let ty = self.expr(types, v)?;
                     if fields.insert(self.token(n), ty).is_some() {
                         return Err(TypeError::Duplicate { name: n });
@@ -981,9 +995,12 @@ impl<'a> Typer<'a> {
                 panic!("polymorphic instantiation should always be inside function application")
             }
             parse::Expr::Apply { mut func, arg } => {
+                let fragment = self.ty(Type::Fragment)?;
                 let inst = func;
                 let mut type_args = vec![];
                 while let parse::Expr::Inst { val, ty } = self.tree.expr(func) {
+                    let partial = self.module.val(self.module.expr(func)).ty;
+                    self.unify_assert(fragment, partial)?;
                     type_args.push(self.parse_ty(types, ty)?);
                     func = val;
                 }
@@ -1131,6 +1148,7 @@ impl<'a> Typer<'a> {
             | Type::Vector { id: _, scalar: _ } => {
                 panic!("unresolved type from import")
             }
+            Type::Fragment => panic!("fragment type from import"),
             Type::Var { src, def } => {
                 assert!(src.is_none(), "type variable from transitive import");
                 self.ty(Type::Var { src: Some(i), def })?

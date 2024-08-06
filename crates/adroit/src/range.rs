@@ -114,11 +114,14 @@ impl Ranger<'_> {
             Expr::Number { val } => val,
             Expr::Pair { fst, snd: _ } => self.expr_start(fst),
             Expr::Record {
-                name: _,
+                name,
                 field: _,
-                rest,
-            } => self.expr_start(rest),
-            Expr::End { open, close: _ } => open,
+                rest: _,
+            } => name,
+            Expr::End { open, close } => match self.tokens.get(self.before(close)).kind {
+                TokenKind::LBrace => open,
+                _ => close,
+            },
             Expr::Elem { array, index: _ } => self.expr_start(array),
             Expr::Inst { val, ty: _ } => self.expr_start(val),
             Expr::Apply { func, arg: _ } => self.expr_start(func),

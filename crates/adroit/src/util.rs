@@ -352,7 +352,10 @@ pub fn error(modules: &Modules, err: Error) {
                                 range::param_range(tokens, tree, id),
                                 format!("unresolved type: `{}`", printer.ty(ty)),
                             ),
-                            typecheck::Src::Expr { id } => todo!(),
+                            typecheck::Src::Expr { id } => {
+                                let range = range::expr_range(tokens, tree, id);
+                                (range, format!("unresolved type: `{}`", printer.ty(ty)))
+                            }
                             typecheck::Src::Def { id } => todo!(),
                             typecheck::Src::Inst { val, ty } => todo!(),
                         }
@@ -394,6 +397,7 @@ impl Printer<'_> {
             Unknown { id } => write!(w, "?{}", id.to_usize())?,
             Scalar { id } => write!(w, "num?{}", id.to_usize())?,
             Vector { id, scalar } => write!(w, "vec?{}>{}", id.to_usize(), self.ty(scalar))?,
+            Fragment => write!(w, "{{?}}")?,
             Var { src, def } => {
                 let full = match src {
                     Some(id) => self.modules.get(self.full.imports[id.to_usize()]),
