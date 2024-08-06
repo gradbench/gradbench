@@ -319,10 +319,27 @@ pub fn error(modules: &Modules, err: Error) {
                     format!("{n} too many type arguments"),
                 ),
                 typecheck::TypeError::Apply { id } => todo!(),
+                typecheck::TypeError::MapLhs { id } => todo!(),
+                typecheck::TypeError::MapRhs { id } => todo!(),
                 typecheck::TypeError::Let { id } => todo!(),
                 typecheck::TypeError::Index { id } => todo!(),
+                typecheck::TypeError::Neg { id } => todo!(),
+                typecheck::TypeError::ElemLhs { id } => todo!(),
+                typecheck::TypeError::ElemRhs { id } => todo!(),
                 typecheck::TypeError::MulLhs { id } => todo!(),
-                typecheck::TypeError::MulRhs { id } => todo!(),
+                typecheck::TypeError::MulRhs { id } => match tree.expr(id) {
+                    parse::Expr::Binary { lhs, op: _, rhs } => (
+                        range::expr_range(tokens, tree, id),
+                        format!(
+                            "{} * {}",
+                            printer.ty(module.val(module.expr(lhs)).ty),
+                            printer.ty(module.val(module.expr(rhs)).ty)
+                        ),
+                    ),
+                    _ => unreachable!(),
+                },
+                typecheck::TypeError::DivLhs { id } => todo!(),
+                typecheck::TypeError::DivRhs { id } => todo!(),
                 typecheck::TypeError::Lambda { id } => todo!(),
                 typecheck::TypeError::Def { id } => todo!(),
             };

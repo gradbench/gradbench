@@ -296,7 +296,12 @@ impl Types {
             (Type::Scalar { id: _ }, Type::Int | Type::Float) => t2,
             (Type::Vector { id: _, scalar: _ }, Type::Vector { id: _, scalar: _ }) => t1,
             (Type::Int | Type::Float, Type::Vector { id: _, scalar }) => self.unify(t1, scalar)?,
-            (Type::Vector { id: _, scalar }, Type::Int | Type::Float) => self.unify(t2, scalar)?,
+            (Type::Vector { id: _, scalar }, Type::Int | Type::Float) => self.unify(scalar, t2)?,
+            (Type::Array { index, elem }, Type::Vector { id: _, scalar })
+            | (Type::Vector { id: _, scalar }, Type::Array { index, elem }) => {
+                let elem = self.unify(elem, scalar)?;
+                self.make(Type::Array { index, elem })?
+            }
             (
                 Type::Prod {
                     fst: fst1,
@@ -563,10 +568,17 @@ pub enum TypeError {
     Elem { id: parse::ExprId },
     Inst { id: parse::ExprId, n: usize },
     Apply { id: parse::ExprId },
+    MapLhs { id: parse::ExprId },
+    MapRhs { id: parse::ExprId },
     Let { id: parse::ExprId },
     Index { id: parse::ExprId },
+    Neg { id: parse::ExprId },
+    ElemLhs { id: parse::ExprId },
+    ElemRhs { id: parse::ExprId },
     MulLhs { id: parse::ExprId },
     MulRhs { id: parse::ExprId },
+    DivLhs { id: parse::ExprId },
+    DivRhs { id: parse::ExprId },
     Lambda { id: parse::ExprId },
     Def { id: parse::DefId },
 }
@@ -956,7 +968,22 @@ impl<'a> Typer<'a> {
                 self.unify(expected, fty, || TypeError::Apply { id })?;
                 Ok(cod)
             }
-            parse::Expr::Map { func, arg } => todo!(),
+            parse::Expr::Map { func, arg } => {
+                if let parse::Expr::Inst { val: _, ty: _ } = self.tree.expr(func) {
+                    panic!("dot application can't have explicit type arguments");
+                }
+                let fty = self.func(types, &mut vec![], func)?;
+                let aty = self.expr(types, arg)?;
+                let dom = self.unknown()?;
+                let cod = self.unknown()?;
+                let index = self.unknown()?;
+                let f = self.ty(Type::Func { dom, cod })?;
+                let a = self.ty(Type::Array { index, elem: dom })?;
+                self.unify(f, fty, || TypeError::MapLhs { id })?;
+                self.unify(a, aty, || TypeError::MapRhs { id })?;
+                let b = self.ty(Type::Array { index, elem: cod })?;
+                self.unify_assert(b, unknown)
+            }
             parse::Expr::Let { param, val, body } => {
                 let actual = self.expr(types, val)?;
                 let ((), ty) = self.scope(
@@ -987,21 +1014,45 @@ impl<'a> Typer<'a> {
                 self.unify_assert(res?, unknown)
             }
             parse::Expr::Unary { op, arg } => match op {
-                parse::Unop::Neg => todo!(),
-            },
-            parse::Expr::Binary { lhs, op, rhs } => match op {
-                parse::Binop::Add | parse::Binop::Sub => todo!(),
-                parse::Binop::Mul => {
+                parse::Unop::Neg => {
+                    let arg = self.expr(types, arg)?;
                     let scalar = self.scalar()?;
                     let vector = self.vector(scalar)?;
+                    self.unify(vector, arg, || TypeError::Neg { id })?;
+                    self.unify_assert(vector, unknown)
+                }
+            },
+            parse::Expr::Binary { lhs, op, rhs } => match op {
+                parse::Binop::Add
+                | parse::Binop::Sub
+                | parse::Binop::ElemMul
+                | parse::Binop::ElemDiv => {
                     let left = self.expr(types, lhs)?;
                     let right = self.expr(types, rhs)?;
-                    self.unify(vector, left, || TypeError::MulLhs { id })?;
+                    let scalar = self.scalar()?;
+                    let vector = self.vector(scalar)?;
+                    self.unify(vector, left, || TypeError::ElemLhs { id })?;
+                    self.unify(vector, right, || TypeError::ElemRhs { id })?;
+                    self.unify_assert(vector, unknown)
+                }
+                parse::Binop::Mul => {
+                    let left = self.expr(types, lhs)?;
+                    let right = self.expr(types, rhs)?;
+                    let scalar = self.scalar()?;
+                    let vector = self.vector(scalar)?;
+                    self.unify(scalar, left, || TypeError::MulLhs { id })?;
                     self.unify(vector, right, || TypeError::MulRhs { id })?;
                     self.unify_assert(vector, unknown)
                 }
-                parse::Binop::Div => todo!(),
-                parse::Binop::ElemMul | parse::Binop::ElemDiv => todo!(),
+                parse::Binop::Div => {
+                    let left = self.expr(types, lhs)?;
+                    let right = self.expr(types, rhs)?;
+                    let scalar = self.scalar()?;
+                    let vector = self.vector(scalar)?;
+                    self.unify(vector, left, || TypeError::DivLhs { id })?;
+                    self.unify(scalar, right, || TypeError::DivRhs { id })?;
+                    self.unify_assert(vector, unknown)
+                }
             },
             parse::Expr::Lambda { param, ty, body } => {
                 let (dom, cod) = self.scope(
