@@ -66,11 +66,14 @@ impl Ranger<'_> {
             Bind::Name { name } => name,
             Bind::Pair { fst, snd: _ } => self.param_start(fst),
             Bind::Record {
-                name: _,
+                name,
                 field: _,
-                rest,
-            } => self.param_start(rest),
-            Bind::End { open, close: _ } => open,
+                rest: _,
+            } => name,
+            Bind::End { open, close } => match self.tokens.get(self.before(close)).kind {
+                TokenKind::LBrace => open,
+                _ => close,
+            },
         }
     }
 

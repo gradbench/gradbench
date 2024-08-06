@@ -224,6 +224,12 @@ impl Serialize for Fields {
 }
 
 #[derive(Debug)]
+struct TypeInfo {
+    resolved: bool,
+    parent: TypeId,
+}
+
+#[derive(Debug)]
 enum BasicError {
     TooManyTypes,
     FailedToUnify,
@@ -232,7 +238,7 @@ enum BasicError {
 #[derive(Debug)]
 struct Types {
     unknowns: usize,
-    types: IndexMap<Type, TypeId>,
+    types: IndexMap<Type, TypeInfo>,
 }
 
 impl Types {
@@ -248,12 +254,32 @@ impl Types {
         t
     }
 
+    fn resolved(&self, id: TypeId) -> bool {
+        self.types[id.to_usize()].resolved
+    }
+
     fn make(&mut self, ty: Type) -> Result<TypeId, BasicError> {
+        let resolved = match ty {
+            Type::Unknown { id: _ }
+            | Type::Scalar { id: _ }
+            | Type::Vector { id: _, scalar: _ } => false,
+            Type::Var { src: _, def: _ } | Type::Unit | Type::Int | Type::Float | Type::End => true,
+            Type::Poly { var, inner } => self.resolved(var) && self.resolved(inner),
+            Type::Prod { fst, snd } => self.resolved(fst) && self.resolved(snd),
+            Type::Sum { left, right } => self.resolved(left) && self.resolved(right),
+            Type::Array { index, elem } => self.resolved(index) && self.resolved(elem),
+            Type::Record {
+                name: _,
+                field,
+                rest,
+            } => self.resolved(field) && self.resolved(rest),
+            Type::Func { dom, cod } => self.resolved(dom) && self.resolved(cod),
+        };
         let entry = self.types.entry(ty);
         // maybe more types than tokens, because of imports
-        let id = TypeId::from_usize(entry.index()).ok_or(BasicError::TooManyTypes)?;
-        entry.or_insert(id);
-        Ok(id)
+        let parent = TypeId::from_usize(entry.index()).ok_or(BasicError::TooManyTypes)?;
+        entry.or_insert(TypeInfo { resolved, parent });
+        Ok(parent)
     }
 
     fn unknown(&mut self, f: impl FnOnce(UnknownId) -> Type) -> Result<TypeId, BasicError> {
@@ -265,11 +291,11 @@ impl Types {
     }
 
     fn parent(&self, element: TypeId) -> TypeId {
-        self.types[element.to_usize()]
+        self.types[element.to_usize()].parent
     }
 
     fn set_parent(&mut self, element: TypeId, parent: TypeId) {
-        self.types[element.to_usize()] = parent;
+        self.types[element.to_usize()].parent = parent;
     }
 
     fn root(&mut self, mut element: TypeId) -> TypeId {
@@ -398,6 +424,7 @@ impl Serialize for Types {
 
 #[derive(Debug)]
 struct Canonizer {
+    errors: Vec<TypeError>,
     types: HashMap<TypeId, TypeId>,
     old_types: Types,
     new_types: Types,
@@ -484,7 +511,12 @@ impl Canonizer {
             };
         }
         let (i, _) = self.new_vals.insert_full(Val { ty: t, src });
-        ValId::from_usize(i).expect("old values should outnumber new values")
+        let v = ValId::from_usize(i).expect("old values should outnumber new values");
+        if !self.new_types.resolved(t) {
+            self.errors.push(TypeError::Unresolved { id: v0 });
+        }
+        self.vals.insert(v0, v);
+        v
     }
 
     fn vals(&mut self, v: Vec<ValId>) -> Vec<ValId> {
@@ -536,8 +568,9 @@ impl Module {
         self.exprs[id.to_usize()] = val;
     }
 
-    fn gc(mut self) -> Self {
+    fn gc(mut self) -> (Self, Vec<TypeError>) {
         let mut canonizer = Canonizer {
+            errors: vec![],
             types: HashMap::new(),
             old_types: self.types,
             new_types: Types::new(),
@@ -550,7 +583,7 @@ impl Module {
         self.defs = canonizer.vals(self.defs);
         self.types = canonizer.new_types;
         self.vals = canonizer.new_vals.into_iter().collect();
-        self
+        (self, canonizer.errors)
     }
 }
 
@@ -579,6 +612,7 @@ pub enum TypeError {
     DivRhs { id: parse::ExprId },
     Lambda { id: parse::ExprId },
     Def { id: parse::DefId },
+    Unresolved { id: ValId },
 }
 
 type TypeResult<T> = Result<T, TypeError>;
@@ -1251,7 +1285,7 @@ pub fn typecheck(
     tokens: &Tokens,
     tree: &parse::Module,
     imports: Vec<&Module>,
-) -> (Module, Result<(), TypeError>) {
+) -> (Module, Vec<TypeError>) {
     let mut typer = Typer {
         imports,
         source,
@@ -1269,5 +1303,10 @@ pub fn typecheck(
         names: HashMap::new(),
     };
     let res = typer.module();
-    (typer.module.gc(), res)
+    let (module, errors) = typer.module.gc();
+    let errs = match res {
+        Ok(()) => errors,
+        Err(e) => vec![e],
+    };
+    (module, errs)
 }

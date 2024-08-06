@@ -137,7 +137,7 @@ pub enum Error {
     Type {
         path: PathBuf,
         full: Box<FullModule>,
-        err: typecheck::TypeError,
+        errs: Vec<typecheck::TypeError>,
     },
 }
 
@@ -185,7 +185,7 @@ pub fn process(
             }
         }
     }
-    let (module, res) = typecheck::typecheck(
+    let (module, errs) = typecheck::typecheck(
         &source,
         &tokens,
         &tree,
@@ -198,13 +198,14 @@ pub fn process(
         imports,
         module,
     };
-    match res {
-        Ok(()) => Ok((path, full)),
-        Err(err) => Err(Box::new(Error::Type {
+    if errs.is_empty() {
+        Ok((path, full))
+    } else {
+        Err(Box::new(Error::Type {
             path,
             full: Box::new(full),
-            err,
-        })),
+            errs,
+        }))
     }
 }
 
@@ -286,7 +287,7 @@ pub fn error(modules: &Modules, err: Error) {
                 .eprint((path, Source::from(&source)))
                 .unwrap();
         }
-        Error::Type { path, full, err } => {
+        Error::Type { path, full, errs } => {
             let path = &path.display().to_string();
             let FullModule {
                 source,
@@ -299,60 +300,75 @@ pub fn error(modules: &Modules, err: Error) {
                 modules,
                 full: &full,
             };
-            let (range, message) = match err {
-                typecheck::TypeError::TooManyImports => todo!("too many imports"),
-                typecheck::TypeError::TooManyTypes => todo!("too many types"),
-                typecheck::TypeError::TooManyFields => todo!("too many fields"),
-                typecheck::TypeError::Undefined { name } => {
-                    (tokens.get(name).byte_range(), "undefined".to_owned())
-                }
-                typecheck::TypeError::Duplicate { name } => {
-                    (tokens.get(name).byte_range(), "duplicate".to_owned())
-                }
-                typecheck::TypeError::Untyped { name } => {
-                    (tokens.get(name).byte_range(), "untyped".to_owned())
-                }
-                typecheck::TypeError::Param { id } => todo!(),
-                typecheck::TypeError::Elem { id } => todo!(),
-                typecheck::TypeError::Inst { id, n } => (
-                    range::expr_range(tokens, tree, id),
-                    format!("{n} too many type arguments"),
-                ),
-                typecheck::TypeError::Apply { id } => todo!(),
-                typecheck::TypeError::MapLhs { id } => todo!(),
-                typecheck::TypeError::MapRhs { id } => todo!(),
-                typecheck::TypeError::Let { id } => todo!(),
-                typecheck::TypeError::Index { id } => todo!(),
-                typecheck::TypeError::Neg { id } => todo!(),
-                typecheck::TypeError::ElemLhs { id } => todo!(),
-                typecheck::TypeError::ElemRhs { id } => todo!(),
-                typecheck::TypeError::MulLhs { id } => todo!(),
-                typecheck::TypeError::MulRhs { id } => match tree.expr(id) {
-                    parse::Expr::Binary { lhs, op: _, rhs } => (
+            for err in errs {
+                let (range, message) = match err {
+                    typecheck::TypeError::TooManyImports => todo!("too many imports"),
+                    typecheck::TypeError::TooManyTypes => todo!("too many types"),
+                    typecheck::TypeError::TooManyFields => todo!("too many fields"),
+                    typecheck::TypeError::Undefined { name } => {
+                        (tokens.get(name).byte_range(), "undefined".to_owned())
+                    }
+                    typecheck::TypeError::Duplicate { name } => {
+                        (tokens.get(name).byte_range(), "duplicate".to_owned())
+                    }
+                    typecheck::TypeError::Untyped { name } => {
+                        (tokens.get(name).byte_range(), "untyped".to_owned())
+                    }
+                    typecheck::TypeError::Param { id } => todo!(),
+                    typecheck::TypeError::Elem { id } => todo!(),
+                    typecheck::TypeError::Inst { id, n } => (
                         range::expr_range(tokens, tree, id),
-                        format!(
-                            "{} * {}",
-                            printer.ty(module.val(module.expr(lhs)).ty),
-                            printer.ty(module.val(module.expr(rhs)).ty)
-                        ),
+                        format!("{n} too many type arguments"),
                     ),
-                    _ => unreachable!(),
-                },
-                typecheck::TypeError::DivLhs { id } => todo!(),
-                typecheck::TypeError::DivRhs { id } => todo!(),
-                typecheck::TypeError::Lambda { id } => todo!(),
-                typecheck::TypeError::Def { id } => todo!(),
-            };
-            Report::build(ReportKind::Error, path, range.start)
-                .with_message("failed to typecheck")
-                .with_label(
-                    Label::new((path, range))
-                        .with_message(message)
-                        .with_color(Color::Red),
-                )
-                .finish()
-                .eprint((path, Source::from(&source)))
-                .unwrap();
+                    typecheck::TypeError::Apply { id } => todo!(),
+                    typecheck::TypeError::MapLhs { id } => todo!(),
+                    typecheck::TypeError::MapRhs { id } => todo!(),
+                    typecheck::TypeError::Let { id } => todo!(),
+                    typecheck::TypeError::Index { id } => todo!(),
+                    typecheck::TypeError::Neg { id } => todo!(),
+                    typecheck::TypeError::ElemLhs { id } => todo!(),
+                    typecheck::TypeError::ElemRhs { id } => todo!(),
+                    typecheck::TypeError::MulLhs { id } => todo!(),
+                    typecheck::TypeError::MulRhs { id } => match tree.expr(id) {
+                        parse::Expr::Binary { lhs, op: _, rhs } => (
+                            range::expr_range(tokens, tree, id),
+                            format!(
+                                "{} * {}",
+                                printer.ty(module.val(module.expr(lhs)).ty),
+                                printer.ty(module.val(module.expr(rhs)).ty)
+                            ),
+                        ),
+                        _ => unreachable!(),
+                    },
+                    typecheck::TypeError::DivLhs { id } => todo!(),
+                    typecheck::TypeError::DivRhs { id } => todo!(),
+                    typecheck::TypeError::Lambda { id } => todo!(),
+                    typecheck::TypeError::Def { id } => todo!(),
+                    typecheck::TypeError::Unresolved { id } => {
+                        let typecheck::Val { ty, src } = module.val(id);
+                        match src {
+                            typecheck::Src::Import { src, id } => todo!(),
+                            typecheck::Src::Param { id } => (
+                                range::param_range(tokens, tree, id),
+                                format!("unresolved type: `{}`", printer.ty(ty)),
+                            ),
+                            typecheck::Src::Expr { id } => todo!(),
+                            typecheck::Src::Def { id } => todo!(),
+                            typecheck::Src::Inst { val, ty } => todo!(),
+                        }
+                    }
+                };
+                Report::build(ReportKind::Error, path, range.start)
+                    .with_message("failed to typecheck")
+                    .with_label(
+                        Label::new((path, range))
+                            .with_message(message)
+                            .with_color(Color::Red),
+                    )
+                    .finish()
+                    .eprint((path, Source::from(&source)))
+                    .unwrap();
+            }
         }
     }
 }
