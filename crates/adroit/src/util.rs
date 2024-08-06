@@ -312,32 +312,19 @@ pub fn error(modules: &Modules, err: Error) {
                 typecheck::TypeError::Untyped { name } => {
                     (tokens.get(name).byte_range(), "untyped".to_owned())
                 }
-                typecheck::TypeError::Bind { id } => todo!(),
-                typecheck::TypeError::Param {
-                    id,
-                    expected,
-                    actual,
-                } => (
-                    range::param_range(tokens, tree, id),
-                    format!(
-                        "expected `{}`, got `{}`",
-                        printer.ty(expected),
-                        printer.ty(actual)
-                    ),
-                ),
+                typecheck::TypeError::Param { id } => todo!(),
                 typecheck::TypeError::Elem { id } => todo!(),
+                typecheck::TypeError::Inst { id, n } => (
+                    range::expr_range(tokens, tree, id),
+                    format!("{n} too many type arguments"),
+                ),
                 typecheck::TypeError::Apply { id } => todo!(),
-                typecheck::TypeError::Expr { id, expected } => {
-                    let actual = module.val(module.expr(id)).ty;
-                    (
-                        range::expr_range(tokens, tree, id),
-                        format!(
-                            "expected `{}`, got `{}`",
-                            printer.ty(expected),
-                            printer.ty(actual)
-                        ),
-                    )
-                }
+                typecheck::TypeError::Let { id } => todo!(),
+                typecheck::TypeError::Index { id } => todo!(),
+                typecheck::TypeError::MulLhs { id } => todo!(),
+                typecheck::TypeError::MulRhs { id } => todo!(),
+                typecheck::TypeError::Lambda { id } => todo!(),
+                typecheck::TypeError::Def { id } => todo!(),
             };
             Report::build(ReportKind::Error, path, range.start)
                 .with_message("failed to typecheck")

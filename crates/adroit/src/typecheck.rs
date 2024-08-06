@@ -391,6 +391,104 @@ impl Serialize for Types {
     }
 }
 
+#[derive(Debug)]
+struct Canonizer {
+    types: HashMap<TypeId, TypeId>,
+    old_types: Types,
+    new_types: Types,
+    vals: HashMap<ValId, ValId>,
+    old_vals: Vec<Val>,
+    new_vals: Vec<Val>,
+}
+
+impl Canonizer {
+    fn make(&mut self, ty: Type) -> TypeId {
+        self.new_types
+            .make(ty)
+            .expect("old types should outnumber new types")
+    }
+
+    fn unknown(&mut self, f: impl FnOnce(UnknownId) -> Type) -> TypeId {
+        self.new_types
+            .unknown(f)
+            .expect("old types should outnumber new types")
+    }
+
+    fn ty(&mut self, t0: TypeId) -> TypeId {
+        let t0 = self.old_types.root(t0);
+        if let Some(&t) = self.types.get(&t0) {
+            return t;
+        }
+        let t = match self.old_types.get(t0) {
+            Type::Unknown { id: _ } => self.unknown(|id| Type::Unknown { id }),
+            Type::Scalar { id: _ } => self.unknown(|id| Type::Scalar { id }),
+            Type::Vector { id: _, scalar } => {
+                let scalar = self.ty(scalar);
+                self.unknown(|id| Type::Vector { id, scalar })
+            }
+            Type::Var { src, def } => self.make(Type::Var { src, def }),
+            Type::Poly { var, inner } => {
+                let var = self.ty(var);
+                let inner = self.ty(inner);
+                self.make(Type::Poly { var, inner })
+            }
+            Type::Unit => self.make(Type::Unit),
+            Type::Int => self.make(Type::Int),
+            Type::Float => self.make(Type::Float),
+            Type::Prod { fst, snd } => {
+                let fst = self.ty(fst);
+                let snd = self.ty(snd);
+                self.make(Type::Prod { fst, snd })
+            }
+            Type::Sum { left, right } => {
+                let left = self.ty(left);
+                let right = self.ty(right);
+                self.make(Type::Sum { left, right })
+            }
+            Type::Array { index, elem } => {
+                let index = self.ty(index);
+                let elem = self.ty(elem);
+                self.make(Type::Array { index, elem })
+            }
+            Type::Record { name, field, rest } => {
+                let field = self.ty(field);
+                let rest = self.ty(rest);
+                self.make(Type::Record { name, field, rest })
+            }
+            Type::End => self.make(Type::End),
+            Type::Func { dom, cod } => {
+                let dom = self.ty(dom);
+                let cod = self.ty(cod);
+                self.make(Type::Func { dom, cod })
+            }
+        };
+        self.types.insert(t0, t);
+        t
+    }
+
+    fn val(&mut self, v0: ValId) -> ValId {
+        if let Some(&v) = self.vals.get(&v0) {
+            return v;
+        }
+        let Val { ty, mut src } = self.old_vals[v0.to_usize()];
+        let t = self.ty(ty);
+        if let Src::Inst { val, ty } = src {
+            src = Src::Inst {
+                val: self.val(val),
+                ty: self.ty(ty),
+            };
+        }
+        let id =
+            ValId::from_usize(self.new_vals.len()).expect("old values should outnumber new values");
+        self.new_vals.push(Val { ty: t, src });
+        id
+    }
+
+    fn vals(&mut self, v: Vec<ValId>) -> Vec<ValId> {
+        v.into_iter().map(|v| self.val(v)).collect()
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct Module {
     fields: Fields,
@@ -434,6 +532,23 @@ impl Module {
     fn set_expr(&mut self, id: parse::ExprId, val: ValId) {
         self.exprs[id.to_usize()] = val;
     }
+
+    fn gc(mut self) -> Self {
+        let mut canonizer = Canonizer {
+            types: HashMap::new(),
+            old_types: self.types,
+            new_types: Types::new(),
+            vals: HashMap::new(),
+            old_vals: self.vals,
+            new_vals: vec![],
+        };
+        self.params = canonizer.vals(self.params);
+        self.exprs = canonizer.vals(self.exprs);
+        self.defs = canonizer.vals(self.defs);
+        self.types = canonizer.new_types;
+        self.vals = canonizer.new_vals;
+        self
+    }
 }
 
 #[derive(Debug)]
@@ -441,33 +556,19 @@ pub enum TypeError {
     TooManyImports,
     TooManyFields,
     TooManyTypes,
-    Undefined {
-        name: TokenId,
-    },
-    Duplicate {
-        name: TokenId,
-    },
-    Untyped {
-        name: TokenId,
-    },
-    Bind {
-        id: parse::ParamId,
-    },
-    Param {
-        id: parse::ParamId,
-        expected: TypeId,
-        actual: TypeId,
-    },
-    Elem {
-        id: parse::ExprId,
-    },
-    Apply {
-        id: parse::ExprId,
-    },
-    Expr {
-        id: parse::ExprId,
-        expected: TypeId,
-    },
+    Undefined { name: TokenId },
+    Duplicate { name: TokenId },
+    Untyped { name: TokenId },
+    Param { id: parse::ParamId },
+    Elem { id: parse::ExprId },
+    Inst { id: parse::ExprId, n: usize },
+    Apply { id: parse::ExprId },
+    Let { id: parse::ExprId },
+    Index { id: parse::ExprId },
+    MulLhs { id: parse::ExprId },
+    MulRhs { id: parse::ExprId },
+    Lambda { id: parse::ExprId },
+    Def { id: parse::DefId },
 }
 
 type TypeResult<T> = Result<T, TypeError>;
@@ -666,7 +767,7 @@ impl<'a> Typer<'a> {
         }
     }
 
-    fn param_synth(
+    fn param(
         &mut self,
         types: &IndexMap<&'a str, TypeId>,
         names: &mut Vec<&'a str>,
@@ -676,7 +777,7 @@ impl<'a> Typer<'a> {
         let val = self.module.param(id);
         let unknown = self.module.val(val).ty;
         let actual = match bind {
-            parse::Bind::Paren { inner } => self.param_synth(types, names, inner)?,
+            parse::Bind::Paren { inner } => self.param(types, names, inner)?,
             parse::Bind::Unit { open: _, close: _ } => self.ty(Type::Unit)?,
             parse::Bind::Name { name } => {
                 let s = self.token(name);
@@ -685,15 +786,15 @@ impl<'a> Typer<'a> {
                 unknown
             }
             parse::Bind::Pair { fst, snd } => {
-                let fst = self.param_synth(types, names, fst)?;
-                let snd = self.param_synth(types, names, snd)?;
+                let fst = self.param(types, names, fst)?;
+                let snd = self.param(types, names, snd)?;
                 self.ty(Type::Prod { fst, snd })?
             }
             parse::Bind::Record { name, field, rest } => {
                 let mut fields = BTreeMap::new();
                 let (mut n, mut v, mut r) = (name, field, rest);
                 loop {
-                    let ty = self.param_synth(types, names, v)?;
+                    let ty = self.param(types, names, v)?;
                     if fields.insert(self.token(n), ty).is_some() {
                         return Err(TypeError::Duplicate { name: n });
                     }
@@ -718,25 +819,10 @@ impl<'a> Typer<'a> {
             Some(ast) => self.parse_ty(types, ast)?,
             None => unknown,
         };
-        self.unify(expected, actual, || TypeError::Bind { id })
+        self.unify(expected, actual, || TypeError::Param { id })
     }
 
-    fn param_check(
-        &mut self,
-        types: &IndexMap<&'a str, TypeId>,
-        names: &mut Vec<&'a str>,
-        id: parse::ParamId,
-        ty: TypeId,
-    ) -> TypeResult<TypeId> {
-        let actual = self.param_synth(types, names, id)?;
-        self.unify(ty, actual, || TypeError::Param {
-            id,
-            expected: ty,
-            actual,
-        })
-    }
-
-    fn func_synth(
+    fn func(
         &mut self,
         types: &mut IndexMap<&'a str, TypeId>,
         type_args: &mut Vec<TypeId>,
@@ -749,7 +835,7 @@ impl<'a> Typer<'a> {
                 .and_then(|stack| stack.last().copied())
                 .ok_or(TypeError::Undefined { name })?;
             let Val { src, mut ty } = self.module.val(val);
-            if let Src::Def { id: _ } = src {
+            if let Src::Import { src: _, id: _ } | Src::Def { id: _ } = src {
                 assert!(self.root(ty) == ty, "top-level type should be resolved");
                 while let Type::Poly { var, inner } = self.module.ty(ty) {
                     let t = match type_args.pop() {
@@ -764,10 +850,10 @@ impl<'a> Typer<'a> {
                 return Ok(ty);
             }
         }
-        self.expr_synth(types, func)
+        self.expr(types, func)
     }
 
-    fn expr_synth(
+    fn expr(
         &mut self,
         types: &mut IndexMap<&'a str, TypeId>,
         id: parse::ExprId,
@@ -777,7 +863,7 @@ impl<'a> Typer<'a> {
         assert_eq!(self.root(unknown), unknown, "new expr should have no type");
         match self.tree.expr(id) {
             parse::Expr::Paren { inner } => {
-                let ty = self.expr_synth(types, inner)?;
+                let ty = self.expr(types, inner)?;
                 self.unify_assert(ty, unknown)
             }
             parse::Expr::Name { name } => {
@@ -805,8 +891,8 @@ impl<'a> Typer<'a> {
                 self.unify_assert(ty, unknown)
             }
             parse::Expr::Pair { fst, snd } => {
-                let fst = self.expr_synth(types, fst)?;
-                let snd = self.expr_synth(types, snd)?;
+                let fst = self.expr(types, fst)?;
+                let snd = self.expr(types, snd)?;
                 let prod = self.ty(Type::Prod { fst, snd })?;
                 self.unify_assert(prod, unknown)
             }
@@ -814,7 +900,7 @@ impl<'a> Typer<'a> {
                 let mut fields = BTreeMap::new();
                 let (mut n, mut v, mut r) = (name, field, rest);
                 loop {
-                    let ty = self.expr_synth(types, v)?;
+                    let ty = self.expr(types, v)?;
                     if fields.insert(self.token(n), ty).is_some() {
                         return Err(TypeError::Duplicate { name: n });
                     }
@@ -840,8 +926,8 @@ impl<'a> Typer<'a> {
                 self.unify_assert(end, unknown)
             }
             parse::Expr::Elem { array, index } => {
-                let index = self.expr_synth(types, index)?;
-                let array = self.expr_synth(types, array)?;
+                let index = self.expr(types, index)?;
+                let array = self.expr(types, array)?;
                 let elem = unknown;
                 let expected = self.ty(Type::Array { index, elem })?;
                 self.unify(expected, array, || TypeError::Elem { id })?;
@@ -851,16 +937,20 @@ impl<'a> Typer<'a> {
                 panic!("polymorphic instantiation should always be inside function application")
             }
             parse::Expr::Apply { mut func, arg } => {
+                let inst = func;
                 let mut type_args = vec![];
                 while let parse::Expr::Inst { val, ty } = self.tree.expr(func) {
                     type_args.push(self.parse_ty(types, ty)?);
                     func = val;
                 }
-                let fty = self.func_synth(types, &mut type_args, func)?;
+                let fty = self.func(types, &mut type_args, func)?;
                 if !type_args.is_empty() {
-                    todo!()
+                    return Err(TypeError::Inst {
+                        id: inst,
+                        n: type_args.len(),
+                    });
                 }
-                let dom = self.expr_synth(types, arg)?;
+                let dom = self.expr(types, arg)?;
                 let cod = unknown;
                 let expected = self.ty(Type::Func { dom, cod })?;
                 self.unify(expected, fty, || TypeError::Apply { id })?;
@@ -868,20 +958,22 @@ impl<'a> Typer<'a> {
             }
             parse::Expr::Map { func, arg } => todo!(),
             parse::Expr::Let { param, val, body } => {
-                let bound = self.expr_synth(types, val)?;
+                let actual = self.expr(types, val)?;
                 let ((), ty) = self.scope(
                     types,
                     |this, types, names| {
-                        this.param_check(types, names, param, bound)?;
+                        let expected = this.param(types, names, param)?;
+                        this.unify(expected, actual, || TypeError::Let { id })?;
                         Ok(())
                     },
-                    |this, types| this.expr_synth(types, body),
+                    |this, types| this.expr(types, body),
                 )?;
                 self.unify_assert(ty, unknown)
             }
             parse::Expr::Index { name, val, body } => {
-                let int = self.ty(Type::Int)?;
-                self.expr_check(types, val, int)?;
+                let expected = self.ty(Type::Int)?;
+                let actual = self.expr(types, val)?;
+                self.unify(expected, actual, || TypeError::Index { id })?;
                 let s = self.token(name);
                 let t = self.ty(Type::Var {
                     src: None,
@@ -890,7 +982,7 @@ impl<'a> Typer<'a> {
                 if types.insert(s, t).is_some() {
                     return Err(TypeError::Duplicate { name });
                 }
-                let res = self.expr_synth(types, body);
+                let res = self.expr(types, body);
                 assert_eq!(types.pop(), Some((s, t)));
                 self.unify_assert(res?, unknown)
             }
@@ -902,40 +994,32 @@ impl<'a> Typer<'a> {
                 parse::Binop::Mul => {
                     let scalar = self.scalar()?;
                     let vector = self.vector(scalar)?;
-                    self.expr_check(types, lhs, vector)?;
-                    self.expr_check(types, rhs, scalar)?;
+                    let left = self.expr(types, lhs)?;
+                    let right = self.expr(types, rhs)?;
+                    self.unify(vector, left, || TypeError::MulLhs { id })?;
+                    self.unify(vector, right, || TypeError::MulRhs { id })?;
                     self.unify_assert(vector, unknown)
                 }
                 parse::Binop::Div => todo!(),
                 parse::Binop::ElemMul | parse::Binop::ElemDiv => todo!(),
             },
             parse::Expr::Lambda { param, ty, body } => {
-                let cod = match ty {
-                    Some(t) => self.parse_ty(types, t)?,
-                    None => todo!(),
-                };
-                let (dom, ()) = self.scope(
+                let (dom, cod) = self.scope(
                     types,
-                    |this, types, names| this.param_synth(types, names, param),
+                    |this, types, names| this.param(types, names, param),
                     |this, types| {
-                        this.expr_check(types, body, cod)?;
-                        Ok(())
+                        let actual = this.expr(types, body)?;
+                        let expected = match ty {
+                            Some(t) => this.parse_ty(types, t)?,
+                            None => actual,
+                        };
+                        this.unify(expected, actual, || TypeError::Lambda { id })
                     },
                 )?;
                 let fty = self.ty(Type::Func { dom, cod })?;
                 self.unify_assert(fty, unknown)
             }
         }
-    }
-
-    fn expr_check(
-        &mut self,
-        types: &mut IndexMap<&'a str, TypeId>,
-        id: parse::ExprId,
-        ty: TypeId,
-    ) -> TypeResult<TypeId> {
-        let actual = self.expr_synth(types, id)?;
-        self.unify(ty, actual, || TypeError::Expr { id, expected: ty })
     }
 
     fn toplevel(&mut self, name: TokenId, val: ValId) -> TypeResult<()> {
@@ -1064,7 +1148,7 @@ impl<'a> Typer<'a> {
                     |this, names, temps| {
                         params
                             .iter()
-                            .map(|&param| this.param_synth(names, temps, param))
+                            .map(|&param| this.param(names, temps, param))
                             .collect::<TypeResult<Vec<TypeId>>>()
                     },
                     |_, _| Ok(()),
@@ -1081,7 +1165,7 @@ impl<'a> Typer<'a> {
                 self.module.defs.push(val);
                 self.toplevel(*name, val)?;
                 self.module.exports.insert(self.token(*name).to_owned(), id);
-                Ok((names, cod))
+                Ok((id, names, cod))
             })
             .collect::<TypeResult<Vec<_>>>()?;
         for (
@@ -1092,18 +1176,21 @@ impl<'a> Typer<'a> {
                 ty: _,
                 body,
             },
-            (types, cod),
+            (id, types, expected),
         ) in self.tree.defs().iter().zip(defs)
         {
             self.scope(
                 types,
                 |this, types, names| {
                     for &param in params {
-                        this.param_synth(types, names, param)?;
+                        this.param(types, names, param)?;
                     }
                     Ok(())
                 },
-                |this, mut types| this.expr_check(&mut types, *body, cod),
+                |this, mut types| {
+                    let actual = this.expr(&mut types, *body)?;
+                    this.unify(expected, actual, || TypeError::Def { id })
+                },
             )?;
         }
         Ok(())
@@ -1133,5 +1220,5 @@ pub fn typecheck(
         names: HashMap::new(),
     };
     let res = typer.module();
-    (typer.module, res)
+    (typer.module.gc(), res)
 }
