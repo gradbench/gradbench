@@ -1,4 +1,3 @@
-use disjoint_sets::ElementType;
 use enumset::EnumSet;
 use serde::Serialize;
 
@@ -8,7 +7,7 @@ use crate::{
         TokenKind::{self, *},
         Tokens,
     },
-    util::u32_to_usize,
+    util::{u32_to_usize, Id},
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
@@ -17,7 +16,7 @@ pub struct TypeId {
     pub index: u32,
 }
 
-impl ElementType for TypeId {
+impl Id for TypeId {
     fn from_usize(n: usize) -> Option<Self> {
         match n.try_into() {
             Ok(index) => Some(Self { index }),
@@ -36,7 +35,7 @@ pub struct ParamId {
     pub index: u32,
 }
 
-impl ElementType for ParamId {
+impl Id for ParamId {
     fn from_usize(n: usize) -> Option<Self> {
         match n.try_into() {
             Ok(index) => Some(Self { index }),
@@ -55,7 +54,7 @@ pub struct ExprId {
     pub index: u32,
 }
 
-impl ElementType for ExprId {
+impl Id for ExprId {
     fn from_usize(n: usize) -> Option<Self> {
         match n.try_into() {
             Ok(index) => Some(Self { index }),
@@ -74,7 +73,7 @@ pub struct DefId {
     pub index: u32,
 }
 
-impl ElementType for DefId {
+impl Id for DefId {
     fn from_usize(n: usize) -> Option<Self> {
         match n.try_into() {
             Ok(index) => Some(Self { index }),

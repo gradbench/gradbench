@@ -9,7 +9,6 @@ dependencies = [
  "ariadne",
  "clap",
  "dirs",
- "disjoint-sets",
  "enumset",
  "goldenfile",
  "indexmap",
@@ -219,12 +218,6 @@ dependencies = [
  "redox_users",
  "windows-sys 0.48.0",
 ]
-
-[[package]]
-name = "disjoint-sets"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ccbbca7d6a247007ca2535c616d4bb4a5fcad176ef0218671f96b88c52c3d34"
 
 [[package]]
 name = "either"

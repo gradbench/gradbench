@@ -1,13 +1,12 @@
 use std::collections::{BTreeMap, HashMap};
 
-use disjoint_sets::ElementType;
-use indexmap::{map::RawEntryApiV1, IndexMap, IndexSet};
+use indexmap::{map::RawEntryApiV1, IndexMap};
 use serde::{ser::SerializeSeq, Serialize, Serializer};
 
 use crate::{
     lex::{TokenId, Tokens},
     parse,
-    util::u32_to_usize,
+    util::{u32_to_usize, Id},
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
@@ -16,7 +15,7 @@ pub struct ImportId {
     pub index: u16,
 }
 
-impl ElementType for ImportId {
+impl Id for ImportId {
     fn from_usize(n: usize) -> Option<Self> {
         match n.try_into() {
             Ok(index) => Some(Self { index }),
@@ -35,7 +34,7 @@ pub struct FieldId {
     pub index: u32,
 }
 
-impl ElementType for FieldId {
+impl Id for FieldId {
     fn from_usize(n: usize) -> Option<Self> {
         match n.try_into() {
             Ok(index) => Some(Self { index }),
@@ -54,7 +53,26 @@ pub struct TypeId {
     pub index: u32,
 }
 
-impl ElementType for TypeId {
+impl Id for TypeId {
+    fn from_usize(n: usize) -> Option<Self> {
+        match n.try_into() {
+            Ok(index) => Some(Self { index }),
+            Err(_) => None,
+        }
+    }
+
+    fn to_usize(self) -> usize {
+        u32_to_usize(self.index)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(transparent)]
+pub struct UnknownId {
+    pub index: u32,
+}
+
+impl Id for UnknownId {
     fn from_usize(n: usize) -> Option<Self> {
         match n.try_into() {
             Ok(index) => Some(Self { index }),
@@ -73,7 +91,7 @@ pub struct VarId {
     pub index: u32,
 }
 
-impl ElementType for VarId {
+impl Id for VarId {
     fn from_usize(n: usize) -> Option<Self> {
         match n.try_into() {
             Ok(index) => Some(Self { index }),
@@ -92,7 +110,7 @@ pub struct ValId {
     pub index: u32,
 }
 
-impl ElementType for ValId {
+impl Id for ValId {
     fn from_usize(n: usize) -> Option<Self> {
         match n.try_into() {
             Ok(index) => Some(Self { index }),
@@ -108,7 +126,9 @@ impl ElementType for ValId {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize)]
 #[serde(tag = "kind")]
 pub enum Type {
-    Untyped,
+    Unknown {
+        id: UnknownId,
+    },
     Var {
         src: Option<ImportId>,
         def: TokenId,
@@ -147,11 +167,11 @@ pub enum Type {
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(tag = "kind")]
 pub enum Src {
-    Undefined,
     Import { src: ImportId, id: parse::DefId },
     Param { id: parse::ParamId },
     Expr { id: parse::ExprId },
     Def { id: parse::DefId },
+    Inst { val: ValId, ty: TypeId },
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -196,34 +216,161 @@ impl Serialize for Fields {
     }
 }
 
+enum BasicError {
+    TooManyTypes,
+    FailedToUnify,
+}
+
 #[derive(Debug)]
 struct Types {
-    types: IndexSet<Type>,
+    unknowns: usize,
+    types: IndexMap<Type, TypeId>,
 }
 
 impl Types {
     fn new() -> Self {
         Self {
-            types: IndexSet::new(),
+            unknowns: 0,
+            types: IndexMap::new(),
         }
     }
 
     fn get(&self, id: TypeId) -> Type {
-        self.types[id.to_usize()]
+        let (&t, _) = self.types.get_index(id.to_usize()).unwrap();
+        t
     }
 
-    fn make(&mut self, ty: Type) -> TypeResult<TypeId> {
-        let (i, _) = self.types.insert_full(ty);
+    fn make(&mut self, ty: Type) -> Result<TypeId, BasicError> {
+        let entry = self.types.entry(ty);
         // maybe more types than tokens, because of imports
-        let id = TypeId::from_usize(i).ok_or(TypeError::TooManyTypes)?;
+        let id = TypeId::from_usize(entry.index()).ok_or(BasicError::TooManyTypes)?;
+        entry.or_insert(id);
         Ok(id)
+    }
+
+    fn unknown(&mut self) -> Result<TypeId, BasicError> {
+        let t = self.make(Type::Unknown {
+            id: UnknownId::from_usize(self.unknowns).expect("types should outnumber unknowns"),
+        })?;
+        self.unknowns += 1;
+        Ok(t)
+    }
+
+    fn parent(&self, element: TypeId) -> TypeId {
+        self.types[element.to_usize()]
+    }
+
+    fn set_parent(&mut self, element: TypeId, parent: TypeId) {
+        self.types[element.to_usize()] = parent;
+    }
+
+    fn root(&mut self, mut element: TypeId) -> TypeId {
+        let mut parent = self.parent(element);
+        while parent != element {
+            let grandparent = self.parent(parent);
+            self.set_parent(element, grandparent);
+            element = parent;
+            parent = grandparent;
+        }
+        element
+    }
+
+    fn unify(&mut self, t1: TypeId, t2: TypeId) -> Result<TypeId, BasicError> {
+        let (t1, t2) = (self.root(t1), self.root(t2));
+        if t1 == t2 {
+            return Ok(t1);
+        }
+        let t = match (self.get(t1), self.get(t2)) {
+            (_, Type::Unknown { id: _ }) => t1,
+            (Type::Unknown { id: _ }, _) => t2,
+            (
+                Type::Prod {
+                    fst: fst1,
+                    snd: snd1,
+                },
+                Type::Prod {
+                    fst: fst2,
+                    snd: snd2,
+                },
+            ) => {
+                let fst = self.unify(fst1, fst2)?;
+                let snd = self.unify(snd1, snd2)?;
+                self.make(Type::Prod { fst, snd })?
+            }
+            (
+                Type::Sum {
+                    left: left1,
+                    right: right1,
+                },
+                Type::Sum {
+                    left: left2,
+                    right: right2,
+                },
+            ) => {
+                let left = self.unify(left1, left2)?;
+                let right = self.unify(right1, right2)?;
+                self.make(Type::Sum { left, right })?
+            }
+            (
+                Type::Array {
+                    index: index1,
+                    elem: elem1,
+                },
+                Type::Array {
+                    index: index2,
+                    elem: elem2,
+                },
+            ) => {
+                let index = self.unify(index1, index2)?;
+                let elem = self.unify(elem1, elem2)?;
+                self.make(Type::Array { index, elem })?
+            }
+            (
+                Type::Record {
+                    name: name1,
+                    field: field1,
+                    rest: rest1,
+                },
+                Type::Record {
+                    name: name2,
+                    field: field2,
+                    rest: rest2,
+                },
+            ) => {
+                if name1 != name2 {
+                    return Err(BasicError::FailedToUnify);
+                }
+                let name = name1;
+                let field = self.unify(field1, field2)?;
+                let rest = self.unify(rest1, rest2)?;
+                self.make(Type::Record { name, field, rest })?
+            }
+            (
+                Type::Func {
+                    dom: dom1,
+                    cod: cod1,
+                },
+                Type::Func {
+                    dom: dom2,
+                    cod: cod2,
+                },
+            ) => {
+                let dom = self.unify(dom1, dom2)?;
+                let cod = self.unify(cod1, cod2)?;
+                self.make(Type::Func { dom, cod })?
+            }
+            _ => return Err(BasicError::FailedToUnify),
+        };
+        self.set_parent(t1, t);
+        self.set_parent(t2, t);
+        Ok(t)
     }
 }
 
 impl Serialize for Types {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut seq = serializer.serialize_seq(Some(self.types.len()))?;
-        for ty in &self.types {
+        for ty in self.types.keys() {
             seq.serialize_element(ty)?;
         }
         seq.end()
@@ -235,9 +382,9 @@ pub struct Module {
     fields: Fields,
     types: Types,
     vals: Vec<Val>,
-    params: Box<[ValId]>,
-    exprs: Box<[ValId]>,
-    defs: Box<[ValId]>,
+    params: Vec<ValId>,
+    exprs: Vec<ValId>,
+    defs: Vec<ValId>,
     exports: HashMap<String, parse::DefId>,
 }
 
@@ -302,10 +449,19 @@ pub enum TypeError {
         expected: TypeId,
         actual: TypeId,
     },
+    Bind {
+        id: parse::ParamId,
+    },
     Param {
         id: parse::ParamId,
         expected: TypeId,
         actual: TypeId,
+    },
+    Elem {
+        id: parse::ExprId,
+    },
+    Apply {
+        id: parse::ExprId,
     },
     Expr {
         id: parse::ExprId,
@@ -357,12 +513,56 @@ impl<'a> Typer<'a> {
     }
 
     fn ty(&mut self, ty: Type) -> TypeResult<TypeId> {
-        self.module.types.make(ty)
+        self.module.types.make(ty).map_err(|e| match e {
+            BasicError::TooManyTypes => TypeError::TooManyTypes,
+            BasicError::FailedToUnify => unreachable!(),
+        })
+    }
+
+    fn unknown(&mut self) -> TypeResult<TypeId> {
+        self.module.types.unknown().map_err(|e| match e {
+            BasicError::TooManyTypes => TypeError::TooManyTypes,
+            BasicError::FailedToUnify => unreachable!(),
+        })
+    }
+
+    fn root(&mut self, ty: TypeId) -> TypeId {
+        self.module.types.root(ty)
+    }
+
+    fn unify(
+        &mut self,
+        t1: TypeId,
+        t2: TypeId,
+        err: impl FnOnce() -> TypeError,
+    ) -> TypeResult<TypeId> {
+        self.module.types.unify(t1, t2).map_err(|e| match e {
+            BasicError::TooManyTypes => TypeError::TooManyTypes,
+            BasicError::FailedToUnify => err(),
+        })
+    }
+
+    fn unify_assert(&mut self, t1: TypeId, t2: TypeId) -> TypeResult<TypeId> {
+        self.module.types.unify(t1, t2).map_err(|e| match e {
+            BasicError::TooManyTypes => TypeError::TooManyTypes,
+            BasicError::FailedToUnify => panic!("expected unification to succeed"),
+        })
+    }
+
+    fn unknowns<T>(&mut self, a: &[T], mut f: impl FnMut(usize) -> Src) -> TypeResult<Vec<ValId>> {
+        (0..a.len())
+            .map(|i| {
+                let ty = self.unknown()?;
+                let src = f(i);
+                Ok(self.val(Val { ty, src }))
+            })
+            .collect()
     }
 
     fn sub(&mut self, var: TypeId, inner: TypeId, ty: TypeId) -> TypeResult<TypeId> {
         match self.module.ty(inner) {
-            Type::Untyped | Type::Unit | Type::Int | Type::Float | Type::End => Ok(inner),
+            Type::Unknown { id: _ } => panic!("unresolved polymorphic type"),
+            Type::Unit | Type::Int | Type::Float | Type::End => Ok(inner),
             Type::Var { src: _, def: _ } => Ok(if inner == var { ty } else { inner }),
             Type::Poly { var: x, inner: t } => {
                 assert_ne!(x, var, "type variables should be unique");
@@ -403,14 +603,17 @@ impl<'a> Typer<'a> {
         id
     }
 
-    fn scope<T, U>(
+    fn scope<A, B, C>(
         &mut self,
-        x: T,
-        bind: impl FnOnce(&mut Self, &T, &mut Vec<&'a str>) -> TypeResult<()>,
-        f: impl FnOnce(&mut Self, T) -> TypeResult<U>,
-    ) -> TypeResult<U> {
+        x: A,
+        bind: impl FnOnce(&mut Self, &A, &mut Vec<&'a str>) -> TypeResult<B>,
+        f: impl FnOnce(&mut Self, A) -> TypeResult<C>,
+    ) -> TypeResult<(B, C)> {
         let mut names = vec![];
-        let res = bind(self, &x, &mut names).and_then(|()| f(self, x));
+        let res = bind(self, &x, &mut names).and_then(|a| {
+            let b = f(self, x)?;
+            Ok((a, b))
+        });
         for name in names.into_iter().rev() {
             self.names
                 .get_mut(name)
@@ -460,25 +663,34 @@ impl<'a> Typer<'a> {
         }
     }
 
-    fn bind_ty(
+    fn param_synth(
         &mut self,
         types: &IndexMap<&'a str, TypeId>,
-        bind: parse::Bind,
+        names: &mut Vec<&'a str>,
+        id: parse::ParamId,
     ) -> TypeResult<TypeId> {
-        match bind {
-            parse::Bind::Paren { inner } => self.param_ty(types, inner),
-            parse::Bind::Unit { open: _, close: _ } => self.ty(Type::Unit),
-            parse::Bind::Name { name } => Err(TypeError::Untyped { name }),
+        let parse::Param { bind, ty } = self.tree.param(id);
+        let val = self.module.param(id);
+        let unknown = self.module.val(val).ty;
+        let actual = match bind {
+            parse::Bind::Paren { inner } => self.param_synth(types, names, inner)?,
+            parse::Bind::Unit { open: _, close: _ } => self.ty(Type::Unit)?,
+            parse::Bind::Name { name } => {
+                let s = self.token(name);
+                self.names.entry(s).or_default().push(val);
+                names.push(s);
+                unknown
+            }
             parse::Bind::Pair { fst, snd } => {
-                let fst = self.param_ty(types, fst)?;
-                let snd = self.param_ty(types, snd)?;
-                self.ty(Type::Prod { fst, snd })
+                let fst = self.param_synth(types, names, fst)?;
+                let snd = self.param_synth(types, names, snd)?;
+                self.ty(Type::Prod { fst, snd })?
             }
             parse::Bind::Record { name, field, rest } => {
                 let mut fields = BTreeMap::new();
                 let (mut n, mut v, mut r) = (name, field, rest);
                 loop {
-                    let ty = self.param_ty(types, v)?;
+                    let ty = self.param_synth(types, names, v)?;
                     if fields.insert(self.token(n), ty).is_some() {
                         return Err(TypeError::Duplicate { name: n });
                     }
@@ -495,144 +707,75 @@ impl<'a> Typer<'a> {
                     .try_rfold(self.ty(Type::End)?, |rest, (s, field)| {
                         let name = self.field(s)?;
                         self.ty(Type::Record { name, field, rest })
-                    })
+                    })?
             }
-            parse::Bind::End { open: _, close: _ } => self.ty(Type::End),
-        }
+            parse::Bind::End { open: _, close: _ } => self.ty(Type::End)?,
+        };
+        let expected = match ty {
+            Some(ast) => self.parse_ty(types, ast)?,
+            None => unknown,
+        };
+        self.unify(expected, actual, || TypeError::Bind { id })
     }
 
-    fn param_ty(
-        &mut self,
-        types: &IndexMap<&'a str, TypeId>,
-        id: parse::ParamId,
-    ) -> TypeResult<TypeId> {
-        let parse::Param { bind, ty } = self.tree.param(id);
-        let t = match ty {
-            Some(t) => self.parse_ty(types, t),
-            None => self.bind_ty(types, bind),
-        }?;
-        let src = Src::Param { id };
-        let val = self.val(Val { src, ty: t });
-        self.module.set_param(id, val);
-        Ok(t)
-    }
-
-    fn param(
+    fn param_check(
         &mut self,
         types: &IndexMap<&'a str, TypeId>,
         names: &mut Vec<&'a str>,
         id: parse::ParamId,
-        t: TypeId,
-    ) -> TypeResult<()> {
-        let src = Src::Param { id };
-        let param = self.tree.param(id);
-        let (ty, val) = match param.ty {
-            Some(ast) => {
-                let ty = self.parse_ty(types, ast)?;
-                let val = self.val(Val { src, ty });
-                self.module.set_param(id, val);
-                if ty == t {
-                    (ty, val)
-                } else {
-                    return Err(TypeError::Type {
-                        id: ast,
-                        expected: t,
-                        actual: ty,
-                    });
-                }
-            }
-            None => {
-                let val = self.val(Val { src, ty: t });
-                self.module.set_param(id, val);
-                (t, val)
-            }
-        };
-        match param.bind {
-            parse::Bind::Paren { inner } => self.param(types, names, inner, ty),
-            parse::Bind::Unit { open: _, close: _ } => {
-                let actual = self.ty(Type::Unit)?;
-                if actual == ty {
-                    Ok(())
-                } else {
-                    Err(TypeError::Param {
-                        id,
-                        expected: ty,
-                        actual,
-                    })
-                }
-            }
-            parse::Bind::Name { name } => {
-                let s = self.token(name);
-                self.names.entry(s).or_default().push(val);
-                names.push(s);
-                Ok(())
-            }
-            parse::Bind::Pair { fst, snd } => match self.module.ty(ty) {
-                Type::Prod { fst: dom, snd: cod } => {
-                    self.param(types, names, fst, dom)?;
-                    self.param(types, names, snd, cod)?;
-                    Ok(())
-                }
-                _ => Err(TypeError::NotPair { param: id }),
-            },
-            parse::Bind::Record { name, field, rest } => {
-                let mut fields = BTreeMap::new();
-                let (mut n, mut v, mut r) = (name, field, rest);
-                loop {
-                    if fields.insert(self.token(n), v).is_some() {
-                        return Err(TypeError::Duplicate { name: n });
-                    }
-                    match self.tree.param(r).bind {
-                        parse::Bind::Record { name, field, rest } => {
-                            (n, v, r) = (name, field, rest);
-                        }
-                        parse::Bind::End { open: _, close: _ } => break,
-                        _ => panic!("invalid record"),
-                    }
-                }
-                let mut t = ty;
-                for (s, param) in fields {
-                    match self.module.ty(t) {
-                        Type::Record { name, field, rest } => {
-                            if s != self.module.field(name) {
-                                return Err(TypeError::WrongRecord { param: id, ty });
-                            }
-                            self.param(types, names, param, field)?;
-                            t = rest;
-                        }
-                        Type::End => return Err(TypeError::WrongRecord { param: id, ty }),
-                        _ => panic!("invalid record"),
-                    }
-                }
-                match self.module.ty(t) {
-                    Type::End => Ok(()),
-                    _ => Err(TypeError::WrongRecord { param: id, ty }),
-                }
-            }
-            parse::Bind::End { open: _, close: _ } => {
-                let actual = self.ty(Type::End)?;
-                if actual == ty {
-                    Ok(())
-                } else {
-                    Err(TypeError::Param {
-                        id,
-                        expected: ty,
-                        actual,
-                    })
-                }
-            }
-        }
+        ty: TypeId,
+    ) -> TypeResult<TypeId> {
+        let actual = self.param_synth(types, names, id)?;
+        self.unify(ty, actual, || TypeError::Param {
+            id,
+            expected: ty,
+            actual,
+        })
     }
 
-    fn expr(
+    fn func_synth(
+        &mut self,
+        types: &mut IndexMap<&'a str, TypeId>,
+        type_args: &mut Vec<TypeId>,
+        func: parse::ExprId,
+    ) -> TypeResult<TypeId> {
+        if let parse::Expr::Name { name } = self.tree.expr(func) {
+            let mut val = self
+                .names
+                .get(self.token(name))
+                .and_then(|stack| stack.last().copied())
+                .ok_or(TypeError::Undefined { name })?;
+            let Val { src, mut ty } = self.module.val(val);
+            if let Src::Def { id: _ } = src {
+                assert!(self.root(ty) == ty, "top-level type should be resolved");
+                while let Type::Poly { var, inner } = self.module.ty(ty) {
+                    let t = match type_args.pop() {
+                        Some(t) => t,
+                        None => self.unknown()?,
+                    };
+                    ty = self.sub(var, inner, t)?;
+                    let src = Src::Inst { val, ty: t };
+                    val = self.val(Val { ty, src });
+                }
+                self.module.set_expr(func, val);
+                return Ok(ty);
+            }
+        }
+        self.expr_synth(types, func)
+    }
+
+    fn expr_synth(
         &mut self,
         types: &mut IndexMap<&'a str, TypeId>,
         id: parse::ExprId,
-    ) -> TypeResult<ValId> {
-        let ty = match self.tree.expr(id) {
+    ) -> TypeResult<TypeId> {
+        let val = self.module.expr(id);
+        let unknown = self.module.val(val).ty;
+        assert_eq!(self.root(unknown), unknown, "new expr should have no type");
+        match self.tree.expr(id) {
             parse::Expr::Paren { inner } => {
-                let val = self.expr(types, inner)?;
-                self.module.val(val).ty
+                let ty = self.expr_synth(types, inner)?;
+                self.unify_assert(ty, unknown)
             }
             parse::Expr::Name { name } => {
                 let val = self
@@ -640,33 +783,36 @@ impl<'a> Typer<'a> {
                     .get(self.token(name))
                     .and_then(|stack| stack.last().copied())
                     .ok_or(TypeError::Undefined { name })?;
-                self.module.val(val).ty
+                let Val { src, ty } = self.module.val(val);
+                let i = self.module.expr(id).to_usize();
+                self.module.vals[i].src = src;
+                self.unify_assert(ty, unknown)
             }
-            parse::Expr::Undefined { token: _ } => self.ty(Type::Untyped)?,
-            parse::Expr::Unit { open: _, close: _ } => self.ty(Type::Unit)?,
+            parse::Expr::Undefined { token: _ } => Ok(unknown),
+            parse::Expr::Unit { open: _, close: _ } => {
+                let unit = self.ty(Type::Unit)?;
+                self.unify_assert(unit, unknown)
+            }
             parse::Expr::Number { val } => {
-                if self.token(val).contains('.') {
+                let ty = if self.token(val).contains('.') {
                     self.ty(Type::Float)?
                 } else {
                     self.ty(Type::Int)?
-                }
+                };
+                self.unify_assert(ty, unknown)
             }
             parse::Expr::Pair { fst, snd } => {
-                let f = self.expr(types, fst)?;
-                let s = self.expr(types, snd)?;
-                let fst = self.module.val(f).ty;
-                let snd = self.module.val(s).ty;
-                self.ty(Type::Prod { fst, snd })?
+                let fst = self.expr_synth(types, fst)?;
+                let snd = self.expr_synth(types, snd)?;
+                let prod = self.ty(Type::Prod { fst, snd })?;
+                self.unify_assert(prod, unknown)
             }
             parse::Expr::Record { name, field, rest } => {
                 let mut fields = BTreeMap::new();
                 let (mut n, mut v, mut r) = (name, field, rest);
                 loop {
-                    let val = self.expr(types, v)?;
-                    if fields
-                        .insert(self.token(n), self.module.val(val).ty)
-                        .is_some()
-                    {
+                    let ty = self.expr_synth(types, v)?;
+                    if fields.insert(self.token(n), ty).is_some() {
                         return Err(TypeError::Duplicate { name: n });
                     }
                     match self.tree.expr(r) {
@@ -677,73 +823,62 @@ impl<'a> Typer<'a> {
                         _ => panic!("invalid record"),
                     }
                 }
-                fields
-                    .into_iter()
-                    .try_rfold(self.ty(Type::End)?, |rest, (s, field)| {
-                        let name = self.field(s)?;
-                        self.ty(Type::Record { name, field, rest })
-                    })?
+                let ty =
+                    fields
+                        .into_iter()
+                        .try_rfold(self.ty(Type::End)?, |rest, (s, field)| {
+                            let name = self.field(s)?;
+                            self.ty(Type::Record { name, field, rest })
+                        })?;
+                self.unify_assert(ty, unknown)
             }
-            parse::Expr::End { open: _, close: _ } => self.ty(Type::End)?,
+            parse::Expr::End { open: _, close: _ } => {
+                let end = self.ty(Type::End)?;
+                self.unify_assert(end, unknown)
+            }
             parse::Expr::Elem { array, index } => {
-                let a = self.expr(types, array)?;
-                let (i, elem) = match self.module.ty(self.module.val(a).ty) {
-                    Type::Array { index, elem } => Ok((index, elem)),
-                    _ => Err(TypeError::NotArray { expr: array }),
-                }?;
-                self.expect(types, index, i)?;
-                elem
+                let index = self.expr_synth(types, index)?;
+                let array = self.expr_synth(types, array)?;
+                let elem = unknown;
+                let expected = self.ty(Type::Array { index, elem })?;
+                self.unify(expected, array, || TypeError::Elem { id })?;
+                Ok(elem)
             }
-            parse::Expr::Inst { val, ty } => {
-                let v = self.expr(types, val)?;
-                let (var, inner) = match self.module.ty(self.module.val(v).ty) {
-                    Type::Poly { var, inner } => Ok((var, inner)),
-                    _ => Err(TypeError::NotPoly { expr: val }),
-                }?;
-                let t = self.parse_ty(types, ty)?;
-                self.sub(var, inner, t)?
+            parse::Expr::Inst { val: _, ty: _ } => {
+                panic!("polymorphic instantiation should always be inside function application")
             }
-            parse::Expr::Apply { func, arg } => {
-                let f = self.expr(types, func)?;
-                let (dom, cod) = match self.module.ty(self.module.val(f).ty) {
-                    Type::Func { dom, cod } => Ok((dom, cod)),
-                    _ => Err(TypeError::NotFunc { expr: func }),
-                }?;
-                self.expect(types, arg, dom)?;
-                cod
-            }
-            parse::Expr::Map { func, arg } => {
-                let f = self.expr(types, func)?;
-                let (dom, cod) = match self.module.ty(self.module.val(f).ty) {
-                    Type::Func { dom, cod } => Ok((dom, cod)),
-                    _ => Err(TypeError::NotFunc { expr: func }),
-                }?;
-                let x = self.expr(types, arg)?;
-                let (index, elem) = match self.module.ty(self.module.val(x).ty) {
-                    Type::Array { index, elem } => Ok((index, elem)),
-                    _ => Err(TypeError::NotArray { expr: arg }),
-                }?;
-                if elem != dom {
-                    return Err(TypeError::Expr {
-                        id,
-                        expected: self.ty(Type::Array { index, elem: dom })?,
-                    });
+            parse::Expr::Apply { mut func, arg } => {
+                let mut type_args = vec![];
+                while let parse::Expr::Inst { val, ty } = self.tree.expr(func) {
+                    type_args.push(self.parse_ty(types, ty)?);
+                    func = val;
                 }
-                self.ty(Type::Array { index, elem: cod })?
+                let fty = self.func_synth(types, &mut type_args, func)?;
+                if !type_args.is_empty() {
+                    todo!()
+                }
+                let dom = self.expr_synth(types, arg)?;
+                let cod = unknown;
+                let expected = self.ty(Type::Func { dom, cod })?;
+                self.unify(expected, fty, || TypeError::Apply { id })?;
+                Ok(cod)
             }
+            parse::Expr::Map { func, arg } => todo!(),
             parse::Expr::Let { param, val, body } => {
-                let bound = self.expr(types, val)?;
-                let xty = self.module.val(bound).ty;
-                let rest = self.scope(
+                let bound = self.expr_synth(types, val)?;
+                let ((), ty) = self.scope(
                     types,
-                    |this, types, names| this.param(types, names, param, xty),
-                    |this, types| this.expr(types, body),
+                    |this, types, names| {
+                        this.param_check(types, names, param, bound)?;
+                        Ok(())
+                    },
+                    |this, types| this.expr_synth(types, body),
                 )?;
-                self.module.val(rest).ty
+                self.unify_assert(ty, unknown)
             }
             parse::Expr::Index { name, val, body } => {
                 let int = self.ty(Type::Int)?;
-                self.expect(types, val, int)?;
+                self.expr_check(types, val, int)?;
                 let s = self.token(name);
                 let t = self.ty(Type::Var {
                     src: None,
@@ -752,95 +887,39 @@ impl<'a> Typer<'a> {
                 if types.insert(s, t).is_some() {
                     return Err(TypeError::Duplicate { name });
                 }
-                let res = self.expr(types, body);
+                let res = self.expr_synth(types, body);
                 assert_eq!(types.pop(), Some((s, t)));
-                self.module.val(res?).ty
+                self.unify_assert(res?, unknown)
             }
-            parse::Expr::Unary { op, arg } => {
-                let val = self.expr(types, arg)?;
-                let t = self.module.val(val).ty;
-                match (op, self.module.ty(t)) {
-                    (parse::Unop::Neg, Type::Int | Type::Float) => t,
-                    (parse::Unop::Neg, Type::Array { index: _, elem }) => {
-                        match self.module.ty(elem) {
-                            Type::Int | Type::Float => t,
-                            _ => return Err(TypeError::NotVector { expr: arg }),
-                        }
-                    }
-                    _ => return Err(TypeError::NotVector { expr: arg }),
-                }
-            }
-            parse::Expr::Binary { lhs, map, op, rhs } => {
-                let r = self.expr(types, rhs)?;
-                let t = self.module.val(r).ty;
-                match self.module.ty(t) {
-                    Type::Int | Type::Float => {
-                        self.expect(types, lhs, t)?;
-                        t
-                    }
-                    Type::Array { index: _, elem } => match self.module.ty(elem) {
-                        Type::Int | Type::Float => {
-                            let tl = match op {
-                                parse::Binop::Add => t,
-                                parse::Binop::Sub => t,
-                                parse::Binop::Mul => {
-                                    if map {
-                                        t
-                                    } else {
-                                        elem
-                                    }
-                                }
-                                parse::Binop::Div => {
-                                    return Err(TypeError::NotNumber { expr: rhs });
-                                }
-                            };
-                            self.expect(types, lhs, tl)?;
-                            t
-                        }
-                        _ => return Err(TypeError::NotVector { expr: rhs }),
-                    },
-                    _ => return Err(TypeError::NotVector { expr: rhs }),
-                }
-            }
+            parse::Expr::Unary { op, arg } => todo!(),
+            parse::Expr::Binary { lhs, map, op, rhs } => todo!(),
             parse::Expr::Lambda { param, ty, body } => {
-                let dom = self.param_ty(types, param)?;
-                let (types, val) = self.scope(
+                let cod = match ty {
+                    Some(t) => self.parse_ty(types, t)?,
+                    None => todo!(),
+                };
+                let (dom, ()) = self.scope(
                     types,
-                    |this, types, names| this.param(types, names, param, dom),
+                    |this, types, names| this.param_synth(types, names, param),
                     |this, types| {
-                        let val = this.expr(types, body)?;
-                        Ok((types, val))
+                        this.expr_check(types, body, cod)?;
+                        Ok(())
                     },
                 )?;
-                let cod = self.module.val(val).ty;
-                if let Some(t) = ty {
-                    let expected = self.parse_ty(types, t)?;
-                    if cod != expected {
-                        return Err(TypeError::Expr { id: body, expected });
-                    }
-                }
-                self.ty(Type::Func { dom, cod })?
+                let fty = self.ty(Type::Func { dom, cod })?;
+                self.unify_assert(fty, unknown)
             }
-        };
-        let src = Src::Expr { id };
-        let val = self.val(Val { src, ty });
-        self.module.set_expr(id, val);
-        Ok(val)
+        }
     }
 
-    fn expect(
+    fn expr_check(
         &mut self,
         types: &mut IndexMap<&'a str, TypeId>,
         id: parse::ExprId,
         ty: TypeId,
-    ) -> TypeResult<ValId> {
-        let val = self.expr(types, id)?;
-        let t = self.module.val(val).ty;
-        if t == ty {
-            Ok(val)
-        } else {
-            Err(TypeError::Expr { id, expected: ty })
-        }
+    ) -> TypeResult<TypeId> {
+        let actual = self.expr_synth(types, id)?;
+        self.unify(ty, actual, || TypeError::Expr { id, expected: ty })
     }
 
     fn toplevel(&mut self, name: TokenId, val: ValId) -> TypeResult<()> {
@@ -864,7 +943,7 @@ impl<'a> Typer<'a> {
         }
         let import = self.imports[i.to_usize()];
         let t = match import.ty(t0) {
-            Type::Untyped => self.ty(Type::Untyped)?,
+            Type::Unknown { id: _ } => panic!("unresolved type from import"),
             Type::Var { src, def } => {
                 assert!(src.is_none(), "type variable from transitive import");
                 self.ty(Type::Var { src: Some(i), def })?
@@ -910,11 +989,11 @@ impl<'a> Typer<'a> {
     }
 
     fn imports(&mut self) -> TypeResult<()> {
-        let n = self.tree.imports().len();
+        let imports = self.tree.imports();
+        let n = imports.len();
         if n == 0 {
             return Ok(()); // avoid underflow when we decrement below
         }
-        let imports = self.tree.imports();
         for index in 0..=(n - 1).try_into().map_err(|_| TypeError::TooManyImports)? {
             let src = ImportId { index };
             let module = self.imports[src.to_usize()];
@@ -936,6 +1015,12 @@ impl<'a> Typer<'a> {
     }
 
     fn module(&mut self) -> TypeResult<()> {
+        self.module.params = self.unknowns(self.tree.params(), |i| Src::Param {
+            id: parse::ParamId::from_usize(i).unwrap(),
+        })?;
+        self.module.exprs = self.unknowns(self.tree.exprs(), |i| Src::Expr {
+            id: parse::ExprId::from_usize(i).unwrap(),
+        })?;
         self.imports()?;
         let defs = self
             .tree
@@ -954,23 +1039,29 @@ impl<'a> Typer<'a> {
                     .iter()
                     .map(|&def| Ok((self.token(def), self.ty(Type::Var { src: None, def })?)))
                     .collect::<TypeResult<IndexMap<&'a str, TypeId>>>()?;
-                let doms = params
-                    .iter()
-                    .map(|&param| self.param_ty(&names, param))
-                    .collect::<TypeResult<Vec<TypeId>>>()?;
+                let (doms, ()) = self.scope(
+                    &names,
+                    |this, names, temps| {
+                        params
+                            .iter()
+                            .map(|&param| this.param_synth(names, temps, param))
+                            .collect::<TypeResult<Vec<TypeId>>>()
+                    },
+                    |_, _| Ok(()),
+                )?;
                 let cod = self.parse_ty(&names, ty.ok_or(TypeError::Untyped { name: *name })?)?;
                 let t = names.values().try_rfold(
-                    doms.iter()
-                        .try_rfold(cod, |cod, &dom| self.ty(Type::Func { dom, cod }))?,
+                    doms.into_iter()
+                        .try_rfold(cod, |cod, dom| self.ty(Type::Func { dom, cod }))?,
                     |inner, &var| self.ty(Type::Poly { var, inner }),
                 )?;
                 let id = parse::DefId::from_usize(i).unwrap();
                 let src = Src::Def { id };
                 let val = self.val(Val { ty: t, src });
+                self.module.defs.push(val);
                 self.toplevel(*name, val)?;
-                self.module.set_def(id, val);
                 self.module.exports.insert(self.token(*name).to_owned(), id);
-                Ok((names, doms, cod))
+                Ok((names, cod))
             })
             .collect::<TypeResult<Vec<_>>>()?;
         for (
@@ -981,25 +1072,18 @@ impl<'a> Typer<'a> {
                 ty: _,
                 body,
             },
-            (types, doms, cod),
+            (types, cod),
         ) in self.tree.defs().iter().zip(defs)
         {
             self.scope(
                 types,
                 |this, types, names| {
-                    for (&param, t) in params.iter().zip(doms) {
-                        this.param(types, names, param, t)?;
+                    for &param in params {
+                        this.param_synth(types, names, param)?;
                     }
                     Ok(())
                 },
-                |this, mut types| {
-                    let ty = if let parse::Expr::Undefined { token: _ } = this.tree.expr(*body) {
-                        this.ty(Type::Untyped)? // escape hatch if the entire body is undefined
-                    } else {
-                        cod
-                    };
-                    this.expect(&mut types, *body, ty)
-                },
+                |this, mut types| this.expr_check(&mut types, *body, cod),
             )?;
         }
         Ok(())
@@ -1012,11 +1096,6 @@ pub fn typecheck(
     tree: &parse::Module,
     imports: Vec<&Module>,
 ) -> (Module, Result<(), TypeError>) {
-    let mut types = Types::new();
-    let ty = types.make(Type::Untyped).unwrap();
-    let src = Src::Undefined;
-    let vals = vec![Val { ty, src }];
-    let undefined = ValId { index: 0 };
     let mut typer = Typer {
         imports,
         source,
@@ -1024,11 +1103,11 @@ pub fn typecheck(
         tree,
         module: Module {
             fields: Fields::new(),
-            types,
-            vals,
-            params: vec![undefined; tree.params().len()].into_boxed_slice(),
-            exprs: vec![undefined; tree.exprs().len()].into_boxed_slice(),
-            defs: vec![undefined; tree.defs().len()].into_boxed_slice(),
+            types: Types::new(),
+            vals: vec![],
+            params: vec![],
+            exprs: vec![],
+            defs: vec![],
             exports: HashMap::new(),
         },
         names: HashMap::new(),

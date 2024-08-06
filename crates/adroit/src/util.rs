@@ -4,7 +4,6 @@ use std::{
 };
 
 use ariadne::{Color, Label, Report, ReportKind, Source};
-use disjoint_sets::ElementType;
 use indexmap::IndexMap;
 use serde::{ser::SerializeSeq, Serialize, Serializer};
 
@@ -13,6 +12,12 @@ use crate::{lex, parse, range, typecheck};
 pub fn u32_to_usize(n: u32) -> usize {
     n.try_into()
         .expect("pointer size is assumed to be at least 32 bits")
+}
+
+pub trait Id: Sized {
+    fn from_usize(n: usize) -> Option<Self>;
+
+    fn to_usize(self) -> usize;
 }
 
 fn builtin(name: &str) -> Option<&'static str> {
@@ -56,7 +61,7 @@ pub struct ModuleId {
     pub index: usize, // just for convenience for now; can definitely choose a smaller type
 }
 
-impl ElementType for ModuleId {
+impl Id for ModuleId {
     fn from_usize(n: usize) -> Option<Self> {
         Some(Self { index: n })
     }
@@ -319,6 +324,7 @@ pub fn error(modules: &Modules, err: Error) {
                         printer.ty(actual)
                     ),
                 ),
+                typecheck::TypeError::Bind { id } => todo!(),
                 typecheck::TypeError::Param {
                     id,
                     expected,
@@ -331,6 +337,8 @@ pub fn error(modules: &Modules, err: Error) {
                         printer.ty(actual)
                     ),
                 ),
+                typecheck::TypeError::Elem { id } => todo!(),
+                typecheck::TypeError::Apply { id } => todo!(),
                 typecheck::TypeError::Expr { id, expected } => {
                     let actual = module.val(module.expr(id)).ty;
                     (
@@ -421,7 +429,7 @@ impl Printer<'_> {
     fn print_ty(&self, w: &mut impl fmt::Write, id: typecheck::TypeId) -> fmt::Result {
         use typecheck::Type::*;
         match self.get_ty(id) {
-            Untyped => write!(w, "?")?,
+            Unknown { id } => write!(w, "?{}", id.to_usize())?,
             Var { src, def } => {
                 let full = match src {
                     Some(id) => self.modules.get(self.full.imports[id.to_usize()]),
