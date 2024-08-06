@@ -312,18 +312,6 @@ pub fn error(modules: &Modules, err: Error) {
                 typecheck::TypeError::Untyped { name } => {
                     (tokens.get(name).byte_range(), "untyped".to_owned())
                 }
-                typecheck::TypeError::Type {
-                    id,
-                    expected,
-                    actual,
-                } => (
-                    range::ty_range(tokens, tree, id),
-                    format!(
-                        "expected `{}`, got `{}`",
-                        printer.ty(expected),
-                        printer.ty(actual)
-                    ),
-                ),
                 typecheck::TypeError::Bind { id } => todo!(),
                 typecheck::TypeError::Param {
                     id,
@@ -350,52 +338,6 @@ pub fn error(modules: &Modules, err: Error) {
                         ),
                     )
                 }
-                typecheck::TypeError::NotPoly { expr } => {
-                    let ty = module.val(module.expr(expr)).ty;
-                    (
-                        range::expr_range(tokens, tree, expr),
-                        format!("expected polymorphic type, got `{}`", printer.ty(ty)),
-                    )
-                }
-                typecheck::TypeError::NotNumber { expr } => {
-                    let ty = module.val(module.expr(expr)).ty;
-                    (
-                        range::expr_range(tokens, tree, expr),
-                        format!("expected number, got `{}`", printer.ty(ty)),
-                    )
-                }
-                typecheck::TypeError::NotVector { expr } => {
-                    let ty = module.val(module.expr(expr)).ty;
-                    (
-                        range::expr_range(tokens, tree, expr),
-                        format!("expected number or vector, got `{}`", printer.ty(ty)),
-                    )
-                }
-                typecheck::TypeError::NotPair { param } => {
-                    let ty = module.val(module.param(param)).ty;
-                    (
-                        range::param_range(tokens, tree, param),
-                        format!("expected tuple, got `{}`", printer.ty(ty)),
-                    )
-                }
-                typecheck::TypeError::NotArray { expr } => {
-                    let ty = module.val(module.expr(expr)).ty;
-                    (
-                        range::expr_range(tokens, tree, expr),
-                        format!("expected array, got `{}`", printer.ty(ty)),
-                    )
-                }
-                typecheck::TypeError::NotFunc { expr } => {
-                    let ty = module.val(module.expr(expr)).ty;
-                    (
-                        range::expr_range(tokens, tree, expr),
-                        format!("expected function, got `{}`", printer.ty(ty)),
-                    )
-                }
-                typecheck::TypeError::WrongRecord { param, ty } => (
-                    range::param_range(tokens, tree, param),
-                    format!("expected `{}`", printer.ty(ty)),
-                ),
             };
             Report::build(ReportKind::Error, path, range.start)
                 .with_message("failed to typecheck")
@@ -430,6 +372,8 @@ impl Printer<'_> {
         use typecheck::Type::*;
         match self.get_ty(id) {
             Unknown { id } => write!(w, "?{}", id.to_usize())?,
+            Scalar { id } => write!(w, "num?{}", id.to_usize())?,
+            Vector { id, scalar } => write!(w, "vec?{}>{}", id.to_usize(), self.ty(scalar))?,
             Var { src, def } => {
                 let full = match src {
                     Some(id) => self.modules.get(self.full.imports[id.to_usize()]),

@@ -129,6 +129,13 @@ pub enum Type {
     Unknown {
         id: UnknownId,
     },
+    Scalar {
+        id: UnknownId,
+    },
+    Vector {
+        id: UnknownId,
+        scalar: TypeId,
+    },
     Var {
         src: Option<ImportId>,
         def: TokenId,
@@ -249,10 +256,10 @@ impl Types {
         Ok(id)
     }
 
-    fn unknown(&mut self) -> Result<TypeId, BasicError> {
-        let t = self.make(Type::Unknown {
-            id: UnknownId::from_usize(self.unknowns).expect("types should outnumber unknowns"),
-        })?;
+    fn unknown(&mut self, f: impl FnOnce(UnknownId) -> Type) -> Result<TypeId, BasicError> {
+        let t = self.make(f(
+            UnknownId::from_usize(self.unknowns).expect("types should outnumber unknowns")
+        ))?;
         self.unknowns += 1;
         Ok(t)
     }
@@ -284,6 +291,12 @@ impl Types {
         let t = match (self.get(t1), self.get(t2)) {
             (_, Type::Unknown { id: _ }) => t1,
             (Type::Unknown { id: _ }, _) => t2,
+            (Type::Scalar { id: _ }, Type::Scalar { id: _ }) => t1,
+            (Type::Int | Type::Float, Type::Scalar { id: _ }) => t1,
+            (Type::Scalar { id: _ }, Type::Int | Type::Float) => t2,
+            (Type::Vector { id: _, scalar: _ }, Type::Vector { id: _, scalar: _ }) => t1,
+            (Type::Int | Type::Float, Type::Vector { id: _, scalar }) => self.unify(t1, scalar)?,
+            (Type::Vector { id: _, scalar }, Type::Int | Type::Float) => self.unify(t2, scalar)?,
             (
                 Type::Prod {
                     fst: fst1,
@@ -418,16 +431,8 @@ impl Module {
         self.exports.get(name).copied()
     }
 
-    fn set_param(&mut self, id: parse::ParamId, val: ValId) {
-        self.params[id.to_usize()] = val;
-    }
-
     fn set_expr(&mut self, id: parse::ExprId, val: ValId) {
         self.exprs[id.to_usize()] = val;
-    }
-
-    fn set_def(&mut self, id: parse::DefId, val: ValId) {
-        self.defs[id.to_usize()] = val;
     }
 }
 
@@ -444,11 +449,6 @@ pub enum TypeError {
     },
     Untyped {
         name: TokenId,
-    },
-    Type {
-        id: parse::TypeId,
-        expected: TypeId,
-        actual: TypeId,
     },
     Bind {
         id: parse::ParamId,
@@ -467,28 +467,6 @@ pub enum TypeError {
     Expr {
         id: parse::ExprId,
         expected: TypeId,
-    },
-    NotPoly {
-        expr: parse::ExprId,
-    },
-    NotNumber {
-        expr: parse::ExprId,
-    },
-    NotVector {
-        expr: parse::ExprId,
-    },
-    NotPair {
-        param: parse::ParamId,
-    },
-    NotArray {
-        expr: parse::ExprId,
-    },
-    NotFunc {
-        expr: parse::ExprId,
-    },
-    WrongRecord {
-        param: parse::ParamId,
-        ty: TypeId,
     },
 }
 
@@ -521,10 +499,33 @@ impl<'a> Typer<'a> {
     }
 
     fn unknown(&mut self) -> TypeResult<TypeId> {
-        self.module.types.unknown().map_err(|e| match e {
-            BasicError::TooManyTypes => TypeError::TooManyTypes,
-            BasicError::FailedToUnify => unreachable!(),
-        })
+        self.module
+            .types
+            .unknown(|id| Type::Unknown { id })
+            .map_err(|e| match e {
+                BasicError::TooManyTypes => TypeError::TooManyTypes,
+                BasicError::FailedToUnify => unreachable!(),
+            })
+    }
+
+    fn scalar(&mut self) -> TypeResult<TypeId> {
+        self.module
+            .types
+            .unknown(|id| Type::Scalar { id })
+            .map_err(|e| match e {
+                BasicError::TooManyTypes => TypeError::TooManyTypes,
+                BasicError::FailedToUnify => unreachable!(),
+            })
+    }
+
+    fn vector(&mut self, scalar: TypeId) -> TypeResult<TypeId> {
+        self.module
+            .types
+            .unknown(|id| Type::Vector { id, scalar })
+            .map_err(|e| match e {
+                BasicError::TooManyTypes => TypeError::TooManyTypes,
+                BasicError::FailedToUnify => unreachable!(),
+            })
     }
 
     fn root(&mut self, ty: TypeId) -> TypeId {
@@ -544,10 +545,7 @@ impl<'a> Typer<'a> {
     }
 
     fn unify_assert(&mut self, t1: TypeId, t2: TypeId) -> TypeResult<TypeId> {
-        self.module.types.unify(t1, t2).map_err(|e| match e {
-            BasicError::TooManyTypes => TypeError::TooManyTypes,
-            BasicError::FailedToUnify => panic!("expected unification to succeed"),
-        })
+        self.unify(t1, t2, || panic!("expected unification to succeed"))
     }
 
     fn unknowns<T>(&mut self, a: &[T], mut f: impl FnMut(usize) -> Src) -> TypeResult<Vec<ValId>> {
@@ -562,7 +560,11 @@ impl<'a> Typer<'a> {
 
     fn sub(&mut self, var: TypeId, inner: TypeId, ty: TypeId) -> TypeResult<TypeId> {
         match self.module.ty(inner) {
-            Type::Unknown { id: _ } => panic!("unresolved polymorphic type"),
+            Type::Unknown { id: _ }
+            | Type::Scalar { id: _ }
+            | Type::Vector { id: _, scalar: _ } => {
+                panic!("unresolved polymorphic type")
+            }
             Type::Unit | Type::Int | Type::Float | Type::End => Ok(inner),
             Type::Var { src: _, def: _ } => Ok(if inner == var { ty } else { inner }),
             Type::Poly { var: x, inner: t } => {
@@ -895,7 +897,18 @@ impl<'a> Typer<'a> {
             parse::Expr::Unary { op, arg } => match op {
                 parse::Unop::Neg => todo!(),
             },
-            parse::Expr::Binary { lhs, op, rhs } => todo!(),
+            parse::Expr::Binary { lhs, op, rhs } => match op {
+                parse::Binop::Add | parse::Binop::Sub => todo!(),
+                parse::Binop::Mul => {
+                    let scalar = self.scalar()?;
+                    let vector = self.vector(scalar)?;
+                    self.expr_check(types, lhs, vector)?;
+                    self.expr_check(types, rhs, scalar)?;
+                    self.unify_assert(vector, unknown)
+                }
+                parse::Binop::Div => todo!(),
+                parse::Binop::ElemMul | parse::Binop::ElemDiv => todo!(),
+            },
             parse::Expr::Lambda { param, ty, body } => {
                 let cod = match ty {
                     Some(t) => self.parse_ty(types, t)?,
@@ -946,7 +959,11 @@ impl<'a> Typer<'a> {
         }
         let import = self.imports[i.to_usize()];
         let t = match import.ty(t0) {
-            Type::Unknown { id: _ } => panic!("unresolved type from import"),
+            Type::Unknown { id: _ }
+            | Type::Scalar { id: _ }
+            | Type::Vector { id: _, scalar: _ } => {
+                panic!("unresolved type from import")
+            }
             Type::Var { src, def } => {
                 assert!(src.is_none(), "type variable from transitive import");
                 self.ty(Type::Var { src: Some(i), def })?
