@@ -225,12 +225,6 @@ impl Serialize for Fields {
 }
 
 #[derive(Debug)]
-struct TypeInfo {
-    resolved: bool,
-    parent: TypeId,
-}
-
-#[derive(Debug)]
 enum BasicError {
     TooManyTypes,
     FailedToUnify,
@@ -239,7 +233,7 @@ enum BasicError {
 #[derive(Debug)]
 struct Types {
     unknowns: usize,
-    types: IndexMap<Type, TypeInfo>,
+    types: IndexMap<Type, TypeId>,
 }
 
 impl Types {
@@ -255,36 +249,11 @@ impl Types {
         t
     }
 
-    fn resolved(&self, id: TypeId) -> bool {
-        self.types[id.to_usize()].resolved
-    }
-
     fn make(&mut self, ty: Type) -> Result<TypeId, BasicError> {
-        let resolved = match ty {
-            Type::Unknown { id: _ }
-            | Type::Scalar { id: _ }
-            | Type::Vector { id: _, scalar: _ } => false,
-            Type::Fragment
-            | Type::Var { src: _, def: _ }
-            | Type::Unit
-            | Type::Int
-            | Type::Float
-            | Type::End => true,
-            Type::Poly { var, inner } => self.resolved(var) && self.resolved(inner),
-            Type::Prod { fst, snd } => self.resolved(fst) && self.resolved(snd),
-            Type::Sum { left, right } => self.resolved(left) && self.resolved(right),
-            Type::Array { index, elem } => self.resolved(index) && self.resolved(elem),
-            Type::Record {
-                name: _,
-                field,
-                rest,
-            } => self.resolved(field) && self.resolved(rest),
-            Type::Func { dom, cod } => self.resolved(dom) && self.resolved(cod),
-        };
         let entry = self.types.entry(ty);
         // maybe more types than tokens, because of imports
         let parent = TypeId::from_usize(entry.index()).ok_or(BasicError::TooManyTypes)?;
-        entry.or_insert(TypeInfo { resolved, parent });
+        entry.or_insert(parent);
         Ok(parent)
     }
 
@@ -297,11 +266,11 @@ impl Types {
     }
 
     fn parent(&self, element: TypeId) -> TypeId {
-        self.types[element.to_usize()].parent
+        self.types[element.to_usize()]
     }
 
     fn set_parent(&mut self, element: TypeId, parent: TypeId) {
-        self.types[element.to_usize()].parent = parent;
+        self.types[element.to_usize()] = parent;
     }
 
     fn root(&mut self, mut element: TypeId) -> TypeId {
@@ -446,94 +415,85 @@ impl Canonizer {
             .expect("old types should outnumber new types")
     }
 
-    fn unknown(&mut self, f: impl FnOnce(UnknownId) -> Type) -> TypeId {
-        self.new_types
+    fn unknown(&mut self, f: impl FnOnce(UnknownId) -> Type) -> (bool, TypeId) {
+        let t = self
+            .new_types
             .unknown(f)
-            .expect("old types should outnumber new types")
+            .expect("old types should outnumber new types");
+        (true, t)
     }
 
-    fn ty(&mut self, t0: TypeId) -> TypeId {
+    fn ty(&mut self, t0: TypeId) -> (bool, TypeId) {
         let t0 = self.old_types.root(t0);
         if let Some(&t) = self.types.get(&t0) {
-            return t;
+            return (false, t);
         }
-        let t = match self.old_types.get(t0) {
+        let (ambiguous, t) = match self.old_types.get(t0) {
             Type::Unknown { id: _ } => self.unknown(|id| Type::Unknown { id }),
             Type::Scalar { id: _ } => self.unknown(|id| Type::Scalar { id }),
             Type::Vector { id: _, scalar } => {
-                let scalar = self.ty(scalar);
+                let (_, scalar) = self.ty(scalar);
                 self.unknown(|id| Type::Vector { id, scalar })
             }
-            Type::Fragment => self.make(Type::Fragment),
-            Type::Var { src, def } => self.make(Type::Var { src, def }),
+            Type::Fragment => (false, self.make(Type::Fragment)),
+            Type::Var { src, def } => (false, self.make(Type::Var { src, def })),
             Type::Poly { var, inner } => {
-                let var = self.ty(var);
-                let inner = self.ty(inner);
-                self.make(Type::Poly { var, inner })
+                let (a1, var) = self.ty(var);
+                let (a2, inner) = self.ty(inner);
+                (a1 || a2, self.make(Type::Poly { var, inner }))
             }
-            Type::Unit => self.make(Type::Unit),
-            Type::Int => self.make(Type::Int),
-            Type::Float => self.make(Type::Float),
+            Type::Unit => (false, self.make(Type::Unit)),
+            Type::Int => (false, self.make(Type::Int)),
+            Type::Float => (false, self.make(Type::Float)),
             Type::Prod { fst, snd } => {
-                let fst = self.ty(fst);
-                let snd = self.ty(snd);
-                self.make(Type::Prod { fst, snd })
+                let (a1, fst) = self.ty(fst);
+                let (a2, snd) = self.ty(snd);
+                (a1 || a2, self.make(Type::Prod { fst, snd }))
             }
             Type::Sum { left, right } => {
-                let left = self.ty(left);
-                let right = self.ty(right);
-                self.make(Type::Sum { left, right })
+                let (a1, left) = self.ty(left);
+                let (a2, right) = self.ty(right);
+                (a1 || a2, self.make(Type::Sum { left, right }))
             }
             Type::Array { index, elem } => {
-                let index = self.ty(index);
-                let elem = self.ty(elem);
-                self.make(Type::Array { index, elem })
+                let (a1, index) = self.ty(index);
+                let (a2, elem) = self.ty(elem);
+                (a1 || a2, self.make(Type::Array { index, elem }))
             }
             Type::Record { name, field, rest } => {
-                let field = self.ty(field);
-                let rest = self.ty(rest);
-                self.make(Type::Record { name, field, rest })
+                let (a1, field) = self.ty(field);
+                let (a2, rest) = self.ty(rest);
+                (a1 || a2, self.make(Type::Record { name, field, rest }))
             }
-            Type::End => self.make(Type::End),
+            Type::End => (false, self.make(Type::End)),
             Type::Func { dom, cod } => {
-                let dom = self.ty(dom);
-                let cod = self.ty(cod);
-                self.make(Type::Func { dom, cod })
+                let (a1, dom) = self.ty(dom);
+                let (a2, cod) = self.ty(cod);
+                (a1 || a2, self.make(Type::Func { dom, cod }))
             }
         };
         self.types.insert(t0, t);
-        t
+        (ambiguous, t)
     }
 
-    fn val(&mut self, v0: ValId) -> ValId {
+    fn val(&mut self, v0: ValId) -> (bool, bool, ValId) {
+        let mut ambig_type_args = false;
         if let Some(&v) = self.vals.get(&v0) {
-            return v;
+            return (ambig_type_args, false, v);
         }
         let Val { ty, mut src } = self.old_vals[v0.to_usize()];
-        let t = self.ty(ty);
-        let mut unknown_sub = false;
         if let Src::Inst { val, ty } = src {
-            let val = self.val(val);
-            let ty = self.ty(ty);
+            let (ata, _, val) = self.val(val);
+            ambig_type_args |= ata;
+            let (amb, ty) = self.ty(ty);
+            ambig_type_args |= amb;
             src = Src::Inst { val, ty };
-            if !self.new_types.resolved(ty) {
-                unknown_sub = true;
-            }
         }
-        let (i, _) = self.new_vals.insert_full(Val { ty: t, src });
+        let (ambiguous, ty) = self.ty(ty);
+        let (i, _) = self.new_vals.insert_full(Val { ty, src });
         let v = ValId::from_usize(i).expect("old values should outnumber new values");
-        if unknown_sub {
-            self.errors.push(TypeError::UnknownSub { id: v });
-        }
-        if !self.new_types.resolved(t) {
-            self.errors.push(TypeError::Unresolved { id: v });
-        }
         self.vals.insert(v0, v);
-        v
-    }
-
-    fn vals(&mut self, v: Vec<ValId>) -> Vec<ValId> {
-        v.into_iter().map(|v| self.val(v)).collect()
+        (ambig_type_args, ambiguous, v)
     }
 }
 
@@ -591,12 +551,56 @@ impl Module {
             old_vals: self.vals,
             new_vals: IndexSet::new(),
         };
-        self.params = canonizer.vals(self.params);
-        self.exprs = canonizer.vals(self.exprs);
-        self.defs = canonizer.vals(self.defs);
+        self.defs = self
+            .defs
+            .into_iter()
+            .map(|v0| {
+                let (ambig_type_args, ambiguous, v) = canonizer.val(v0);
+                assert!(!ambig_type_args, "top-level cannot be a type instantiation");
+                assert!(!ambiguous, "top-level types should already be resolved");
+                v
+            })
+            .collect();
+        self.params = self
+            .params
+            .into_iter()
+            .enumerate()
+            .map(|(i, v0)| {
+                let (ambig_type_args, ambiguous, v) = canonizer.val(v0);
+                assert!(!ambig_type_args, "parameter cannot be a type instantiation");
+                if ambiguous {
+                    canonizer.errors.push(TypeError::AmbigParam {
+                        id: parse::ParamId::from_usize(i).unwrap(),
+                    });
+                }
+                v
+            })
+            .collect();
+        self.exprs = self
+            .exprs
+            .into_iter()
+            .enumerate()
+            .map(|(i, v0)| {
+                let (ambig_type_args, ambiguous, v) = canonizer.val(v0);
+                let id = parse::ExprId::from_usize(i).unwrap();
+                if ambig_type_args {
+                    canonizer.errors.push(TypeError::AmbigTypeArgs { id });
+                } else if ambiguous {
+                    // these can still happen in the case of an ambiguous generic function
+                    // application with some (but not all) manually specified type arguments, but in
+                    // that case the overall function application should be flagged as ambiguous by
+                    // the above, so we don't do anything else here
+                }
+                v
+            })
+            .collect();
         self.types = canonizer.new_types;
         self.vals = canonizer.new_vals.into_iter().collect();
-        (self, canonizer.errors)
+        let errors = canonizer.errors;
+        if self.types.unknowns > 0 {
+            assert!(!errors.is_empty(), "ambiguous types should cause errors");
+        }
+        (self, errors)
     }
 }
 
@@ -625,8 +629,8 @@ pub enum TypeError {
     DivRhs { id: parse::ExprId },
     Lambda { id: parse::ExprId },
     Def { id: parse::DefId },
-    Unresolved { id: ValId },
-    UnknownSub { id: ValId },
+    AmbigParam { id: parse::ParamId },
+    AmbigTypeArgs { id: parse::ExprId },
 }
 
 type TypeResult<T> = Result<T, TypeError>;

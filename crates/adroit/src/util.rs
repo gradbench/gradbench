@@ -1,5 +1,6 @@
 use std::{
-    fmt, fs, io,
+    fmt::{self, Write},
+    fs, io,
     path::{Path, PathBuf},
 };
 
@@ -344,39 +345,35 @@ pub fn error(modules: &Modules, err: Error) {
                     typecheck::TypeError::DivRhs { id } => todo!(),
                     typecheck::TypeError::Lambda { id } => todo!(),
                     typecheck::TypeError::Def { id } => todo!(),
-                    typecheck::TypeError::Unresolved { id } => {
-                        let typecheck::Val { ty, src } = module.val(id);
-                        match src {
-                            typecheck::Src::Import { src, id } => todo!(),
-                            typecheck::Src::Param { id } => (
-                                range::param_range(tokens, tree, id),
-                                format!("unresolved type: `{}`", printer.ty(ty)),
-                            ),
-                            typecheck::Src::Expr { id } => {
-                                let range = range::expr_range(tokens, tree, id);
-                                (range, format!("unresolved type: `{}`", printer.ty(ty)))
+                    typecheck::TypeError::AmbigParam { id } => (
+                        range::param_range(tokens, tree, id),
+                        format!(
+                            "ambiguous type: `{}`",
+                            printer.ty(module.val(module.param(id)).ty)
+                        ),
+                    ),
+                    typecheck::TypeError::AmbigTypeArgs { id } => {
+                        let span = range::expr_range(tokens, tree, id);
+                        let mut message = String::new();
+                        write!(message, "ambiguous type arguments: ").unwrap();
+                        write!(message, "`{}[", &source[span.clone()]).unwrap();
+                        let mut args = vec![];
+                        let mut v = module.expr(id);
+                        while let typecheck::Src::Inst { val, ty } = module.val(v).src {
+                            args.push(ty);
+                            v = val;
+                        }
+                        args.reverse();
+                        let mut first = true;
+                        for ty in args {
+                            if !first {
+                                write!(message, ", ").unwrap();
                             }
-                            typecheck::Src::Def { id } => todo!(),
-                            typecheck::Src::Inst { val, ty } => todo!(),
+                            first = false;
+                            write!(message, "{}", printer.ty(ty)).unwrap();
                         }
-                    }
-                    typecheck::TypeError::UnknownSub { mut id } => {
-                        let mut t = None;
-                        while let typecheck::Src::Inst { val, ty } = module.val(id).src {
-                            id = val;
-                            t = Some(ty);
-                        }
-                        let range = match module.val(id).src {
-                            typecheck::Src::Import { src, id } => 0..0,
-                            typecheck::Src::Param { id } => todo!(),
-                            typecheck::Src::Expr { id } => todo!(),
-                            typecheck::Src::Def { id } => todo!(),
-                            typecheck::Src::Inst { val, ty } => unreachable!(),
-                        };
-                        (
-                            range,
-                            format!("unknown substitution: `{}`", printer.ty(t.unwrap())),
-                        )
+                        write!(message, "]`").unwrap();
+                        (span, message)
                     }
                 };
                 Report::build(ReportKind::Error, path, range.start)
@@ -412,10 +409,10 @@ impl Printer<'_> {
     fn print_ty(&self, w: &mut impl fmt::Write, id: typecheck::TypeId) -> fmt::Result {
         use typecheck::Type::*;
         match self.get_ty(id) {
-            Unknown { id } => write!(w, "?{}", id.to_usize())?,
-            Scalar { id } => write!(w, "num?{}", id.to_usize())?,
-            Vector { id, scalar } => write!(w, "vec?{}>{}", id.to_usize(), self.ty(scalar))?,
-            Fragment => write!(w, "{{?}}")?,
+            Unknown { id: _ } => write!(w, "_")?,
+            Scalar { id: _ } => write!(w, "_")?,
+            Vector { id: _, scalar: _ } => write!(w, "_")?,
+            Fragment => panic!("fragment type should not be printed"),
             Var { src, def } => {
                 let full = match src {
                     Some(id) => self.modules.get(self.full.imports[id.to_usize()]),
