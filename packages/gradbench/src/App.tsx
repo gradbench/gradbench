@@ -141,8 +141,7 @@ const App = () => {
                 </span>,{" "}
                 <span style={{ color: "#003366", fontWeight: "bold" }}>N</span>,{" "}
                 <span style={{ color: "#003366", fontWeight: "bold" }}>P</span>
-                ](
-                {"\n"}
+                ]({"\n"}
                 {"  "}
                 <span style={{ color: "#AA6600" }}>a:</span> [
                 <span style={{ color: "#003366", fontWeight: "bold" }}>M</span>{" "}
@@ -160,8 +159,10 @@ const App = () => {
                 <span style={{ color: "#003366", fontWeight: "bold" }}>
                   Float
                 </span>
-                ,{"\n"}
-                ):{" "}
+                {"\n"}): [
+                <span style={{ color: "#003366", fontWeight: "bold" }}>M</span>{" "}
+                <span style={{ color: "#333333" }}>*</span>{" "}
+                <span style={{ color: "#003366", fontWeight: "bold" }}>P</span>]
                 <span style={{ color: "#003366", fontWeight: "bold" }}>
                   Float
                 </span>{" "}
