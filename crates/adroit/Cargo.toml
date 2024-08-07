@@ -17,3 +17,4 @@ serde_json = "1"
 
 [dev-dependencies]
 goldenfile = "1"
+similar-asserts = "1"

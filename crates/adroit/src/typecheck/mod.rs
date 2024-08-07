@@ -596,11 +596,7 @@ impl Module {
             .collect();
         self.types = canonizer.new_types;
         self.vals = canonizer.new_vals.into_iter().collect();
-        let errors = canonizer.errors;
-        if self.types.unknowns > 0 {
-            assert!(!errors.is_empty(), "ambiguous types should cause errors");
-        }
-        (self, errors)
+        (self, canonizer.errors)
     }
 }
 
@@ -1341,5 +1337,8 @@ pub fn typecheck(
         Ok(()) => errors,
         Err(e) => vec![e],
     };
+    if module.types.unknowns > 0 {
+        assert!(!errs.is_empty(), "ambiguous types should cause errors");
+    }
     (module, errs)
 }

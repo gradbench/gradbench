@@ -16,6 +16,7 @@ dependencies = [
  "logos",
  "serde",
  "serde_json",
+ "similar-asserts",
 ]
 
 [[package]]
