@@ -511,14 +511,20 @@ impl Canonizer {
         }
         let Val { ty, mut src } = self.old_vals[v0.to_usize()];
         let t = self.ty(ty);
+        let mut unknown_sub = false;
         if let Src::Inst { val, ty } = src {
-            src = Src::Inst {
-                val: self.val(val),
-                ty: self.ty(ty),
-            };
+            let val = self.val(val);
+            let ty = self.ty(ty);
+            src = Src::Inst { val, ty };
+            if !self.new_types.resolved(ty) {
+                unknown_sub = true;
+            }
         }
         let (i, _) = self.new_vals.insert_full(Val { ty: t, src });
         let v = ValId::from_usize(i).expect("old values should outnumber new values");
+        if unknown_sub {
+            self.errors.push(TypeError::UnknownSub { id: v });
+        }
         if !self.new_types.resolved(t) {
             self.errors.push(TypeError::Unresolved { id: v });
         }
@@ -620,6 +626,7 @@ pub enum TypeError {
     Lambda { id: parse::ExprId },
     Def { id: parse::DefId },
     Unresolved { id: ValId },
+    UnknownSub { id: ValId },
 }
 
 type TypeResult<T> = Result<T, TypeError>;
@@ -714,10 +721,14 @@ impl<'a> Typer<'a> {
         match self.module.ty(inner) {
             Type::Unknown { id: _ }
             | Type::Scalar { id: _ }
-            | Type::Vector { id: _, scalar: _ } => {
-                panic!("unresolved polymorphic type")
+            | Type::Unit
+            | Type::Int
+            | Type::Float
+            | Type::End => Ok(inner),
+            Type::Vector { id, scalar } => {
+                let scalar = self.sub(var, scalar, ty)?;
+                self.ty(Type::Vector { id, scalar })
             }
-            Type::Unit | Type::Int | Type::Float | Type::End => Ok(inner),
             Type::Fragment => self.ty(Type::Fragment),
             Type::Var { src: _, def: _ } => Ok(if inner == var { ty } else { inner }),
             Type::Poly { var: x, inner: t } => {

@@ -360,6 +360,24 @@ pub fn error(modules: &Modules, err: Error) {
                             typecheck::Src::Inst { val, ty } => todo!(),
                         }
                     }
+                    typecheck::TypeError::UnknownSub { mut id } => {
+                        let mut t = None;
+                        while let typecheck::Src::Inst { val, ty } = module.val(id).src {
+                            id = val;
+                            t = Some(ty);
+                        }
+                        let range = match module.val(id).src {
+                            typecheck::Src::Import { src, id } => 0..0,
+                            typecheck::Src::Param { id } => todo!(),
+                            typecheck::Src::Expr { id } => todo!(),
+                            typecheck::Src::Def { id } => todo!(),
+                            typecheck::Src::Inst { val, ty } => unreachable!(),
+                        };
+                        (
+                            range,
+                            format!("unknown substitution: `{}`", printer.ty(t.unwrap())),
+                        )
+                    }
                 };
                 Report::build(ReportKind::Error, path, range.start)
                     .with_message("failed to typecheck")
