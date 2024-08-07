@@ -1,14 +1,21 @@
 use std::{
     fmt::{self, Write},
     fs, io,
+    marker::PhantomData,
+    ops::Range,
     path::{Path, PathBuf},
 };
 
-use ariadne::{Color, Label, Report, ReportKind, Source};
+use ariadne::{Cache, Color, Label, Report, ReportBuilder, ReportKind, Source};
 use indexmap::IndexMap;
 use serde::{ser::SerializeSeq, Serialize, Serializer};
 
-use crate::{lex, parse, range, typecheck, util::Id};
+use crate::{
+    lex, parse,
+    range::{expr_range, param_range},
+    typecheck,
+    util::{Diagnostic, Emitter, Id},
+};
 
 fn builtin(name: &str) -> Option<&'static str> {
     match name {
@@ -214,23 +221,74 @@ pub fn import(modules: &mut Modules, from: &Path, name: &str) -> Result<ModuleId
     Ok(ModuleId { index })
 }
 
+#[derive(Debug)]
+struct AriadneEmitter<'a, C: Cache<&'a str>> {
+    cache: C,
+    message: String,
+    phantom: PhantomData<&'a ()>,
+}
+
+impl<'a, C: Cache<&'a str>> AriadneEmitter<'a, C> {
+    fn new(cache: C, message: impl ToString) -> Self {
+        Self {
+            cache,
+            message: message.to_string(),
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<'a, C: Cache<&'a str>> Emitter<(&'a str, Range<usize>)> for AriadneEmitter<'a, C> {
+    fn diagnostic(
+        &mut self,
+        span: (&'a str, Range<usize>),
+        message: impl ToString,
+    ) -> impl Diagnostic<(&'a str, std::ops::Range<usize>)> {
+        let (path, range) = span.clone();
+        AriadneDiagnostic {
+            cache: &mut self.cache,
+            builder: Report::build(ReportKind::Error, path, range.start)
+                .with_message(&self.message)
+                .with_label(
+                    Label::new(span)
+                        .with_color(Color::Red)
+                        .with_message(message),
+                ),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct AriadneDiagnostic<'a, 'b, C: Cache<&'a str>> {
+    cache: &'b mut C,
+    builder: ReportBuilder<'a, (&'a str, Range<usize>)>,
+}
+
+impl<'a, 'b, C: Cache<&'a str>> Diagnostic<(&'a str, Range<usize>)>
+    for AriadneDiagnostic<'a, 'b, C>
+{
+    fn related(&mut self, span: (&'a str, Range<usize>), message: impl ToString) {
+        self.builder.add_label(
+            Label::new(span)
+                .with_color(Color::Blue)
+                .with_message(message),
+        )
+    }
+
+    fn finish(self) {
+        self.builder.finish().eprint(self.cache).unwrap();
+    }
+}
+
 pub fn error(modules: &Modules, err: Error) {
     match err {
         Error::Resolve { err } => eprintln!("error resolving module: {err}"),
         Error::Read { path, err } => eprintln!("error reading {}: {err}", path.display()),
         Error::Lex { path, source, err } => {
-            let path = &path.display().to_string();
-            let range = err.byte_range();
-            Report::build(ReportKind::Error, path, range.start)
-                .with_message("failed to tokenize")
-                .with_label(
-                    Label::new((path, range))
-                        .with_message(err.message())
-                        .with_color(Color::Red),
-                )
-                .finish()
-                .eprint((path, Source::from(&source)))
-                .unwrap();
+            let path: &str = &path.display().to_string();
+            AriadneEmitter::new((path, Source::from(&source)), "failed to tokenize")
+                .diagnostic((path, err.byte_range()), err.message())
+                .finish();
         }
         Error::Parse {
             path,
@@ -238,7 +296,7 @@ pub fn error(modules: &Modules, err: Error) {
             tokens,
             err,
         } => {
-            let path = &path.display().to_string();
+            let path: &str = &path.display().to_string();
             let (id, message) = match err {
                 parse::ParseError::Expected { id, kinds } => (
                     id,
@@ -248,17 +306,9 @@ pub fn error(modules: &Modules, err: Error) {
                     ),
                 ),
             };
-            let range = tokens.get(id).byte_range();
-            Report::build(ReportKind::Error, path, range.start)
-                .with_message("failed to parse")
-                .with_label(
-                    Label::new((path, range))
-                        .with_message(message)
-                        .with_color(Color::Red),
-                )
-                .finish()
-                .eprint((path, Source::from(&source)))
-                .unwrap();
+            AriadneEmitter::new((path, Source::from(&source)), "failed to parse")
+                .diagnostic((path, tokens.get(id).byte_range()), message)
+                .finish();
         }
         Error::Import {
             path,
@@ -268,125 +318,39 @@ pub fn error(modules: &Modules, err: Error) {
             err,
         } => {
             error(modules, *err);
-            let path = &path.display().to_string();
-            let range = tokens.get(token).byte_range();
-            Report::build(ReportKind::Error, path, range.start)
-                .with_message("failed to import")
-                .with_label(Label::new((path, range)).with_color(Color::Red))
-                .finish()
-                .eprint((path, Source::from(&source)))
-                .unwrap();
+            let path: &str = &path.display().to_string();
+            AriadneEmitter::new((path, Source::from(&source)), "failed to import")
+                .diagnostic((path, tokens.get(token).byte_range()), "this one")
+                .finish();
         }
         Error::Type { path, full, errs } => {
-            let path = &path.display().to_string();
-            let FullModule {
-                source,
-                tokens,
-                tree,
-                imports: _,
-                module,
-            } = &*full;
+            let path: &str = &path.display().to_string();
             let printer = Printer {
                 modules,
                 full: &full,
             };
+            let mut emitter =
+                AriadneEmitter::new((path, Source::from(&full.source)), "failed to typecheck");
             for err in errs {
-                let (range, message) = match err {
-                    typecheck::TypeError::TooManyImports => todo!("too many imports"),
-                    typecheck::TypeError::TooManyTypes => todo!("too many types"),
-                    typecheck::TypeError::TooManyFields => todo!("too many fields"),
-                    typecheck::TypeError::Undefined { name } => {
-                        (tokens.get(name).byte_range(), "undefined".to_owned())
-                    }
-                    typecheck::TypeError::Duplicate { name } => {
-                        (tokens.get(name).byte_range(), "duplicate".to_owned())
-                    }
-                    typecheck::TypeError::Untyped { name } => {
-                        (tokens.get(name).byte_range(), "untyped".to_owned())
-                    }
-                    typecheck::TypeError::Param { id } => todo!(),
-                    typecheck::TypeError::Elem { id } => todo!(),
-                    typecheck::TypeError::Inst { id, n } => (
-                        range::expr_range(tokens, tree, id),
-                        format!("{n} too many type arguments"),
-                    ),
-                    typecheck::TypeError::Apply { id } => todo!(),
-                    typecheck::TypeError::MapLhs { id } => todo!(),
-                    typecheck::TypeError::MapRhs { id } => todo!(),
-                    typecheck::TypeError::Let { id } => todo!(),
-                    typecheck::TypeError::Index { id } => todo!(),
-                    typecheck::TypeError::Neg { id } => todo!(),
-                    typecheck::TypeError::ElemLhs { id } => todo!(),
-                    typecheck::TypeError::ElemRhs { id } => todo!(),
-                    typecheck::TypeError::MulLhs { id } => todo!(),
-                    typecheck::TypeError::MulRhs { id } => match tree.expr(id) {
-                        parse::Expr::Binary { lhs, op: _, rhs } => (
-                            range::expr_range(tokens, tree, id),
-                            format!(
-                                "{} * {}",
-                                printer.ty(module.val(module.expr(lhs)).ty),
-                                printer.ty(module.val(module.expr(rhs)).ty)
-                            ),
-                        ),
-                        _ => unreachable!(),
-                    },
-                    typecheck::TypeError::DivLhs { id } => todo!(),
-                    typecheck::TypeError::DivRhs { id } => todo!(),
-                    typecheck::TypeError::Lambda { id } => todo!(),
-                    typecheck::TypeError::Def { id } => todo!(),
-                    typecheck::TypeError::AmbigParam { id } => (
-                        range::param_range(tokens, tree, id),
-                        format!(
-                            "ambiguous type: `{}`",
-                            printer.ty(module.val(module.param(id)).ty)
-                        ),
-                    ),
-                    typecheck::TypeError::AmbigTypeArgs { id } => {
-                        let span = range::expr_range(tokens, tree, id);
-                        let mut message = String::new();
-                        write!(message, "ambiguous type arguments: ").unwrap();
-                        write!(message, "`{}[", &source[span.clone()]).unwrap();
-                        let mut args = vec![];
-                        let mut v = module.expr(id);
-                        while let typecheck::Src::Inst { val, ty } = module.val(v).src {
-                            args.push(ty);
-                            v = val;
-                        }
-                        args.reverse();
-                        let mut first = true;
-                        for ty in args {
-                            if !first {
-                                write!(message, ", ").unwrap();
-                            }
-                            first = false;
-                            write!(message, "{}", printer.ty(ty)).unwrap();
-                        }
-                        write!(message, "]`").unwrap();
-                        (span, message)
-                    }
-                };
-                Report::build(ReportKind::Error, path, range.start)
-                    .with_message("failed to typecheck")
-                    .with_label(
-                        Label::new((path, range))
-                            .with_message(message)
-                            .with_color(Color::Red),
-                    )
-                    .finish()
-                    .eprint((path, Source::from(&source)))
-                    .unwrap();
+                printer.emit_type_error(&mut emitter, path, err);
             }
         }
     }
 }
 
 #[derive(Clone, Copy, Debug)]
-struct Printer<'a> {
+pub struct Printer<'a> {
     modules: &'a Modules,
     full: &'a FullModule,
 }
 
-impl Printer<'_> {
+impl<'a> Printer<'a> {
+    pub fn new(modules: &'a Modules, full: &'a FullModule) -> Self {
+        Self { modules, full }
+    }
+}
+
+impl<'a> Printer<'a> {
     fn ty(&self, id: typecheck::TypeId) -> Type {
         Type { printer: *self, id }
     }
@@ -476,6 +440,92 @@ impl Printer<'_> {
             }
         }
         Ok(())
+    }
+
+    pub fn emit_type_error(
+        &self,
+        emitter: &mut impl Emitter<(&'a str, Range<usize>)>,
+        path: &'a str,
+        err: typecheck::TypeError,
+    ) {
+        let (range, message) = match err {
+            typecheck::TypeError::TooManyImports => todo!("too many imports"),
+            typecheck::TypeError::TooManyTypes => todo!("too many types"),
+            typecheck::TypeError::TooManyFields => todo!("too many fields"),
+            typecheck::TypeError::Undefined { name } => (
+                self.full.tokens.get(name).byte_range(),
+                "undefined".to_owned(),
+            ),
+            typecheck::TypeError::Duplicate { name } => (
+                self.full.tokens.get(name).byte_range(),
+                "duplicate".to_owned(),
+            ),
+            typecheck::TypeError::Untyped { name } => (
+                self.full.tokens.get(name).byte_range(),
+                "untyped".to_owned(),
+            ),
+            typecheck::TypeError::Param { id } => todo!(),
+            typecheck::TypeError::Elem { id } => todo!(),
+            typecheck::TypeError::Inst { id, n } => (
+                expr_range(&self.full.tokens, &self.full.tree, id),
+                format!("{n} too many type arguments"),
+            ),
+            typecheck::TypeError::Apply { id } => todo!(),
+            typecheck::TypeError::MapLhs { id } => todo!(),
+            typecheck::TypeError::MapRhs { id } => todo!(),
+            typecheck::TypeError::Let { id } => todo!(),
+            typecheck::TypeError::Index { id } => todo!(),
+            typecheck::TypeError::Neg { id } => todo!(),
+            typecheck::TypeError::ElemLhs { id } => todo!(),
+            typecheck::TypeError::ElemRhs { id } => todo!(),
+            typecheck::TypeError::MulLhs { id } => todo!(),
+            typecheck::TypeError::MulRhs { id } => match self.full.tree.expr(id) {
+                parse::Expr::Binary { lhs, op: _, rhs } => (
+                    expr_range(&self.full.tokens, &self.full.tree, id),
+                    format!(
+                        "{} * {}",
+                        self.ty(self.full.module.val(self.full.module.expr(lhs)).ty),
+                        self.ty(self.full.module.val(self.full.module.expr(rhs)).ty)
+                    ),
+                ),
+                _ => unreachable!(),
+            },
+            typecheck::TypeError::DivLhs { id } => todo!(),
+            typecheck::TypeError::DivRhs { id } => todo!(),
+            typecheck::TypeError::Lambda { id } => todo!(),
+            typecheck::TypeError::Def { id } => todo!(),
+            typecheck::TypeError::AmbigParam { id } => (
+                param_range(&self.full.tokens, &self.full.tree, id),
+                format!(
+                    "ambiguous type: `{}`",
+                    self.ty(self.full.module.val(self.full.module.param(id)).ty)
+                ),
+            ),
+            typecheck::TypeError::AmbigTypeArgs { id } => {
+                let span = expr_range(&self.full.tokens, &self.full.tree, id);
+                let mut message = String::new();
+                write!(message, "ambiguous type arguments: ").unwrap();
+                write!(message, "`{}[", &self.full.source[span.clone()]).unwrap();
+                let mut args = vec![];
+                let mut v = self.full.module.expr(id);
+                while let typecheck::Src::Inst { val, ty } = self.full.module.val(v).src {
+                    args.push(ty);
+                    v = val;
+                }
+                args.reverse();
+                let mut first = true;
+                for ty in args {
+                    if !first {
+                        write!(message, ", ").unwrap();
+                    }
+                    first = false;
+                    write!(message, "{}", self.ty(ty)).unwrap();
+                }
+                write!(message, "]`").unwrap();
+                (span, message)
+            }
+        };
+        emitter.diagnostic((path, range), message).finish();
     }
 }
 

@@ -8,3 +8,13 @@ pub trait Id: Sized {
 
     fn to_usize(self) -> usize;
 }
+
+pub trait Diagnostic<S> {
+    fn related(&mut self, span: S, message: impl ToString);
+
+    fn finish(self);
+}
+
+pub trait Emitter<S> {
+    fn diagnostic(&mut self, span: S, message: impl ToString) -> impl Diagnostic<S>;
+}

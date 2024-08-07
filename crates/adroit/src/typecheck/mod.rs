@@ -1342,3 +1342,136 @@ pub fn typecheck(
     }
     (module, errs)
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{fs, io::Write, ops::Range, path::Path};
+
+    use goldenfile::{differs::Differ, Mint};
+    use line_index::{LineCol, LineIndex, TextSize};
+    use parse::parse;
+
+    use crate::{
+        compile::{FullModule, Modules, Printer},
+        lex::lex,
+        util::{Diagnostic, Emitter},
+    };
+
+    use super::*;
+
+    #[derive(Debug)]
+    struct IgnoreRelated;
+
+    impl<'a> Diagnostic<(&'a str, Range<usize>)> for IgnoreRelated {
+        fn related(&mut self, _: (&'a str, Range<usize>), _: impl ToString) {}
+
+        fn finish(self) {}
+    }
+
+    #[derive(Debug)]
+    struct LineEmitter<'a> {
+        path: &'a str,
+        index: LineIndex,
+        errors: HashMap<usize, Vec<(u32, u32, String)>>,
+    }
+
+    impl LineEmitter<'_> {
+        fn line_col(&self, i: usize) -> LineCol {
+            self.index.line_col(TextSize::new(i.try_into().unwrap()))
+        }
+    }
+
+    impl<'a> Emitter<(&'a str, Range<usize>)> for LineEmitter<'a> {
+        fn diagnostic(
+            &mut self,
+            (path, range): (&'a str, Range<usize>),
+            message: impl ToString,
+        ) -> impl Diagnostic<(&'a str, Range<usize>)> {
+            assert_eq!(path, self.path);
+            let start = self.line_col(range.start);
+            let end = self.line_col(range.end);
+            self.errors
+                .entry(u32_to_usize(start.line))
+                .or_default()
+                .push((
+                    start.col,
+                    if end.line == start.line {
+                        end.col
+                    } else {
+                        start.col
+                    },
+                    message.to_string(),
+                ));
+            IgnoreRelated
+        }
+    }
+
+    fn differ() -> Differ {
+        Box::new(|old, new| {
+            similar_asserts::assert_eq!(
+                &fs::read_to_string(old).unwrap_or("".to_string()),
+                &fs::read_to_string(new).unwrap_or("".to_string()),
+                "{}",
+                old.display(),
+            );
+        })
+    }
+
+    #[test]
+    fn test_errors() {
+        let prefix = Path::new("src/typecheck/errors");
+        let mut mint = Mint::new(prefix);
+        let modules = Modules::new();
+        for entry in fs::read_dir(prefix).unwrap() {
+            let path = entry.unwrap().path();
+            let stripped = path.strip_prefix(prefix).unwrap().to_str().unwrap();
+            let source: String = itertools::join(
+                fs::read_to_string(&path)
+                    .expect(stripped)
+                    .lines()
+                    .filter(|line| !line.starts_with('#')),
+                "\n",
+            );
+            let tokens = lex(&source).expect(stripped);
+            let tree = parse(&tokens).expect(stripped);
+            let (module, errors) = typecheck(&source, &tokens, &tree, vec![]);
+
+            let path_str: &str = &path.display().to_string();
+            let mut emitter = LineEmitter {
+                path: path_str,
+                index: LineIndex::new(&source),
+                errors: HashMap::new(),
+            };
+            let full = FullModule {
+                source,
+                tokens,
+                tree,
+                imports: vec![],
+                module,
+            };
+            let printer = Printer::new(&modules, &full);
+            for error in errors {
+                printer.emit_type_error(&mut emitter, path_str, error);
+            }
+
+            let mut file = mint
+                .new_goldenfile_with_differ(stripped, differ())
+                .expect(stripped);
+            for (i, line) in full.source.lines().enumerate() {
+                writeln!(file, "{}", line).expect(stripped);
+                for (start, end, message) in emitter.errors.remove(&i).unwrap_or_default() {
+                    writeln!(
+                        file,
+                        "# {:spaces$}{:^<carets$} {}",
+                        "",
+                        "",
+                        message,
+                        spaces = u32_to_usize(start.checked_sub(2).expect(stripped)),
+                        carets = u32_to_usize(end - start),
+                    )
+                    .expect(stripped);
+                }
+            }
+        }
+    }
+}
