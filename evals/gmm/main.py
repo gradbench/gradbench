@@ -1,5 +1,6 @@
 import json
 import sys
+from pathlib import Path
 
 import data_gen
 
@@ -7,8 +8,7 @@ i = 0
 
 
 def main():
-    # source = Path("gradbench.adroit").read_text()
-    source = "PLACE HOLDER"
+    source = Path("gmm.adroit").read_text()
 
     def send(message):
         global i
