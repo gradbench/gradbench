@@ -1,0 +1,5 @@
+def foo: () =
+  let _ = (x: Int): Float => x
+#                            ^ inferred type: `Int`
+#                   ^^^^^ does not match the given type
+  ()

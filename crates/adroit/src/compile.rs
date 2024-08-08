@@ -504,12 +504,12 @@ impl<'a> Printer<'a> {
             Elem { id } => match self.full.tree.expr(id) {
                 parse::Expr::Elem { array, index } => emitter
                     .diagnostic(
-                        (path, self.expr_range(array)),
-                        format!("array type: `{}`", self.expr_ty(array)),
-                    )
-                    .related(
                         (path, self.expr_range(index)),
                         format!("index type does not match: `{}`", self.expr_ty(index)),
+                    )
+                    .related(
+                        (path, self.expr_range(array)),
+                        format!("array type: `{}`", self.expr_ty(array)),
                     )
                     .finish(),
                 _ => unreachable!(),
@@ -540,43 +540,124 @@ impl<'a> Printer<'a> {
                             )
                             .finish()
                     }
-                    _ => todo!(),
+                    _ => todo!("too many type arguments for imported function"),
                 }
             }
             Apply { id } => match self.full.tree.expr(id) {
                 parse::Expr::Apply { func, arg } => emitter
                     .diagnostic(
-                        (path, self.expr_range(func)),
-                        format!("function type: `{}`", self.expr_ty(func)),
-                    )
-                    .related(
                         (path, self.expr_range(arg)),
                         format!("argument type does not match: `{}`", self.expr_ty(arg)),
                     )
-                    .finish(),
-                _ => unreachable!(),
-            },
-            MapLhs { id } => todo!(),
-            MapRhs { id } => todo!(),
-            Let { id } => todo!(),
-            Index { id } => todo!(),
-            Neg { id } => todo!(),
-            ElemLhs { id } => todo!(),
-            ElemRhs { id } => todo!(),
-            MulLhs { id } => todo!(),
-            MulRhs { id } => match self.full.tree.expr(id) {
-                parse::Expr::Binary { lhs, op: _, rhs } => emitter
-                    .diagnostic(
-                        (path, self.expr_range(id)),
-                        format!("`{}` * `{}`", self.expr_ty(lhs), self.expr_ty(rhs)),
+                    .related(
+                        (path, self.expr_range(func)),
+                        format!("function type: `{}`", self.expr_ty(func)),
                     )
                     .finish(),
                 _ => unreachable!(),
             },
+            MapLhs { id } => match self.full.tree.expr(id) {
+                parse::Expr::Map { func, arg: _ } => emitter
+                    .diagnostic(
+                        (path, self.expr_range(func)),
+                        format!("expected a function but instead: `{}`", self.expr_ty(func)),
+                    )
+                    .finish(),
+                _ => unreachable!(),
+            },
+            MapRhs { id } => match self.full.tree.expr(id) {
+                parse::Expr::Map { func, arg } => emitter
+                    .diagnostic(
+                        (path, self.expr_range(arg)),
+                        format!(
+                            "argument type is not a matching array: `{}`",
+                            self.expr_ty(arg)
+                        ),
+                    )
+                    .related(
+                        (path, self.expr_range(func)),
+                        format!(
+                            "function type to be mapped over an array: `{}`",
+                            self.expr_ty(func)
+                        ),
+                    )
+                    .finish(),
+                _ => unreachable!(),
+            },
+            Let { id } => match self.full.tree.expr(id) {
+                parse::Expr::Let {
+                    param,
+                    val,
+                    body: _,
+                } => emitter
+                    .diagnostic(
+                        (path, self.expr_range(val)),
+                        format!("inferred type: `{}`", self.expr_ty(val)),
+                    )
+                    .related(
+                        (path, self.param_range(param)),
+                        format!(
+                            "expected to match the binding type: `{}`",
+                            self.param_ty(param)
+                        ),
+                    )
+                    .finish(),
+                _ => unreachable!(),
+            },
+            Index { id } => match self.full.tree.expr(id) {
+                parse::Expr::Index {
+                    name: _,
+                    val,
+                    body: _,
+                } => emitter
+                    .diagnostic(
+                        (path, self.expr_range(val)),
+                        format!("expected `Int` but instead: `{}`", self.expr_ty(val)),
+                    )
+                    .finish(),
+                _ => unreachable!(),
+            },
+            Neg { id } => match self.full.tree.expr(id) {
+                parse::Expr::Unary { op: _, arg } => emitter
+                    .diagnostic(
+                        (path, self.expr_range(arg)),
+                        format!("not a scalar or vector: `{}`", self.expr_ty(arg)),
+                    )
+                    .finish(),
+                _ => unreachable!(),
+            },
+            ElemLhs { id } => todo!(),
+            ElemRhs { id } => todo!(),
+            MulLhs { id } => todo!(),
+            MulRhs { id } => todo!(),
             DivLhs { id } => todo!(),
             DivRhs { id } => todo!(),
-            Lambda { id } => todo!(),
-            Def { id } => todo!(),
+            Lambda { id } => match self.full.tree.expr(id) {
+                parse::Expr::Lambda { param: _, ty, body } => emitter
+                    .diagnostic(
+                        (path, self.expr_range(body)),
+                        format!("inferred type: `{}`", self.expr_ty(body),),
+                    )
+                    .related(
+                        (path, self.ty_range(ty.unwrap())),
+                        "does not match the given type",
+                    )
+                    .finish(),
+                _ => unreachable!(),
+            },
+            Def { id } => {
+                let &parse::Def { ty, body, .. } = self.full.tree.def(id);
+                emitter
+                    .diagnostic(
+                        (path, self.expr_range(body)),
+                        format!("inferred type: `{}`", self.expr_ty(body)),
+                    )
+                    .related(
+                        (path, self.ty_range(ty.unwrap())),
+                        "does not match the given type",
+                    )
+                    .finish()
+            }
             AmbigParam { id } => emitter
                 .diagnostic(
                     (path, self.param_range(id)),
