@@ -172,7 +172,7 @@ pub enum Type {
     },
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Serialize)]
 #[serde(tag = "kind")]
 pub enum Src {
     Import { src: ImportId, id: parse::DefId },
@@ -182,7 +182,7 @@ pub enum Src {
     Inst { val: ValId, ty: TypeId },
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Serialize)]
 pub struct Val {
     pub ty: TypeId,
     pub src: Src,
