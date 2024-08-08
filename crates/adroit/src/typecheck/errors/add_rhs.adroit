@@ -1,0 +1,5 @@
+def foo(x: Int, y: ()): () =
+  let _ = x + y
+#             ^ right-hand type: `()`
+#         ^ does not match left-hand scalar or vector: `Int`
+  ()

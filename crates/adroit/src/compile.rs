@@ -626,12 +626,66 @@ impl<'a> Printer<'a> {
                     .finish(),
                 _ => unreachable!(),
             },
-            ElemLhs { id } => todo!(),
-            ElemRhs { id } => todo!(),
-            MulLhs { id } => todo!(),
-            MulRhs { id } => todo!(),
-            DivLhs { id } => todo!(),
-            DivRhs { id } => todo!(),
+            ElemLhs { id } | DivLhs { id } => match self.full.tree.expr(id) {
+                parse::Expr::Binary { lhs, op: _, rhs: _ } => emitter
+                    .diagnostic(
+                        (path, self.expr_range(lhs)),
+                        format!("not a scalar or vector: `{}`", self.expr_ty(lhs)),
+                    )
+                    .finish(),
+                _ => unreachable!(),
+            },
+            ElemRhs { id } => match self.full.tree.expr(id) {
+                parse::Expr::Binary { lhs, op: _, rhs } => emitter
+                    .diagnostic(
+                        (path, self.expr_range(rhs)),
+                        format!("right-hand type: `{}`", self.expr_ty(rhs)),
+                    )
+                    .related(
+                        (path, self.expr_range(lhs)),
+                        format!(
+                            "does not match left-hand scalar or vector: `{}`",
+                            self.expr_ty(lhs)
+                        ),
+                    )
+                    .finish(),
+                _ => unreachable!(),
+            },
+            MulLhs { id } => match self.full.tree.expr(id) {
+                parse::Expr::Binary { lhs, op: _, rhs: _ } => emitter
+                    .diagnostic(
+                        (path, self.expr_range(lhs)),
+                        format!("not a scalar: `{}`", self.expr_ty(lhs)),
+                    )
+                    .finish(),
+                _ => unreachable!(),
+            },
+            MulRhs { id } => match self.full.tree.expr(id) {
+                parse::Expr::Binary { lhs, op: _, rhs } => emitter
+                    .diagnostic(
+                        (path, self.expr_range(rhs)),
+                        format!("not a matching scalar or vector: `{}`", self.expr_ty(rhs)),
+                    )
+                    .related(
+                        (path, self.expr_range(lhs)),
+                        format!("left-hand scalar: `{}`", self.expr_ty(lhs)),
+                    )
+                    .finish(),
+                _ => unreachable!(),
+            },
+            DivRhs { id } => match self.full.tree.expr(id) {
+                parse::Expr::Binary { lhs, op: _, rhs } => emitter
+                    .diagnostic(
+                        (path, self.expr_range(rhs)),
+                        format!("not a matching scalar: `{}`", self.expr_ty(rhs)),
+                    )
+                    .related(
+                        (path, self.expr_range(lhs)),
+                        format!("left-hand scalar or vector: `{}`", self.expr_ty(lhs)),
+                    )
+                    .finish(),
+                _ => unreachable!(),
+            },
             Lambda { id } => match self.full.tree.expr(id) {
                 parse::Expr::Lambda { param: _, ty, body } => emitter
                     .diagnostic(
