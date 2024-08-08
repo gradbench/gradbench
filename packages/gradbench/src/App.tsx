@@ -189,10 +189,10 @@ const App = () => {
               Dex
             </a>
             . The Adroit compiler is <span className="bold">fast</span>: it can
-            lex, parse, and typecheck over a million lines of code per second,
-            causing little overhead as an initial preprocessing step before
-            passing typed IR as JSON to another tool to perform automatic
-            differentiation.
+            lex, parse, and typecheck over 350k lines of code per second using
+            one core on a modern laptop, causing little overhead as an initial
+            preprocessing step before passing typed IR as JSON to another tool
+            to perform automatic differentiation.
           </div>
         </div>
       </div>
