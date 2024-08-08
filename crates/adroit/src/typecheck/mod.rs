@@ -475,20 +475,33 @@ impl Canonizer {
         (ambiguous, t)
     }
 
-    fn val(&mut self, v0: ValId) -> (bool, bool, ValId) {
-        let mut ambig_type_args = false;
-        let Val { ty, mut src } = self.old_vals[v0.to_usize()];
-        if let Src::Inst { val, ty } = src {
-            let (ata, _, val) = self.val(val);
-            ambig_type_args |= ata;
-            let (amb, ty) = self.ty(ty);
-            ambig_type_args |= amb;
-            src = Src::Inst { val, ty };
-        }
-        let (ambiguous, ty) = self.ty(ty);
+    fn old_val(&self, v0: ValId) -> Val {
+        self.old_vals[v0.to_usize()]
+    }
+
+    fn make_val(&mut self, v: Val) -> ValId {
         let i = self.new_vals.len();
-        self.new_vals.push(Val { ty, src });
-        let v = ValId::from_usize(i).expect("old values should outnumber new values");
+        self.new_vals.push(v);
+        ValId::from_usize(i).expect("old values should outnumber new values")
+    }
+
+    fn val(&mut self, defs: &[ValId], params: &[ValId], v0: ValId) -> (bool, bool, ValId) {
+        let mut ambig_type_args = false;
+        let Val { ty, src } = self.old_val(v0);
+        let src = match src {
+            Src::Def { id } => return (false, false, defs[id.to_usize()]),
+            Src::Param { id } => return (false, false, params[id.to_usize()]),
+            Src::Import { .. } | Src::Expr { .. } => src,
+            Src::Inst { val, ty } => {
+                let (ata, _, val) = self.val(defs, params, val);
+                ambig_type_args |= ata;
+                let (amb, ty) = self.ty(ty);
+                ambig_type_args |= amb;
+                Src::Inst { val, ty }
+            }
+        };
+        let (ambiguous, ty) = self.ty(ty);
+        let v = self.make_val(Val { ty, src });
         (ambig_type_args, ambiguous, v)
     }
 }
@@ -550,10 +563,11 @@ impl Module {
             .defs
             .into_iter()
             .map(|v0| {
-                let (ambig_type_args, ambiguous, v) = canonizer.val(v0);
-                assert!(!ambig_type_args, "top-level cannot be a type instantiation");
+                let Val { ty, src } = canonizer.old_val(v0);
+                let (ambiguous, ty) = canonizer.ty(ty);
                 assert!(!ambiguous, "top-level types should already be resolved");
-                v
+                // `src` must just point to this `Def`, no need to change it
+                canonizer.make_val(Val { ty, src })
             })
             .collect();
         self.params = self
@@ -561,14 +575,14 @@ impl Module {
             .into_iter()
             .enumerate()
             .map(|(i, v0)| {
-                let (ambig_type_args, ambiguous, v) = canonizer.val(v0);
-                assert!(!ambig_type_args, "parameter cannot be a type instantiation");
+                let Val { ty, src } = canonizer.old_val(v0);
+                let (ambiguous, ty) = canonizer.ty(ty);
                 if ambiguous {
-                    canonizer.errors.push(TypeError::AmbigParam {
-                        id: parse::ParamId::from_usize(i).unwrap(),
-                    });
+                    let id = parse::ParamId::from_usize(i).unwrap();
+                    canonizer.errors.push(TypeError::AmbigParam { id });
                 }
-                v
+                // `src` must just point to this `Param`, no need to change it
+                canonizer.make_val(Val { ty, src })
             })
             .collect();
         self.exprs = self
@@ -576,9 +590,9 @@ impl Module {
             .into_iter()
             .enumerate()
             .map(|(i, v0)| {
-                let (ambig_type_args, ambiguous, v) = canonizer.val(v0);
-                let id = parse::ExprId::from_usize(i).unwrap();
+                let (ambig_type_args, ambiguous, v) = canonizer.val(&self.defs, &self.params, v0);
                 if ambig_type_args {
+                    let id = parse::ExprId::from_usize(i).unwrap();
                     canonizer.errors.push(TypeError::AmbigTypeArgs { id });
                 } else if ambiguous {
                     // these can still happen in the case of an ambiguous generic function
