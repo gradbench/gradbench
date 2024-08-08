@@ -185,17 +185,25 @@ impl Ranger<'_> {
     }
 }
 
-pub fn ty_range(tokens: &Tokens, tree: &Module, ty: TypeId) -> Range<usize> {
+pub fn ty_range(tokens: &Tokens, tree: &Module, id: TypeId) -> Range<usize> {
     let tree_with_tokens = Ranger { tokens, tree };
-    let a = tokens.get(tree_with_tokens.ty_start(ty)).byte_range();
-    let b = tokens.get(tree_with_tokens.ty_end(ty)).byte_range();
+    let a = tokens.get(tree_with_tokens.ty_start(id)).byte_range();
+    let b = tokens.get(tree_with_tokens.ty_end(id)).byte_range();
     a.start..b.end
 }
 
-pub fn param_range(tokens: &Tokens, tree: &Module, param: ParamId) -> Range<usize> {
+pub fn bind_range(tokens: &Tokens, tree: &Module, id: ParamId) -> Range<usize> {
     let tree_with_tokens = Ranger { tokens, tree };
-    let a = tokens.get(tree_with_tokens.param_start(param)).byte_range();
-    let b = tokens.get(tree_with_tokens.param_end(param)).byte_range();
+    let Param { bind, ty: _ } = tree.param(id);
+    let a = tokens.get(tree_with_tokens.bind_start(bind)).byte_range();
+    let b = tokens.get(tree_with_tokens.bind_end(bind)).byte_range();
+    a.start..b.end
+}
+
+pub fn param_range(tokens: &Tokens, tree: &Module, id: ParamId) -> Range<usize> {
+    let tree_with_tokens = Ranger { tokens, tree };
+    let a = tokens.get(tree_with_tokens.param_start(id)).byte_range();
+    let b = tokens.get(tree_with_tokens.param_end(id)).byte_range();
     a.start..b.end
 }
 

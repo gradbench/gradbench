@@ -607,10 +607,11 @@ pub enum TypeError {
     TooManyTypes,
     Undefined { name: TokenId },
     Duplicate { name: TokenId },
-    Untyped { name: TokenId },
+    Dom { name: TokenId },
+    Cod { name: TokenId },
     Param { id: parse::ParamId },
     Elem { id: parse::ExprId },
-    Inst { id: parse::ExprId, n: usize },
+    Inst { id: parse::ExprId },
     Apply { id: parse::ExprId },
     MapLhs { id: parse::ExprId },
     MapRhs { id: parse::ExprId },
@@ -834,23 +835,27 @@ impl<'a> Typer<'a> {
         &mut self,
         types: &IndexMap<&'a str, TypeId>,
         names: &mut Vec<&'a str>,
+        strict: bool,
         id: parse::ParamId,
     ) -> TypeResult<TypeId> {
         let parse::Param { bind, ty } = self.tree.param(id);
         let val = self.module.param(id);
         let unknown = self.module.val(val).ty;
         let actual = match bind {
-            parse::Bind::Paren { inner } => self.param(types, names, inner)?,
+            parse::Bind::Paren { inner } => self.param(types, names, strict, inner)?,
             parse::Bind::Unit { open: _, close: _ } => self.ty(Type::Unit)?,
             parse::Bind::Name { name } => {
+                if strict && ty.is_none() {
+                    return Err(TypeError::Dom { name });
+                }
                 let s = self.token(name);
                 self.names.entry(s).or_default().push(val);
                 names.push(s);
                 unknown
             }
             parse::Bind::Pair { fst, snd } => {
-                let fst = self.param(types, names, fst)?;
-                let snd = self.param(types, names, snd)?;
+                let fst = self.param(types, names, strict, fst)?;
+                let snd = self.param(types, names, strict, snd)?;
                 self.ty(Type::Prod { fst, snd })?
             }
             parse::Bind::Record { name, field, rest } => {
@@ -860,7 +865,7 @@ impl<'a> Typer<'a> {
                 loop {
                     let partial = self.module.val(self.module.param(r)).ty;
                     self.unify_assert(fragment, partial)?;
-                    let ty = self.param(types, names, v)?;
+                    let ty = self.param(types, names, strict, v)?;
                     if fields.insert(self.token(n), ty).is_some() {
                         return Err(TypeError::Duplicate { name: n });
                     }
@@ -881,6 +886,7 @@ impl<'a> Typer<'a> {
             }
             parse::Bind::End { open: _, close: _ } => self.ty(Type::End)?,
         };
+        self.unify_assert(actual, unknown)?;
         let expected = match ty {
             Some(ast) => self.parse_ty(types, ast)?,
             None => unknown,
@@ -1017,10 +1023,7 @@ impl<'a> Typer<'a> {
                 }
                 let fty = self.func(types, &mut type_args, func)?;
                 if !type_args.is_empty() {
-                    return Err(TypeError::Inst {
-                        id: inst,
-                        n: type_args.len(),
-                    });
+                    return Err(TypeError::Inst { id: inst });
                 }
                 let dom = self.expr(types, arg)?;
                 let cod = unknown;
@@ -1049,7 +1052,7 @@ impl<'a> Typer<'a> {
                 let ((), ty) = self.scope(
                     types,
                     |this, types, names| {
-                        let expected = this.param(types, names, param)?;
+                        let expected = this.param(types, names, false, param)?;
                         this.unify(expected, actual, || TypeError::Let { id })?;
                         Ok(())
                     },
@@ -1117,7 +1120,7 @@ impl<'a> Typer<'a> {
             parse::Expr::Lambda { param, ty, body } => {
                 let (dom, cod) = self.scope(
                     types,
-                    |this, types, names| this.param(types, names, param),
+                    |this, types, names| this.param(types, names, false, param),
                     |this, types| {
                         let actual = this.expr(types, body)?;
                         let expected = match ty {
@@ -1260,12 +1263,12 @@ impl<'a> Typer<'a> {
                     |this, names, temps| {
                         params
                             .iter()
-                            .map(|&param| this.param(names, temps, param))
+                            .map(|&param| this.param(names, temps, true, param))
                             .collect::<TypeResult<Vec<TypeId>>>()
                     },
                     |_, _| Ok(()),
                 )?;
-                let cod = self.parse_ty(&names, ty.ok_or(TypeError::Untyped { name: *name })?)?;
+                let cod = self.parse_ty(&names, ty.ok_or(TypeError::Cod { name: *name })?)?;
                 let t = names.values().try_rfold(
                     doms.into_iter()
                         .try_rfold(cod, |cod, dom| self.ty(Type::Func { dom, cod }))?,
@@ -1295,7 +1298,7 @@ impl<'a> Typer<'a> {
                 types,
                 |this, types, names| {
                     for &param in params {
-                        this.param(types, names, param)?;
+                        this.param(types, names, true, param)?;
                     }
                     Ok(())
                 },
@@ -1360,33 +1363,18 @@ mod tests {
     use super::*;
 
     #[derive(Debug)]
-    struct IgnoreRelated;
-
-    impl<'a> Diagnostic<(&'a str, Range<usize>)> for IgnoreRelated {
-        fn related(&mut self, _: (&'a str, Range<usize>), _: impl ToString) {}
-
-        fn finish(self) {}
-    }
-
-    #[derive(Debug)]
     struct LineEmitter<'a> {
         path: &'a str,
         index: LineIndex,
         errors: HashMap<usize, Vec<(u32, u32, String)>>,
     }
 
-    impl LineEmitter<'_> {
+    impl<'a> LineEmitter<'a> {
         fn line_col(&self, i: usize) -> LineCol {
             self.index.line_col(TextSize::new(i.try_into().unwrap()))
         }
-    }
 
-    impl<'a> Emitter<(&'a str, Range<usize>)> for LineEmitter<'a> {
-        fn diagnostic(
-            &mut self,
-            (path, range): (&'a str, Range<usize>),
-            message: impl ToString,
-        ) -> impl Diagnostic<(&'a str, Range<usize>)> {
+        fn emit(&mut self, (path, range): (&'a str, Range<usize>), message: impl ToString) {
             assert_eq!(path, self.path);
             let start = self.line_col(range.start);
             let end = self.line_col(range.end);
@@ -1402,8 +1390,32 @@ mod tests {
                     },
                     message.to_string(),
                 ));
-            IgnoreRelated
         }
+    }
+
+    impl<'a> Emitter<(&'a str, Range<usize>)> for LineEmitter<'a> {
+        fn diagnostic(
+            &mut self,
+            span: (&'a str, Range<usize>),
+            message: impl ToString,
+        ) -> impl Diagnostic<(&'a str, Range<usize>)> {
+            self.emit(span, message);
+            LineDiagnostic { emitter: self }
+        }
+    }
+
+    #[derive(Debug)]
+    struct LineDiagnostic<'a, 'b> {
+        emitter: &'b mut LineEmitter<'a>,
+    }
+
+    impl<'a, 'b> Diagnostic<(&'a str, Range<usize>)> for LineDiagnostic<'a, 'b> {
+        fn related(self, span: (&'a str, Range<usize>), message: impl ToString) -> Self {
+            self.emitter.emit(span, message);
+            self
+        }
+
+        fn finish(self) {}
     }
 
     fn differ() -> Differ {

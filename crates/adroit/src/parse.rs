@@ -277,6 +277,10 @@ impl Module {
         self.exprs[id.to_usize()]
     }
 
+    pub fn def(&self, id: DefId) -> &Def {
+        &self.defs[id.to_usize()]
+    }
+
     pub fn imports(&self) -> &[Import] {
         &self.imports
     }

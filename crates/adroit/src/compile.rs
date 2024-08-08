@@ -12,7 +12,7 @@ use serde::{ser::SerializeSeq, Serialize, Serializer};
 
 use crate::{
     lex, parse,
-    range::{expr_range, param_range},
+    range::{bind_range, expr_range, param_range, ty_range},
     typecheck,
     util::{Diagnostic, Emitter, Id},
 };
@@ -267,12 +267,13 @@ struct AriadneDiagnostic<'a, 'b, C: Cache<&'a str>> {
 impl<'a, 'b, C: Cache<&'a str>> Diagnostic<(&'a str, Range<usize>)>
     for AriadneDiagnostic<'a, 'b, C>
 {
-    fn related(&mut self, span: (&'a str, Range<usize>), message: impl ToString) {
+    fn related(mut self, span: (&'a str, Range<usize>), message: impl ToString) -> Self {
         self.builder.add_label(
             Label::new(span)
                 .with_color(Color::Blue)
                 .with_message(message),
-        )
+        );
+        self
     }
 
     fn finish(self) {
@@ -351,12 +352,40 @@ impl<'a> Printer<'a> {
 }
 
 impl<'a> Printer<'a> {
+    fn get_ty(&self, id: typecheck::TypeId) -> typecheck::Type {
+        self.full.module.ty(id)
+    }
+
+    fn token_range(&self, id: lex::TokenId) -> Range<usize> {
+        self.full.tokens.get(id).byte_range()
+    }
+
+    fn ty_range(&self, id: parse::TypeId) -> Range<usize> {
+        ty_range(&self.full.tokens, &self.full.tree, id)
+    }
+
+    fn bind_range(&self, id: parse::ParamId) -> Range<usize> {
+        bind_range(&self.full.tokens, &self.full.tree, id)
+    }
+
+    fn param_range(&self, id: parse::ParamId) -> Range<usize> {
+        param_range(&self.full.tokens, &self.full.tree, id)
+    }
+
+    fn expr_range(&self, id: parse::ExprId) -> Range<usize> {
+        expr_range(&self.full.tokens, &self.full.tree, id)
+    }
+
     fn ty(&self, id: typecheck::TypeId) -> Type {
         Type { printer: *self, id }
     }
 
-    fn get_ty(&self, id: typecheck::TypeId) -> typecheck::Type {
-        self.full.module.ty(id)
+    fn param_ty(&self, id: parse::ParamId) -> Type {
+        self.ty(self.full.module.val(self.full.module.param(id)).ty)
+    }
+
+    fn expr_ty(&self, id: parse::ExprId) -> Type {
+        self.ty(self.full.module.val(self.full.module.expr(id)).ty)
     }
 
     fn print_ty(&self, w: &mut impl fmt::Write, id: typecheck::TypeId) -> fmt::Result {
@@ -448,64 +477,117 @@ impl<'a> Printer<'a> {
         path: &'a str,
         err: typecheck::TypeError,
     ) {
-        let (range, message) = match err {
-            typecheck::TypeError::TooManyImports => todo!("too many imports"),
-            typecheck::TypeError::TooManyTypes => todo!("too many types"),
-            typecheck::TypeError::TooManyFields => todo!("too many fields"),
-            typecheck::TypeError::Undefined { name } => (
-                self.full.tokens.get(name).byte_range(),
-                "undefined".to_owned(),
-            ),
-            typecheck::TypeError::Duplicate { name } => (
-                self.full.tokens.get(name).byte_range(),
-                "duplicate".to_owned(),
-            ),
-            typecheck::TypeError::Untyped { name } => (
-                self.full.tokens.get(name).byte_range(),
-                "untyped".to_owned(),
-            ),
-            typecheck::TypeError::Param { id } => todo!(),
-            typecheck::TypeError::Elem { id } => todo!(),
-            typecheck::TypeError::Inst { id, n } => (
-                expr_range(&self.full.tokens, &self.full.tree, id),
-                format!("{n} too many type arguments"),
-            ),
-            typecheck::TypeError::Apply { id } => todo!(),
-            typecheck::TypeError::MapLhs { id } => todo!(),
-            typecheck::TypeError::MapRhs { id } => todo!(),
-            typecheck::TypeError::Let { id } => todo!(),
-            typecheck::TypeError::Index { id } => todo!(),
-            typecheck::TypeError::Neg { id } => todo!(),
-            typecheck::TypeError::ElemLhs { id } => todo!(),
-            typecheck::TypeError::ElemRhs { id } => todo!(),
-            typecheck::TypeError::MulLhs { id } => todo!(),
-            typecheck::TypeError::MulRhs { id } => match self.full.tree.expr(id) {
-                parse::Expr::Binary { lhs, op: _, rhs } => (
-                    expr_range(&self.full.tokens, &self.full.tree, id),
-                    format!(
-                        "{} * {}",
-                        self.ty(self.full.module.val(self.full.module.expr(lhs)).ty),
-                        self.ty(self.full.module.val(self.full.module.expr(rhs)).ty)
-                    ),
-                ),
+        use typecheck::TypeError::*;
+        match err {
+            TooManyImports => todo!("too many imports"),
+            TooManyTypes => todo!("too many types"),
+            TooManyFields => todo!("too many fields"),
+            Undefined { name } => emitter
+                .diagnostic((path, self.token_range(name)), "undefined")
+                .finish(),
+            Duplicate { name } => emitter
+                .diagnostic((path, self.token_range(name)), "duplicate")
+                .finish(),
+            Dom { name } | Cod { name } => emitter
+                .diagnostic((path, self.token_range(name)), "untyped")
+                .finish(),
+            Param { id } => emitter
+                .diagnostic(
+                    (path, self.bind_range(id)),
+                    format!("inferred type: `{}`", self.param_ty(id)),
+                )
+                .related(
+                    (path, self.ty_range(self.full.tree.param(id).ty.unwrap())),
+                    "does not match the given type",
+                )
+                .finish(),
+            Elem { id } => match self.full.tree.expr(id) {
+                parse::Expr::Elem { array, index } => emitter
+                    .diagnostic(
+                        (path, self.expr_range(array)),
+                        format!("array type: `{}`", self.expr_ty(array)),
+                    )
+                    .related(
+                        (path, self.expr_range(index)),
+                        format!("index type does not match: `{}`", self.expr_ty(index)),
+                    )
+                    .finish(),
                 _ => unreachable!(),
             },
-            typecheck::TypeError::DivLhs { id } => todo!(),
-            typecheck::TypeError::DivRhs { id } => todo!(),
-            typecheck::TypeError::Lambda { id } => todo!(),
-            typecheck::TypeError::Def { id } => todo!(),
-            typecheck::TypeError::AmbigParam { id } => (
-                param_range(&self.full.tokens, &self.full.tree, id),
-                format!(
-                    "ambiguous type: `{}`",
-                    self.ty(self.full.module.val(self.full.module.param(id)).ty)
-                ),
-            ),
-            typecheck::TypeError::AmbigTypeArgs { id } => {
-                let span = expr_range(&self.full.tokens, &self.full.tree, id);
+            Inst { mut id } => {
+                let range = self.expr_range(id);
+                let mut m = 0;
+                while let parse::Expr::Inst { val, ty: _ } = self.full.tree.expr(id) {
+                    m += 1;
+                    id = val;
+                }
+                let mut v = self.full.module.expr(id);
+                while let typecheck::Src::Inst { val, ty: _ } = self.full.module.val(v).src {
+                    v = val;
+                }
+                match self.full.module.val(v).src {
+                    typecheck::Src::Def { id } => {
+                        let def = self.full.tree.def(id);
+                        let n = def.types.len();
+                        emitter
+                            .diagnostic(
+                                (path, range),
+                                format!("{m} type arguments is {} too many", m - n),
+                            )
+                            .related(
+                                (path, self.token_range(def.name)),
+                                format!("function only takes {n} type parameters"),
+                            )
+                            .finish()
+                    }
+                    _ => todo!(),
+                }
+            }
+            Apply { id } => match self.full.tree.expr(id) {
+                parse::Expr::Apply { func, arg } => emitter
+                    .diagnostic(
+                        (path, self.expr_range(func)),
+                        format!("function type: `{}`", self.expr_ty(func)),
+                    )
+                    .related(
+                        (path, self.expr_range(arg)),
+                        format!("argument type does not match: `{}`", self.expr_ty(arg)),
+                    )
+                    .finish(),
+                _ => unreachable!(),
+            },
+            MapLhs { id } => todo!(),
+            MapRhs { id } => todo!(),
+            Let { id } => todo!(),
+            Index { id } => todo!(),
+            Neg { id } => todo!(),
+            ElemLhs { id } => todo!(),
+            ElemRhs { id } => todo!(),
+            MulLhs { id } => todo!(),
+            MulRhs { id } => match self.full.tree.expr(id) {
+                parse::Expr::Binary { lhs, op: _, rhs } => emitter
+                    .diagnostic(
+                        (path, self.expr_range(id)),
+                        format!("`{}` * `{}`", self.expr_ty(lhs), self.expr_ty(rhs)),
+                    )
+                    .finish(),
+                _ => unreachable!(),
+            },
+            DivLhs { id } => todo!(),
+            DivRhs { id } => todo!(),
+            Lambda { id } => todo!(),
+            Def { id } => todo!(),
+            AmbigParam { id } => emitter
+                .diagnostic(
+                    (path, self.param_range(id)),
+                    format!("ambiguous type: `{}`", self.param_ty(id)),
+                )
+                .finish(),
+            AmbigTypeArgs { id } => {
+                let range = self.expr_range(id);
                 let mut message = String::new();
                 write!(message, "ambiguous type arguments: ").unwrap();
-                write!(message, "`{}[", &self.full.source[span.clone()]).unwrap();
+                write!(message, "`{}[", &self.full.source[range.clone()]).unwrap();
                 let mut args = vec![];
                 let mut v = self.full.module.expr(id);
                 while let typecheck::Src::Inst { val, ty } = self.full.module.val(v).src {
@@ -522,10 +604,9 @@ impl<'a> Printer<'a> {
                     write!(message, "{}", self.ty(ty)).unwrap();
                 }
                 write!(message, "]`").unwrap();
-                (span, message)
+                emitter.diagnostic((path, range), message).finish()
             }
-        };
-        emitter.diagnostic((path, range), message).finish();
+        }
     }
 }
 

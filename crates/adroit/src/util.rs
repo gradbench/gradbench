@@ -10,7 +10,7 @@ pub trait Id: Sized {
 }
 
 pub trait Diagnostic<S> {
-    fn related(&mut self, span: S, message: impl ToString);
+    fn related(self, span: S, message: impl ToString) -> Self;
 
     fn finish(self);
 }
