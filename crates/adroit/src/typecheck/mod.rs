@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
-use indexmap::{map::RawEntryApiV1, IndexMap, IndexSet};
+use indexmap::{map::RawEntryApiV1, IndexMap};
 use serde::{ser::SerializeSeq, Serialize, Serializer};
 
 use crate::{
@@ -403,9 +403,8 @@ struct Canonizer {
     types: HashMap<TypeId, TypeId>,
     old_types: Types,
     new_types: Types,
-    vals: HashMap<ValId, ValId>,
     old_vals: Vec<Val>,
-    new_vals: IndexSet<Val>,
+    new_vals: Vec<Val>,
 }
 
 impl Canonizer {
@@ -478,9 +477,6 @@ impl Canonizer {
 
     fn val(&mut self, v0: ValId) -> (bool, bool, ValId) {
         let mut ambig_type_args = false;
-        if let Some(&v) = self.vals.get(&v0) {
-            return (ambig_type_args, false, v);
-        }
         let Val { ty, mut src } = self.old_vals[v0.to_usize()];
         if let Src::Inst { val, ty } = src {
             let (ata, _, val) = self.val(val);
@@ -490,9 +486,9 @@ impl Canonizer {
             src = Src::Inst { val, ty };
         }
         let (ambiguous, ty) = self.ty(ty);
-        let (i, _) = self.new_vals.insert_full(Val { ty, src });
+        let i = self.new_vals.len();
+        self.new_vals.push(Val { ty, src });
         let v = ValId::from_usize(i).expect("old values should outnumber new values");
-        self.vals.insert(v0, v);
         (ambig_type_args, ambiguous, v)
     }
 }
@@ -547,9 +543,8 @@ impl Module {
             types: HashMap::new(),
             old_types: self.types,
             new_types: Types::new(),
-            vals: HashMap::new(),
             old_vals: self.vals,
-            new_vals: IndexSet::new(),
+            new_vals: vec![],
         };
         self.defs = self
             .defs
