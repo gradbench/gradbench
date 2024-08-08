@@ -1,0 +1,5 @@
+def foo: () =
+  let (a, b: Float): Float * Int = undefined
+#     ^^^^^^^^^^^^^ inferred type: `Float * Float`
+#                    ^^^^^^^^^^^ does not match the given type
+  ()

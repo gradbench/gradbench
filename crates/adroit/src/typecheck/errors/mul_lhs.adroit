@@ -1,0 +1,4 @@
+def foo(x: (), y: Int): () =
+  let _ = x * y
+#         ^ not a scalar: `()`
+  ()

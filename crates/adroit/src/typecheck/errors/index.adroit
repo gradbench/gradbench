@@ -1,0 +1,4 @@
+def foo: () =
+  index N <- 3.14
+#            ^^^^ expected `Int` but instead: `Float`
+  ()

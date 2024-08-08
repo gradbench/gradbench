@@ -1,11 +1,10 @@
 use std::{fmt, ops::Range};
 
-use disjoint_sets::ElementType;
 use enumset::EnumSetType;
 use logos::Logos;
 use serde::Serialize;
 
-use crate::util::u32_to_usize;
+use crate::util::{u32_to_usize, Id};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(transparent)]
@@ -13,7 +12,7 @@ pub struct ByteIndex {
     pub index: u32,
 }
 
-impl ElementType for ByteIndex {
+impl Id for ByteIndex {
     fn from_usize(n: usize) -> Option<Self> {
         match n.try_into() {
             Ok(index) => Some(Self { index }),
@@ -32,7 +31,7 @@ pub struct ByteLen {
     pub len: u16,
 }
 
-impl ElementType for ByteLen {
+impl Id for ByteLen {
     fn from_usize(n: usize) -> Option<Self> {
         match n.try_into() {
             Ok(len) => Some(Self { len }),
@@ -215,7 +214,7 @@ pub struct TokenId {
     pub index: u32,
 }
 
-impl ElementType for TokenId {
+impl Id for TokenId {
     fn from_usize(n: usize) -> Option<Self> {
         match n.try_into() {
             Ok(index) => Some(Self { index }),

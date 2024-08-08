@@ -1,0 +1,3 @@
+def foo[M, N](a: [N]Float, i: M): () = a[i]
+#                                        ^ index type does not match: `M`
+#                                      ^ array type: `[N]Float`

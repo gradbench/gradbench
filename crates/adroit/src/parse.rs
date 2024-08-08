@@ -1,4 +1,3 @@
-use disjoint_sets::ElementType;
 use enumset::EnumSet;
 use serde::Serialize;
 
@@ -8,7 +7,7 @@ use crate::{
         TokenKind::{self, *},
         Tokens,
     },
-    util::u32_to_usize,
+    util::{u32_to_usize, Id},
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
@@ -17,7 +16,7 @@ pub struct TypeId {
     pub index: u32,
 }
 
-impl ElementType for TypeId {
+impl Id for TypeId {
     fn from_usize(n: usize) -> Option<Self> {
         match n.try_into() {
             Ok(index) => Some(Self { index }),
@@ -36,7 +35,7 @@ pub struct ParamId {
     pub index: u32,
 }
 
-impl ElementType for ParamId {
+impl Id for ParamId {
     fn from_usize(n: usize) -> Option<Self> {
         match n.try_into() {
             Ok(index) => Some(Self { index }),
@@ -55,7 +54,7 @@ pub struct ExprId {
     pub index: u32,
 }
 
-impl ElementType for ExprId {
+impl Id for ExprId {
     fn from_usize(n: usize) -> Option<Self> {
         match n.try_into() {
             Ok(index) => Some(Self { index }),
@@ -74,7 +73,7 @@ pub struct DefId {
     pub index: u32,
 }
 
-impl ElementType for DefId {
+impl Id for DefId {
     fn from_usize(n: usize) -> Option<Self> {
         match n.try_into() {
             Ok(index) => Some(Self { index }),
@@ -144,6 +143,8 @@ pub enum Binop {
     Sub,
     Mul,
     Div,
+    ElemMul,
+    ElemDiv,
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -210,7 +211,6 @@ pub enum Expr {
     },
     Binary {
         lhs: ExprId,
-        map: bool,
         op: Binop,
         rhs: ExprId,
     },
@@ -275,6 +275,10 @@ impl Module {
 
     pub fn expr(&self, id: ExprId) -> Expr {
         self.exprs[id.to_usize()]
+    }
+
+    pub fn def(&self, id: DefId) -> &Def {
+        &self.defs[id.to_usize()]
     }
 
     pub fn imports(&self) -> &[Import] {
@@ -703,16 +707,16 @@ impl<'a> Parser<'a> {
     fn expr_term(&mut self) -> Result<ExprId, ParseError> {
         let mut lhs = self.expr_factor()?;
         loop {
-            let (map, op) = match self.peek() {
-                Star => (false, Binop::Mul),
-                Slash => (false, Binop::Div),
-                DotStar => (true, Binop::Mul),
-                DotSlash => (true, Binop::Div),
+            let op = match self.peek() {
+                Star => Binop::Mul,
+                Slash => Binop::Div,
+                DotStar => Binop::ElemMul,
+                DotSlash => Binop::ElemDiv,
                 _ => break,
             };
             self.next();
             let rhs = self.expr_factor()?;
-            lhs = self.tree.make_expr(Expr::Binary { lhs, map, op, rhs });
+            lhs = self.tree.make_expr(Expr::Binary { lhs, op, rhs });
         }
         Ok(lhs)
     }
@@ -720,7 +724,6 @@ impl<'a> Parser<'a> {
     fn expr_elem(&mut self) -> Result<ExprId, ParseError> {
         let mut lhs = self.expr_term()?;
         loop {
-            let map = false;
             let op = match self.peek() {
                 Plus => Binop::Add,
                 Dash => Binop::Sub,
@@ -728,7 +731,7 @@ impl<'a> Parser<'a> {
             };
             self.next();
             let rhs = self.expr_term()?;
-            lhs = self.tree.make_expr(Expr::Binary { lhs, map, op, rhs });
+            lhs = self.tree.make_expr(Expr::Binary { lhs, op, rhs });
         }
         Ok(lhs)
     }

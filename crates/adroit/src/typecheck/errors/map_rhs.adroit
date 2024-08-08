@@ -1,0 +1,7 @@
+def bar: () =
+  let f = (x: Float) => 2.0 * x
+  let a = 3.14
+  let _ = f.(a)
+#            ^ argument type is not a matching array: `Float`
+#         ^ function type to be mapped over an array: `Float -> Float`
+  ()

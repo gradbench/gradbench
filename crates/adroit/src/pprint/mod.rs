@@ -135,6 +135,8 @@ impl Printer<'_> {
             Binop::Sub => "-",
             Binop::Mul => "*",
             Binop::Div => "/",
+            Binop::ElemMul => ".*",
+            Binop::ElemDiv => "./",
         };
         write!(w, "{}", s)?;
         Ok(())
@@ -245,12 +247,9 @@ impl Printer<'_> {
                 self.unop(w, op)?;
                 self.expr(w, arg)?;
             }
-            Expr::Binary { lhs, map, op, rhs } => {
+            Expr::Binary { lhs, op, rhs } => {
                 self.expr(w, lhs)?;
                 write!(w, " ")?;
-                if map {
-                    write!(w, ".")?;
-                }
                 self.binop(w, op)?;
                 write!(w, " ")?;
                 self.expr(w, rhs)?;
@@ -361,11 +360,22 @@ pub fn pprint(
 mod tests {
     use std::{fs, path::Path};
 
-    use goldenfile::Mint;
+    use goldenfile::{differs::Differ, Mint};
 
     use crate::{lex::lex, parse::parse};
 
     use super::*;
+
+    fn differ() -> Differ {
+        Box::new(|old, new| {
+            similar_asserts::assert_eq!(
+                &fs::read_to_string(old).unwrap_or("".to_string()),
+                &fs::read_to_string(new).unwrap_or("".to_string()),
+                "{}",
+                old.display(),
+            );
+        })
+    }
 
     #[test]
     fn test_examples() {
@@ -378,7 +388,9 @@ mod tests {
             let source = fs::read_to_string(&path).expect(stripped);
             let tokens = lex(&source).expect(stripped);
             let tree = parse(&tokens).expect(stripped);
-            let mut file = mint.new_goldenfile(stripped).expect(stripped);
+            let mut file = mint
+                .new_goldenfile_with_differ(stripped, differ())
+                .expect(stripped);
             pprint(&mut file, &source, &tokens, &tree).expect(stripped);
         }
     }

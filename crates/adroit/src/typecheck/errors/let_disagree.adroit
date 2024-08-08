@@ -1,0 +1,5 @@
+def foo: () =
+  let x: Int = 3.14
+#              ^^^^ inferred type: `Float`
+#     ^^^^^^ expected to match the binding type: `Int`
+  ()

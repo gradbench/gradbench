@@ -1,0 +1,5 @@
+def foo(x: Float, y: ()): () =
+  let _ = x / y
+#             ^ not a matching scalar: `()`
+#         ^ left-hand scalar or vector: `Float`
+  ()

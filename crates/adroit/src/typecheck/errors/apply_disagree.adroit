@@ -1,0 +1,7 @@
+def foo(x: Int): Int = x
+
+def bar(): () =
+  let _ = foo(3.14)
+#            ^^^^^^ argument type does not match: `Float`
+#         ^^^ function type: `Int -> Int`
+  ()

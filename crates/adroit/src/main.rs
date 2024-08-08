@@ -1,3 +1,4 @@
+mod compile;
 mod lex;
 mod parse;
 mod pprint;
@@ -10,32 +11,32 @@ use std::{fs, io, path::PathBuf, process::ExitCode};
 use clap::{Parser, Subcommand};
 use serde::Serialize;
 
-fn read(path: PathBuf) -> Result<(PathBuf, String), Box<util::Error>> {
+fn read(path: PathBuf) -> Result<(PathBuf, String), Box<compile::Error>> {
     match fs::read_to_string(&path) {
         Ok(source) => Ok((path, source)),
-        Err(err) => Err(Box::new(util::Error::Read { path, err })),
+        Err(err) => Err(Box::new(compile::Error::Read { path, err })),
     }
 }
 
-fn fmt(path: PathBuf) -> Result<(String, lex::Tokens, parse::Module), Box<util::Error>> {
+fn fmt(path: PathBuf) -> Result<(String, lex::Tokens, parse::Module), Box<compile::Error>> {
     let (path, source) = read(path)?;
-    let (_, source, tokens, tree) = util::parse(path, source)?;
+    let (_, source, tokens, tree) = compile::parse(path, source)?;
     Ok((source, tokens, tree))
 }
 
 #[derive(Debug, Serialize)]
 struct Graph {
-    modules: util::Modules,
-    module: util::FullModule,
+    modules: compile::Modules,
+    module: compile::FullModule,
 }
 
-fn entrypoint(path: PathBuf) -> Result<Graph, (util::Modules, Box<util::Error>)> {
-    let mut modules = util::Modules::new();
+fn entrypoint(path: PathBuf) -> Result<Graph, (compile::Modules, Box<compile::Error>)> {
+    let mut modules = compile::Modules::new();
     let (path, source) = match read(path) {
         Ok(ok) => ok,
         Err(err) => return Err((modules, err)),
     };
-    let (_, module) = match util::process(&mut modules, path, source) {
+    let (_, module) = match compile::process(&mut modules, path, source) {
         Ok(ok) => ok,
         Err(err) => return Err((modules, err)),
     };
@@ -66,7 +67,7 @@ fn cli() -> Result<(), ()> {
                 Ok(())
             }
             Err(err) => {
-                util::error(&util::Modules::new(), *err);
+                compile::error(&compile::Modules::new(), *err);
                 Err(())
             }
         },
@@ -78,7 +79,7 @@ fn cli() -> Result<(), ()> {
                 Ok(())
             }
             Err((modules, err)) => {
-                util::error(&modules, *err);
+                compile::error(&modules, *err);
                 Err(())
             }
         },

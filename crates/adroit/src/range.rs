@@ -66,11 +66,14 @@ impl Ranger<'_> {
             Bind::Name { name } => name,
             Bind::Pair { fst, snd: _ } => self.param_start(fst),
             Bind::Record {
-                name: _,
+                name,
                 field: _,
-                rest,
-            } => self.param_start(rest),
-            Bind::End { open, close: _ } => open,
+                rest: _,
+            } => name,
+            Bind::End { open, close } => match self.tokens.get(self.before(close)).kind {
+                TokenKind::LBrace => open,
+                _ => close,
+            },
         }
     }
 
@@ -111,11 +114,14 @@ impl Ranger<'_> {
             Expr::Number { val } => val,
             Expr::Pair { fst, snd: _ } => self.expr_start(fst),
             Expr::Record {
-                name: _,
+                name,
                 field: _,
-                rest,
-            } => self.expr_start(rest),
-            Expr::End { open, close: _ } => open,
+                rest: _,
+            } => name,
+            Expr::End { open, close } => match self.tokens.get(self.before(close)).kind {
+                TokenKind::LBrace => open,
+                _ => close,
+            },
             Expr::Elem { array, index: _ } => self.expr_start(array),
             Expr::Inst { val, ty: _ } => self.expr_start(val),
             Expr::Apply { func, arg: _ } => self.expr_start(func),
@@ -131,12 +137,7 @@ impl Ranger<'_> {
                 body: _,
             } => self.before(name),
             Expr::Unary { op: _, arg } => self.before(self.expr_start(arg)),
-            Expr::Binary {
-                lhs,
-                map: _,
-                op: _,
-                rhs: _,
-            } => self.expr_start(lhs),
+            Expr::Binary { lhs, op: _, rhs: _ } => self.expr_start(lhs),
             Expr::Lambda {
                 param,
                 ty: _,
@@ -174,12 +175,7 @@ impl Ranger<'_> {
                 body,
             } => self.expr_end(body),
             Expr::Unary { op: _, arg } => self.expr_end(arg),
-            Expr::Binary {
-                lhs: _,
-                map: _,
-                op: _,
-                rhs,
-            } => self.expr_end(rhs),
+            Expr::Binary { lhs: _, op: _, rhs } => self.expr_end(rhs),
             Expr::Lambda {
                 param: _,
                 ty: _,
@@ -189,17 +185,25 @@ impl Ranger<'_> {
     }
 }
 
-pub fn ty_range(tokens: &Tokens, tree: &Module, ty: TypeId) -> Range<usize> {
+pub fn ty_range(tokens: &Tokens, tree: &Module, id: TypeId) -> Range<usize> {
     let tree_with_tokens = Ranger { tokens, tree };
-    let a = tokens.get(tree_with_tokens.ty_start(ty)).byte_range();
-    let b = tokens.get(tree_with_tokens.ty_end(ty)).byte_range();
+    let a = tokens.get(tree_with_tokens.ty_start(id)).byte_range();
+    let b = tokens.get(tree_with_tokens.ty_end(id)).byte_range();
     a.start..b.end
 }
 
-pub fn param_range(tokens: &Tokens, tree: &Module, param: ParamId) -> Range<usize> {
+pub fn bind_range(tokens: &Tokens, tree: &Module, id: ParamId) -> Range<usize> {
     let tree_with_tokens = Ranger { tokens, tree };
-    let a = tokens.get(tree_with_tokens.param_start(param)).byte_range();
-    let b = tokens.get(tree_with_tokens.param_end(param)).byte_range();
+    let Param { bind, ty: _ } = tree.param(id);
+    let a = tokens.get(tree_with_tokens.bind_start(bind)).byte_range();
+    let b = tokens.get(tree_with_tokens.bind_end(bind)).byte_range();
+    a.start..b.end
+}
+
+pub fn param_range(tokens: &Tokens, tree: &Module, id: ParamId) -> Range<usize> {
+    let tree_with_tokens = Ranger { tokens, tree };
+    let a = tokens.get(tree_with_tokens.param_start(id)).byte_range();
+    let b = tokens.get(tree_with_tokens.param_end(id)).byte_range();
     a.start..b.end
 }
 
