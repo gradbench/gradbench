@@ -1361,11 +1361,11 @@ mod tests {
 
     use goldenfile::{differs::Differ, Mint};
     use line_index::{LineCol, LineIndex, TextSize};
-    use parse::parse;
 
     use crate::{
         compile::{FullModule, Modules, Printer},
         lex::lex,
+        parse::parse,
         util::{Diagnostic, Emitter},
     };
 
