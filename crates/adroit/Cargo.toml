@@ -6,7 +6,7 @@ edition = "2021"
 
 [dependencies]
 ariadne = "0.4"
-clap = { version = "4", features = ["cargo", "derive"] }
+clap = { version = "4", features = ["derive"] }
 dirs = "5"
 enumset = "1"
 indexmap = "2"
