@@ -326,10 +326,7 @@ pub fn error(modules: &Modules, err: Error) {
         }
         Error::Type { path, full, errs } => {
             let path: &str = &path.display().to_string();
-            let printer = Printer {
-                modules,
-                full: &full,
-            };
+            let printer = Printer::new(modules, &full);
             let mut emitter =
                 AriadneEmitter::new((path, Source::from(&full.source)), "failed to typecheck");
             for err in errs {
