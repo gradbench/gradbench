@@ -1,4 +1,5 @@
 mod compile;
+mod jit;
 mod lex;
 mod parse;
 mod pprint;
@@ -183,6 +184,9 @@ enum Commands {
 
         file: PathBuf,
     },
+
+    /// Run a module as a script
+    Run { file: PathBuf },
 }
 
 fn cli() -> Result<(), ()> {
@@ -190,8 +194,7 @@ fn cli() -> Result<(), ()> {
         Commands::Fmt { file } => match fmt(file) {
             Ok((source, tokens, module)) => {
                 pprint::pprint(&mut io::stdout(), &source, &tokens, &module)
-                    .map_err(|err| eprintln!("error formatting module: {err}"))?;
-                Ok(())
+                    .map_err(|err| eprintln!("error formatting module: {err}"))
             }
             Err(err) => {
                 compile::error(&compile::Modules::new(), *err);
@@ -213,6 +216,16 @@ fn cli() -> Result<(), ()> {
         Commands::Perf { n, file } => {
             perf(n, file).map_err(|(modules, err)| compile::error(&modules, *err))
         }
+        Commands::Run { file } => match entrypoint(file) {
+            Ok(graph) => {
+                jit::run(graph.modules, graph.module);
+                Ok(())
+            }
+            Err((modules, err)) => {
+                compile::error(&modules, *err);
+                Err(())
+            }
+        },
     }
 }
 

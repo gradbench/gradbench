@@ -7,6 +7,10 @@ edition = "2021"
 [dependencies]
 ariadne = "0.4"
 clap = { version = "4", features = ["derive"] }
+cranelift = "0.110"
+cranelift-jit = "0.110"
+cranelift-module = "0.110"
+cranelift-native = "0.110"
 dirs = "5"
 enumset = "1"
 indexmap = "2"
