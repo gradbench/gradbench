@@ -44,6 +44,19 @@ fn entrypoint(path: PathBuf) -> Result<Graph, (compile::Modules, Box<compile::Er
     Ok(Graph { modules, module })
 }
 
+fn run(path: PathBuf, _: &[String]) -> Result<(), ()> {
+    match entrypoint(path) {
+        Ok(graph) => {
+            jit::run(graph.modules, graph.module);
+            Ok(())
+        }
+        Err((modules, err)) => {
+            compile::error(&modules, *err);
+            Err(())
+        }
+    }
+}
+
 fn perf(n: usize, path: PathBuf) -> Result<(), (compile::Modules, Box<compile::Error>)> {
     let mut modules = compile::Modules::new();
     let (path, source) = match read(path) {
@@ -186,7 +199,10 @@ enum Commands {
     },
 
     /// Run a module as a script
-    Run { file: PathBuf },
+    Run { file: PathBuf, args: Vec<String> },
+
+    #[command(external_subcommand)]
+    External(Vec<String>),
 }
 
 fn cli() -> Result<(), ()> {
@@ -216,16 +232,8 @@ fn cli() -> Result<(), ()> {
         Commands::Perf { n, file } => {
             perf(n, file).map_err(|(modules, err)| compile::error(&modules, *err))
         }
-        Commands::Run { file } => match entrypoint(file) {
-            Ok(graph) => {
-                jit::run(graph.modules, graph.module);
-                Ok(())
-            }
-            Err((modules, err)) => {
-                compile::error(&modules, *err);
-                Err(())
-            }
-        },
+        Commands::Run { file, args } => run(file, &args),
+        Commands::External(rest) => run(PathBuf::from(&rest[0]), &rest[1..]),
     }
 }
 
