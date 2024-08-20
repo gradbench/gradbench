@@ -1,3 +1,5 @@
+use std::string;
+
 use enumset::EnumSet;
 use serde::Serialize;
 
@@ -304,6 +306,17 @@ pub enum ParseError {
         id: TokenId,
         kinds: EnumSet<TokenKind>,
     },
+}
+
+impl ParseError {
+    pub fn message(&self) -> string::String {
+        match self {
+            ParseError::Expected { id: _, kinds } => format!(
+                "expected {}",
+                itertools::join(kinds.into_iter().map(|kind| kind.to_string()), " or ")
+            ),
+        }
+    }
 }
 
 #[derive(Debug)]

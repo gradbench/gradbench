@@ -298,17 +298,11 @@ pub fn error(modules: &Modules, err: Error) {
             err,
         } => {
             let path: &str = &path.display().to_string();
-            let (id, message) = match err {
-                parse::ParseError::Expected { id, kinds } => (
-                    id,
-                    format!(
-                        "expected {}",
-                        itertools::join(kinds.into_iter().map(|kind| kind.to_string()), " or ")
-                    ),
-                ),
+            let id = match err {
+                parse::ParseError::Expected { id, kinds: _ } => id,
             };
             AriadneEmitter::new((path, Source::from(&source)), "failed to parse")
-                .diagnostic((path, tokens.get(id).byte_range()), message)
+                .diagnostic((path, tokens.get(id).byte_range()), err.message())
                 .finish();
         }
         Error::Import {
