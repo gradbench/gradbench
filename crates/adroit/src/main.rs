@@ -1,5 +1,6 @@
 mod compile;
 mod lex;
+mod lsp;
 mod parse;
 mod pprint;
 mod range;
@@ -175,6 +176,9 @@ enum Commands {
     /// Print the typed IR of a module as JSON
     Json { file: PathBuf },
 
+    /// Start a language server over stdio
+    Lsp,
+
     /// Print compiler performance info for a module
     Perf {
         /// Number of times to process the module
@@ -210,6 +214,10 @@ fn cli() -> Result<(), ()> {
                 Err(())
             }
         },
+        Commands::Lsp => {
+            lsp::language_server();
+            Ok(())
+        }
         Commands::Perf { n, file } => {
             perf(n, file).map_err(|(modules, err)| compile::error(&modules, *err))
         }
