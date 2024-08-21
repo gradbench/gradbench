@@ -194,8 +194,7 @@ fn cli() -> Result<(), ()> {
         Commands::Fmt { file } => match fmt(file) {
             Ok((source, tokens, module)) => {
                 pprint::pprint(&mut io::stdout(), &source, &tokens, &module)
-                    .map_err(|err| eprintln!("error formatting module: {err}"))?;
-                Ok(())
+                    .map_err(|err| eprintln!("error formatting module: {err}"))
             }
             Err(err) => {
                 compile::error(&compile::Modules::new(), *err);
@@ -214,10 +213,7 @@ fn cli() -> Result<(), ()> {
                 Err(())
             }
         },
-        Commands::Lsp => {
-            lsp::language_server();
-            Ok(())
-        }
+        Commands::Lsp => lsp::language_server().map_err(|err| eprintln!("{err}")),
         Commands::Perf { n, file } => {
             perf(n, file).map_err(|(modules, err)| compile::error(&modules, *err))
         }

@@ -1,9 +1,17 @@
-use std::{collections::HashMap, ops, result};
+use std::{collections::HashMap, ops::Range};
 
+use anyhow::anyhow;
+use crossbeam_channel::Sender;
 use itertools::Itertools;
 use line_index::{LineCol, LineIndex, TextSize};
-use tokio::sync::RwLock;
-use tower_lsp::{jsonrpc::Result, lsp_types::*, Client, LanguageServer, LspService, Server};
+use lsp_server::{Connection, Message};
+use lsp_types::{
+    notification::{DidChangeTextDocument, DidOpenTextDocument, Notification, PublishDiagnostics},
+    Diagnostic, DidChangeTextDocumentParams, DidOpenTextDocumentParams, Position,
+    PublishDiagnosticsParams, ServerCapabilities, TextDocumentItem, TextDocumentSyncCapability,
+    TextDocumentSyncKind, Uri, VersionedTextDocumentIdentifier,
+};
+use serde_json::Value;
 
 use crate::{lex, parse};
 
@@ -12,10 +20,10 @@ fn byte_to_lsp(index: &LineIndex, offset: usize) -> Position {
     Position::new(line, col)
 }
 
-fn bytes_to_lsp(index: &LineIndex, range: ops::Range<usize>) -> Range {
+fn bytes_to_lsp(index: &LineIndex, range: Range<usize>) -> lsp_types::Range {
     let start = byte_to_lsp(index, range.start);
     let end = byte_to_lsp(index, range.end);
-    Range { start, end }
+    lsp_types::Range { start, end }
 }
 
 #[derive(Debug)]
@@ -28,11 +36,28 @@ struct Doc {
 
 #[derive(Debug)]
 struct State {
-    docs: HashMap<Url, Doc>,
+    sender: Sender<Message>,
+    docs: HashMap<Uri, Doc>,
 }
 
 impl State {
-    fn update(&mut self, uri: Url, text: String) -> result::Result<(), Vec<Diagnostic>> {
+    fn new(sender: Sender<Message>) -> Self {
+        Self {
+            sender,
+            docs: HashMap::new(),
+        }
+    }
+
+    fn notify<N: Notification>(&self, params: N::Params) -> anyhow::Result<()> {
+        self.sender
+            .send(Message::Notification(lsp_server::Notification {
+                method: N::METHOD.to_owned(),
+                params: serde_json::to_value(params)?,
+            }))?;
+        Ok(())
+    }
+
+    fn update(&mut self, uri: Uri, text: String) -> Result<(), Vec<Diagnostic>> {
         let index = LineIndex::new(&text);
         let tokens = lex::lex(&text).map_err(|err| {
             let range = bytes_to_lsp(&index, err.byte_range());
@@ -56,59 +81,105 @@ impl State {
         self.docs.insert(uri, doc);
         Ok(())
     }
-}
 
-#[derive(Debug)]
-struct Backend {
-    client: Client,
-    state: RwLock<State>,
-}
-
-#[tower_lsp::async_trait]
-impl LanguageServer for Backend {
-    async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
-        Ok(InitializeResult {
-            capabilities: ServerCapabilities {
-                text_document_sync: Some(TextDocumentSyncCapability::Kind(
-                    // TODO: switch to incremental to encourage client to send more frequent updates
-                    TextDocumentSyncKind::FULL,
-                )),
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-    }
-
-    async fn shutdown(&self) -> Result<()> {
+    fn did_open_text_document(&mut self, params: DidOpenTextDocumentParams) -> anyhow::Result<()> {
+        let TextDocumentItem { uri, text, .. } = params.text_document;
+        let res = self.update(uri.clone(), text);
+        let diagnostics = res.err().unwrap_or_default();
+        let version = None;
+        self.notify::<PublishDiagnostics>(PublishDiagnosticsParams {
+            uri,
+            diagnostics,
+            version,
+        })?;
         Ok(())
     }
 
-    async fn did_open(&self, params: DidOpenTextDocumentParams) {
-        let TextDocumentItem { uri, text, .. } = params.text_document;
-        let res = self.state.write().await.update(uri.clone(), text);
-        let diags = res.err().unwrap_or_default();
-        self.client.publish_diagnostics(uri, diags, None).await;
-    }
-
-    async fn did_change(&self, params: DidChangeTextDocumentParams) {
+    fn did_change_text_document(
+        &mut self,
+        params: DidChangeTextDocumentParams,
+    ) -> anyhow::Result<()> {
         let VersionedTextDocumentIdentifier { uri, .. } = params.text_document;
         let (change,) = params.content_changes.into_iter().collect_tuple().unwrap();
-        let res = self.state.write().await.update(uri.clone(), change.text);
-        let diags = res.err().unwrap_or_default();
-        self.client.publish_diagnostics(uri, diags, None).await;
+        let res = self.update(uri.clone(), change.text);
+        let diagnostics = res.err().unwrap_or_default();
+        let version = None;
+        self.notify::<PublishDiagnostics>(PublishDiagnosticsParams {
+            uri,
+            diagnostics,
+            version,
+        })?;
+        Ok(())
     }
 }
 
-#[tokio::main]
-pub async fn language_server() {
-    let stdin = tokio::io::stdin();
-    let stdout = tokio::io::stdout();
+type NotificationHandler = Box<dyn Fn(&mut State, Value) -> anyhow::Result<()>>;
 
-    let (service, socket) = LspService::new(|client| Backend {
-        client,
-        state: RwLock::new(State {
-            docs: HashMap::new(),
-        }),
-    });
-    Server::new(stdin, stdout, socket).serve(service).await;
+struct Notifications {
+    handlers: HashMap<&'static str, NotificationHandler>,
+}
+
+impl Notifications {
+    fn new() -> Self {
+        Self {
+            handlers: HashMap::new(),
+        }
+    }
+
+    fn with<N: Notification>(mut self, f: fn(&mut State, N::Params) -> anyhow::Result<()>) -> Self {
+        self.handlers.insert(
+            N::METHOD,
+            Box::new(move |state, params| f(state, serde_json::from_value(params)?)),
+        );
+        self
+    }
+
+    fn handle(&self, state: &mut State, not: lsp_server::Notification) -> anyhow::Result<()> {
+        let method: &str = &not.method;
+        self.handlers
+            .get(method)
+            .ok_or_else(|| anyhow!("unimplemented notification: {method}"))?(
+            state, not.params
+        )
+    }
+}
+
+fn run(mut connection: Connection) -> anyhow::Result<()> {
+    let nots = Notifications::new()
+        .with::<DidChangeTextDocument>(State::did_change_text_document)
+        .with::<DidOpenTextDocument>(State::did_open_text_document);
+    connection.initialize(serde_json::to_value(&ServerCapabilities {
+        text_document_sync: Some(TextDocumentSyncCapability::Kind(
+            // TODO: switch to incremental to encourage client to send more frequent updates
+            TextDocumentSyncKind::FULL,
+        )),
+        ..Default::default()
+    })?)?;
+    let mut state = State::new(connection.sender);
+    for msg in &connection.receiver {
+        match msg {
+            Message::Request(req) => {
+                connection.sender = state.sender;
+                if connection.handle_shutdown(&req)? {
+                    break;
+                }
+                state.sender = connection.sender;
+            }
+            Message::Response(_) => unreachable!(),
+            Message::Notification(not) => nots.handle(&mut state, not)?,
+        }
+    }
+    Ok(())
+}
+
+pub fn language_server() -> anyhow::Result<()> {
+    let (connection, io_threads) = Connection::stdio();
+    let ran = run(connection);
+    let joined = io_threads.join();
+    match (ran, joined) {
+        (Ok(()), Ok(())) => Ok(()),
+        (Err(err), Ok(())) => Err(err),
+        (Ok(()), Err(err)) => Err(anyhow!("{err}")),
+        (Err(err1), Err(err2)) => Err(anyhow!("{err1}\n{err2}")),
+    }
 }
