@@ -1363,13 +1363,22 @@ mod tests {
     use line_index::{LineCol, LineIndex, TextSize};
 
     use crate::{
-        compile::{FullModule, Modules, Printer},
+        compile::{FullModule, Importer, Printer},
         lex::lex,
         parse::parse,
         util::{Diagnostic, Emitter},
     };
 
     use super::*;
+
+    #[derive(Clone, Copy, Debug)]
+    struct NoImports;
+
+    impl Importer for NoImports {
+        fn import(&self, _: ImportId) -> FullModule {
+            unimplemented!()
+        }
+    }
 
     #[derive(Debug)]
     struct LineEmitter<'a> {
@@ -1442,7 +1451,6 @@ mod tests {
     fn test_errors() {
         let prefix = Path::new("src/typecheck/errors");
         let mut mint = Mint::new(prefix);
-        let modules = Modules::new();
         for entry in fs::read_dir(prefix).unwrap() {
             let path = entry.unwrap().path();
             let stripped = path.strip_prefix(prefix).unwrap().to_str().unwrap();
@@ -1464,13 +1472,12 @@ mod tests {
                 errors: HashMap::new(),
             };
             let full = FullModule {
-                source,
-                tokens,
-                tree,
-                imports: vec![],
-                module,
+                source: &source,
+                tokens: &tokens,
+                tree: &tree,
+                module: &module,
             };
-            let printer = Printer::new(&modules, &full);
+            let printer = Printer::new(full, NoImports);
             for error in errors {
                 printer.emit_type_error(&mut emitter, path_str, error);
             }
