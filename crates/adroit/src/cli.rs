@@ -20,7 +20,6 @@ use crate::{
 };
 
 fn builtin(path: &Path) -> Result<&'static str, ()> {
-    println!("{}", path.display());
     let name = match path.to_str() {
         Some(string) => string.strip_suffix(".adroit").unwrap(),
         None => {
