@@ -271,6 +271,6 @@ pub fn cli() -> Result<(), ()> {
             println!();
             Ok(())
         }
-        Commands::Lsp => language_server().map_err(|err| eprintln!("language server error: {err}")),
+        Commands::Lsp => language_server(),
     }
 }

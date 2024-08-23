@@ -180,14 +180,13 @@ fn run(mut connection: Connection) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn language_server() -> anyhow::Result<()> {
+pub fn language_server() -> Result<(), ()> {
     let (connection, io_threads) = Connection::stdio();
-    let ran = run(connection);
-    let joined = io_threads.join();
-    match (ran, joined) {
-        (Ok(()), Ok(())) => Ok(()),
-        (Err(err), Ok(())) => Err(err),
-        (Ok(()), Err(err)) => Err(anyhow!("{err}")),
-        (Err(err1), Err(err2)) => Err(anyhow!("{err1}\n{err2}")),
+    match run(connection) {
+        Ok(()) => io_threads.join().map_err(|err| eprintln!("{err}")),
+        Err(err) => {
+            eprintln!("{err}");
+            Err(())
+        }
     }
 }
