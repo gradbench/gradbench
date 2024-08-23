@@ -6,10 +6,13 @@ use itertools::Itertools;
 use line_index::{LineCol, LineIndex, TextSize};
 use lsp_server::{Connection, Message};
 use lsp_types::{
-    notification::{DidChangeTextDocument, DidOpenTextDocument, Notification, PublishDiagnostics},
-    Diagnostic, DidChangeTextDocumentParams, DidOpenTextDocumentParams, Position,
-    PublishDiagnosticsParams, ServerCapabilities, TextDocumentItem, TextDocumentSyncCapability,
-    TextDocumentSyncKind, Uri, VersionedTextDocumentIdentifier,
+    notification::{
+        DidChangeTextDocument, DidOpenTextDocument, DidSaveTextDocument, Notification,
+        PublishDiagnostics,
+    },
+    Diagnostic, DidChangeTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
+    Position, PublishDiagnosticsParams, ServerCapabilities, TextDocumentItem,
+    TextDocumentSyncCapability, TextDocumentSyncKind, Uri, VersionedTextDocumentIdentifier,
 };
 use serde_json::Value;
 
@@ -111,6 +114,10 @@ impl State {
         })?;
         Ok(())
     }
+
+    fn did_save_text_document(&mut self, _: DidSaveTextDocumentParams) -> anyhow::Result<()> {
+        Ok(())
+    }
 }
 
 type NotificationHandler = Box<dyn Fn(&mut State, Value) -> anyhow::Result<()>>;
@@ -147,7 +154,8 @@ impl Notifications {
 fn run(mut connection: Connection) -> anyhow::Result<()> {
     let nots = Notifications::new()
         .with::<DidChangeTextDocument>(State::did_change_text_document)
-        .with::<DidOpenTextDocument>(State::did_open_text_document);
+        .with::<DidOpenTextDocument>(State::did_open_text_document)
+        .with::<DidSaveTextDocument>(State::did_save_text_document);
     connection.initialize(serde_json::to_value(&ServerCapabilities {
         text_document_sync: Some(TextDocumentSyncCapability::Kind(
             // TODO: switch to incremental to encourage client to send more frequent updates
