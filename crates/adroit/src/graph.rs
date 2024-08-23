@@ -111,7 +111,13 @@ impl Data {
     }
 }
 
-#[derive(Debug)]
+impl Default for Data {
+    fn default() -> Self {
+        Self::Pending
+    }
+}
+
+#[derive(Debug, Default)]
 pub struct Node {
     pub root: bool,
     pub imports: HashSet<Uri>,
@@ -146,16 +152,6 @@ impl Node {
                 .collect())
         } else {
             Err(())
-        }
-    }
-}
-
-impl Default for Node {
-    fn default() -> Self {
-        Node {
-            root: false,
-            imports: HashSet::new(),
-            data: Data::Pending,
         }
     }
 }
