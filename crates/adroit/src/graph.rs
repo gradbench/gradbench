@@ -30,6 +30,10 @@ impl Uri {
         Ok(Self::new(Url::from_file_path(path)?))
     }
 
+    pub fn from_directory_path(path: impl AsRef<Path>) -> Result<Self, ()> {
+        Ok(Self::new(Url::from_directory_path(path)?))
+    }
+
     pub fn to_file_path(&self) -> Result<PathBuf, ()> {
         self.0.to_file_path()
     }
@@ -168,6 +172,10 @@ impl Graph {
             stdlib,
             nodes: HashMap::new(),
         }
+    }
+
+    pub fn stdlib(&self) -> &Uri {
+        &self.stdlib
     }
 
     pub fn make_root(&mut self, uri: Uri) {

@@ -19,22 +19,41 @@ use crate::{
     util::{Diagnostic, Emitter, Id},
 };
 
-fn stdlib() -> io::Result<Uri> {
+fn builtin(path: &Path) -> Result<&'static str, ()> {
+    println!("{}", path.display());
+    let name = match path.to_str() {
+        Some(string) => string.strip_suffix(".adroit").unwrap(),
+        None => {
+            eprintln!("module name is not valid Unicode: {}", path.display());
+            return Err(());
+        }
+    };
+    match name {
+        "array" => Ok(include_str!("modules/array.adroit")),
+        "autodiff" => Ok(include_str!("modules/autodiff.adroit")),
+        "math" => Ok(include_str!("modules/math.adroit")),
+        _ => {
+            eprintln!("builtin module does not exist: {name}");
+            Err(())
+        }
+    }
+}
+
+fn stdlib() -> Uri {
     let dir = dirs::cache_dir()
-        .ok_or(io::ErrorKind::NotFound)?
-        .join("adroit/modules/");
-    Ok(Uri::from_file_path(dir).unwrap())
+        .expect("cache directory should exist")
+        .join("adroit/modules");
+    Uri::from_directory_path(dir).unwrap()
 }
 
-fn path_to_uri(path: &Path) -> io::Result<Uri> {
-    Ok(Uri::from_file_path(path.canonicalize()?).unwrap())
-}
-
-fn read_uri(uri: &Uri) -> io::Result<String> {
-    fs::read_to_string(
-        uri.to_file_path()
-            .map_err(|_| io::ErrorKind::InvalidInput)?,
-    )
+fn rooted_graph(path: PathBuf) -> Result<(Graph, Uri), ()> {
+    let mut graph = Graph::new(stdlib());
+    let canon = path
+        .canonicalize()
+        .map_err(|err| eprintln!("error canonicalizing {}: {err}", path.display()))?;
+    let uri = Uri::from_file_path(canon).unwrap();
+    graph.make_root(uri.clone());
+    Ok((graph, uri))
 }
 
 #[derive(Debug)]
@@ -97,11 +116,28 @@ impl<'a, 'b, C: Cache<&'a str>> Diagnostic<(&'a str, Range<usize>)>
     }
 }
 
-fn explore<'a>(
-    graph: &'a mut Graph,
-    uri: &Uri,
-) -> Result<(&'a Arc<Syntax>, Vec<Result<Uri, ()>>), ()> {
-    let text = read_uri(uri).map_err(|err| eprintln!("{err}"))?;
+type ParseData<'a> = (&'a Arc<Syntax>, Vec<Result<Uri, ()>>);
+
+fn explore<'a>(graph: &'a mut Graph, uri: &Uri) -> Result<ParseData<'a>, ()> {
+    let uri_str = uri.as_str();
+    let path = uri
+        .to_file_path()
+        .map_err(|()| eprintln!("not a local file: {uri_str}"))?;
+    let stdlib = graph.stdlib().to_file_path().unwrap();
+    let text = match path.strip_prefix(&stdlib) {
+        Ok(relative) => {
+            let text = builtin(relative)?;
+            let parent = path.parent().unwrap();
+            fs::create_dir_all(parent)
+                .map_err(|err| eprintln!("failed to make directory {}: {err}", parent.display()))?;
+            fs::write(&path, text)
+                .map_err(|err| eprintln!("failed to write {}: {err}", path.display()))?;
+            text.to_owned()
+        }
+        Err(_) => {
+            fs::read_to_string(path).map_err(|err| eprintln!("error reading {uri_str}: {err}"))?
+        }
+    };
     let res = graph.set_text(uri, text);
     let node = graph.get(uri);
     match res {
@@ -109,27 +145,24 @@ fn explore<'a>(
             Data::Parsed { syn } => Ok((syn, imports)),
             _ => unreachable!(),
         },
-        Err(()) => {
-            let path = uri.as_str();
-            match &node.data {
-                Data::Read { src, err } => {
-                    AriadneEmitter::new((path, Source::from(&src.text)), "failed to tokenize")
-                        .diagnostic((path, err.byte_range()), err.message())
-                        .finish();
-                    Err(())
-                }
-                Data::Lexed { src, toks, err } => {
-                    let id = match *err {
-                        ParseError::Expected { id, kinds: _ } => id,
-                    };
-                    AriadneEmitter::new((path, Source::from(&src.text)), "failed to parse")
-                        .diagnostic((path, toks.get(id).byte_range()), err.message())
-                        .finish();
-                    Err(())
-                }
-                _ => unreachable!(),
+        Err(()) => match &node.data {
+            Data::Read { src, err } => {
+                AriadneEmitter::new((uri_str, Source::from(&src.text)), "failed to tokenize")
+                    .diagnostic((uri_str, err.byte_range()), err.message())
+                    .finish();
+                Err(())
             }
-        }
+            Data::Lexed { src, toks, err } => {
+                let id = match *err {
+                    ParseError::Expected { id, kinds: _ } => id,
+                };
+                AriadneEmitter::new((uri_str, Source::from(&src.text)), "failed to parse")
+                    .diagnostic((uri_str, toks.get(id).byte_range()), err.message())
+                    .finish();
+                Err(())
+            }
+            _ => unreachable!(),
+        },
     }
 }
 
@@ -157,13 +190,25 @@ impl Importer for GraphImporter<'_> {
 }
 
 fn search(graph: &mut Graph, uri: &Uri) -> Result<Arc<typecheck::Module>, ()> {
+    let uri_str = uri.as_str();
     let (syntax, results) = explore(graph, uri)?;
-    let uris = results.into_iter().collect::<Result<Vec<Uri>, ()>>()?;
     let syn = Arc::clone(syntax);
-    let imports = uris
-        .iter()
-        .map(|import| search(graph, import))
-        .collect::<Result<Vec<Arc<typecheck::Module>>, ()>>()?;
+    let (uris, imports) = results
+        .into_iter()
+        .enumerate()
+        .map(|(i, res)| {
+            res.and_then(|import| match search(graph, &import) {
+                Ok(sem) => Ok((import, sem)),
+                Err(()) => {
+                    let range = syn.toks.get(syn.tree.imports()[i].module).byte_range();
+                    AriadneEmitter::new((uri_str, Source::from(&syn.src.text)), "failed to import")
+                        .diagnostic((uri_str, range), "this one")
+                        .finish();
+                    Err(())
+                }
+            })
+        })
+        .collect::<Result<(Vec<Uri>, Vec<Arc<typecheck::Module>>), ()>>()?;
     let (module, errs) = typecheck::typecheck(
         &syn.src.text,
         &syn.toks,
@@ -175,7 +220,6 @@ fn search(graph: &mut Graph, uri: &Uri) -> Result<Arc<typecheck::Module>, ()> {
         graph.supply_semantic(uri, sem.clone(), errs);
         Ok(sem)
     } else {
-        let path = uri.as_str();
         let full = FullModule {
             source: &syn.src.text,
             tokens: &syn.toks,
@@ -183,10 +227,12 @@ fn search(graph: &mut Graph, uri: &Uri) -> Result<Arc<typecheck::Module>, ()> {
             module: sem,
         };
         let printer = Printer::new(full, GraphImporter { graph, uris: &uris });
-        let mut emitter =
-            AriadneEmitter::new((path, Source::from(&syn.src.text)), "failed to typecheck");
+        let mut emitter = AriadneEmitter::new(
+            (uri_str, Source::from(&syn.src.text)),
+            "failed to typecheck",
+        );
         for err in errs {
-            printer.emit_type_error(&mut emitter, path, err);
+            printer.emit_type_error(&mut emitter, uri_str, err);
         }
         Err(())
     }
@@ -213,22 +259,19 @@ enum Commands {
 pub fn cli() -> Result<(), ()> {
     match Cli::parse().command {
         Commands::Fmt { file } => {
-            let mut graph = Graph::new(stdlib().map_err(|err| eprintln!("{err}"))?);
-            let uri = path_to_uri(&file).map_err(|err| eprintln!("{err}"))?;
-            graph.make_root(uri.clone());
+            let (mut graph, uri) = rooted_graph(file)?;
             let (syn, _) = explore(&mut graph, &uri)?;
             pprint(&mut io::stdout(), &syn.src.text, &syn.toks, &syn.tree)
-                .map_err(|err| eprintln!("{err}"))
+                .map_err(|err| eprintln!("error formatting module: {err}"))
         }
         Commands::Json { file } => {
-            let mut graph = Graph::new(stdlib().map_err(|err| eprintln!("{err}"))?);
-            let uri = path_to_uri(&file).map_err(|err| eprintln!("{err}"))?;
-            graph.make_root(uri.clone());
+            let (mut graph, uri) = rooted_graph(file)?;
             let sem = search(&mut graph, &uri)?;
-            serde_json::to_writer(io::stdout(), sem.as_ref()).map_err(|err| eprintln!("{err}"))?;
+            serde_json::to_writer(io::stdout(), sem.as_ref())
+                .map_err(|err| eprintln!("error serializing module: {err}"))?;
             println!();
             Ok(())
         }
-        Commands::Lsp => language_server().map_err(|err| eprintln!("{err}")),
+        Commands::Lsp => language_server().map_err(|err| eprintln!("language server error: {err}")),
     }
 }
