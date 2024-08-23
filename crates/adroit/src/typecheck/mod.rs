@@ -1357,7 +1357,7 @@ pub fn typecheck(
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, io::Write, ops::Range, path::Path};
+    use std::{fs, io::Write, ops::Range, path::Path, sync::Arc};
 
     use goldenfile::{differs::Differ, Mint};
     use line_index::{LineCol, LineIndex, TextSize};
@@ -1475,7 +1475,7 @@ mod tests {
                 source: &source,
                 tokens: &tokens,
                 tree: &tree,
-                module: &module,
+                module: Arc::new(module),
             };
             let printer = Printer::new(full, NoImports);
             for error in errors {
@@ -1485,7 +1485,7 @@ mod tests {
             let mut file = mint
                 .new_goldenfile_with_differ(stripped, differ())
                 .expect(stripped);
-            for (i, line) in full.source.lines().enumerate() {
+            for (i, line) in source.lines().enumerate() {
                 writeln!(file, "{}", line).expect(stripped);
                 for (start, end, message) in emitter.errors.remove(&i).unwrap_or_default() {
                     writeln!(
