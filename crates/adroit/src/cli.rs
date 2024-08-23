@@ -271,6 +271,6 @@ pub fn cli() -> Result<(), ()> {
             println!();
             Ok(())
         }
-        Commands::Lsp => language_server(),
+        Commands::Lsp => language_server(stdlib()),
     }
 }

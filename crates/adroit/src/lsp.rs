@@ -12,12 +12,14 @@ use lsp_types::{
     },
     Diagnostic, DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
     DidSaveTextDocumentParams, MessageType, Position, PublishDiagnosticsParams, ServerCapabilities,
-    ShowMessageParams, TextDocumentItem, TextDocumentSyncCapability, TextDocumentSyncKind, Uri,
-    VersionedTextDocumentIdentifier,
+    ShowMessageParams, TextDocumentSyncCapability, TextDocumentSyncKind,
 };
 use serde_json::Value;
 
-use crate::{lex, parse};
+use crate::{
+    graph::{Data, Graph, Uri},
+    parse::ParseError,
+};
 
 fn notify<N: Notification>(sender: &Sender<Message>, params: N::Params) -> anyhow::Result<()> {
     sender.send(Message::Notification(lsp_server::Notification {
@@ -39,24 +41,16 @@ fn bytes_to_lsp(index: &LineIndex, range: Range<usize>) -> lsp_types::Range {
 }
 
 #[derive(Debug)]
-struct Doc {
-    text: String,
-    index: LineIndex,
-    tokens: lex::Tokens,
-    tree: parse::Module,
-}
-
-#[derive(Debug)]
 struct State {
     sender: Sender<Message>,
-    docs: HashMap<Uri, Doc>,
+    graph: Graph,
 }
 
 impl State {
-    fn new(sender: Sender<Message>) -> Self {
+    fn new(stdlib: Uri, sender: Sender<Message>) -> Self {
         Self {
             sender,
-            docs: HashMap::new(),
+            graph: Graph::new(stdlib),
         }
     }
 
@@ -64,38 +58,39 @@ impl State {
         notify::<N>(&self.sender, params)
     }
 
-    fn update(&mut self, uri: Uri, text: String) -> Result<(), Vec<Diagnostic>> {
-        let index = LineIndex::new(&text);
-        let tokens = lex::lex(&text).map_err(|err| {
-            let range = bytes_to_lsp(&index, err.byte_range());
-            let message = err.message().to_owned();
-            vec![Diagnostic::new_simple(range, message)]
-        })?;
-        let tree = parse::parse(&tokens).map_err(|err| {
-            let id = match err {
-                parse::ParseError::Expected { id, kinds: _ } => id,
-            };
-            let range = bytes_to_lsp(&index, tokens.get(id).byte_range());
-            let message = err.message();
-            vec![Diagnostic::new_simple(range, message)]
-        })?;
-        let doc = Doc {
-            text,
-            index,
-            tokens,
-            tree,
-        };
-        self.docs.insert(uri, doc);
-        Ok(())
+    fn update(&mut self, uri: &Uri, text: String) -> Result<(), Vec<Diagnostic>> {
+        let res = self.graph.set_text(uri, text);
+        let node = self.graph.get(uri);
+        match res {
+            Ok(_) => Ok(()),
+            Err(()) => match &node.data {
+                Data::Read { src, err } => {
+                    let range = bytes_to_lsp(&src.lines, err.byte_range());
+                    let message = err.message().to_owned();
+                    Err(vec![Diagnostic::new_simple(range, message)])
+                }
+                Data::Lexed { src, toks, err } => {
+                    let id = match *err {
+                        ParseError::Expected { id, kinds: _ } => id,
+                    };
+                    let range = bytes_to_lsp(&src.lines, toks.get(id).byte_range());
+                    let message = err.message();
+                    Err(vec![Diagnostic::new_simple(range, message)])
+                }
+                _ => unreachable!(),
+            },
+        }
     }
 
     fn did_open_text_document(&mut self, params: DidOpenTextDocumentParams) -> anyhow::Result<()> {
-        let TextDocumentItem { uri, text, .. } = params.text_document;
-        let res = self.update(uri.clone(), text);
+        let doc = params.text_document;
+        let uri = Uri::from_lsp_uri(&doc.uri).unwrap();
+        self.graph.make_root(uri.clone());
+        let res = self.update(&uri, doc.text);
         let diagnostics = res.err().unwrap_or_default();
         let version = None;
         self.notify::<PublishDiagnostics>(PublishDiagnosticsParams {
-            uri,
+            uri: doc.uri,
             diagnostics,
             version,
         })?;
@@ -106,13 +101,14 @@ impl State {
         &mut self,
         params: DidChangeTextDocumentParams,
     ) -> anyhow::Result<()> {
-        let VersionedTextDocumentIdentifier { uri, .. } = params.text_document;
+        let doc = params.text_document;
+        let uri = Uri::from_lsp_uri(&doc.uri).unwrap();
         let (change,) = params.content_changes.into_iter().collect_tuple().unwrap();
-        let res = self.update(uri.clone(), change.text);
+        let res = self.update(&uri, change.text);
         let diagnostics = res.err().unwrap_or_default();
         let version = None;
         self.notify::<PublishDiagnostics>(PublishDiagnosticsParams {
-            uri,
+            uri: doc.uri,
             diagnostics,
             version,
         })?;
@@ -164,7 +160,7 @@ impl Notifications {
     }
 }
 
-fn run(connection: &Connection) -> anyhow::Result<()> {
+fn run(stdlib: Uri, connection: &Connection) -> anyhow::Result<()> {
     let nots = Notifications::new()
         .with::<DidChangeTextDocument>(State::did_change_text_document)
         .with::<DidCloseTextDocument>(State::did_close_text_document)
@@ -177,7 +173,7 @@ fn run(connection: &Connection) -> anyhow::Result<()> {
         )),
         ..Default::default()
     })?)?;
-    let mut state = State::new(connection.sender.clone());
+    let mut state = State::new(stdlib, connection.sender.clone());
     for msg in &connection.receiver {
         match msg {
             Message::Request(req) => {
@@ -192,9 +188,9 @@ fn run(connection: &Connection) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn language_server() -> Result<(), ()> {
+pub fn language_server(stdlib: Uri) -> Result<(), ()> {
     let (connection, io_threads) = Connection::stdio();
-    let res = run(&connection).map_err(|err| {
+    let res = run(stdlib, &connection).map_err(|err| {
         if notify::<ShowMessage>(
             &connection.sender,
             ShowMessageParams {
