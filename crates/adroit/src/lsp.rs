@@ -8,15 +8,24 @@ use lsp_server::{Connection, Message};
 use lsp_types::{
     notification::{
         DidChangeTextDocument, DidOpenTextDocument, DidSaveTextDocument, Notification,
-        PublishDiagnostics,
+        PublishDiagnostics, ShowMessage,
     },
     Diagnostic, DidChangeTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
-    Position, PublishDiagnosticsParams, ServerCapabilities, TextDocumentItem,
-    TextDocumentSyncCapability, TextDocumentSyncKind, Uri, VersionedTextDocumentIdentifier,
+    MessageType, Position, PublishDiagnosticsParams, ServerCapabilities, ShowMessageParams,
+    TextDocumentItem, TextDocumentSyncCapability, TextDocumentSyncKind, Uri,
+    VersionedTextDocumentIdentifier,
 };
 use serde_json::Value;
 
 use crate::{lex, parse};
+
+fn notify<N: Notification>(sender: &Sender<Message>, params: N::Params) -> anyhow::Result<()> {
+    sender.send(Message::Notification(lsp_server::Notification {
+        method: N::METHOD.to_owned(),
+        params: serde_json::to_value(params)?,
+    }))?;
+    Ok(())
+}
 
 fn byte_to_lsp(index: &LineIndex, offset: usize) -> Position {
     let LineCol { line, col } = index.line_col(TextSize::new(offset.try_into().unwrap()));
@@ -52,12 +61,7 @@ impl State {
     }
 
     fn notify<N: Notification>(&self, params: N::Params) -> anyhow::Result<()> {
-        self.sender
-            .send(Message::Notification(lsp_server::Notification {
-                method: N::METHOD.to_owned(),
-                params: serde_json::to_value(params)?,
-            }))?;
-        Ok(())
+        notify::<N>(&self.sender, params)
     }
 
     fn update(&mut self, uri: Uri, text: String) -> Result<(), Vec<Diagnostic>> {
@@ -151,7 +155,7 @@ impl Notifications {
     }
 }
 
-fn run(mut connection: Connection) -> anyhow::Result<()> {
+fn run(connection: &Connection) -> anyhow::Result<()> {
     let nots = Notifications::new()
         .with::<DidChangeTextDocument>(State::did_change_text_document)
         .with::<DidOpenTextDocument>(State::did_open_text_document)
@@ -163,15 +167,13 @@ fn run(mut connection: Connection) -> anyhow::Result<()> {
         )),
         ..Default::default()
     })?)?;
-    let mut state = State::new(connection.sender);
+    let mut state = State::new(connection.sender.clone());
     for msg in &connection.receiver {
         match msg {
             Message::Request(req) => {
-                connection.sender = state.sender;
                 if connection.handle_shutdown(&req)? {
                     break;
                 }
-                state.sender = connection.sender;
             }
             Message::Response(_) => unreachable!(),
             Message::Notification(not) => nots.handle(&mut state, not)?,
@@ -182,10 +184,24 @@ fn run(mut connection: Connection) -> anyhow::Result<()> {
 
 pub fn language_server() -> Result<(), ()> {
     let (connection, io_threads) = Connection::stdio();
-    match run(connection) {
-        Ok(()) => io_threads.join().map_err(|err| eprintln!("{err}")),
+    let res = run(&connection).map_err(|err| {
+        if notify::<ShowMessage>(
+            &connection.sender,
+            ShowMessageParams {
+                typ: MessageType::ERROR,
+                message: format!("Adroit language server error: {err}"),
+            },
+        )
+        .is_err()
+        {
+            eprintln!("language server error: {err}");
+        }
+        drop(connection); // otherwise thread join below hangs, client thinks server is still up
+    });
+    match io_threads.join() {
+        Ok(()) => res,
         Err(err) => {
-            eprintln!("{err}");
+            eprintln!("failed to close IO threads: {err}");
             Err(())
         }
     }
