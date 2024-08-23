@@ -7,12 +7,12 @@ use line_index::{LineCol, LineIndex, TextSize};
 use lsp_server::{Connection, Message};
 use lsp_types::{
     notification::{
-        DidChangeTextDocument, DidOpenTextDocument, DidSaveTextDocument, Notification,
-        PublishDiagnostics, ShowMessage,
+        DidChangeTextDocument, DidCloseTextDocument, DidOpenTextDocument, DidSaveTextDocument,
+        Notification, PublishDiagnostics, ShowMessage,
     },
-    Diagnostic, DidChangeTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
-    MessageType, Position, PublishDiagnosticsParams, ServerCapabilities, ShowMessageParams,
-    TextDocumentItem, TextDocumentSyncCapability, TextDocumentSyncKind, Uri,
+    Diagnostic, DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
+    DidSaveTextDocumentParams, MessageType, Position, PublishDiagnosticsParams, ServerCapabilities,
+    ShowMessageParams, TextDocumentItem, TextDocumentSyncCapability, TextDocumentSyncKind, Uri,
     VersionedTextDocumentIdentifier,
 };
 use serde_json::Value;
@@ -122,6 +122,10 @@ impl State {
     fn did_save_text_document(&mut self, _: DidSaveTextDocumentParams) -> anyhow::Result<()> {
         Ok(())
     }
+
+    fn did_close_text_document(&mut self, _: DidCloseTextDocumentParams) -> anyhow::Result<()> {
+        Ok(())
+    }
 }
 
 type NotificationHandler = Box<dyn Fn(&mut State, Value) -> anyhow::Result<()>>;
@@ -147,17 +151,23 @@ impl Notifications {
 
     fn handle(&self, state: &mut State, not: lsp_server::Notification) -> anyhow::Result<()> {
         let method: &str = &not.method;
-        self.handlers
-            .get(method)
-            .ok_or_else(|| anyhow!("unimplemented notification: {method}"))?(
-            state, not.params
-        )
+        match self.handlers.get(method) {
+            Some(handler) => handler(state, not.params),
+            None => {
+                if method.starts_with("$/") {
+                    Ok(())
+                } else {
+                    Err(anyhow!("unimplemented notification: {method}"))
+                }
+            }
+        }
     }
 }
 
 fn run(connection: &Connection) -> anyhow::Result<()> {
     let nots = Notifications::new()
         .with::<DidChangeTextDocument>(State::did_change_text_document)
+        .with::<DidCloseTextDocument>(State::did_close_text_document)
         .with::<DidOpenTextDocument>(State::did_open_text_document)
         .with::<DidSaveTextDocument>(State::did_save_text_document);
     connection.initialize(serde_json::to_value(&ServerCapabilities {
