@@ -189,7 +189,7 @@ pub fn language_server() -> Result<(), ()> {
             &connection.sender,
             ShowMessageParams {
                 typ: MessageType::ERROR,
-                message: format!("Adroit language server error: {err}"),
+                message: err.to_string(),
             },
         )
         .is_err()
