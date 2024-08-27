@@ -1,5 +1,6 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{hash_map::Entry, HashMap, HashSet},
+    mem::{replace, take},
     path::{Path, PathBuf},
     str::FromStr,
     sync::Arc,
@@ -92,6 +93,7 @@ pub enum Data {
         syn: Arc<Syntax>,
         sem: Arc<typecheck::Module>,
         errs: Vec<typecheck::TypeError>,
+        dirty: bool,
     },
 }
 
@@ -119,40 +121,67 @@ impl Default for Data {
 
 #[derive(Debug, Default)]
 pub struct Node {
+    /// Whether or not this node is a root.
+    ///
+    /// When running a module as a script, that module is a root node, and all the others are not.
+    /// When running the language server, being a root node is the same as being an open file.
+    ///
+    /// Root nodes are always kept alive. They also keep alive all their (transitive) dependencies.
+    /// Importantly, while for most nodes the dependencies are just the set of imported URIs, for
+    /// root nodes, the dependencies are a superset of that. Specifically, the set of dependencies
+    /// of a root node can only grow until that node is no longer a root. We do this because we
+    /// expect root nodes to undergo frequent edits that transition them between syntactically valid
+    /// and invalid states, and we don't want to drop and then rebuild the entire module graph every
+    /// time the user types two characters.
     pub root: bool,
-    pub imports: HashSet<Uri>,
+
+    /// The set of URIs that this node keeps alive.
+    ///
+    /// If the node is not a root, this is just the set of resolved URIs from the imports in the
+    /// parsed AST, or empty if the source text is not read or the text was not successfully parsed.
+    /// If the node is a root, this is a superset of that, also containing any other URIs that were
+    /// present as imports since this node was originally made a root. When a node is transitioned
+    /// from a root to a non-root, this is reset to the current set of imported URIs.
+    pub dependencies: HashSet<Uri>,
+
+    /// The set of URIs that import this node.
+    ///
+    /// Unlike the dependencies, this does not depend on whether any nodes are roots or not. In
+    /// particular, a different node could include this node's URI in its set of dependencies
+    /// because that other node is a root, but this node could not include the other node as a
+    /// dependent because the other node no longer actually imports this one.
+    pub dependents: HashSet<Uri>,
+
+    /// The state and contents of this node.
     pub data: Data,
 }
 
-impl Node {
-    fn replace(
-        &mut self,
-        stdlib: &Uri,
-        uri: &Uri,
-        text: String,
-    ) -> Result<Vec<Result<Uri, ()>>, ()> {
-        self.data = Data::new(text);
-        if !self.root {
-            // root nodes are open files; keep prior imports to avoid churn from parse errors
-            self.imports.clear();
+#[derive(Debug)]
+pub enum Job {
+    Read {
+        uri: Uri,
+    },
+    Typecheck {
+        uri: Uri,
+        syn: Arc<Syntax>,
+        deps: Vec<(Uri, Arc<typecheck::Module>)>,
+    },
+}
+
+#[derive(Debug)]
+struct Jobs {
+    jobs: HashMap<Uri, Job>,
+}
+
+impl Jobs {
+    fn new() -> Self {
+        Self {
+            jobs: HashMap::new(),
         }
-        if let Data::Parsed { syn } = &self.data {
-            Ok(syn
-                .tree
-                .imports()
-                .iter()
-                .map(|import| {
-                    let token = import.module;
-                    let name = syn.toks.get(token).string(&syn.src.text);
-                    uri.resolve(stdlib, &name).map(|resolved| {
-                        self.imports.insert(resolved.clone());
-                        resolved
-                    })
-                })
-                .collect())
-        } else {
-            Err(())
-        }
+    }
+
+    fn make(&mut self, uri: Uri, job: Job) {
+        assert!(self.jobs.insert(uri, job).is_none());
     }
 }
 
@@ -160,6 +189,7 @@ impl Node {
 pub struct Graph {
     stdlib: Uri,
     nodes: HashMap<Uri, Node>,
+    jobs: Jobs,
 }
 
 impl Graph {
@@ -167,6 +197,7 @@ impl Graph {
         Self {
             stdlib,
             nodes: HashMap::new(),
+            jobs: Jobs::new(),
         }
     }
 
@@ -174,34 +205,146 @@ impl Graph {
         &self.stdlib
     }
 
-    pub fn make_root(&mut self, uri: Uri) {
-        self.nodes.entry(uri).or_default().root = true;
-    }
-
-    pub fn set_text(&mut self, uri: &Uri, text: String) -> Result<Vec<Result<Uri, ()>>, ()> {
-        let node = self.nodes.get_mut(uri).unwrap();
-        let imports = node.replace(&self.stdlib, uri, text)?;
-        for import in imports.iter().flatten() {
-            self.nodes.entry(import.clone()).or_default();
-        }
-        Ok(imports)
-    }
-
     pub fn get(&self, uri: &Uri) -> &Node {
         &self.nodes[uri]
     }
 
+    fn make_node(&mut self, uri: Uri) -> &mut Node {
+        match self.nodes.entry(uri.clone()) {
+            Entry::Occupied(entry) => entry.into_mut(),
+            Entry::Vacant(entry) => {
+                self.jobs.make(uri.clone(), Job::Read { uri });
+                entry.insert(Default::default())
+            }
+        }
+    }
+
+    fn replace_text(&mut self, uri: &Uri, text: String) {
+        // currently we never delete nodes, so this should always be fine; in future we should
+        // consider just returning early if there is no node with this URI, which could maybe happen
+        // if someone completes a job to read a file after that file is no longer needed
+        let node = self.nodes.get_mut(uri).unwrap();
+        let mut kill = if node.root {
+            HashSet::new()
+        } else {
+            take(&mut node.dependencies)
+        };
+        let mut succs: Vec<Uri> = node.dependents.iter().cloned().collect();
+        node.data = Data::new(text);
+        if let Data::Parsed { syn } = &node.data {
+            let syn = Arc::clone(syn);
+            let imports: Vec<Option<Uri>> = syn
+                .tree
+                .imports()
+                .iter()
+                .map(|import| {
+                    let name = syn.toks.get(import.module).string(&syn.src.text);
+                    match uri.resolve(&self.stdlib, &name) {
+                        Ok(resolved) => {
+                            kill.remove(&resolved);
+                            node.dependencies.insert(resolved.clone());
+                            Some(resolved)
+                        }
+                        Err(()) => None,
+                    }
+                })
+                .collect();
+            let res: Result<Vec<(Uri, Arc<typecheck::Module>)>, ()> = imports
+                .into_iter()
+                .map(|opt| {
+                    if let Some(import) = opt {
+                        let dep = self.make_node(import.clone());
+                        dep.dependents.insert(uri.clone());
+                        if let Data::Analyzed { sem, dirty, .. } = &dep.data {
+                            if !dirty {
+                                return Ok((import, sem.clone()));
+                            }
+                        }
+                    }
+                    return Err(());
+                })
+                .collect();
+            if let Ok(deps) = res {
+                let job = Job::Typecheck {
+                    uri: uri.clone(),
+                    syn,
+                    deps,
+                };
+                self.jobs.make(uri.clone(), job);
+            }
+        }
+        for pred in kill {
+            self.nodes.get_mut(&pred).unwrap().dependents.remove(uri);
+            // TODO: delete all nodes that roots don't depend on
+        }
+        while let Some(succ) = succs.pop() {
+            let node = self.nodes.get_mut(&succ).unwrap();
+            if let Data::Analyzed { dirty, .. } = &mut node.data {
+                if !replace(dirty, true) {
+                    succs.extend(node.dependents.iter().cloned());
+                }
+            }
+        }
+    }
+
+    pub fn make_root(&mut self, uri: Uri) {
+        self.make_node(uri.clone()).root = true;
+    }
+
+    pub fn set_text(&mut self, job: Job, text: String) {
+        let uri = match job {
+            Job::Read { uri } => uri,
+            _ => panic!(),
+        };
+        self.replace_text(&uri, text)
+    }
+
+    pub fn change_text(&mut self, uri: &Uri, text: String) {
+        self.replace_text(uri, text)
+    }
+
     pub fn supply_semantic(
         &mut self,
-        uri: &Uri,
+        job: Job,
         sem: Arc<typecheck::Module>,
         errs: Vec<typecheck::TypeError>,
     ) {
-        let node = self.nodes.get_mut(uri).unwrap();
-        let syn = match &node.data {
-            Data::Parsed { syn } => Arc::clone(syn),
+        let (uri, syn, deps) = match job {
+            Job::Typecheck { uri, syn, deps } => (uri, syn, deps),
             _ => panic!(),
         };
-        node.data = Data::Analyzed { syn, sem, errs };
+        let node = match self.nodes.get(&uri) {
+            Some(node) => node,
+            None => return, // node was removed from the graph, no longer needed
+        };
+        let current = match &node.data {
+            Data::Parsed { syn } => syn,
+            Data::Analyzed { syn, .. } => syn,
+            _ => return, // lex or parse error so text must have changed; the result is outdated
+        };
+        if !Arc::ptr_eq(&syn, current) {
+            return; // the text changed, so the typechecking result is outdated
+        }
+        if !deps.into_iter().all(|(import, before)| {
+            if let Data::Analyzed { sem, dirty, .. } = &self.get(&import).data {
+                if !dirty {
+                    return Arc::ptr_eq(&before, sem);
+                }
+            }
+            return false;
+        }) {
+            return; // dependencies changed, so the typechecking result is outdated
+        }
+        let node = self.nodes.get_mut(&uri).unwrap();
+        let succs: Vec<Uri> = node.dependents.iter().cloned().collect();
+        node.data = Data::Analyzed {
+            syn,
+            sem,
+            errs,
+            dirty: false,
+        };
+        for _ in succs {
+            // TODO: make jobs for all dependents that have no dirty dependencies
+        }
     }
 }
