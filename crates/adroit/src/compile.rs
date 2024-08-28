@@ -68,19 +68,19 @@ impl<'a, I: Clone + Importer> Printer<'a, I> {
     }
 
     fn ty_range(&self, id: parse::TypeId) -> Range<usize> {
-        ty_range(self.full.tokens, self.full.tree, id)
+        ty_range(self.full.tokens, self.full.tree, id).unwrap()
     }
 
     fn bind_range(&self, id: parse::ParamId) -> Range<usize> {
-        bind_range(self.full.tokens, self.full.tree, id)
+        bind_range(self.full.tokens, self.full.tree, id).unwrap()
     }
 
     fn param_range(&self, id: parse::ParamId) -> Range<usize> {
-        param_range(self.full.tokens, self.full.tree, id)
+        param_range(self.full.tokens, self.full.tree, id).unwrap()
     }
 
     fn expr_range(&self, id: parse::ExprId) -> Range<usize> {
-        expr_range(self.full.tokens, self.full.tree, id)
+        expr_range(self.full.tokens, self.full.tree, id).unwrap()
     }
 
     pub fn ty(&self, id: typecheck::TypeId) -> Type<I> {

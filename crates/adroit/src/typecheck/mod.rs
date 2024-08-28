@@ -1038,9 +1038,14 @@ impl<'a> Typer<'a> {
                 panic!("polymorphic instantiation should always be inside function application")
             }
             parse::Expr::Apply { mut func, arg } => {
-                let fragment = self.ty(Type::Fragment)?;
                 let inst = func;
                 let mut type_args = vec![];
+                if let parse::Expr::Inst { val, ty } = self.tree.expr(func) {
+                    // don't make outermost `Inst` a fragment, so we can mark its type later
+                    type_args.push(self.parse_ty(types, ty)?);
+                    func = val;
+                }
+                let fragment = self.ty(Type::Fragment)?;
                 while let parse::Expr::Inst { val, ty } = self.tree.expr(func) {
                     let partial = self.module.val(self.module.expr(func)).ty;
                     self.unify_assert(fragment, partial)?;
@@ -1055,6 +1060,8 @@ impl<'a> Typer<'a> {
                 let cod = unknown;
                 let expected = self.ty(Type::Func { dom, cod })?;
                 self.unify(expected, fty, || TypeError::Apply { id })?;
+                let inst_ty = self.module.val(self.module.expr(inst)).ty;
+                self.unify_assert(inst_ty, fty)?; // be sure to always mark type of outermost `Inst`
                 Ok(cod)
             }
             parse::Expr::Map { func, arg } => {
