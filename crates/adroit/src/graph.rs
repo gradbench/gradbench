@@ -1,12 +1,13 @@
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     mem::take,
+    ops::Range,
     path::{Path, PathBuf},
     str::FromStr,
     sync::Arc,
 };
 
-use line_index::LineIndex;
+use line_index::{LineCol, LineIndex};
 use url::Url;
 
 use crate::{
@@ -55,7 +56,15 @@ impl Uri {
     }
 }
 
-#[derive(Debug)]
+fn linecol_to_byte(index: &LineIndex, line_col: LineCol) -> Option<usize> {
+    Some(index.offset(line_col)?.into())
+}
+
+fn linecols_to_bytes(index: &LineIndex, start: LineCol, end: LineCol) -> Option<Range<usize>> {
+    Some(linecol_to_byte(index, start)?..linecol_to_byte(index, end)?)
+}
+
+#[derive(Clone, Debug)]
 pub struct Source {
     pub text: String,
     pub lines: LineIndex,
@@ -73,6 +82,13 @@ pub struct Syntax {
     pub src: Source,
     pub toks: Tokens,
     pub tree: parse::Module,
+}
+
+fn unwrap_or_clone_source(arc: Arc<Syntax>) -> Source {
+    match Arc::try_unwrap(arc) {
+        Ok(syn) => syn.src,
+        Err(arc) => arc.src.clone(),
+    }
 }
 
 #[derive(Debug)]
@@ -98,8 +114,7 @@ pub enum Data {
 }
 
 impl Data {
-    fn new(text: String) -> Self {
-        let src = Source::new(text);
+    fn new(src: Source) -> Self {
         let toks = match lex(&src.text) {
             Ok(toks) => toks,
             Err(err) => return Self::Read { src, err },
@@ -241,7 +256,7 @@ impl Graph {
         }
     }
 
-    fn replace_text(&mut self, uri: &Uri, text: String) {
+    fn replace_text(&mut self, uri: &Uri, src: Source) {
         // currently we never delete nodes, so this should always be fine; in future we should
         // consider just returning early if there is no node with this URI, which could maybe happen
         // if someone completes a job to read a file after that file is no longer needed
@@ -252,7 +267,7 @@ impl Graph {
             take(&mut node.dependencies)
         };
         let mut dirty = HashSet::new();
-        node.data = Data::new(text);
+        node.data = Data::new(src);
         if let Data::Parsed { syn } = &node.data {
             let syn = Arc::clone(syn);
             let imports: Vec<Option<Uri>> = syn
@@ -331,7 +346,27 @@ impl Graph {
     }
 
     pub fn set_text(&mut self, uri: &Uri, text: String) {
-        self.replace_text(uri, text)
+        self.replace_text(uri, Source::new(text))
+    }
+
+    pub fn change_text(
+        &mut self,
+        uri: &Uri,
+        changes: impl Iterator<Item = (LineCol, LineCol, String)>,
+    ) {
+        let mut src = match take(&mut self.nodes.get_mut(uri).unwrap().data) {
+            Data::Pending => panic!(),
+            Data::Read { src, .. } => src,
+            Data::Lexed { src, .. } => src,
+            Data::Parsed { syn } => unwrap_or_clone_source(syn),
+            Data::Analyzed { syn, .. } => unwrap_or_clone_source(syn),
+        };
+        for (start, end, text) in changes {
+            let range = linecols_to_bytes(&src.lines, start, end).unwrap();
+            src.text.replace_range(range, &text);
+            src.lines = LineIndex::new(&src.text);
+        }
+        self.replace_text(uri, src)
     }
 
     pub fn supply_semantic(

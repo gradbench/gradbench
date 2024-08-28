@@ -1,8 +1,7 @@
-use std::{collections::HashMap, ops::Range, sync::Arc};
+use std::{collections::HashMap, mem::take, ops::Range, sync::Arc};
 
 use anyhow::anyhow;
 use crossbeam_channel::Sender;
-use itertools::Itertools;
 use line_index::{LineCol, LineIndex};
 use lsp_server::{Connection, Message, RequestId, ResponseError};
 use lsp_types::{
@@ -39,6 +38,16 @@ fn notify<N: Notification>(sender: &Sender<Message>, params: N::Params) -> anyho
     Ok(())
 }
 
+fn lsp_to_linecol(pos: Position) -> LineCol {
+    let line = pos.line;
+    let col = pos.character;
+    LineCol { line, col }
+}
+
+fn lsp_to_linecols(range: lsp_types::Range) -> (LineCol, LineCol) {
+    (lsp_to_linecol(range.start), lsp_to_linecol(range.end))
+}
+
 fn byte_to_lsp(index: &LineIndex, offset: usize) -> Position {
     let LineCol { line, col } = index.line_col(offset.try_into().unwrap());
     Position::new(line, col)
@@ -51,9 +60,7 @@ fn bytes_to_lsp(index: &LineIndex, range: Range<usize>) -> lsp_types::Range {
 }
 
 fn lsp_to_byte(index: &LineIndex, pos: Position) -> Option<usize> {
-    let line = pos.line;
-    let col = pos.character;
-    Some(index.offset(LineCol { line, col })?.into())
+    Some(index.offset(lsp_to_linecol(pos))?.into())
 }
 
 #[derive(Debug)]
@@ -281,8 +288,21 @@ impl State {
     ) -> anyhow::Result<()> {
         let doc = params.text_document;
         let uri = Uri::from_lsp_uri(&doc.uri).unwrap();
-        let (change,) = params.content_changes.into_iter().collect_tuple().unwrap();
-        self.graph.set_text(&uri, change.text);
+        let mut changes = params.content_changes;
+        let n = match changes.iter().rposition(|change| change.range.is_none()) {
+            Some(i) => {
+                self.graph.set_text(&uri, take(&mut changes[i].text));
+                i + 1
+            }
+            None => 0,
+        };
+        self.graph.change_text(
+            &uri,
+            changes.into_iter().skip(n).map(|change| {
+                let (start, end) = lsp_to_linecols(change.range.unwrap());
+                (start, end, change.text)
+            }),
+        );
         self.exhaust();
         self.diagnose_all()
     }
@@ -386,8 +406,7 @@ fn run(stdlib: Uri, connection: &Connection) -> anyhow::Result<()> {
         .with::<DidSaveTextDocument>(State::did_save_text_document);
     connection.initialize(serde_json::to_value(&ServerCapabilities {
         text_document_sync: Some(TextDocumentSyncCapability::Kind(
-            // TODO: switch to incremental to encourage client to send more frequent updates
-            TextDocumentSyncKind::FULL,
+            TextDocumentSyncKind::INCREMENTAL,
         )),
         hover_provider: Some(HoverProviderCapability::Simple(true)),
         ..Default::default()
