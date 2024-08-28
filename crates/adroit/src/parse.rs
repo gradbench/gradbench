@@ -1,3 +1,5 @@
+use std::string;
+
 use enumset::EnumSet;
 use serde::Serialize;
 
@@ -285,6 +287,10 @@ impl Module {
         &self.imports
     }
 
+    pub fn types(&self) -> &[Type] {
+        &self.types
+    }
+
     pub fn params(&self) -> &[Param] {
         &self.params
     }
@@ -304,6 +310,17 @@ pub enum ParseError {
         id: TokenId,
         kinds: EnumSet<TokenKind>,
     },
+}
+
+impl ParseError {
+    pub fn message(&self) -> string::String {
+        match self {
+            ParseError::Expected { id: _, kinds } => format!(
+                "expected {}",
+                itertools::join(kinds.into_iter().map(|kind| kind.to_string()), " or ")
+            ),
+        }
+    }
 }
 
 #[derive(Debug)]

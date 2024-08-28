@@ -510,6 +510,7 @@ impl Canonizer {
 pub struct Module {
     fields: Fields,
     types: Types,
+    parsed_types: Vec<TypeId>,
     vals: Vec<Val>,
     params: Vec<ValId>,
     exprs: Vec<ValId>,
@@ -524,6 +525,10 @@ impl Module {
 
     pub fn ty(&self, id: TypeId) -> Type {
         self.types.get(id)
+    }
+
+    pub fn parsed_ty(&self, id: parse::TypeId) -> TypeId {
+        self.parsed_types[id.to_usize()]
     }
 
     pub fn val(&self, id: ValId) -> Val {
@@ -559,6 +564,16 @@ impl Module {
             old_vals: self.vals,
             new_vals: vec![],
         };
+        self.parsed_types = self
+            .parsed_types
+            .into_iter()
+            .map(|t0| {
+                let (_, t) = canonizer.ty(t0);
+                // ambiguous type literals should only happen because typechecking stopped early
+                // with a different error, so we don't need to do anything about them here
+                t
+            })
+            .collect();
         self.defs = self
             .defs
             .into_iter()
@@ -609,7 +624,7 @@ impl Module {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum TypeError {
     TooManyImports,
     TooManyFields,
@@ -806,7 +821,8 @@ impl<'a> Typer<'a> {
         types: &IndexMap<&'a str, TypeId>,
         id: parse::TypeId,
     ) -> TypeResult<TypeId> {
-        match self.tree.ty(id) {
+        let unknown = self.module.parsed_ty(id);
+        let actual = match self.tree.ty(id) {
             parse::Type::Paren { inner } => self.parse_ty(types, inner),
             parse::Type::Unit { open: _, close: _ } => self.ty(Type::Unit),
             parse::Type::Name { name } => match self.token(name) {
@@ -837,7 +853,8 @@ impl<'a> Typer<'a> {
                 let cod = self.parse_ty(types, cod)?;
                 self.ty(Type::Func { dom, cod })
             }
-        }
+        }?;
+        self.unify_assert(actual, unknown)
     }
 
     fn param(
@@ -1021,9 +1038,14 @@ impl<'a> Typer<'a> {
                 panic!("polymorphic instantiation should always be inside function application")
             }
             parse::Expr::Apply { mut func, arg } => {
-                let fragment = self.ty(Type::Fragment)?;
                 let inst = func;
                 let mut type_args = vec![];
+                if let parse::Expr::Inst { val, ty } = self.tree.expr(func) {
+                    // don't make outermost `Inst` a fragment, so we can mark its type later
+                    type_args.push(self.parse_ty(types, ty)?);
+                    func = val;
+                }
+                let fragment = self.ty(Type::Fragment)?;
                 while let parse::Expr::Inst { val, ty } = self.tree.expr(func) {
                     let partial = self.module.val(self.module.expr(func)).ty;
                     self.unify_assert(fragment, partial)?;
@@ -1038,6 +1060,8 @@ impl<'a> Typer<'a> {
                 let cod = unknown;
                 let expected = self.ty(Type::Func { dom, cod })?;
                 self.unify(expected, fty, || TypeError::Apply { id })?;
+                let inst_ty = self.module.val(self.module.expr(inst)).ty;
+                self.unify_assert(inst_ty, fty)?; // be sure to always mark type of outermost `Inst`
                 Ok(cod)
             }
             parse::Expr::Map { func, arg } => {
@@ -1243,6 +1267,12 @@ impl<'a> Typer<'a> {
     }
 
     fn module(&mut self) -> TypeResult<()> {
+        self.module.parsed_types = self
+            .tree
+            .types()
+            .iter()
+            .map(|_| self.unknown())
+            .collect::<TypeResult<Vec<TypeId>>>()?;
         self.module.params = self.unknowns(self.tree.params(), |i| Src::Param {
             id: parse::ParamId::from_usize(i).unwrap(),
         })?;
@@ -1335,6 +1365,7 @@ pub fn typecheck(
         module: Module {
             fields: Fields::new(),
             types: Types::new(),
+            parsed_types: vec![],
             vals: vec![],
             params: vec![],
             exprs: vec![],
@@ -1357,19 +1388,28 @@ pub fn typecheck(
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, io::Write, ops::Range, path::Path};
+    use std::{fs, io::Write, ops::Range, path::Path, sync::Arc};
 
     use goldenfile::{differs::Differ, Mint};
     use line_index::{LineCol, LineIndex, TextSize};
 
     use crate::{
-        compile::{FullModule, Modules, Printer},
+        compile::{FullModule, Importer, Printer},
         lex::lex,
         parse::parse,
         util::{Diagnostic, Emitter},
     };
 
     use super::*;
+
+    #[derive(Clone, Copy, Debug)]
+    struct NoImports;
+
+    impl Importer for NoImports {
+        fn import(&self, _: ImportId) -> FullModule {
+            unimplemented!()
+        }
+    }
 
     #[derive(Debug)]
     struct LineEmitter<'a> {
@@ -1442,7 +1482,6 @@ mod tests {
     fn test_errors() {
         let prefix = Path::new("src/typecheck/errors");
         let mut mint = Mint::new(prefix);
-        let modules = Modules::new();
         for entry in fs::read_dir(prefix).unwrap() {
             let path = entry.unwrap().path();
             let stripped = path.strip_prefix(prefix).unwrap().to_str().unwrap();
@@ -1464,13 +1503,12 @@ mod tests {
                 errors: HashMap::new(),
             };
             let full = FullModule {
-                source,
-                tokens,
-                tree,
-                imports: vec![],
-                module,
+                source: &source,
+                tokens: &tokens,
+                tree: &tree,
+                module: Arc::new(module),
             };
-            let printer = Printer::new(&modules, &full);
+            let printer = Printer::new(full, NoImports);
             for error in errors {
                 printer.emit_type_error(&mut emitter, path_str, error);
             }
@@ -1478,7 +1516,7 @@ mod tests {
             let mut file = mint
                 .new_goldenfile_with_differ(stripped, differ())
                 .expect(stripped);
-            for (i, line) in full.source.lines().enumerate() {
+            for (i, line) in source.lines().enumerate() {
                 writeln!(file, "{}", line).expect(stripped);
                 for (start, end, message) in emitter.errors.remove(&i).unwrap_or_default() {
                     writeln!(

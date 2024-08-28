@@ -1,387 +1,100 @@
 use std::{
     fmt::{self, Write},
-    fs, io,
-    marker::PhantomData,
     ops::Range,
-    path::{Path, PathBuf},
+    sync::Arc,
 };
 
-use ariadne::{Cache, Color, Label, Report, ReportBuilder, ReportKind, Source};
-use indexmap::IndexMap;
-use serde::{ser::SerializeSeq, Serialize, Serializer};
-
 use crate::{
-    lex, parse,
+    graph::{Data, Graph, Uri},
+    lex::{TokenId, Tokens},
+    parse,
     range::{bind_range, expr_range, param_range, ty_range},
-    typecheck,
+    typecheck::{self, ImportId},
     util::{Diagnostic, Emitter, Id},
 };
 
-fn builtin(name: &str) -> Option<&'static str> {
-    match name {
-        "array" => Some(include_str!("modules/array.adroit")),
-        "autodiff" => Some(include_str!("modules/autodiff.adroit")),
-        "math" => Some(include_str!("modules/math.adroit")),
-        _ => None,
-    }
+#[derive(Clone, Debug)]
+pub struct FullModule<'a> {
+    pub source: &'a str,
+    pub tokens: &'a Tokens,
+    pub tree: &'a parse::Module,
+    pub module: Arc<typecheck::Module>,
 }
 
-fn resolve(from: &Path, name: &str) -> io::Result<PathBuf> {
-    if builtin(name).is_some() {
-        let mut path = dirs::cache_dir()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no cache directory"))?;
-        path.push("adroit/modules");
-        path.push(name);
-        assert!(path.set_extension("adroit"));
-        Ok(path)
-    } else {
-        let dir = from
-            .parent()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no parent directory"))?;
-        dir.join(name).canonicalize()
-    }
+pub trait Importer {
+    fn import(&self, id: typecheck::ImportId) -> FullModule;
 }
 
-fn read(name: &str, path: &Path) -> io::Result<String> {
-    if let Some(source) = builtin(name) {
-        fs::create_dir_all(path.parent().expect("join should imply parent"))?;
-        fs::write(path, source)?;
-        Ok(source.to_owned())
-    } else {
-        fs::read_to_string(path)
-    }
+#[derive(Clone, Debug)]
+pub struct GraphImporter<'a> {
+    pub graph: &'a Graph,
+    pub uris: &'a [Uri],
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-#[serde(transparent)]
-pub struct ModuleId {
-    pub index: usize, // just for convenience for now; can definitely choose a smaller type
-}
-
-impl Id for ModuleId {
-    fn from_usize(n: usize) -> Option<Self> {
-        Some(Self { index: n })
-    }
-
-    fn to_usize(self) -> usize {
-        self.index
-    }
-}
-
-#[derive(Debug, Serialize)]
-pub struct FullModule {
-    pub source: String,
-    pub tokens: lex::Tokens,
-    pub tree: parse::Module,
-    pub imports: Vec<ModuleId>,
-    pub module: typecheck::Module,
-}
-
-#[derive(Debug)]
-pub struct Modules {
-    modules: IndexMap<PathBuf, FullModule>,
-}
-
-impl Modules {
-    pub fn new() -> Self {
-        Self {
-            modules: IndexMap::new(),
-        }
-    }
-
-    pub fn get(&self, id: ModuleId) -> &FullModule {
-        &self.modules[id.to_usize()]
-    }
-}
-
-impl Serialize for Modules {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut seq = serializer.serialize_seq(Some(self.modules.len()))?;
-        for full in self.modules.values() {
-            seq.serialize_element(full)?;
-        }
-        seq.end()
-    }
-}
-
-#[derive(Debug)]
-pub enum Error {
-    Resolve {
-        err: io::Error,
-    },
-    Read {
-        path: PathBuf,
-        err: io::Error,
-    },
-    Lex {
-        path: PathBuf,
-        source: String,
-        err: lex::LexError,
-    },
-    Parse {
-        path: PathBuf,
-        source: String,
-        tokens: lex::Tokens,
-        err: parse::ParseError,
-    },
-    Import {
-        path: PathBuf,
-        source: String,
-        tokens: lex::Tokens,
-        token: lex::TokenId,
-        err: Box<Error>,
-    },
-    Type {
-        path: PathBuf,
-        full: Box<FullModule>,
-        errs: Vec<typecheck::TypeError>,
-    },
-}
-
-pub fn parse(
-    path: PathBuf,
-    source: String,
-) -> Result<(PathBuf, String, lex::Tokens, parse::Module), Box<Error>> {
-    let tokens = match lex::lex(&source) {
-        Ok(tokens) => tokens,
-        Err(err) => return Err(Box::new(Error::Lex { path, source, err })),
-    };
-    let tree = match parse::parse(&tokens) {
-        Ok(tree) => tree,
-        Err(err) => {
-            return Err(Box::new(Error::Parse {
-                path,
-                source,
-                tokens,
-                err,
-            }))
-        }
-    };
-    Ok((path, source, tokens, tree))
-}
-
-pub fn process(
-    modules: &mut Modules,
-    path: PathBuf,
-    source: String,
-) -> Result<(PathBuf, FullModule), Box<Error>> {
-    let (path, source, tokens, tree) = parse(path, source)?;
-    let mut imports = vec![];
-    for node in tree.imports().iter() {
-        let token = node.module;
-        match import(modules, &path, &tokens.get(token).string(&source)) {
-            Ok(id) => imports.push(id),
-            Err(err) => {
-                return Err(Box::new(Error::Import {
-                    path,
-                    source,
-                    tokens,
-                    token,
-                    err,
-                }))
+impl Importer for GraphImporter<'_> {
+    fn import(&self, id: ImportId) -> FullModule {
+        match &self.graph.get(&self.uris[id.to_usize()]).data {
+            Data::Analyzed { syn, sem, errs } => {
+                assert!(errs.is_empty());
+                FullModule {
+                    source: &syn.src.text,
+                    tokens: &syn.toks,
+                    tree: &syn.tree,
+                    module: Arc::clone(sem),
+                }
             }
-        }
-    }
-    let (module, errs) = typecheck::typecheck(
-        &source,
-        &tokens,
-        &tree,
-        imports.iter().map(|&id| &modules.get(id).module).collect(),
-    );
-    let full = FullModule {
-        source,
-        tokens,
-        tree,
-        imports,
-        module,
-    };
-    if errs.is_empty() {
-        Ok((path, full))
-    } else {
-        Err(Box::new(Error::Type {
-            path,
-            full: Box::new(full),
-            errs,
-        }))
-    }
-}
-
-pub fn import(modules: &mut Modules, from: &Path, name: &str) -> Result<ModuleId, Box<Error>> {
-    let path = resolve(from, name).map_err(|err| Error::Resolve { err })?;
-    if let Some(index) = modules.modules.get_index_of(&path) {
-        return Ok(ModuleId { index });
-    }
-    let source = match read(name, &path) {
-        Ok(source) => source,
-        Err(err) => return Err(Box::new(Error::Read { path, err })),
-    };
-    let (path, full) = process(modules, path, source)?;
-    let (index, prev) = modules.modules.insert_full(path, full);
-    assert!(prev.is_none(), "cyclic import should yield stack overflow");
-    Ok(ModuleId { index })
-}
-
-#[derive(Debug)]
-struct AriadneEmitter<'a, C: Cache<&'a str>> {
-    cache: C,
-    message: String,
-    phantom: PhantomData<&'a ()>,
-}
-
-impl<'a, C: Cache<&'a str>> AriadneEmitter<'a, C> {
-    fn new(cache: C, message: impl ToString) -> Self {
-        Self {
-            cache,
-            message: message.to_string(),
-            phantom: PhantomData,
+            _ => unreachable!(),
         }
     }
 }
 
-impl<'a, C: Cache<&'a str>> Emitter<(&'a str, Range<usize>)> for AriadneEmitter<'a, C> {
-    fn diagnostic(
-        &mut self,
-        span: (&'a str, Range<usize>),
-        message: impl ToString,
-    ) -> impl Diagnostic<(&'a str, std::ops::Range<usize>)> {
-        let (path, range) = span.clone();
-        AriadneDiagnostic {
-            cache: &mut self.cache,
-            builder: Report::build(ReportKind::Error, path, range.start)
-                .with_message(&self.message)
-                .with_label(
-                    Label::new(span)
-                        .with_color(Color::Red)
-                        .with_message(message),
-                ),
-        }
-    }
+#[derive(Clone, Debug)]
+pub struct Printer<'a, I> {
+    full: FullModule<'a>,
+    import: I,
 }
 
-#[derive(Debug)]
-struct AriadneDiagnostic<'a, 'b, C: Cache<&'a str>> {
-    cache: &'b mut C,
-    builder: ReportBuilder<'a, (&'a str, Range<usize>)>,
-}
-
-impl<'a, 'b, C: Cache<&'a str>> Diagnostic<(&'a str, Range<usize>)>
-    for AriadneDiagnostic<'a, 'b, C>
-{
-    fn related(mut self, span: (&'a str, Range<usize>), message: impl ToString) -> Self {
-        self.builder.add_label(
-            Label::new(span)
-                .with_color(Color::Blue)
-                .with_message(message),
-        );
-        self
+impl<'a, I: Clone + Importer> Printer<'a, I> {
+    pub fn new(full: FullModule<'a>, import: I) -> Self {
+        Self { full, import }
     }
 
-    fn finish(self) {
-        self.builder.finish().eprint(self.cache).unwrap();
-    }
-}
-
-pub fn error(modules: &Modules, err: Error) {
-    match err {
-        Error::Resolve { err } => eprintln!("error resolving module: {err}"),
-        Error::Read { path, err } => eprintln!("error reading {}: {err}", path.display()),
-        Error::Lex { path, source, err } => {
-            let path: &str = &path.display().to_string();
-            AriadneEmitter::new((path, Source::from(&source)), "failed to tokenize")
-                .diagnostic((path, err.byte_range()), err.message())
-                .finish();
-        }
-        Error::Parse {
-            path,
-            source,
-            tokens,
-            err,
-        } => {
-            let path: &str = &path.display().to_string();
-            let (id, message) = match err {
-                parse::ParseError::Expected { id, kinds } => (
-                    id,
-                    format!(
-                        "expected {}",
-                        itertools::join(kinds.into_iter().map(|kind| kind.to_string()), " or ")
-                    ),
-                ),
-            };
-            AriadneEmitter::new((path, Source::from(&source)), "failed to parse")
-                .diagnostic((path, tokens.get(id).byte_range()), message)
-                .finish();
-        }
-        Error::Import {
-            path,
-            source,
-            tokens,
-            token,
-            err,
-        } => {
-            error(modules, *err);
-            let path: &str = &path.display().to_string();
-            AriadneEmitter::new((path, Source::from(&source)), "failed to import")
-                .diagnostic((path, tokens.get(token).byte_range()), "this one")
-                .finish();
-        }
-        Error::Type { path, full, errs } => {
-            let path: &str = &path.display().to_string();
-            let printer = Printer::new(modules, &full);
-            let mut emitter =
-                AriadneEmitter::new((path, Source::from(&full.source)), "failed to typecheck");
-            for err in errs {
-                printer.emit_type_error(&mut emitter, path, err);
-            }
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct Printer<'a> {
-    modules: &'a Modules,
-    full: &'a FullModule,
-}
-
-impl<'a> Printer<'a> {
-    pub fn new(modules: &'a Modules, full: &'a FullModule) -> Self {
-        Self { modules, full }
-    }
-}
-
-impl<'a> Printer<'a> {
     fn get_ty(&self, id: typecheck::TypeId) -> typecheck::Type {
         self.full.module.ty(id)
     }
 
-    fn token_range(&self, id: lex::TokenId) -> Range<usize> {
+    fn token_range(&self, id: TokenId) -> Range<usize> {
         self.full.tokens.get(id).byte_range()
     }
 
     fn ty_range(&self, id: parse::TypeId) -> Range<usize> {
-        ty_range(&self.full.tokens, &self.full.tree, id)
+        ty_range(self.full.tokens, self.full.tree, id).unwrap()
     }
 
     fn bind_range(&self, id: parse::ParamId) -> Range<usize> {
-        bind_range(&self.full.tokens, &self.full.tree, id)
+        bind_range(self.full.tokens, self.full.tree, id).unwrap()
     }
 
     fn param_range(&self, id: parse::ParamId) -> Range<usize> {
-        param_range(&self.full.tokens, &self.full.tree, id)
+        param_range(self.full.tokens, self.full.tree, id).unwrap()
     }
 
     fn expr_range(&self, id: parse::ExprId) -> Range<usize> {
-        expr_range(&self.full.tokens, &self.full.tree, id)
+        expr_range(self.full.tokens, self.full.tree, id).unwrap()
     }
 
-    fn ty(&self, id: typecheck::TypeId) -> Type {
-        Type { printer: *self, id }
+    pub fn ty(&self, id: typecheck::TypeId) -> Type<I> {
+        Type {
+            printer: self.clone(),
+            id,
+        }
     }
 
-    fn param_ty(&self, id: parse::ParamId) -> Type {
+    fn param_ty(&self, id: parse::ParamId) -> Type<I> {
         self.ty(self.full.module.val(self.full.module.param(id)).ty)
     }
 
-    fn expr_ty(&self, id: parse::ExprId) -> Type {
+    fn expr_ty(&self, id: parse::ExprId) -> Type<I> {
         self.ty(self.full.module.val(self.full.module.expr(id)).ty)
     }
 
@@ -394,8 +107,8 @@ impl<'a> Printer<'a> {
             Fragment => panic!("fragment type should not be printed"),
             Var { src, def } => {
                 let full = match src {
-                    Some(id) => self.modules.get(self.full.imports[id.to_usize()]),
-                    None => self.full,
+                    Some(id) => self.import.import(id),
+                    None => self.full.clone(),
                 };
                 write!(w, "{}", &full.source[full.tokens.get(def).byte_range()])?;
             }
@@ -743,12 +456,12 @@ impl<'a> Printer<'a> {
 }
 
 #[derive(Debug)]
-pub struct Type<'a> {
-    printer: Printer<'a>,
+pub struct Type<'a, I> {
+    printer: Printer<'a, I>,
     id: typecheck::TypeId,
 }
 
-impl fmt::Display for Type<'_> {
+impl<I: Clone + Importer> fmt::Display for Type<'_, I> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.printer.print_ty(f, self.id)
     }
