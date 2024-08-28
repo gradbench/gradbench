@@ -29,6 +29,7 @@ jobs:
     runs-on: ${{ matrix.github-os }}
     steps:
       - uses: actions/checkout@v4
+      - run: npm ci
       - run: cargo build --release
       - run: mkdir packages/vscode/bin
       - run: cp target/release/adroit packages/vscode/bin/adroit
