@@ -413,3 +413,27 @@ impl Graph {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_incremental_update() {
+        let uri = Uri::new(Url::parse("file:///dev/null").unwrap());
+        let mut graph = Graph::new(uri.clone()); // we're not using imports so stdlib doesn't matter
+        graph.make_root(uri.clone());
+        graph.set_text(&uri, "".to_owned());
+        let pos = LineCol { line: 0, col: 0 };
+        graph.change_text(&uri, vec![(pos, pos, "d".to_owned())].into_iter());
+        let pos = LineCol { line: 0, col: 1 };
+        graph.change_text(&uri, vec![(pos, pos, "e".to_owned())].into_iter());
+        let pos = LineCol { line: 0, col: 2 };
+        graph.change_text(&uri, vec![(pos, pos, "f".to_owned())].into_iter());
+        let src = match &graph.get(&uri).data {
+            Data::Lexed { src, .. } => src,
+            _ => panic!(),
+        };
+        assert_eq!(src.text, "def");
+    }
+}
