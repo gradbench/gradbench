@@ -3,17 +3,19 @@ use std::{collections::HashMap, ops::Range, sync::Arc};
 use anyhow::anyhow;
 use crossbeam_channel::Sender;
 use itertools::Itertools;
-use line_index::{LineCol, LineIndex, TextSize};
-use lsp_server::{Connection, Message};
+use line_index::{LineCol, LineIndex};
+use lsp_server::{Connection, Message, RequestId, ResponseError};
 use lsp_types::{
     notification::{
         DidChangeTextDocument, DidCloseTextDocument, DidOpenTextDocument, DidSaveTextDocument,
         Notification, PublishDiagnostics, ShowMessage,
     },
+    request::{HoverRequest, Request},
     Diagnostic, DiagnosticRelatedInformation, DidChangeTextDocumentParams,
-    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams, Location,
+    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams, Hover,
+    HoverContents, HoverParams, HoverProviderCapability, Location, MarkupContent, MarkupKind,
     MessageType, Position, PublishDiagnosticsParams, ServerCapabilities, ShowMessageParams,
-    TextDocumentSyncCapability, TextDocumentSyncKind,
+    TextDocumentPositionParams, TextDocumentSyncCapability, TextDocumentSyncKind,
 };
 use serde_json::Value;
 
@@ -22,9 +24,12 @@ use crate::{
     fetch::fetch,
     graph::{Data, Graph, Node, Uri},
     parse::ParseError,
+    range,
     typecheck::typecheck,
     util::{self, Emitter},
 };
+
+type ResponseResult<T> = Result<T, ResponseError>;
 
 fn notify<N: Notification>(sender: &Sender<Message>, params: N::Params) -> anyhow::Result<()> {
     sender.send(Message::Notification(lsp_server::Notification {
@@ -35,7 +40,7 @@ fn notify<N: Notification>(sender: &Sender<Message>, params: N::Params) -> anyho
 }
 
 fn byte_to_lsp(index: &LineIndex, offset: usize) -> Position {
-    let LineCol { line, col } = index.line_col(TextSize::new(offset.try_into().unwrap()));
+    let LineCol { line, col } = index.line_col(offset.try_into().unwrap());
     Position::new(line, col)
 }
 
@@ -43,6 +48,12 @@ fn bytes_to_lsp(index: &LineIndex, range: Range<usize>) -> lsp_types::Range {
     let start = byte_to_lsp(index, range.start);
     let end = byte_to_lsp(index, range.end);
     lsp_types::Range { start, end }
+}
+
+fn lsp_to_byte(index: &LineIndex, pos: Position) -> Option<usize> {
+    let line = pos.line;
+    let col = pos.character;
+    Some(index.offset(LineCol { line, col })?.into())
 }
 
 #[derive(Debug)]
@@ -211,6 +222,53 @@ impl State {
         Ok(())
     }
 
+    fn hover_success(&self, doc_pos: TextDocumentPositionParams) -> Option<Hover> {
+        let uri = Uri::from_lsp_uri(&doc_pos.text_document.uri).ok()?;
+        let (syn, sem) = match &self.graph.get(&uri).data {
+            Data::Parsed { syn } => (syn, None),
+            Data::Analyzed { syn, sem, errs: _ } => (syn, Some(sem)),
+            _ => return None,
+        };
+        let index = &syn.src.lines;
+        let offset = lsp_to_byte(index, doc_pos.position)?;
+        let (node, bytes) = range::find(&syn.toks, &syn.tree, offset)?;
+        let ty = match (sem, node) {
+            (Some(_), range::Node::Type(id)) => {
+                let _ = id; // TODO: store inferred types from type expressions
+                None
+            }
+            (Some(sem), range::Node::Param(id)) => Some((sem, sem.param(id))),
+            (Some(sem), range::Node::Expr(id)) => Some((sem, sem.expr(id))),
+            _ => None,
+        }
+        .map(|(sem, id)| {
+            let uris = self.graph.imports(&uri).unwrap();
+            let full = FullModule {
+                source: &syn.src.text,
+                tokens: &syn.toks,
+                tree: &syn.tree,
+                module: Arc::clone(sem),
+            };
+            let importer = GraphImporter {
+                graph: &self.graph,
+                uris: &uris,
+            };
+            let printer = Printer::new(full, importer);
+            format!("{}", printer.ty(sem.val(id).ty))
+        });
+        let ty_str = match ty.as_ref() {
+            Some(s) => s,
+            None => "_",
+        };
+        Some(Hover {
+            contents: HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: format!("```\n{}\n```", ty_str),
+            }),
+            range: Some(bytes_to_lsp(index, bytes)),
+        })
+    }
+
     fn did_open_text_document(&mut self, params: DidOpenTextDocumentParams) -> anyhow::Result<()> {
         let doc = params.text_document;
         let uri = Uri::from_lsp_uri(&doc.uri).unwrap();
@@ -238,6 +296,51 @@ impl State {
 
     fn did_close_text_document(&mut self, _: DidCloseTextDocumentParams) -> anyhow::Result<()> {
         Ok(())
+    }
+
+    fn hover(&self, params: HoverParams) -> ResponseResult<Option<Hover>> {
+        Ok(self.hover_success(params.text_document_position_params))
+    }
+}
+
+type RequestHandler = Box<dyn Fn(&State, RequestId, Value) -> anyhow::Result<()>>;
+
+struct Requests {
+    handlers: HashMap<&'static str, RequestHandler>,
+}
+
+impl Requests {
+    fn new() -> Self {
+        Self {
+            handlers: HashMap::new(),
+        }
+    }
+
+    fn with<R: Request>(mut self, f: fn(&State, R::Params) -> ResponseResult<R::Result>) -> Self {
+        self.handlers.insert(
+            R::METHOD,
+            Box::new(move |state, id, params| {
+                let (result, error) = match f(state, serde_json::from_value(params)?) {
+                    Ok(result) => (Some(serde_json::to_value(result)?), None),
+                    Err(error) => (None, Some(error)),
+                };
+                state.sender.send(Message::Response(lsp_server::Response {
+                    id,
+                    result,
+                    error,
+                }))?;
+                Ok(())
+            }),
+        );
+        self
+    }
+
+    fn handle(&self, state: &State, req: lsp_server::Request) -> anyhow::Result<()> {
+        let method: &str = &req.method;
+        match self.handlers.get(method) {
+            Some(handler) => handler(state, req.id, req.params),
+            None => Err(anyhow!("unimplemented request: {method}")),
+        }
     }
 }
 
@@ -278,6 +381,7 @@ impl Notifications {
 }
 
 fn run(stdlib: Uri, connection: &Connection) -> anyhow::Result<()> {
+    let reqs = Requests::new().with::<HoverRequest>(State::hover);
     let nots = Notifications::new()
         .with::<DidChangeTextDocument>(State::did_change_text_document)
         .with::<DidCloseTextDocument>(State::did_close_text_document)
@@ -288,6 +392,7 @@ fn run(stdlib: Uri, connection: &Connection) -> anyhow::Result<()> {
             // TODO: switch to incremental to encourage client to send more frequent updates
             TextDocumentSyncKind::FULL,
         )),
+        hover_provider: Some(HoverProviderCapability::Simple(true)),
         ..Default::default()
     })?)?;
     let mut state = State::new(stdlib, connection.sender.clone());
@@ -297,6 +402,7 @@ fn run(stdlib: Uri, connection: &Connection) -> anyhow::Result<()> {
                 if connection.handle_shutdown(&req)? {
                     break;
                 }
+                reqs.handle(&state, req)?;
             }
             Message::Response(_) => unreachable!(),
             Message::Notification(not) => nots.handle(&mut state, not)?,

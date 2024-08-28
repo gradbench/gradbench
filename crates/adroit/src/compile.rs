@@ -83,7 +83,7 @@ impl<'a, I: Clone + Importer> Printer<'a, I> {
         expr_range(self.full.tokens, self.full.tree, id)
     }
 
-    fn ty(&self, id: typecheck::TypeId) -> Type<I> {
+    pub fn ty(&self, id: typecheck::TypeId) -> Type<I> {
         Type {
             printer: self.clone(),
             id,
