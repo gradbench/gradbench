@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Range};
+use std::{collections::HashMap, ops::Range, sync::Arc};
 
 use anyhow::anyhow;
 use crossbeam_channel::Sender;
@@ -10,15 +10,20 @@ use lsp_types::{
         DidChangeTextDocument, DidCloseTextDocument, DidOpenTextDocument, DidSaveTextDocument,
         Notification, PublishDiagnostics, ShowMessage,
     },
-    Diagnostic, DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
-    DidSaveTextDocumentParams, MessageType, Position, PublishDiagnosticsParams, ServerCapabilities,
-    ShowMessageParams, TextDocumentSyncCapability, TextDocumentSyncKind,
+    Diagnostic, DiagnosticRelatedInformation, DidChangeTextDocumentParams,
+    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams, Location,
+    MessageType, Position, PublishDiagnosticsParams, ServerCapabilities, ShowMessageParams,
+    TextDocumentSyncCapability, TextDocumentSyncKind,
 };
 use serde_json::Value;
 
 use crate::{
-    graph::{Data, Graph, Uri},
+    compile::{FullModule, GraphImporter, Printer},
+    fetch::fetch,
+    graph::{Data, Graph, Node, Uri},
     parse::ParseError,
+    typecheck::typecheck,
+    util::{self, Emitter},
 };
 
 fn notify<N: Notification>(sender: &Sender<Message>, params: N::Params) -> anyhow::Result<()> {
@@ -41,6 +46,62 @@ fn bytes_to_lsp(index: &LineIndex, range: Range<usize>) -> lsp_types::Range {
 }
 
 #[derive(Debug)]
+struct LspEmitter<'a> {
+    uri: lsp_types::Uri,
+    path: &'a str,
+    index: &'a LineIndex,
+    diags: Vec<Diagnostic>,
+}
+
+impl<'a> Emitter<(&'a str, Range<usize>)> for LspEmitter<'a> {
+    fn diagnostic(
+        &mut self,
+        (path, range): (&'a str, Range<usize>),
+        message: impl ToString,
+    ) -> impl util::Diagnostic<(&'a str, Range<usize>)> {
+        assert_eq!(path, self.path);
+        let range = bytes_to_lsp(self.index, range);
+        LspDiagnostic {
+            emitter: self,
+            range,
+            message: message.to_string(),
+            related: vec![],
+        }
+    }
+}
+
+#[derive(Debug)]
+struct LspDiagnostic<'a, 'b> {
+    emitter: &'b mut LspEmitter<'a>,
+    range: lsp_types::Range,
+    message: String,
+    related: Vec<DiagnosticRelatedInformation>,
+}
+
+impl<'a, 'b> util::Diagnostic<(&'a str, Range<usize>)> for LspDiagnostic<'a, 'b> {
+    fn related(mut self, (path, range): (&'a str, Range<usize>), message: impl ToString) -> Self {
+        assert_eq!(path, self.emitter.path);
+        self.related.push(DiagnosticRelatedInformation {
+            location: Location {
+                uri: self.emitter.uri.clone(),
+                range: bytes_to_lsp(self.emitter.index, range),
+            },
+            message: message.to_string(),
+        });
+        self
+    }
+
+    fn finish(self) {
+        self.emitter.diags.push(Diagnostic {
+            range: self.range,
+            message: self.message,
+            related_information: Some(self.related),
+            ..Default::default()
+        })
+    }
+}
+
+#[derive(Debug)]
 struct State {
     sender: Sender<Message>,
     graph: Graph,
@@ -58,14 +119,44 @@ impl State {
         notify::<N>(&self.sender, params)
     }
 
-    fn update(&mut self, uri: &Uri, text: String) -> Result<(), Vec<Diagnostic>> {
-        self.graph.set_text(uri, text);
-        let node = self.graph.get(uri);
+    fn exhaust(&mut self) {
+        loop {
+            let pending = self.graph.pending();
+            if pending.is_empty() {
+                break;
+            }
+            for uri in pending {
+                if let Ok(text) = fetch(self.graph.stdlib(), &uri) {
+                    self.graph.set_text(&uri, text);
+                }
+            }
+        }
+        loop {
+            let analysis = self.graph.analysis();
+            if analysis.is_empty() {
+                break;
+            }
+            for job in analysis {
+                let (_, syn, deps) = &job;
+                let (module, errs) = typecheck(
+                    &syn.src.text,
+                    &syn.toks,
+                    &syn.tree,
+                    deps.iter().map(|(_, dep)| dep.as_ref()).collect(),
+                );
+                let sem = Arc::new(module);
+                self.graph.supply_semantic(job, sem, errs);
+            }
+        }
+    }
+
+    fn diagnose(&self, uri: &Uri, lsp_uri: lsp_types::Uri, node: &Node) -> Vec<Diagnostic> {
         match &node.data {
+            Data::Pending => unreachable!(),
             Data::Read { src, err } => {
                 let range = bytes_to_lsp(&src.lines, err.byte_range());
                 let message = err.message().to_owned();
-                Err(vec![Diagnostic::new_simple(range, message)])
+                vec![Diagnostic::new_simple(range, message)]
             }
             Data::Lexed { src, toks, err } => {
                 let id = match *err {
@@ -73,26 +164,60 @@ impl State {
                 };
                 let range = bytes_to_lsp(&src.lines, toks.get(id).byte_range());
                 let message = err.message();
-                Err(vec![Diagnostic::new_simple(range, message)])
+                vec![Diagnostic::new_simple(range, message)]
             }
-            Data::Parsed { syn: _ } => Ok(()),
-            _ => unreachable!(),
+            Data::Parsed { syn: _ } => vec![],
+            Data::Analyzed { syn, sem, errs } => {
+                let uri_str = uri.as_str();
+                let uris = self.graph.imports(uri).unwrap();
+                let full = FullModule {
+                    source: &syn.src.text,
+                    tokens: &syn.toks,
+                    tree: &syn.tree,
+                    module: Arc::clone(sem),
+                };
+                let importer = GraphImporter {
+                    graph: &self.graph,
+                    uris: &uris,
+                };
+                let printer = Printer::new(full, importer);
+                let mut emitter = LspEmitter {
+                    uri: lsp_uri,
+                    path: uri_str,
+                    index: &syn.src.lines,
+                    diags: vec![],
+                };
+                for &err in errs {
+                    printer.emit_type_error(&mut emitter, uri_str, err);
+                }
+                emitter.diags
+            }
         }
+    }
+
+    fn diagnose_all(&self) -> anyhow::Result<()> {
+        for (uri, node) in self.graph.roots() {
+            let lsp_uri = uri
+                .to_lsp_uri()
+                .map_err(|()| anyhow!("not a valid LSP URI: {}", uri.as_str()))?;
+            let diagnostics = self.diagnose(uri, lsp_uri.clone(), node);
+            let version = None;
+            self.notify::<PublishDiagnostics>(PublishDiagnosticsParams {
+                uri: lsp_uri,
+                diagnostics,
+                version,
+            })?;
+        }
+        Ok(())
     }
 
     fn did_open_text_document(&mut self, params: DidOpenTextDocumentParams) -> anyhow::Result<()> {
         let doc = params.text_document;
         let uri = Uri::from_lsp_uri(&doc.uri).unwrap();
         self.graph.make_root(uri.clone());
-        let res = self.update(&uri, doc.text);
-        let diagnostics = res.err().unwrap_or_default();
-        let version = None;
-        self.notify::<PublishDiagnostics>(PublishDiagnosticsParams {
-            uri: doc.uri,
-            diagnostics,
-            version,
-        })?;
-        Ok(())
+        self.graph.set_text(&uri, doc.text);
+        self.exhaust();
+        self.diagnose_all()
     }
 
     fn did_change_text_document(
@@ -102,15 +227,9 @@ impl State {
         let doc = params.text_document;
         let uri = Uri::from_lsp_uri(&doc.uri).unwrap();
         let (change,) = params.content_changes.into_iter().collect_tuple().unwrap();
-        let res = self.update(&uri, change.text);
-        let diagnostics = res.err().unwrap_or_default();
-        let version = None;
-        self.notify::<PublishDiagnostics>(PublishDiagnosticsParams {
-            uri: doc.uri,
-            diagnostics,
-            version,
-        })?;
-        Ok(())
+        self.graph.set_text(&uri, change.text);
+        self.exhaust();
+        self.diagnose_all()
     }
 
     fn did_save_text_document(&mut self, _: DidSaveTextDocumentParams) -> anyhow::Result<()> {

@@ -5,11 +5,12 @@ use std::{
 };
 
 use crate::{
+    graph::{Data, Graph, Uri},
     lex::{TokenId, Tokens},
     parse,
     range::{bind_range, expr_range, param_range, ty_range},
-    typecheck,
-    util::{Diagnostic, Emitter},
+    typecheck::{self, ImportId},
+    util::{Diagnostic, Emitter, Id},
 };
 
 #[derive(Clone, Debug)]
@@ -25,12 +26,35 @@ pub trait Importer {
 }
 
 #[derive(Clone, Debug)]
+pub struct GraphImporter<'a> {
+    pub graph: &'a Graph,
+    pub uris: &'a [Uri],
+}
+
+impl Importer for GraphImporter<'_> {
+    fn import(&self, id: ImportId) -> FullModule {
+        match &self.graph.get(&self.uris[id.to_usize()]).data {
+            Data::Analyzed { syn, sem, errs } => {
+                assert!(errs.is_empty());
+                FullModule {
+                    source: &syn.src.text,
+                    tokens: &syn.toks,
+                    tree: &syn.tree,
+                    module: Arc::clone(sem),
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct Printer<'a, I> {
     full: FullModule<'a>,
     import: I,
 }
 
-impl<'a, I: Copy + Importer> Printer<'a, I> {
+impl<'a, I: Clone + Importer> Printer<'a, I> {
     pub fn new(full: FullModule<'a>, import: I) -> Self {
         Self { full, import }
     }
@@ -437,7 +461,7 @@ pub struct Type<'a, I> {
     id: typecheck::TypeId,
 }
 
-impl<I: Copy + Importer> fmt::Display for Type<'_, I> {
+impl<I: Clone + Importer> fmt::Display for Type<'_, I> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.printer.print_ty(f, self.id)
     }

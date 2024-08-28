@@ -1,5 +1,6 @@
 mod cli;
 mod compile;
+mod fetch;
 mod graph;
 mod lex;
 mod lsp;

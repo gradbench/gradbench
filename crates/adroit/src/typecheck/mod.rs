@@ -609,7 +609,7 @@ impl Module {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum TypeError {
     TooManyImports,
     TooManyFields,

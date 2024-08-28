@@ -191,12 +191,33 @@ impl Graph {
         &self.nodes[uri]
     }
 
+    pub fn roots(&self) -> impl Iterator<Item = (&Uri, &Node)> {
+        self.nodes.iter().filter(|(_, node)| node.root)
+    }
+
     pub fn pending(&mut self) -> Vec<Uri> {
         take(&mut self.pending)
     }
 
     pub fn analysis(&mut self) -> Vec<Analysis> {
         take(&mut self.analysis)
+    }
+
+    pub fn imports(&self, uri: &Uri) -> Result<Vec<Uri>, ()> {
+        let node = self.get(uri);
+        let syn = match &node.data {
+            Data::Parsed { syn, .. } => syn,
+            Data::Analyzed { syn, .. } => syn,
+            _ => return Err(()),
+        };
+        syn.tree
+            .imports()
+            .iter()
+            .map(|import| {
+                let name = syn.toks.get(import.module).string(&syn.src.text);
+                uri.resolve(&self.stdlib, &name)
+            })
+            .collect()
     }
 
     fn make_node(&mut self, uri: Uri) -> &mut Node {
@@ -256,7 +277,7 @@ impl Graph {
                     dep.dependents.insert(uri.clone());
                     if dep.dirty.is_empty() {
                         if let Data::Analyzed { sem, .. } = &dep.data {
-                            return Ok((import, sem.clone()));
+                            return Ok((import, Arc::clone(sem)));
                         }
                     } else {
                         dirty.insert(import);
@@ -296,7 +317,7 @@ impl Graph {
                 let dep = self.get(&resolved);
                 if dep.dirty.is_empty() {
                     if let Data::Analyzed { sem, .. } = &dep.data {
-                        return Ok((resolved, sem.clone()));
+                        return Ok((resolved, Arc::clone(sem)));
                     }
                 }
                 Err(())
@@ -341,14 +362,17 @@ impl Graph {
             return; // dependencies changed, so the typechecking result is outdated
         }
         let node = self.nodes.get_mut(&uri).unwrap();
+        let no_errs = errs.is_empty();
         node.data = Data::Analyzed { syn, sem, errs };
-        let succs: Vec<Uri> = node.dependents.iter().cloned().collect();
-        for succ in succs {
-            let node = self.nodes.get_mut(&succ).unwrap();
-            node.dirty.remove(&uri);
-            if node.dirty.is_empty() {
-                if let Ok(job) = self.typecheck(&succ) {
-                    self.analysis.push(job);
+        if no_errs {
+            let succs: Vec<Uri> = node.dependents.iter().cloned().collect();
+            for succ in succs {
+                let node = self.nodes.get_mut(&succ).unwrap();
+                node.dirty.remove(&uri);
+                if node.dirty.is_empty() {
+                    if let Ok(job) = self.typecheck(&succ) {
+                        self.analysis.push(job);
+                    }
                 }
             }
         }

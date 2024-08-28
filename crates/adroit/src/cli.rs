@@ -1,43 +1,19 @@
-use std::{
-    fs, io,
-    marker::PhantomData,
-    ops::Range,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{io, marker::PhantomData, ops::Range, path::PathBuf, sync::Arc};
 
 use ariadne::{Cache, Color, Label, Report, ReportBuilder, ReportKind, Source};
 use clap::{Parser, Subcommand};
 use itertools::Itertools;
 
 use crate::{
-    compile::{FullModule, Importer, Printer},
+    compile::{FullModule, GraphImporter, Printer},
+    fetch::fetch,
     graph::{Analysis, Data, Graph, Syntax, Uri},
     lsp::language_server,
     parse::ParseError,
     pprint::pprint,
-    typecheck::{self, ImportId},
-    util::{Diagnostic, Emitter, Id},
+    typecheck,
+    util::{Diagnostic, Emitter},
 };
-
-fn builtin(path: &Path) -> Result<&'static str, ()> {
-    let name = match path.to_str() {
-        Some(string) => string.strip_suffix(".adroit").unwrap(),
-        None => {
-            eprintln!("module name is not valid Unicode: {}", path.display());
-            return Err(());
-        }
-    };
-    match name {
-        "array" => Ok(include_str!("modules/array.adroit")),
-        "autodiff" => Ok(include_str!("modules/autodiff.adroit")),
-        "math" => Ok(include_str!("modules/math.adroit")),
-        _ => {
-            eprintln!("builtin module does not exist: {name}");
-            Err(())
-        }
-    }
-}
 
 fn stdlib() -> Uri {
     let dir = dirs::cache_dir()
@@ -57,7 +33,7 @@ fn rooted_graph(path: PathBuf) -> Result<(Graph, Uri), ()> {
 }
 
 #[derive(Debug)]
-struct AriadneEmitter<'a, C: Cache<&'a str>> {
+struct AriadneEmitter<'a, C> {
     cache: C,
     message: String,
     phantom: PhantomData<&'a ()>,
@@ -117,26 +93,9 @@ impl<'a, 'b, C: Cache<&'a str>> Diagnostic<(&'a str, Range<usize>)>
 }
 
 fn read<'a>(graph: &'a mut Graph, uri: &Uri) -> Result<&'a Syntax, ()> {
-    let uri_str = uri.as_str();
-    let path = uri
-        .to_file_path()
-        .map_err(|()| eprintln!("not a local file: {uri_str}"))?;
-    let stdlib_path = graph.stdlib().to_file_path().unwrap();
-    let text = match path.strip_prefix(&stdlib_path) {
-        Ok(relative) => {
-            let text = builtin(relative)?;
-            let parent = path.parent().unwrap();
-            fs::create_dir_all(parent)
-                .map_err(|err| eprintln!("failed to make directory {}: {err}", parent.display()))?;
-            fs::write(&path, text)
-                .map_err(|err| eprintln!("failed to write {}: {err}", path.display()))?;
-            text.to_owned()
-        }
-        Err(_) => {
-            fs::read_to_string(path).map_err(|err| eprintln!("error reading {uri_str}: {err}"))?
-        }
-    };
+    let text = fetch(graph.stdlib(), uri).map_err(|err| eprintln!("{}", err))?;
     graph.set_text(uri, text);
+    let uri_str = uri.as_str();
     match &graph.get(uri).data {
         Data::Read { src, err } => {
             AriadneEmitter::new((uri_str, Source::from(&src.text)), "failed to tokenize")
@@ -158,29 +117,6 @@ fn read<'a>(graph: &'a mut Graph, uri: &Uri) -> Result<&'a Syntax, ()> {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-struct GraphImporter<'a> {
-    graph: &'a Graph,
-    deps: &'a [(Uri, Arc<typecheck::Module>)],
-}
-
-impl Importer for GraphImporter<'_> {
-    fn import(&self, id: ImportId) -> FullModule {
-        match &self.graph.get(&self.deps[id.to_usize()].0).data {
-            Data::Analyzed { syn, sem, errs } => {
-                assert!(errs.is_empty());
-                FullModule {
-                    source: &syn.src.text,
-                    tokens: &syn.toks,
-                    tree: &syn.tree,
-                    module: sem.clone(),
-                }
-            }
-            _ => unreachable!(),
-        }
-    }
-}
-
 fn analyze(graph: &mut Graph, job: Analysis) -> Result<(), ()> {
     let (uri, syn, deps) = &job;
     let (module, errs) = typecheck::typecheck(
@@ -195,13 +131,14 @@ fn analyze(graph: &mut Graph, job: Analysis) -> Result<(), ()> {
         Ok(())
     } else {
         let uri_str = uri.as_str();
+        let uris: Vec<Uri> = deps.iter().map(|(import, _)| import.clone()).collect();
         let full = FullModule {
             source: &syn.src.text,
             tokens: &syn.toks,
             tree: &syn.tree,
             module: sem,
         };
-        let printer = Printer::new(full, GraphImporter { graph, deps });
+        let printer = Printer::new(full, GraphImporter { graph, uris: &uris });
         let mut emitter = AriadneEmitter::new(
             (uri_str, Source::from(&syn.src.text)),
             "failed to typecheck",
