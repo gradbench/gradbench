@@ -233,12 +233,9 @@ impl State {
         let offset = lsp_to_byte(index, doc_pos.position)?;
         let (node, bytes) = range::find(&syn.toks, &syn.tree, offset)?;
         let ty = match (sem, node) {
-            (Some(_), range::Node::Type(id)) => {
-                let _ = id; // TODO: store inferred types from type expressions
-                None
-            }
-            (Some(sem), range::Node::Param(id)) => Some((sem, sem.param(id))),
-            (Some(sem), range::Node::Expr(id)) => Some((sem, sem.expr(id))),
+            (Some(sem), range::Node::Type(id)) => Some((sem, sem.parsed_ty(id))),
+            (Some(sem), range::Node::Param(id)) => Some((sem, sem.val(sem.param(id)).ty)),
+            (Some(sem), range::Node::Expr(id)) => Some((sem, sem.val(sem.expr(id)).ty)),
             _ => None,
         }
         .map(|(sem, id)| {
@@ -254,7 +251,7 @@ impl State {
                 uris: &uris,
             };
             let printer = Printer::new(full, importer);
-            format!("{}", printer.ty(sem.val(id).ty))
+            format!("{}", printer.ty(id))
         });
         let ty_str = match ty.as_ref() {
             Some(s) => s,
