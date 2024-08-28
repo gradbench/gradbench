@@ -41,7 +41,7 @@ jobs:
       - run: npm ci
       - run: cargo build --release --target ${{ matrix.rust-target }}
       - run: mkdir packages/vscode/bin
-      - run: cp target/release/adroit${{ matrix.ext }} packages/vscode/bin/adroit${{ matrix.ext }}
+      - run: cp target/${{ matrix.rust-target }}/release/adroit${{ matrix.ext }} packages/vscode/bin/adroit${{ matrix.ext }}
       - run: npm run --workspace=adroit-vscode build -- --target ${{ matrix.vscode-platform }}
       - uses: actions/upload-artifact@v4
         with:
