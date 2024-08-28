@@ -7,6 +7,7 @@
   "devDependencies": {
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/vscode": "^1",
     "@typescript-eslint/eslint-plugin": "^7",
     "@typescript-eslint/parser": "^7",
     "@vitejs/plugin-react-swc": "^3",

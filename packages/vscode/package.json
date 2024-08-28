@@ -1,9 +1,9 @@
 {
   "name": "adroit-vscode",
   "displayName": "Adroit",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "samestep",
-  "description": "Syntax highlighting for Adroit.",
+  "description": "Language services for Adroit.",
   "license": "MIT",
   "repository": {
     "type": "git",

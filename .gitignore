@@ -4,6 +4,7 @@ __pycache__/
 .lake/
 *.vsix
 /.config/dotnet-tools.json
+/packages/vscode/bin/
 /target/
 dist/
 node_modules/

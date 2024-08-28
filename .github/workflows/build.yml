@@ -18,6 +18,26 @@ jobs:
       - uses: actions/checkout@v4
       - run: cargo run json evals/hello/gradbench.adroit
 
+  vscode:
+    strategy:
+      matrix:
+        include:
+          - github-os: ubuntu-22.04
+            vscode-platform: linux-x64
+          - github-os: macos-14
+            vscode-platform: darwin-arm64
+    runs-on: ${{ matrix.github-os }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo build --release
+      - run: mkdir packages/vscode/bin
+      - run: cp target/release/adroit packages/vscode/bin/adroit
+      - run: npm run --workspace=adroit-vscode build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: adroit-vscode-${{ matrix.vscode-platform }}
+          path: packages/vscode/adroit-vscode-*.vsix
+
   site:
     runs-on: ubuntu-22.04
     steps:

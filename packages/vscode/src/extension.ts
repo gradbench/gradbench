@@ -1,12 +1,14 @@
+import * as vscode from "vscode";
 import * as lsp from "vscode-languageclient/node";
 
 let client: lsp.LanguageClient;
 
-export const activate = () => {
+export const activate = (context: vscode.ExtensionContext) => {
+  const uri = vscode.Uri.joinPath(context.extensionUri, "bin", "adroit");
   client = new lsp.LanguageClient(
     "adroit",
     "Adroit",
-    { command: "adroit", args: ["lsp"] },
+    { command: uri.fsPath, args: ["lsp"] },
     { documentSelector: [{ scheme: "file", language: "adroit" }] },
   );
   client.start();
