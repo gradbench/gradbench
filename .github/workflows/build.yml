@@ -23,18 +23,15 @@ jobs:
       matrix:
         include:
           - vscode-platform: win32-x64
-            github-os: windows-2022
             rust-target: x86_64-pc-windows-msvc
             ext: ".exe"
           - vscode-platform: linux-x64
-            github-os: ubuntu-22.04
             rust-target: x86_64-unknown-linux-musl
             ext: ""
           - vscode-platform: darwin-arm64
-            github-os: macos-14
             rust-target: aarch64-apple-darwin
             ext: ""
-    runs-on: ${{ matrix.github-os }}
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - run: rustup target add ${{ matrix.rust-target }}
