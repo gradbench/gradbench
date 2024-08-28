@@ -13,6 +13,7 @@ use crate::{
     lex::{lex, LexError, Tokens},
     parse::{self, ParseError},
     typecheck,
+    util::collect_results,
 };
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -162,23 +163,14 @@ pub struct Node {
     pub data: Data,
 }
 
-#[derive(Debug)]
-pub enum Job {
-    Read {
-        uri: Uri,
-    },
-    Typecheck {
-        uri: Uri,
-        syn: Arc<Syntax>,
-        deps: Vec<(Uri, Arc<typecheck::Module>)>,
-    },
-}
+pub type Analysis = (Uri, Arc<Syntax>, Box<[(Uri, Arc<typecheck::Module>)]>);
 
 #[derive(Debug)]
 pub struct Graph {
     stdlib: Uri,
     nodes: HashMap<Uri, Node>,
-    jobs: Vec<Job>,
+    pending: Vec<Uri>,
+    analysis: Vec<Analysis>,
 }
 
 impl Graph {
@@ -186,7 +178,8 @@ impl Graph {
         Self {
             stdlib,
             nodes: HashMap::new(),
-            jobs: vec![],
+            pending: vec![],
+            analysis: vec![],
         }
     }
 
@@ -198,15 +191,19 @@ impl Graph {
         &self.nodes[uri]
     }
 
-    pub fn jobs(&mut self) -> Vec<Job> {
-        take(&mut self.jobs)
+    pub fn pending(&mut self) -> Vec<Uri> {
+        take(&mut self.pending)
+    }
+
+    pub fn analysis(&mut self) -> Vec<Analysis> {
+        take(&mut self.analysis)
     }
 
     fn make_node(&mut self, uri: Uri) -> &mut Node {
         match self.nodes.entry(uri.clone()) {
             Entry::Occupied(entry) => entry.into_mut(),
             Entry::Vacant(entry) => {
-                self.jobs.push(Job::Read { uri });
+                self.pending.push(uri);
                 entry.insert(Default::default())
             }
         }
@@ -253,30 +250,23 @@ impl Graph {
                     }
                 })
                 .collect();
-            let res: Result<Vec<(Uri, Arc<typecheck::Module>)>, ()> = imports
-                .into_iter()
-                .map(|opt| {
-                    if let Some(import) = opt {
-                        let dep = self.make_node(import.clone());
-                        dep.dependents.insert(uri.clone());
-                        if dep.dirty.is_empty() {
-                            if let Data::Analyzed { sem, .. } = &dep.data {
-                                return Ok((import, sem.clone()));
-                            }
-                        } else {
-                            dirty.insert(import);
+            let res = collect_results(imports.into_iter().map(|opt| {
+                if let Some(import) = opt {
+                    let dep = self.make_node(import.clone());
+                    dep.dependents.insert(uri.clone());
+                    if dep.dirty.is_empty() {
+                        if let Data::Analyzed { sem, .. } = &dep.data {
+                            return Ok((import, sem.clone()));
                         }
+                    } else {
+                        dirty.insert(import);
                     }
-                    return Err(());
-                })
-                .collect();
+                }
+                Err(())
+            }));
             if let Ok(deps) = res {
-                let job = Job::Typecheck {
-                    uri: uri.clone(),
-                    syn,
-                    deps,
-                };
-                self.jobs.push(job);
+                self.analysis
+                    .push((uri.clone(), syn, deps.into_boxed_slice()));
             }
         }
         for pred in kill {
@@ -289,7 +279,7 @@ impl Graph {
         self.propagate(uri, succs);
     }
 
-    fn typecheck(&self, uri: &Uri) -> Result<Job, ()> {
+    fn typecheck(&self, uri: &Uri) -> Result<Analysis, ()> {
         let node = self.get(uri);
         let syn = match &node.data {
             Data::Parsed { syn, .. } => syn,
@@ -312,40 +302,23 @@ impl Graph {
                 Err(())
             })
             .collect::<Result<Vec<(Uri, Arc<typecheck::Module>)>, ()>>()?;
-        let job = Job::Typecheck {
-            uri: uri.clone(),
-            syn: Arc::clone(syn),
-            deps,
-        };
-        Ok(job)
+        Ok((uri.clone(), Arc::clone(syn), deps.into_boxed_slice()))
     }
 
     pub fn make_root(&mut self, uri: Uri) {
         self.make_node(uri.clone()).root = true;
     }
 
-    pub fn set_text(&mut self, job: Job, text: String) {
-        let uri = match job {
-            Job::Read { uri } => uri,
-            _ => panic!(),
-        };
-        self.replace_text(&uri, text)
-    }
-
-    pub fn change_text(&mut self, uri: &Uri, text: String) {
+    pub fn set_text(&mut self, uri: &Uri, text: String) {
         self.replace_text(uri, text)
     }
 
     pub fn supply_semantic(
         &mut self,
-        job: Job,
+        (uri, syn, deps): Analysis,
         sem: Arc<typecheck::Module>,
         errs: Vec<typecheck::TypeError>,
     ) {
-        let (uri, syn, deps) = match job {
-            Job::Typecheck { uri, syn, deps } => (uri, syn, deps),
-            _ => panic!(),
-        };
         let node = match self.nodes.get(&uri) {
             Some(node) => node,
             None => return, // node was removed from the graph, no longer needed
@@ -359,9 +332,9 @@ impl Graph {
             return; // dependencies dirty or text changed, so the typechecking result is outdated
         }
         if !deps
-            .into_iter()
-            .all(|(import, before)| match &self.get(&import).data {
-                Data::Analyzed { sem, .. } => Arc::ptr_eq(&before, sem),
+            .iter()
+            .all(|(import, before)| match &self.get(import).data {
+                Data::Analyzed { sem, .. } => Arc::ptr_eq(before, sem),
                 _ => false,
             })
         {
@@ -375,7 +348,7 @@ impl Graph {
             node.dirty.remove(&uri);
             if node.dirty.is_empty() {
                 if let Ok(job) = self.typecheck(&succ) {
-                    self.jobs.push(job);
+                    self.analysis.push(job);
                 }
             }
         }

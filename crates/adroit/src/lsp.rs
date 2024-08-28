@@ -59,26 +59,24 @@ impl State {
     }
 
     fn update(&mut self, uri: &Uri, text: String) -> Result<(), Vec<Diagnostic>> {
-        let res = self.graph.set_text(uri, text);
+        self.graph.set_text(uri, text);
         let node = self.graph.get(uri);
-        match res {
-            Ok(_) => Ok(()),
-            Err(()) => match &node.data {
-                Data::Read { src, err } => {
-                    let range = bytes_to_lsp(&src.lines, err.byte_range());
-                    let message = err.message().to_owned();
-                    Err(vec![Diagnostic::new_simple(range, message)])
-                }
-                Data::Lexed { src, toks, err } => {
-                    let id = match *err {
-                        ParseError::Expected { id, kinds: _ } => id,
-                    };
-                    let range = bytes_to_lsp(&src.lines, toks.get(id).byte_range());
-                    let message = err.message();
-                    Err(vec![Diagnostic::new_simple(range, message)])
-                }
-                _ => unreachable!(),
-            },
+        match &node.data {
+            Data::Read { src, err } => {
+                let range = bytes_to_lsp(&src.lines, err.byte_range());
+                let message = err.message().to_owned();
+                Err(vec![Diagnostic::new_simple(range, message)])
+            }
+            Data::Lexed { src, toks, err } => {
+                let id = match *err {
+                    ParseError::Expected { id, kinds: _ } => id,
+                };
+                let range = bytes_to_lsp(&src.lines, toks.get(id).byte_range());
+                let message = err.message();
+                Err(vec![Diagnostic::new_simple(range, message)])
+            }
+            Data::Parsed { syn: _ } => Ok(()),
+            _ => unreachable!(),
         }
     }
 
