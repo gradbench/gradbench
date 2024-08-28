@@ -1,6 +1,6 @@
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
-    mem::{replace, take},
+    mem::take,
     path::{Path, PathBuf},
     str::FromStr,
     sync::Arc,
@@ -93,7 +93,6 @@ pub enum Data {
         syn: Arc<Syntax>,
         sem: Arc<typecheck::Module>,
         errs: Vec<typecheck::TypeError>,
-        dirty: bool,
     },
 }
 
@@ -144,6 +143,13 @@ pub struct Node {
     /// from a root to a non-root, this is reset to the current set of imported URIs.
     pub dependencies: HashSet<Uri>,
 
+    /// The set of dependencies blocking this node from typechecking.
+    ///
+    /// Unlike the dependencies, this does not depend on whether any nodes are roots or not. This is
+    /// always a subset of the URIs imported by this node, so for instance, it is empty if there is
+    /// currently no AST.
+    pub dirty: HashSet<Uri>,
+
     /// The set of URIs that import this node.
     ///
     /// Unlike the dependencies, this does not depend on whether any nodes are roots or not. In
@@ -169,27 +175,10 @@ pub enum Job {
 }
 
 #[derive(Debug)]
-struct Jobs {
-    jobs: HashMap<Uri, Job>,
-}
-
-impl Jobs {
-    fn new() -> Self {
-        Self {
-            jobs: HashMap::new(),
-        }
-    }
-
-    fn make(&mut self, uri: Uri, job: Job) {
-        assert!(self.jobs.insert(uri, job).is_none());
-    }
-}
-
-#[derive(Debug)]
 pub struct Graph {
     stdlib: Uri,
     nodes: HashMap<Uri, Node>,
-    jobs: Jobs,
+    jobs: Vec<Job>,
 }
 
 impl Graph {
@@ -197,7 +186,7 @@ impl Graph {
         Self {
             stdlib,
             nodes: HashMap::new(),
-            jobs: Jobs::new(),
+            jobs: vec![],
         }
     }
 
@@ -209,12 +198,27 @@ impl Graph {
         &self.nodes[uri]
     }
 
+    pub fn jobs(&mut self) -> Vec<Job> {
+        take(&mut self.jobs)
+    }
+
     fn make_node(&mut self, uri: Uri) -> &mut Node {
         match self.nodes.entry(uri.clone()) {
             Entry::Occupied(entry) => entry.into_mut(),
             Entry::Vacant(entry) => {
-                self.jobs.make(uri.clone(), Job::Read { uri });
+                self.jobs.push(Job::Read { uri });
                 entry.insert(Default::default())
+            }
+        }
+    }
+
+    fn propagate(&mut self, uri: &Uri, succs: Vec<Uri>) {
+        for succ in succs {
+            let node = self.nodes.get_mut(&succ).unwrap();
+            if node.dirty.insert(uri.clone()) {
+                let stuff = node.dependents.iter().cloned().collect();
+                // TODO: iterate instead of recursing
+                self.propagate(&succ, stuff);
             }
         }
     }
@@ -229,7 +233,7 @@ impl Graph {
         } else {
             take(&mut node.dependencies)
         };
-        let mut succs: Vec<Uri> = node.dependents.iter().cloned().collect();
+        let mut dirty = HashSet::new();
         node.data = Data::new(text);
         if let Data::Parsed { syn } = &node.data {
             let syn = Arc::clone(syn);
@@ -255,10 +259,12 @@ impl Graph {
                     if let Some(import) = opt {
                         let dep = self.make_node(import.clone());
                         dep.dependents.insert(uri.clone());
-                        if let Data::Analyzed { sem, dirty, .. } = &dep.data {
-                            if !dirty {
+                        if dep.dirty.is_empty() {
+                            if let Data::Analyzed { sem, .. } = &dep.data {
                                 return Ok((import, sem.clone()));
                             }
+                        } else {
+                            dirty.insert(import);
                         }
                     }
                     return Err(());
@@ -270,21 +276,48 @@ impl Graph {
                     syn,
                     deps,
                 };
-                self.jobs.make(uri.clone(), job);
+                self.jobs.push(job);
             }
         }
         for pred in kill {
             self.nodes.get_mut(&pred).unwrap().dependents.remove(uri);
             // TODO: delete all nodes that roots don't depend on
         }
-        while let Some(succ) = succs.pop() {
-            let node = self.nodes.get_mut(&succ).unwrap();
-            if let Data::Analyzed { dirty, .. } = &mut node.data {
-                if !replace(dirty, true) {
-                    succs.extend(node.dependents.iter().cloned());
+        let node = self.nodes.get_mut(uri).unwrap();
+        node.dirty = dirty;
+        let succs = node.dependents.iter().cloned().collect();
+        self.propagate(uri, succs);
+    }
+
+    fn typecheck(&self, uri: &Uri) -> Result<Job, ()> {
+        let node = self.get(uri);
+        let syn = match &node.data {
+            Data::Parsed { syn, .. } => syn,
+            Data::Analyzed { syn, .. } => syn,
+            _ => return Err(()),
+        };
+        let deps = syn
+            .tree
+            .imports()
+            .iter()
+            .map(|import| {
+                let name = syn.toks.get(import.module).string(&syn.src.text);
+                let resolved = uri.resolve(&self.stdlib, &name)?;
+                let dep = self.get(&resolved);
+                if dep.dirty.is_empty() {
+                    if let Data::Analyzed { sem, .. } = &dep.data {
+                        return Ok((resolved, sem.clone()));
+                    }
                 }
-            }
-        }
+                Err(())
+            })
+            .collect::<Result<Vec<(Uri, Arc<typecheck::Module>)>, ()>>()?;
+        let job = Job::Typecheck {
+            uri: uri.clone(),
+            syn: Arc::clone(syn),
+            deps,
+        };
+        Ok(job)
     }
 
     pub fn make_root(&mut self, uri: Uri) {
@@ -318,33 +351,33 @@ impl Graph {
             None => return, // node was removed from the graph, no longer needed
         };
         let current = match &node.data {
-            Data::Parsed { syn } => syn,
+            Data::Parsed { syn, .. } => syn,
             Data::Analyzed { syn, .. } => syn,
             _ => return, // lex or parse error so text must have changed; the result is outdated
         };
-        if !Arc::ptr_eq(&syn, current) {
-            return; // the text changed, so the typechecking result is outdated
+        if !(node.dirty.is_empty() && Arc::ptr_eq(&syn, current)) {
+            return; // dependencies dirty or text changed, so the typechecking result is outdated
         }
-        if !deps.into_iter().all(|(import, before)| {
-            if let Data::Analyzed { sem, dirty, .. } = &self.get(&import).data {
-                if !dirty {
-                    return Arc::ptr_eq(&before, sem);
-                }
-            }
-            return false;
-        }) {
+        if !deps
+            .into_iter()
+            .all(|(import, before)| match &self.get(&import).data {
+                Data::Analyzed { sem, .. } => Arc::ptr_eq(&before, sem),
+                _ => false,
+            })
+        {
             return; // dependencies changed, so the typechecking result is outdated
         }
         let node = self.nodes.get_mut(&uri).unwrap();
+        node.data = Data::Analyzed { syn, sem, errs };
         let succs: Vec<Uri> = node.dependents.iter().cloned().collect();
-        node.data = Data::Analyzed {
-            syn,
-            sem,
-            errs,
-            dirty: false,
-        };
-        for _ in succs {
-            // TODO: make jobs for all dependents that have no dirty dependencies
+        for succ in succs {
+            let node = self.nodes.get_mut(&succ).unwrap();
+            node.dirty.remove(&uri);
+            if node.dirty.is_empty() {
+                if let Ok(job) = self.typecheck(&succ) {
+                    self.jobs.push(job);
+                }
+            }
         }
     }
 }
