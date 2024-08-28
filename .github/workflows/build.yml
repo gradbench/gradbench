@@ -22,17 +22,22 @@ jobs:
     strategy:
       matrix:
         include:
-          - github-os: ubuntu-22.04
-            vscode-platform: linux-x64
-          - github-os: macos-14
-            vscode-platform: darwin-arm64
+          - vscode-platform: win32-x64
+            github-os: windows-2022
+            ext: ".exe"
+          - vscode-platform: linux-x64
+            github-os: ubuntu-22.04
+            ext: ""
+          - vscode-platform: darwin-arm64
+            github-os: macos-14
+            ext: ""
     runs-on: ${{ matrix.github-os }}
     steps:
       - uses: actions/checkout@v4
       - run: npm ci
       - run: cargo build --release
       - run: mkdir packages/vscode/bin
-      - run: cp target/release/adroit packages/vscode/bin/adroit
+      - run: cp target/release/adroit${{ matrix.ext }} packages/vscode/bin/adroit${{ matrix.ext }}
       - run: npm run --workspace=adroit-vscode build
       - uses: actions/upload-artifact@v4
         with:

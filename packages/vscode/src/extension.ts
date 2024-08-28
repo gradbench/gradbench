@@ -1,14 +1,17 @@
+import * as process from "process";
 import * as vscode from "vscode";
 import * as lsp from "vscode-languageclient/node";
 
 let client: lsp.LanguageClient;
 
 export const activate = (context: vscode.ExtensionContext) => {
-  const uri = vscode.Uri.joinPath(context.extensionUri, "bin", "adroit");
+  const uri = context.extensionUri;
+  const ext = process.platform === "win32" ? ".exe" : "";
+  const command = vscode.Uri.joinPath(uri, "bin", `adroit${ext}`).fsPath;
   client = new lsp.LanguageClient(
     "adroit",
     "Adroit",
-    { command: uri.fsPath, args: ["lsp"] },
+    { command, args: ["lsp"] },
     { documentSelector: [{ scheme: "file", language: "adroit" }] },
   );
   client.start();
