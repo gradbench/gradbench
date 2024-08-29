@@ -24,8 +24,8 @@ jobs:
       matrix:
         include:
           - vscode-platform: win32-x64
-            github-os: windows-2022
-            rust-target: x86_64-pc-windows-msvc
+            github-os: ubuntu-22.04
+            rust-target: x86_64-pc-windows-gnu
             ext: ".exe"
           - vscode-platform: linux-x64
             github-os: ubuntu-22.04
