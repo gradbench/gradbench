@@ -49,7 +49,7 @@ impl Id for ByteLen {
 pub enum TokenKind {
     Eof,
 
-    #[token("\n")]
+    #[regex("\r?\n")]
     Newline,
 
     #[regex("#[^\n]*")]
@@ -299,4 +299,26 @@ pub fn lex(source: &str) -> Result<Tokens, LexError> {
     }
     tokens.push(eof);
     Ok(Tokens { tokens })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_crlf() {
+        let actual: Vec<TokenKind> = lex("a\r\nb")
+            .unwrap()
+            .tokens
+            .into_iter()
+            .map(|tok| tok.kind)
+            .collect();
+        let expected = vec![
+            TokenKind::Ident,
+            TokenKind::Newline,
+            TokenKind::Ident,
+            TokenKind::Eof,
+        ];
+        assert_eq!(actual, expected);
+    }
 }
