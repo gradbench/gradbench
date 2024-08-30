@@ -50,7 +50,8 @@ impl Uri {
     }
 
     fn resolve(&self, stdlib: &Self, name: &str) -> Result<Self, ()> {
-        let base = if name.starts_with('.') { self } else { stdlib };
+        let relative = name.starts_with("./") || name.starts_with("../");
+        let base = if relative { self } else { stdlib };
         let url = base.0.join(&format!("{name}.adroit")).map_err(|_| ())?;
         Ok(Self::new(url))
     }

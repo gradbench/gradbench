@@ -2,6 +2,7 @@ use std::{collections::HashMap, mem::take, ops::Range, sync::Arc};
 
 use anyhow::anyhow;
 use crossbeam_channel::Sender;
+use itertools::Itertools;
 use line_index::{LineCol, LineIndex};
 use lsp_server::{Connection, Message, RequestId, ResponseError};
 use lsp_types::{
@@ -277,7 +278,9 @@ impl State {
         let doc = params.text_document;
         let uri = Uri::from_lsp_uri(&doc.uri).unwrap();
         self.graph.make_root(uri.clone());
-        self.graph.set_text(&uri, doc.text);
+        let (pending,) = self.graph.pending().into_iter().collect_tuple().unwrap();
+        assert_eq!(pending, uri);
+        self.graph.set_text(&pending, doc.text);
         self.exhaust();
         self.diagnose_all()
     }
