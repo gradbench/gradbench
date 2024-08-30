@@ -1,7 +1,7 @@
 {
   "name": "adroit-vscode",
   "displayName": "Adroit",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "publisher": "samestep",
   "description": "Language services for Adroit.",
   "license": "MIT",
@@ -40,6 +40,14 @@
       "type": "object",
       "title": "Adroit configuration",
       "properties": {
+        "adroit.exe": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "default": null,
+          "description": "Path to Adroit executable."
+        },
         "adroit.trace.server": {
           "scope": "window",
           "type": "string",
