@@ -87,25 +87,6 @@ impl Id for UnknownId {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(transparent)]
-pub struct VarId {
-    pub index: u32,
-}
-
-impl Id for VarId {
-    fn from_usize(n: usize) -> Option<Self> {
-        match n.try_into() {
-            Ok(index) => Some(Self { index }),
-            Err(_) => None,
-        }
-    }
-
-    fn to_usize(self) -> usize {
-        u32_to_usize(self.index)
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-#[serde(transparent)]
 pub struct ValId {
     pub index: u32,
 }
@@ -231,7 +212,7 @@ enum BasicError {
 }
 
 #[derive(Debug)]
-struct Types {
+pub struct Types {
     unknowns: usize,
     types: IndexMap<Type, TypeId>,
 }
@@ -244,7 +225,11 @@ impl Types {
         }
     }
 
-    fn get(&self, id: TypeId) -> Type {
+    pub fn len(&self) -> usize {
+        self.types.len()
+    }
+
+    pub fn get(&self, id: TypeId) -> Type {
         let (&t, _) = self.types.get_index(id.to_usize()).unwrap();
         t
     }
@@ -549,6 +534,10 @@ impl Module {
 
     pub fn export(&self, name: &str) -> Option<parse::DefId> {
         self.exports.get(name).copied()
+    }
+
+    pub fn types(&self) -> &Types {
+        &self.types
     }
 
     fn set_expr(&mut self, id: parse::ExprId, val: ValId) {

@@ -2,6 +2,7 @@ mod cli;
 mod compile;
 mod fetch;
 mod graph;
+mod ir;
 mod lex;
 mod lsp;
 mod parse;
