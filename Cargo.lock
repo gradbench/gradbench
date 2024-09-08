@@ -21,7 +21,6 @@ dependencies = [
  "lsp-types",
  "serde",
  "serde_json",
- "similar-asserts",
  "url",
 ]
 
@@ -345,9 +344,9 @@ dependencies = [
 
 [[package]]
 name = "goldenfile"
-version = "1.7.1"
+version = "1.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0d5c44265baec620ea19c97b4ce9f068e28f8c3d7faccc483f02968b5e3c587"
+checksum = "672ff1c2f0537cf3f92065ce8aa77e2fc3f2abae2c805eb67f40ceecfbdee428"
 dependencies = [
  "scopeguard",
  "similar-asserts",

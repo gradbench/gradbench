@@ -1390,7 +1390,7 @@ pub fn typecheck(
 mod tests {
     use std::{fs, io::Write, ops::Range, path::Path, sync::Arc};
 
-    use goldenfile::{differs::Differ, Mint};
+    use goldenfile::Mint;
     use line_index::{LineCol, LineIndex, TextSize};
 
     use crate::{
@@ -1467,17 +1467,6 @@ mod tests {
         fn finish(self) {}
     }
 
-    fn differ() -> Differ {
-        Box::new(|old, new| {
-            similar_asserts::assert_eq!(
-                &fs::read_to_string(old).unwrap_or("".to_string()),
-                &fs::read_to_string(new).unwrap_or("".to_string()),
-                "{}",
-                old.display(),
-            );
-        })
-    }
-
     #[test]
     fn test_errors() {
         let prefix = Path::new("src/typecheck/errors");
@@ -1513,9 +1502,7 @@ mod tests {
                 printer.emit_type_error(&mut emitter, path_str, error);
             }
 
-            let mut file = mint
-                .new_goldenfile_with_differ(stripped, differ())
-                .expect(stripped);
+            let mut file = mint.new_goldenfile(stripped).expect(stripped);
             for (i, line) in source.lines().enumerate() {
                 writeln!(file, "{}", line).expect(stripped);
                 for (start, end, message) in emitter.errors.remove(&i).unwrap_or_default() {
