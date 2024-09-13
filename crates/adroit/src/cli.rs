@@ -1,15 +1,17 @@
-use std::{io, marker::PhantomData, ops::Range, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, io, marker::PhantomData, ops::Range, path::PathBuf, sync::Arc};
 
 use ariadne::{Cache, Color, Label, Report, ReportBuilder, ReportKind, Source};
 use clap::{Parser, Subcommand};
 use itertools::Itertools;
+use serde::Serialize;
 
 use crate::{
     compile::{FullModule, GraphImporter, Printer},
     fetch::fetch,
     graph::{Analysis, Data, Graph, Syntax, Uri},
+    lex::Tokens,
     lsp::language_server,
-    parse::ParseError,
+    parse::{self, ParseError},
     pprint::pprint,
     typecheck,
     util::{Diagnostic, Emitter},
@@ -172,6 +174,21 @@ fn exhaust(graph: &mut Graph) -> Result<(), ()> {
     Ok(())
 }
 
+#[derive(Debug, Serialize)]
+pub struct FullNode<'a> {
+    pub source: &'a str,
+    pub tokens: &'a Tokens,
+    pub tree: &'a parse::Module,
+    pub imports: Vec<Uri>,
+    pub module: Arc<typecheck::Module>,
+}
+
+#[derive(Debug, Serialize)]
+struct Modules<'a> {
+    root: Uri,
+    modules: HashMap<&'a Uri, FullNode<'a>>,
+}
+
 #[derive(Debug, Parser)]
 struct Cli {
     #[command(subcommand)]
@@ -200,17 +217,30 @@ pub fn cli() -> Result<(), ()> {
                 .map_err(|err| eprintln!("error formatting module: {err}"))
         }
         Commands::Json { file } => {
-            let (mut graph, uri) = rooted_graph(file)?;
+            let (mut graph, root) = rooted_graph(file)?;
             exhaust(&mut graph)?;
-            let sem = match &graph.get(&uri).data {
-                Data::Analyzed { sem, .. } => Ok(sem),
-                _ => {
+            let modules = graph
+                .nodes()
+                .map(|(uri, node)| match &node.data {
+                    Data::Analyzed { syn, sem, errs } => {
+                        assert!(errs.is_empty());
+                        let full = FullNode {
+                            source: &syn.src.text,
+                            tokens: &syn.toks,
+                            tree: &syn.tree,
+                            imports: graph.imports(uri)?,
+                            module: sem.clone(),
+                        };
+                        Ok((uri, full))
+                    }
+                    _ => Err(()),
+                })
+                .collect::<Result<HashMap<&Uri, FullNode>, ()>>()
+                .map_err(|()| {
                     eprintln!("cyclic import");
-                    Err(())
-                }
-            }?;
-            serde_json::to_writer(io::stdout(), sem.as_ref())
-                .map_err(|err| eprintln!("error serializing module: {err}"))?;
+                })?;
+            serde_json::to_writer(io::stdout(), &Modules { root, modules })
+                .map_err(|err| eprintln!("error serializing modules: {err}"))?;
             println!();
             Ok(())
         }
