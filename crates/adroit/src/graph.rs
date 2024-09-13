@@ -8,6 +8,7 @@ use std::{
 };
 
 use line_index::{LineCol, LineIndex};
+use serde::{Serialize, Serializer};
 use url::Url;
 
 use crate::{
@@ -54,6 +55,12 @@ impl Uri {
         let base = if relative { self } else { stdlib };
         let url = base.0.join(&format!("{name}.adroit")).map_err(|_| ())?;
         Ok(Self::new(url))
+    }
+}
+
+impl Serialize for Uri {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.as_str())
     }
 }
 
@@ -207,8 +214,12 @@ impl Graph {
         &self.nodes[uri]
     }
 
+    pub fn nodes(&self) -> impl Iterator<Item = (&Uri, &Node)> {
+        self.nodes.iter()
+    }
+
     pub fn roots(&self) -> impl Iterator<Item = (&Uri, &Node)> {
-        self.nodes.iter().filter(|(_, node)| node.root)
+        self.nodes().filter(|(_, node)| node.root)
     }
 
     pub fn pending(&mut self) -> Vec<Uri> {
