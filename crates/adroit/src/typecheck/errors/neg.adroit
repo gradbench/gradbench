@@ -1,4 +1,0 @@
-def foo: () =
-  let _ = -((x: ()) => x)
-#          ^^^^^^^^^^^^^^ not a scalar or vector: `() -> ()`
-  ()

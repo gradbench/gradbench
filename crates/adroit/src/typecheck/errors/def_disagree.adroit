@@ -1,3 +1,0 @@
-def foo: Int = 3.14
-#              ^^^^ inferred type: `Float`
-#        ^^^ does not match the given type

@@ -85,8 +85,8 @@ images, first [log in to GHCR][], then use `manual.sh`:
 
 ## Node
 
-We use Node.js for our website and for our VS Code extension. To work with the
-Node packages in this repository, first install all dependencies from npm:
+We use Node.js for our website. To work with the Node packages in this
+repository, first install all dependencies from npm:
 
 ```sh
 npm install
@@ -104,19 +104,6 @@ npm run --workspace=gradbench dev
 This will log a `localhost` URL to your terminal; open that URL in your browser.
 Any changes you make to files in `packages/gradbench/src` should automatically
 appear.
-
-### VS Code
-
-Run this command to build the VS Code extension for the Adroit language used by
-GradBench:
-
-```sh
-npm run --workspace=adroit-vscode build
-```
-
-Then in the VS Code Explorer, right-click on the
-`packages/vscode/adroit-vscode-*.vsix` file that has been created, and click
-**Install Extension VSIX**.
 
 ## Python
 

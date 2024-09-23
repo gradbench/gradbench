@@ -1,6 +1,0 @@
-def foo: () =
-  let f = 42
-  let a: []Float = undefined
-  let _ = f.(a)
-#         ^ expected a function but instead: `Int`
-  ()

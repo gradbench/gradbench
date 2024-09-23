@@ -1,1 +1,0 @@
-def grad: (Float -> Float) -> (Float -> Float) = undefined
