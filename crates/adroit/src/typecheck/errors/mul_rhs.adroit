@@ -1,5 +1,0 @@
-def foo(x: Int, y: ()): () =
-  let _ = x * y
-#             ^ not a matching scalar or vector: `()`
-#         ^ left-hand scalar: `Int`
-  ()

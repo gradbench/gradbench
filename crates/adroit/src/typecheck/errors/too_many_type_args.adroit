@@ -1,5 +1,0 @@
-def foo[A, B](): Int = 42
-#   ^^^ function only takes 2 type parameters
-
-def bar: Int = foo[(), (), (), (), ()]()
-#              ^^^^^^^^^^^^^^^^^^^^^^^ 5 type arguments is 3 too many

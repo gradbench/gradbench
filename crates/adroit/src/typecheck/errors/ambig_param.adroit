@@ -1,4 +1,0 @@
-def foo: () =
-  let f = x => x
-#     ^ ambiguous type: `_ -> _`
-  ()

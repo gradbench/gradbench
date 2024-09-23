@@ -1,4 +1,0 @@
-def foo(x: (), y: Float): () =
-  let _ = x / y
-#         ^ not a scalar or vector: `()`
-  ()

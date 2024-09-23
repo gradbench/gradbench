@@ -1,3 +1,0 @@
-def foo =
-  let x : Int, y : Int = 121, 342
-  y, x

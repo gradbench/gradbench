@@ -5,22 +5,17 @@
     "packages/*"
   ],
   "devDependencies": {
-    "@types/node": "^22",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "@types/vscode": "^1",
     "@typescript-eslint/eslint-plugin": "^7",
     "@typescript-eslint/parser": "^7",
     "@vitejs/plugin-react-swc": "^3",
-    "@vscode/vsce": "^2",
-    "esbuild": "^0.23",
     "eslint": "^8",
     "eslint-plugin-react-hooks": "^4",
     "eslint-plugin-react-refresh": "^0.4",
     "prettier": "^3",
     "prettier-plugin-organize-imports": "^3",
     "typescript": ">=5",
-    "vite": "^5",
-    "vscode-languageclient": "^9"
+    "vite": "^5"
   }
 }
