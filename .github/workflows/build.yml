@@ -39,7 +39,8 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       eval: ${{ steps.matrix.outputs.eval }}
-      tool: ${{ steps.matrix.outputs.tool }}
+      fast: ${{ steps.matrix.outputs.fast }}
+      slow: ${{ steps.matrix.outputs.slow }}
     steps:
       - uses: actions/checkout@v4
       - id: matrix
@@ -61,11 +62,11 @@ jobs:
           name: eval-${{ matrix.eval }}
           path: eval-${{ matrix.eval }}.tar
 
-  tool:
+  tool-fast:
     needs: matrix
     strategy:
       matrix:
-        tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
+        tool: ${{ fromJSON(needs.matrix.outputs.fast) }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -78,15 +79,54 @@ jobs:
           name: tool-${{ matrix.tool }}
           path: tool-${{ matrix.tool }}.tar
 
-  run:
+  tool-slow:
+    needs: matrix
+    strategy:
+      matrix:
+        tool: ${{ fromJSON(needs.matrix.outputs.slow) }}
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/space
+      - uses: ./.github/actions/docker
+      - run: ./crosstool.sh ${{ matrix.tool }}
+      - run: docker save --output tool-${{ matrix.tool }}.tar ghcr.io/gradbench/tool-${{ matrix.tool }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tool-${{ matrix.tool }}
+          path: tool-${{ matrix.tool }}.tar
+
+  run-fast:
     needs:
       - matrix
       - eval
-      - tool
+      - tool-fast
     strategy:
       matrix:
         eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
-        tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
+        tool: ${{ fromJSON(needs.matrix.outputs.fast) }}
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: eval-${{ matrix.eval }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: tool-${{ matrix.tool }}
+      - run: docker load --input eval-${{ matrix.eval }}.tar
+      - run: docker load --input tool-${{ matrix.tool }}.tar
+      - run: ./run.py --eval './eval.sh ${{ matrix.eval }}' --tool './tool.sh ${{ matrix.tool }}'
+
+  run-slow:
+    needs:
+      - matrix
+      - eval
+      - tool-slow
+    strategy:
+      matrix:
+        eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
+        tool: ${{ fromJSON(needs.matrix.outputs.slow) }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4

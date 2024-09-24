@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 def ls(path):
-    return sorted(p.name for p in Path(path).iterdir())
+    return (p.name for p in Path(path).iterdir())
 
 
 def output(name, value):
@@ -16,8 +16,12 @@ def output(name, value):
 
 def main():
     output("date", str(datetime.now(timezone.utc).date()))
-    output("eval", ls("evals"))
-    output("tool", ls("tools"))
+    output("eval", sorted(ls("evals")))
+    tool = set(ls("tools"))
+    output("tool", sorted(tool))
+    slow = ["scilean", "tensorflow"]
+    output("fast", sorted(tool - set(slow)))
+    output("slow", slow)
 
 
 if __name__ == "__main__":
