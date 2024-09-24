@@ -1,5 +1,6 @@
 from autograd import grad
-from wrap_module import wrap
+
+from gradbench.wrap_module import wrap
 
 
 @wrap(lambda x: x * 1.0, lambda x: x)

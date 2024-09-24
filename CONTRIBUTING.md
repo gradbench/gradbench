@@ -118,7 +118,7 @@ poetry install
 Then you can use `poetry run` to run a command in this virtual environment:
 
 ```sh
-./run.py --eval './eval.sh hello' --tool 'poetry run python3 tools/pytorch/run.py'
+./run.py --eval './eval.sh hello' --tool 'poetry run python3 python/gradbench/pytorch/run.py'
 ```
 
 [containerd]: https://docs.docker.com/storage/containerd/

@@ -31,12 +31,13 @@ Changes Made:
 
 import numpy as np
 import torch
-from defs import Wishart
-from gmm_data import GMMInput
-from gmm_objective import gmm_objective
-from itest import ITest
-from utils import to_torch_tensor, to_torch_tensors, torch_jacobian
-from wrap_module import wrap
+
+from gradbench.adbench.defs import Wishart
+from gradbench.adbench.gmm_data import GMMInput
+from gradbench.adbench.itest import ITest
+from gradbench.pytorch.gmm_objective import gmm_objective
+from gradbench.pytorch.utils import to_torch_tensor, to_torch_tensors, torch_jacobian
+from gradbench.wrap_module import wrap
 
 
 class PyTorchGMM(ITest):

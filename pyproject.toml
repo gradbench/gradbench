@@ -1,6 +1,9 @@
 [tool.poetry]
 name = "gradbench"
-package-mode = false
+version = "0.0.0"
+description = "Benchmark for differentiable programming across languages and domains."
+authors = []
+packages = [{ include = "gradbench", from = "python" }]
 
 [tool.poetry.dependencies]
 python = "^3.12"

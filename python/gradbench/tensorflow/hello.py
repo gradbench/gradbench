@@ -1,12 +1,16 @@
 import tensorflow as tf
-from wrap_module import wrap
+
+from gradbench.wrap_module import wrap
+
 
 def to_tensor(x):
     return tf.Variable(x, dtype=tf.float64)
 
+
 @wrap(to_tensor, lambda x: x.numpy())
 def square(x):
     return x * x
+
 
 @wrap(to_tensor, lambda x: x.numpy())
 def double(x):
