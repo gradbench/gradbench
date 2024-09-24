@@ -4,11 +4,8 @@ RUN pip install numpy==1.26.0 && \
     pip install torch --index-url https://download.pytorch.org/whl/cpu && \
     pip install scipy
 
-WORKDIR /home/gradbench
+COPY python /home/gradbench/python
+ENV PYTHONPATH=/home/gradbench/python
 
-COPY tools/pytorch/ .
-COPY shared/wrap_module.py .
-COPY shared/ADBench/ .
-
-ENTRYPOINT ["python", "/home/gradbench/run.py"]
+ENTRYPOINT ["python", "/home/gradbench/python/gradbench/pytorch/run.py"]
 LABEL org.opencontainers.image.source https://github.com/gradbench/gradbench

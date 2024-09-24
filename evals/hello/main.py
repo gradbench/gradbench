@@ -24,7 +24,7 @@ class IdGenerator:
 
 
 def main():
-    source = Path("gradbench.adroit").read_text()
+    source = Path("hello.adroit").read_text()
 
     id_gen = IdGenerator(seed=0)
 
@@ -45,7 +45,7 @@ def main():
             {"kind": "evaluate", "module": module, "name": name, "input": input}
         )
 
-    module = "gradbench"
+    module = "hello"
     response = define(module=module, source=source)
     if response.get("success"):
         x = 1.0

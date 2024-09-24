@@ -1,5 +1,6 @@
 import torch
-from wrap_module import wrap
+
+from gradbench.wrap_module import wrap
 
 
 def to_tensor(x):

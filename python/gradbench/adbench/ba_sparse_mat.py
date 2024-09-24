@@ -4,7 +4,8 @@
 # https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/shared/BASparseMat.py
 
 import numpy as np
-from defs import BA_NCAMPARAMS
+
+from gradbench.adbench.defs import BA_NCAMPARAMS
 
 
 class Vector:

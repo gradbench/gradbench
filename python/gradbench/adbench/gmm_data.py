@@ -11,7 +11,8 @@ Changes Made:
 from dataclasses import dataclass, field
 
 import numpy as np
-from defs import Wishart
+
+from gradbench.adbench.defs import Wishart
 
 
 @dataclass

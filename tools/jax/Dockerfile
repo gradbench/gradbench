@@ -4,8 +4,8 @@ RUN pip install jax jaxlib
 
 WORKDIR /home/gradbench
 
-COPY tools/jax/ .
-COPY shared/wrap_module.py .
+COPY python /home/gradbench/python
+ENV PYTHONPATH=/home/gradbench/python
 
-ENTRYPOINT ["python", "/home/gradbench/run.py"]
+ENTRYPOINT ["python", "/home/gradbench/python/gradbench/jax/run.py"]
 LABEL org.opencontainers.image.source https://github.com/gradbench/gradbench
