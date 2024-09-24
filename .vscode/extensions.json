@@ -1,5 +1,6 @@
 {
   "recommendations": [
+    "adroit-lang.adroit-vscode",
     "esbenp.prettier-vscode",
     "ionide.ionide-fsharp",
     "julialang.language-julia",
@@ -7,6 +8,5 @@
     "ms-python.black-formatter",
     "ms-python.isort",
     "ms-python.python",
-    "samestep.adroit-vscode"
   ]
 }
