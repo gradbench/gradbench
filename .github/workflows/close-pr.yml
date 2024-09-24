@@ -1,0 +1,15 @@
+name: Close PR
+on:
+  pull_request:
+    types:
+      - closed
+
+concurrency:
+  group: ${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  cancel-ci:
+    runs-on: ubuntu-22.04
+    steps:
+      - run: echo 'PR closed; cancelling in-progress CI workflow runs.'
