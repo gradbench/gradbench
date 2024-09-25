@@ -18,6 +18,7 @@ Other tools that are optional but useful:
 
 - [GitHub CLI][]
 - [Poetry][]
+- [Adroit][]
 
 ## Setup
 
@@ -121,6 +122,7 @@ Then you can use `poetry run` to run a command in this virtual environment:
 ./run.py --eval './eval.sh hello' --tool 'poetry run python3 python/gradbench/pytorch/run.py'
 ```
 
+[adroit]: https://github.com/adroit-lang/adroit
 [containerd]: https://docs.docker.com/storage/containerd/
 [docker]: https://docs.docker.com/engine/install/
 [git]: https://git-scm.com/downloads
