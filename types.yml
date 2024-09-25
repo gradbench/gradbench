@@ -1,0 +1,158 @@
+doc: Types for the GradBench intermediate representation.
+types:
+  ModuleId:
+    doc: A unique identifier for a module.
+    string:
+  TypeId:
+    doc: The index of a type in a module's list of types.
+    uint:
+  FieldId:
+    doc: The index of an element of a product type.
+    uint:
+  VariantId:
+    doc: The index of a variant of a sum type.
+    uint:
+  LocalId:
+    doc: The index of a local variable in a function's list of locals.
+    uint:
+  Expression:
+    doc: An expression.
+    enum:
+      LocalGet:
+        doc: Get the value of a local variable.
+        record:
+          id:
+            doc: The index of the local variable.
+            type: LocalId
+      LocalSet:
+        doc: Set the value of a local variable.
+        record:
+          id:
+            doc: The index of the local variable.
+            type: LocalId
+          value:
+            doc: The new value.
+            type: Expression
+      Unit:
+        doc: The literal unit value.
+      Int32:
+        doc: A literal 32-bit signed integer.
+        record:
+          value:
+            doc: The integer value.
+            int32:
+      Float64:
+        doc: A literal 64-bit IEEE 754 floating point number.
+        record:
+          value:
+            doc: The floating point value.
+            float64:
+  Module:
+    doc: A module, which contains some number of functions.
+    record:
+      id:
+        doc: The unique identifier for this module.
+        type: ModuleId
+      imports:
+        doc: Other modules imported by this module.
+        list:
+          doc: An imported module.
+          record:
+            id:
+              doc: The unique identifier for the imported module.
+              type: ModuleId
+      types:
+        doc: The types in this module.
+        list:
+          doc: A type.
+          record:
+            name:
+              optional:
+              doc: A custom name for this type.
+              string:
+            definition:
+              doc: The definition of this type.
+              enum:
+                Unit:
+                  doc: The unit type.
+                Int32:
+                  doc: The 32-bit signed integer type.
+                Float64:
+                  doc: The 64-bit IEEE 754 floating point type.
+                Reference:
+                  doc: A reference type.
+                  record:
+                    target:
+                      doc: The type that this reference points to.
+                      type: TypeId
+                Record:
+                  doc: A product type.
+                  record:
+                    fields:
+                      doc: The fields of this record.
+                      list:
+                        doc: A single field of the record.
+                        record:
+                          name:
+                            optional:
+                            doc: The name of this field.
+                            string:
+                          type:
+                            doc: The type of this field.
+                            type: TypeId
+                Enum:
+                  doc: A sum type.
+                  record:
+                    variants:
+                      doc: The variants of this enum.
+                      list:
+                        doc: A single variant of the enum.
+                        record:
+                          name:
+                            optional:
+                            doc: The name of this variant.
+                            string:
+                          type:
+                            doc: The type of this variant.
+                            type: TypeId
+                Array:
+                  doc: An array type.
+                  record:
+                    element:
+                      doc: The type of the elements of this array.
+                      type: TypeId
+      functions:
+        doc: The functions in this module.
+        list:
+          doc: A function.
+          record:
+            name:
+              optional:
+              doc: The name of this function.
+              string:
+            locals:
+              doc: The local variables of this function.
+              list:
+                doc: A local variable in a function.
+                record:
+                  name:
+                    optional:
+                    doc: The name of this local variable.
+                    string:
+                  type:
+                    doc: The type of this local variable.
+                    type: TypeId
+            parameters:
+              doc: The parameters of this function.
+              list:
+                doc: A single parameter of this function.
+                record:
+                  local:
+                    doc: The local variable that this parameter binds to.
+                    type: LocalId
+            return:
+              doc: The return type of this function.
+              type: TypeId
+            body:
+              doc: The body of this function.
+              type: Expression

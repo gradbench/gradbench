@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "title": "GradBench IR",
+  "description": "A module in the GradBench intermediate representation.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "description": "The unique identifier for this module. Can be any string.",
+      "type": "string"
+    },
+    "imports": {
+      "description": "Other modules imported by this module.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "The unique identifier for the imported module.",
+            "type": "string"
+          }
+        },
+        "required": ["id"]
+      }
+    },
+    "types": {
+      "description": "",
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "description": "The unit type.",
+            "type": "object",
+            "properties": { "kind": { "const": "unit" } },
+            "required": ["kind"]
+          },
+          {
+            "description": "The 32-bit signed integer type.",
+            "type": "object",
+            "properties": { "kind": { "const": "i32" } },
+            "required": ["kind"]
+          },
+          {
+            "description": "The 64-bit IEEE 754 floating point type.",
+            "type": "object",
+            "properties": { "kind": { "const": "f64" } },
+            "required": ["kind"]
+          }
+        ]
+      }
+    },
+    "functions": {
+      "description": "",
+      "type": "array",
+      "items": {}
+    }
+  },
+  "required": ["id"]
+}
