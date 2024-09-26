@@ -1,11 +1,12 @@
 import json
+import subprocess
 import sys
 import time
 from importlib import import_module
 
 
 def resolve(module, name):
-    functions = import_module(module)
+    functions = import_module("{}_t".format(module))
     return getattr(functions, name)
 
 
@@ -25,11 +26,21 @@ def main():
         if message["kind"] == "evaluate":
             response = run(message)
         elif message["kind"] == "define":
-            try:
-                import_module(message["module"])
-                response["success"] = True
-            except:
-                response["success"] = False
+            # try:
+            # import_module(message["module"])
+
+            # generates module to import
+            subprocess.run(
+                [
+                    "python3",
+                    "/home/gradbench/python/gradbench/pytorch/translator.py",
+                ]
+            )
+            mod = "{}_t".format(message["module"])
+            import_module(mod)
+            response["success"] = True
+        # except:
+        # response["success"] = False
         print(json.dumps({"id": message["id"]} | response), flush=True)
 
 

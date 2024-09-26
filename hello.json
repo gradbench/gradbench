@@ -1,0 +1,147 @@
+{
+  "root": "file:///Users/maggiehollis/Documents/GitHub/gradbench/evals/hello/hello.adroit",
+  "modules": {
+    "file:///Users/maggiehollis/Documents/GitHub/gradbench/evals/hello/hello.adroit": {
+      "source": "import \"autodiff\" use grad\n\ndef square(x: Float): Float = x * x\n\ndef double: Float -> Float = grad square\n",
+      "tokens": [
+        { "start": 0, "len": 6, "kind": "Import" },
+        { "start": 7, "len": 10, "kind": "String" },
+        { "start": 18, "len": 3, "kind": "Use" },
+        { "start": 22, "len": 4, "kind": "Ident" },
+        { "start": 26, "len": 1, "kind": "Newline" },
+        { "start": 27, "len": 1, "kind": "Newline" },
+        { "start": 28, "len": 3, "kind": "Def" },
+        { "start": 32, "len": 6, "kind": "Ident" },
+        { "start": 38, "len": 1, "kind": "LParen" },
+        { "start": 39, "len": 1, "kind": "Ident" },
+        { "start": 40, "len": 1, "kind": "Colon" },
+        { "start": 42, "len": 5, "kind": "Ident" },
+        { "start": 47, "len": 1, "kind": "RParen" },
+        { "start": 48, "len": 1, "kind": "Colon" },
+        { "start": 50, "len": 5, "kind": "Ident" },
+        { "start": 56, "len": 1, "kind": "Equal" },
+        { "start": 58, "len": 1, "kind": "Ident" },
+        { "start": 60, "len": 1, "kind": "Star" },
+        { "start": 62, "len": 1, "kind": "Ident" },
+        { "start": 63, "len": 1, "kind": "Newline" },
+        { "start": 64, "len": 1, "kind": "Newline" },
+        { "start": 65, "len": 3, "kind": "Def" },
+        { "start": 69, "len": 6, "kind": "Ident" },
+        { "start": 75, "len": 1, "kind": "Colon" },
+        { "start": 77, "len": 5, "kind": "Ident" },
+        { "start": 83, "len": 2, "kind": "To" },
+        { "start": 86, "len": 5, "kind": "Ident" },
+        { "start": 92, "len": 1, "kind": "Equal" },
+        { "start": 94, "len": 4, "kind": "Ident" },
+        { "start": 99, "len": 6, "kind": "Ident" },
+        { "start": 105, "len": 1, "kind": "Newline" },
+        { "start": 106, "len": 0, "kind": "Eof" }
+      ],
+      "tree": {
+        "imports": [{ "module": 1, "names": [3] }],
+        "types": [
+          { "kind": "Name", "name": 11 },
+          { "kind": "Name", "name": 14 },
+          { "kind": "Name", "name": 24 },
+          { "kind": "Name", "name": 26 },
+          { "kind": "Func", "dom": 2, "cod": 3 }
+        ],
+        "params": [{ "bind": { "kind": "Name", "name": 9 }, "ty": 0 }],
+        "exprs": [
+          { "kind": "Name", "name": 16 },
+          { "kind": "Name", "name": 18 },
+          { "kind": "Binary", "lhs": 0, "op": "Mul", "rhs": 1 },
+          { "kind": "Name", "name": 28 },
+          { "kind": "Name", "name": 29 },
+          { "kind": "Apply", "func": 3, "arg": 4 }
+        ],
+        "defs": [
+          { "name": 7, "types": [], "params": [0], "ty": 1, "body": 2 },
+          { "name": 22, "types": [], "params": [], "ty": 4, "body": 5 }
+        ]
+      },
+      "imports": [
+        "file:///Users/maggiehollis/Library/Caches/adroit/modules/autodiff.adroit"
+      ],
+      "module": {
+        "fields": [],
+        "types": [
+          { "kind": "Float" },
+          { "kind": "Func", "dom": 0, "cod": 0 },
+          { "kind": "Func", "dom": 1, "cod": 1 }
+        ],
+        "parsed_types": [0, 0, 0, 0, 1],
+        "vals": [
+          { "ty": 1, "src": { "kind": "Def", "id": 0 } },
+          { "ty": 1, "src": { "kind": "Def", "id": 1 } },
+          { "ty": 0, "src": { "kind": "Param", "id": 0 } },
+          { "ty": 0, "src": { "kind": "Expr", "id": 2 } },
+          { "ty": 2, "src": { "kind": "Import", "src": 0, "id": 0 } },
+          { "ty": 1, "src": { "kind": "Expr", "id": 5 } }
+        ],
+        "params": [2],
+        "exprs": [2, 2, 3, 4, 0, 5],
+        "defs": [0, 1],
+        "exports": { "double": 1, "square": 0 }
+      }
+    },
+    "file:///Users/maggiehollis/Library/Caches/adroit/modules/autodiff.adroit": {
+      "source": "def grad: (Float -> Float) -> (Float -> Float) = undefined\n",
+      "tokens": [
+        { "start": 0, "len": 3, "kind": "Def" },
+        { "start": 4, "len": 4, "kind": "Ident" },
+        { "start": 8, "len": 1, "kind": "Colon" },
+        { "start": 10, "len": 1, "kind": "LParen" },
+        { "start": 11, "len": 5, "kind": "Ident" },
+        { "start": 17, "len": 2, "kind": "To" },
+        { "start": 20, "len": 5, "kind": "Ident" },
+        { "start": 25, "len": 1, "kind": "RParen" },
+        { "start": 27, "len": 2, "kind": "To" },
+        { "start": 30, "len": 1, "kind": "LParen" },
+        { "start": 31, "len": 5, "kind": "Ident" },
+        { "start": 37, "len": 2, "kind": "To" },
+        { "start": 40, "len": 5, "kind": "Ident" },
+        { "start": 45, "len": 1, "kind": "RParen" },
+        { "start": 47, "len": 1, "kind": "Equal" },
+        { "start": 49, "len": 9, "kind": "Undefined" },
+        { "start": 58, "len": 1, "kind": "Newline" },
+        { "start": 59, "len": 0, "kind": "Eof" }
+      ],
+      "tree": {
+        "imports": [],
+        "types": [
+          { "kind": "Name", "name": 4 },
+          { "kind": "Name", "name": 6 },
+          { "kind": "Func", "dom": 0, "cod": 1 },
+          { "kind": "Paren", "inner": 2 },
+          { "kind": "Name", "name": 10 },
+          { "kind": "Name", "name": 12 },
+          { "kind": "Func", "dom": 4, "cod": 5 },
+          { "kind": "Paren", "inner": 6 },
+          { "kind": "Func", "dom": 3, "cod": 7 }
+        ],
+        "params": [],
+        "exprs": [{ "kind": "Undefined", "token": 15 }],
+        "defs": [{ "name": 1, "types": [], "params": [], "ty": 8, "body": 0 }]
+      },
+      "imports": [],
+      "module": {
+        "fields": [],
+        "types": [
+          { "kind": "Float" },
+          { "kind": "Func", "dom": 0, "cod": 0 },
+          { "kind": "Func", "dom": 1, "cod": 1 }
+        ],
+        "parsed_types": [0, 0, 1, 1, 0, 0, 1, 1, 2],
+        "vals": [
+          { "ty": 2, "src": { "kind": "Def", "id": 0 } },
+          { "ty": 2, "src": { "kind": "Expr", "id": 0 } }
+        ],
+        "params": [],
+        "exprs": [1],
+        "defs": [0],
+        "exports": { "grad": 0 }
+      }
+    }
+  }
+}
