@@ -108,16 +108,6 @@ types:
             list:
               doc: A single match case.
               type: Block
-      MatchRef:
-        doc: |
-          Pop a reference to an enum, then push a reference to its data and
-          execute the given sequence of instructions for that variant.
-        record:
-          cases:
-            doc: Match cases for all the variants.
-            list:
-              doc: A single match case.
-              type: Block
       If:
         doc: |
           Pop a Boolean value, then execute one of two possible sequences of
