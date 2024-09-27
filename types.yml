@@ -12,20 +12,23 @@ types:
   VariantId:
     doc: The index of a variant of a sum type.
     uint:
+  FunctionId:
+    doc: The index of a function in a module's list of functions.
+    uint:
   LocalId:
     doc: The index of a local variable in a function's list of locals.
     uint:
   Expression:
     doc: An expression.
     enum:
-      Init:
-        doc: Initialize a local variable and yield unit.
+      Save:
+        doc: Set the value of a local variable and yield unit.
         record:
           id:
             doc: The index of the local variable.
             type: LocalId
           value:
-            doc: The initial value.
+            doc: The value.
             type: Expression
       Local:
         doc: Get a reference to a local variable.
@@ -35,6 +38,10 @@ types:
             type: LocalId
       Unit:
         doc: The literal unit value.
+      True:
+        doc: The literal Boolean true value.
+      False:
+        doc: The literal Boolean false value.
       Int32:
         doc: A literal 32-bit signed integer.
         record:
@@ -68,17 +75,73 @@ types:
           value:
             doc: The new value.
             type: Expression
-      Block:
-        doc: Evaluate a sequence of expressions, yielding the last value.
+      Array:
+        doc: Create and yield an array value.
         record:
-          body:
-            doc: The expressions to evaluate.
-            list:
-              doc: An expression in the sequence.
-              type: Expression
-          last:
-            doc: The final expression to evaluate, yielding its value.
+          length:
+            doc: The number of elements in the array.
             type: Expression
+          element:
+            doc: The initial value to copy for all elements.
+            type: Expression
+      Element:
+        doc: Get a reference to an element of an array.
+        record:
+          array:
+            doc: A reference to an array.
+            type: Expression
+          index:
+            doc: The index of the element.
+            type: Expression
+      Record:
+        doc: Create and yield a record value.
+        record:
+          type:
+            doc: The type of the record.
+            type: TypeId
+          fields:
+            doc: The values of the fields.
+            list:
+              doc: A single field of the record.
+              type: Expression
+      Field:
+        doc: Get a reference to a field of a record.
+        record:
+          record:
+            doc: A reference to a record.
+            type: Expression
+          field:
+            doc: The index of the field.
+            type: FieldId
+      Enum:
+        doc: Create and yield an enum value.
+        record:
+          type:
+            doc: The type of the enum.
+            type: TypeId
+          variant:
+            doc: The index of the variant.
+            type: VariantId
+          value:
+            doc: The value for the data in that variant.
+            type: Expression
+      Match:
+        doc: Match on an enum value.
+        record:
+          value:
+            doc: A reference to an enum value.
+            type: Expression
+          cases:
+            doc: Match cases for all the variants.
+            list:
+              doc: A single case to match against.
+              record:
+                parameter:
+                  doc: The local variable to set with a reference to the data.
+                  type: LocalId
+                body:
+                  doc: The body of the case.
+                  type: Expression
       If:
         doc: Yield the value of one of two expressions based on a condition.
         record:
@@ -90,6 +153,26 @@ types:
             type: Expression
           else:
             doc: The expression to evaluate if the condition is false.
+            type: Expression
+      Block:
+        doc: Evaluate a sequence of expressions, yielding the last value.
+        record:
+          body:
+            doc: The expressions to evaluate.
+            list:
+              doc: An expression in the sequence.
+              type: Expression
+          last:
+            doc: The final expression to evaluate, yielding its value.
+            type: Expression
+      Call:
+        doc: Call a function and yield its returned value.
+        record:
+          function:
+            doc: The function to call.
+            type: FunctionId
+          argument:
+            doc: The argument to pass to the function.
             type: Expression
   Module:
     doc: A module, which contains some number of functions.
@@ -123,6 +206,8 @@ types:
               enum:
                 Unit:
                   doc: The unit type.
+                Bool:
+                  doc: The Boolean type.
                 Int32:
                   doc: The 32-bit signed integer type.
                 Float64:
@@ -132,6 +217,12 @@ types:
                   record:
                     target:
                       doc: The type that this reference points to.
+                      type: TypeId
+                Array:
+                  doc: An array type.
+                  record:
+                    element:
+                      doc: The type of the elements of this array.
                       type: TypeId
                 Record:
                   doc: A product type.
@@ -163,12 +254,6 @@ types:
                           type:
                             doc: The type of this variant.
                             type: TypeId
-                Array:
-                  doc: An array type.
-                  record:
-                    element:
-                      doc: The type of the elements of this array.
-                      type: TypeId
       functions:
         doc: The functions defined in this module.
         list:
@@ -190,14 +275,12 @@ types:
                   type:
                     doc: The type of this local variable.
                     type: TypeId
-            parameters:
-              doc: The parameters of this function.
-              list:
-                doc: A single parameter of this function.
-                record:
-                  local:
-                    doc: The local variable that this parameter binds to.
-                    type: LocalId
+            parameter:
+              doc: The parameter of this function.
+              record:
+                local:
+                  doc: The local variable that this parameter binds to.
+                  type: LocalId
             return:
               doc: The return type of this function.
               type: TypeId
