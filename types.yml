@@ -18,103 +18,79 @@ types:
   LocalId:
     doc: The index of a local variable in a function's list of locals.
     uint:
-  Expression:
-    doc: An expression.
+  Instruction:
+    doc: |
+      An instruction.
+
+      This IR is a stack machine, so when the documentation of an instruction
+      talks about pushing or popping, it is referring to the operand stack.
     enum:
       Save:
-        doc: Set the value of a local variable and yield unit.
+        doc: Pop a value and set it to a local variable.
         record:
           id:
             doc: The index of the local variable.
             type: LocalId
-          value:
-            doc: The value.
-            type: Expression
       Local:
-        doc: Get a reference to a local variable.
+        doc: Push a reference to a local variable.
         record:
           id:
             doc: The index of the local variable.
             type: LocalId
       Unit:
-        doc: The literal unit value.
+        doc: Push the unit value.
       True:
-        doc: The literal Boolean true value.
+        doc: Push the Boolean true value.
       False:
-        doc: The literal Boolean false value.
+        doc: Push the Boolean false value.
       Int32:
-        doc: A literal 32-bit signed integer.
+        doc: Push a literal 32-bit signed integer.
         record:
           value:
             doc: The integer value.
             int32:
       Float64:
-        doc: A literal 64-bit IEEE 754 floating point number.
+        doc: Push a literal 64-bit IEEE 754 floating point number.
         record:
           value:
             doc: The floating point value.
             float64:
       Store:
-        doc: Store a value and yield a reference to it.
-        record:
-          value:
-            doc: The value to store.
-            type: Expression
+        doc: Pop a value and push a reference to it.
       Get:
-        doc: Dereference a reference.
-        record:
-          ref:
-            doc: The reference.
-            type: Expression
+        doc: Pop a reference and push its dereferenced value.
       Set:
-        doc: Mutate through a reference and yield unit.
-        record:
-          ref:
-            doc: The reference.
-            type: Expression
-          value:
-            doc: The new value.
-            type: Expression
+        doc: |
+          Pop a value, then a reference. Replace the value pointed to by the
+          reference with the new value that was just popped.
       Array:
-        doc: Create and yield an array value.
-        record:
-          length:
-            doc: The number of elements in the array.
-            type: Expression
-          element:
-            doc: The initial value to copy for all elements.
-            type: Expression
+        doc: |
+          Pop an integer, then a value. Push an array with that integer as its
+          length, copying the given value to all elements.
       Element:
-        doc: Get a reference to an element of an array.
-        record:
-          array:
-            doc: An array.
-            type: Expression
-          index:
-            doc: The index of the element.
-            type: Expression
+        doc: |
+          Pop an integer, then an array. Push a reference to the element of that
+          array at the index given by that integer.
       Record:
-        doc: Create and yield a record value.
+        doc: |
+          Pop all the fields of a record in reverse order, then push a record
+          with those fields.
         record:
           type:
             doc: The type of the record.
             type: TypeId
-          fields:
-            doc: The values of the fields.
-            list:
-              doc: A single field of the record.
-              type: Expression
+      Fields:
+        doc: Pop a record, then push all its fields in order.
       Field:
-        doc: Get a reference to a field of a record.
+        doc: |
+          Pop a reference to a record, then push a reference to one of its
+          fields.
         record:
-          record:
-            doc: A reference to a record.
-            type: Expression
-          field:
+          id:
             doc: The index of the field.
             type: FieldId
       Enum:
-        doc: Create and yield an enum value.
+        doc: Pop a value, then push an enum with that data for a given variant.
         record:
           type:
             doc: The type of the enum.
@@ -122,58 +98,57 @@ types:
           variant:
             doc: The index of the variant.
             type: VariantId
-          value:
-            doc: The value for the data in that variant.
-            type: Expression
       Match:
-        doc: Match on an enum value.
+        doc: |
+          Pop an enum, then push its data and execute the given sequence of
+          instructions for that variant.
         record:
-          value:
-            doc: A reference to an enum value.
-            type: Expression
           cases:
             doc: Match cases for all the variants.
             list:
-              doc: A single case to match against.
-              record:
-                parameter:
-                  doc: The local variable to set with a reference to the data.
-                  type: LocalId
-                body:
-                  doc: The body of the case.
-                  type: Expression
-      If:
-        doc: Yield the value of one of two expressions based on a condition.
+              doc: A single match case.
+              type: Block
+      MatchRef:
+        doc: |
+          Pop a reference to an enum, then push a reference to its data and
+          execute the given sequence of instructions for that variant.
         record:
-          condition:
-            doc: The condition to evaluate.
-            type: Expression
-          then:
-            doc: The expression to evaluate if the condition is true.
-            type: Expression
-          else:
-            doc: The expression to evaluate if the condition is false.
-            type: Expression
-      Block:
-        doc: Evaluate a sequence of expressions, yielding the last value.
+          cases:
+            doc: Match cases for all the variants.
+            list:
+              doc: A single match case.
+              type: Block
+      If:
+        doc: |
+          Pop a Boolean value, then execute one of two possible sequences of
+          instructions depending on the value that was popped.
+        record:
+          iftrue:
+            doc: The instructions to evaluate if the condition is true.
+            type: Block
+          iffalse:
+            doc: The instructions to evaluate if the condition is false.
+            type: Block
+      While:
+        doc: |
+          Loop: pop a Boolean value, and if it is true then execute a sequence
+          of instructions and go back to the beginning of the loop.
         record:
           body:
-            doc: The expressions to evaluate.
-            list:
-              doc: An expression in the sequence.
-              type: Expression
-          last:
-            doc: The final expression to evaluate, yielding its value.
-            type: Expression
+            doc: The instructions to evaluate in each iteration of the loop.
+            type: Block
       Call:
-        doc: Call a function and yield its returned value.
+        doc: |
+          Pop a value, call a function with that value as its argument, then
+          push the returned value.
         record:
-          function:
+          id:
             doc: The function to call.
             type: FunctionId
-          argument:
-            doc: The argument to pass to the function.
-            type: Expression
+  Block:
+    doc: A sequence of instructions.
+    list:
+      type: Instruction
   Module:
     doc: A module, which contains some number of functions.
     record:
@@ -276,14 +251,11 @@ types:
                     doc: The type of this local variable.
                     type: TypeId
             parameter:
-              doc: The parameter of this function.
-              record:
-                local:
-                  doc: The local variable that this parameter binds to.
-                  type: LocalId
+              doc: The parameter type of this function.
+              type: TypeId
             return:
               doc: The return type of this function.
               type: TypeId
             body:
               doc: The body of this function.
-              type: Expression
+              type: Block
