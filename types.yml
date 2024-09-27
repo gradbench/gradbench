@@ -88,7 +88,7 @@ types:
         doc: Get a reference to an element of an array.
         record:
           array:
-            doc: A reference to an array.
+            doc: An array.
             type: Expression
           index:
             doc: The index of the element.
