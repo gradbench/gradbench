@@ -1,15 +1,10 @@
 import json
 import sys
-
-
-def main():
-    with open("hello.json", "r") as hello:
-        data = json.load(hello)
-        return parse(data)
+from pathlib import Path
 
 
 # TODO: Actually have this parse the json
-def parse(data):
+def parse(data, module):
     code = """import torch
 from gradbench.wrap_module import wrap
 
@@ -36,11 +31,18 @@ def double(x):
     return code
 
 
-def generate_file(code):
-    with open("/home/gradbench/python/gradbench/pytorch/hello_t.py", "w") as file:
+def generate_file(code, module):
+    with open(f"{Path(__file__).parent}/{module}.py", "w") as file:
         file.write(code)
 
 
+def main(module):
+    with open(f"{module}.json", "r") as mod:
+        data = json.load(mod)
+        return parse(data, module)
+
+
 if __name__ == "__main__":
-    code = main()
-    generate_file(code)
+    module = sys.argv[1]
+    code = main(module)
+    generate_file(code, module)
