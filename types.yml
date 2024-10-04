@@ -15,6 +15,9 @@ types:
   FunctionId:
     doc: The index of a function in a module's list of functions.
     uint:
+  TypevarId:
+    doc: The index of a type variable in a module.
+    uint:
   LocalId:
     doc: The index of a local variable in a function's list of locals.
     uint:
@@ -135,6 +138,10 @@ types:
           id:
             doc: The function to call.
             type: FunctionId
+          generics:
+            doc: The type variables to instantiate the function with.
+            list:
+              type: TypeId
   Block:
     doc: A sequence of instructions.
     list:
@@ -153,10 +160,9 @@ types:
             id:
               doc: The unique identifier for the imported module.
               type: ModuleId
-      traits:
-        doc: The traits defined in this module.
-        list:
-          doc: A trait definition.
+      typevars:
+        doc: The number of type variables in this module.
+        uint:
       types:
         doc: The types in this module.
         list:
@@ -169,6 +175,12 @@ types:
             definition:
               doc: The definition of this type.
               enum:
+                Var:
+                  doc: A type variable for universal quantification.
+                  record:
+                    id:
+                      doc: The function that this type variable is scoped to.
+                      type: TypevarId
                 Unit:
                   doc: The unit type.
                 Bool:
@@ -228,6 +240,16 @@ types:
               optional:
               doc: The name of this function.
               string:
+            generics:
+              doc: The type variables of this function.
+              list:
+                type: TypevarId
+            parameter:
+              doc: The parameter type of this function.
+              type: TypeId
+            return:
+              doc: The return type of this function.
+              type: TypeId
             locals:
               doc: The local variables of this function.
               list:
@@ -240,12 +262,6 @@ types:
                   type:
                     doc: The type of this local variable.
                     type: TypeId
-            parameter:
-              doc: The parameter type of this function.
-              type: TypeId
-            return:
-              doc: The return type of this function.
-              type: TypeId
             body:
               doc: The body of this function.
               type: Block
