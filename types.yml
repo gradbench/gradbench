@@ -28,14 +28,16 @@ types:
       This IR is a stack machine, so when the documentation of an instruction
       talks about pushing or popping, it is referring to the operand stack.
     enum:
-      Save:
+      Drop:
+        doc: Pop a value.
+      Set:
         doc: Pop a value and set it to a local variable.
         record:
           id:
             doc: The index of the local variable.
             type: LocalId
-      Local:
-        doc: Push a reference to a local variable.
+      Get:
+        doc: Push the value of a local variable.
         record:
           id:
             doc: The index of the local variable.
@@ -60,9 +62,9 @@ types:
             float64:
       Store:
         doc: Pop a value and push a reference to it.
-      Get:
+      Read:
         doc: Pop a reference and push its dereferenced value.
-      Set:
+      Write:
         doc: |
           Pop a value, then a reference. Replace the value pointed to by the
           reference with the new value that was just popped.
