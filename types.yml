@@ -44,9 +44,9 @@ types:
             type: LocalId
       Unit:
         doc: Push the unit value.
-      True:
+      "True":
         doc: Push the Boolean true value.
-      False:
+      "False":
         doc: Push the Boolean false value.
       Int32:
         doc: Push a literal 32-bit signed integer.
