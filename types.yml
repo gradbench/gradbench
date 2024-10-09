@@ -157,6 +157,7 @@ types:
       imports:
         doc: Other modules imported by this module.
         list:
+          name: Import
           doc: An imported module.
           record:
             id:
@@ -168,6 +169,7 @@ types:
       types:
         doc: The types in this module.
         list:
+          name: Type
           doc: A type.
           record:
             name:
@@ -175,6 +177,7 @@ types:
               doc: A custom name for this type.
               string:
             definition:
+              name: Typedef
               doc: The definition of this type.
               enum:
                 Var:
@@ -209,6 +212,7 @@ types:
                     fields:
                       doc: The fields of this record.
                       list:
+                        name: Field
                         doc: A single field of the record.
                         record:
                           name:
@@ -224,6 +228,7 @@ types:
                     variants:
                       doc: The variants of this enum.
                       list:
+                        name: Variant
                         doc: A single variant of the enum.
                         record:
                           name:
@@ -236,6 +241,7 @@ types:
       functions:
         doc: The functions defined in this module.
         list:
+          name: Function
           doc: A function definition.
           record:
             name:
@@ -255,6 +261,7 @@ types:
             locals:
               doc: The local variables of this function.
               list:
+                name: Local
                 doc: A local variable in a function.
                 record:
                   name:
