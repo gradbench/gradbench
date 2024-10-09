@@ -1,0 +1,276 @@
+doc: Types for the GradBench intermediate representation.
+types:
+  ModuleId:
+    doc: A unique identifier for a module.
+    string:
+  TypeId:
+    doc: The index of a type in a module's list of types.
+    uint:
+  FieldId:
+    doc: The index of an element of a product type.
+    uint:
+  VariantId:
+    doc: The index of a variant of a sum type.
+    uint:
+  FunctionId:
+    doc: The index of a function in a module's list of functions.
+    uint:
+  TypevarId:
+    doc: The index of a type variable in a module.
+    uint:
+  LocalId:
+    doc: The index of a local variable in a function's list of locals.
+    uint:
+  Instruction:
+    doc: |
+      An instruction.
+
+      This IR is a stack machine, so when the documentation of an instruction
+      talks about pushing or popping, it is referring to the operand stack.
+    enum:
+      Drop:
+        doc: Pop a value.
+      Set:
+        doc: Pop a value and set it to a local variable.
+        record:
+          id:
+            doc: The index of the local variable.
+            type: LocalId
+      Get:
+        doc: Push the value of a local variable.
+        record:
+          id:
+            doc: The index of the local variable.
+            type: LocalId
+      Unit:
+        doc: Push the unit value.
+      "True":
+        doc: Push the Boolean true value.
+      "False":
+        doc: Push the Boolean false value.
+      Int32:
+        doc: Push a literal 32-bit signed integer.
+        record:
+          value:
+            doc: The integer value.
+            int32:
+      Float64:
+        doc: Push a literal 64-bit IEEE 754 floating point number.
+        record:
+          value:
+            doc: The floating point value.
+            float64:
+      Store:
+        doc: Pop a value and push a reference to it.
+      Read:
+        doc: Pop a reference and push its dereferenced value.
+      Write:
+        doc: |
+          Pop a value, then a reference. Replace the value pointed to by the
+          reference with the new value that was just popped.
+      Array:
+        doc: |
+          Pop an integer, then a value. Push an array with that integer as its
+          length, copying the given value to all elements.
+      Element:
+        doc: |
+          Pop an integer, then an array. Push a reference to the element of that
+          array at the index given by that integer.
+      Record:
+        doc: |
+          Pop all the fields of a record in reverse order, then push a record
+          with those fields.
+        record:
+          type:
+            doc: The type of the record.
+            type: TypeId
+      Fields:
+        doc: Pop a record, then push all its fields in order.
+      Field:
+        doc: |
+          Pop a reference to a record, then push a reference to one of its
+          fields.
+        record:
+          id:
+            doc: The index of the field.
+            type: FieldId
+      Enum:
+        doc: Pop a value, then push an enum with that data for a given variant.
+        record:
+          type:
+            doc: The type of the enum.
+            type: TypeId
+          variant:
+            doc: The index of the variant.
+            type: VariantId
+      Match:
+        doc: |
+          Pop an enum, then push its data and execute the given sequence of
+          instructions for that variant.
+        record:
+          cases:
+            doc: Match cases for all the variants.
+            list:
+              doc: A single match case.
+              type: Block
+      If:
+        doc: |
+          Pop a Boolean value, then execute one of two possible sequences of
+          instructions depending on the value that was popped.
+        record:
+          iftrue:
+            doc: The instructions to evaluate if the condition is true.
+            type: Block
+          iffalse:
+            doc: The instructions to evaluate if the condition is false.
+            type: Block
+      While:
+        doc: |
+          Loop: pop a Boolean value, and if it is true then execute a sequence
+          of instructions and go back to the beginning of the loop.
+        record:
+          body:
+            doc: The instructions to evaluate in each iteration of the loop.
+            type: Block
+      Call:
+        doc: |
+          Pop a value, call a function with that value as its argument, then
+          push the returned value.
+        record:
+          id:
+            doc: The function to call.
+            type: FunctionId
+          generics:
+            doc: The type variables to instantiate the function with.
+            list:
+              type: TypeId
+  Block:
+    doc: A sequence of instructions.
+    list:
+      type: Instruction
+  Module:
+    doc: A module, which contains some number of functions.
+    record:
+      id:
+        doc: The unique identifier for this module.
+        type: ModuleId
+      imports:
+        doc: Other modules imported by this module.
+        list:
+          name: Import
+          doc: An imported module.
+          record:
+            id:
+              doc: The unique identifier for the imported module.
+              type: ModuleId
+      typevars:
+        doc: The number of type variables in this module.
+        uint:
+      types:
+        doc: The types in this module.
+        list:
+          name: Type
+          doc: A type.
+          record:
+            name:
+              optional:
+              doc: A custom name for this type.
+              string:
+            definition:
+              name: Typedef
+              doc: The definition of this type.
+              enum:
+                Var:
+                  doc: A type variable for universal quantification.
+                  record:
+                    id:
+                      doc: The function that this type variable is scoped to.
+                      type: TypevarId
+                Unit:
+                  doc: The unit type.
+                Bool:
+                  doc: The Boolean type.
+                Int32:
+                  doc: The 32-bit signed integer type.
+                Float64:
+                  doc: The 64-bit IEEE 754 floating point type.
+                Reference:
+                  doc: A reference type.
+                  record:
+                    target:
+                      doc: The type that this reference points to.
+                      type: TypeId
+                Array:
+                  doc: An array type.
+                  record:
+                    element:
+                      doc: The type of the elements of this array.
+                      type: TypeId
+                Record:
+                  doc: A product type.
+                  record:
+                    fields:
+                      doc: The fields of this record.
+                      list:
+                        name: Field
+                        doc: A single field of the record.
+                        record:
+                          name:
+                            optional:
+                            doc: The name of this field.
+                            string:
+                          type:
+                            doc: The type of this field.
+                            type: TypeId
+                Enum:
+                  doc: A sum type.
+                  record:
+                    variants:
+                      doc: The variants of this enum.
+                      list:
+                        name: Variant
+                        doc: A single variant of the enum.
+                        record:
+                          name:
+                            optional:
+                            doc: The name of this variant.
+                            string:
+                          type:
+                            doc: The type of this variant.
+                            type: TypeId
+      functions:
+        doc: The functions defined in this module.
+        list:
+          name: Function
+          doc: A function definition.
+          record:
+            name:
+              optional:
+              doc: The name of this function.
+              string:
+            generics:
+              doc: The type variables of this function.
+              list:
+                type: TypevarId
+            parameter:
+              doc: The parameter type of this function.
+              type: TypeId
+            return:
+              doc: The return type of this function.
+              type: TypeId
+            locals:
+              doc: The local variables of this function.
+              list:
+                name: Local
+                doc: A local variable in a function.
+                record:
+                  name:
+                    optional:
+                    doc: The name of this local variable.
+                    string:
+                  type:
+                    doc: The type of this local variable.
+                    type: TypeId
+            body:
+              doc: The body of this function.
+              type: Block
