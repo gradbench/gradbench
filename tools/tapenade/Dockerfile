@@ -19,4 +19,4 @@ RUN ln -s /home/gradbench/tapenade_3.16/bin/tapenade /usr/local/bin/tapenade
 COPY tools/tapenade/ .
 
 ENTRYPOINT ["python3", "/home/gradbench/run.py"]
-LABEL org.opencontainers.image.source https://github.com/gradbench/gradbench
+LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
