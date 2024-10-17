@@ -8,4 +8,4 @@ COPY lake-manifest.json .
 COPY lean-toolchain .
 RUN lake exe cache get
 ENTRYPOINT ["jq", "-r", ".packages[] | select(.name == \"mathlib\") | .rev", "/home/gradbench/lake-manifest.json"]
-LABEL org.opencontainers.image.source https://github.com/gradbench/gradbench
+LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench

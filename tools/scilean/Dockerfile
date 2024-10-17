@@ -4,4 +4,4 @@ COPY tools/scilean/lake-manifest.json .
 COPY tools/scilean/Main.lean .
 RUN lake build
 ENTRYPOINT ["/home/gradbench/.lake/build/bin/gradbench"]
-LABEL org.opencontainers.image.source https://github.com/gradbench/gradbench
+LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench

@@ -10,4 +10,4 @@ COPY tools/diffsharp/ .
 
 # run f# through dotnet and f# interactive
 ENTRYPOINT ["dotnet", "fsi", "run.fsx"]
-LABEL org.opencontainers.image.source https://github.com/gradbench/gradbench
+LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
