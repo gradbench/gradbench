@@ -37,7 +37,7 @@ def define(module, source):
     except:  # Try to translate to create file
         src = adroit_path(module)
         src.write_text(source)
-        adroit = "usr/local/bin/adroit"
+        adroit = "adroit"
 
         subprocess.run(
             f"{adroit} json {src} > hello.json",
