@@ -30,8 +30,10 @@ def main():
             response = run(message)
         elif message["kind"] == "define":
             try:
-                import_module(message["module"])
-                response["success"] = True
+                functions = import_module(message["module"])
+                func = getattr(functions, "compile")
+                success = func()  # compiles C code
+                response["success"] = success
             except:
                 response["success"] = False
         print(json.dumps({"id": message["id"]} | response), flush=True)
