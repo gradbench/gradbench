@@ -133,7 +133,7 @@ jobs:
       - run: ./run.py --eval './eval.sh ${{ matrix.eval }}' --tool './tool.sh ${{ matrix.tool }}' | tee log.json
       - uses: actions/upload-artifact@v4
         with:
-          name: log-${{ matrix.eval }}-gold
+          name: gold-${{ matrix.eval }}
           path: log.json
 
   run-fast:
@@ -160,7 +160,7 @@ jobs:
       - run: ./run.py --eval './eval.sh ${{ matrix.eval }}' --tool './tool.sh ${{ matrix.tool }}' | tee log.json
       - uses: actions/upload-artifact@v4
         with:
-          name: log-${{ matrix.eval }}-${{ matrix.tool }}
+          name: run-${{ matrix.eval }}-${{ matrix.tool }}
           path: log.json
 
   run-slow:
@@ -187,5 +187,5 @@ jobs:
       - run: ./run.py --eval './eval.sh ${{ matrix.eval }}' --tool './tool.sh ${{ matrix.tool }}' | tee log.json
       - uses: actions/upload-artifact@v4
         with:
-          name: log-${{ matrix.eval }}-${{ matrix.tool }}
+          name: run-${{ matrix.eval }}-${{ matrix.tool }}
           path: log.json
