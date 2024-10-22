@@ -10,4 +10,4 @@ ENV PYTHONPATH=/home/gradbench/python
 ADD --chmod=0755 https://github.com/adroit-lang/adroit/releases/download/v0.2.2/adroit-x86_64-unknown-linux-musl /usr/local/bin/adroit
 
 ENTRYPOINT ["python", "/home/gradbench/python/gradbench/pytorch/run.py"]
-LABEL org.opencontainers.image.source https://github.com/gradbench/gradbench
+LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
