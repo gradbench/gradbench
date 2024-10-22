@@ -13,9 +13,14 @@
     "eslint": "^8",
     "eslint-plugin-react-hooks": "^4",
     "eslint-plugin-react-refresh": "^0.4",
+    "markdown-toc": "^1",
     "prettier": "^3",
     "prettier-plugin-organize-imports": "^3",
     "typescript": ">=5",
     "vite": "^5"
+  },
+  "scripts": {
+    "toc-contributing": "markdown-toc --bullets='-' -i CONTRIBUTING.md",
+    "toc-readme": "markdown-toc --bullets='-' -i README.md"
   }
 }
