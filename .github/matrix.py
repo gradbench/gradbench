@@ -22,6 +22,7 @@ def main():
     slow = ["scilean"]
     output("fast", sorted(tool - set(slow)))
     output("slow", slow)
+    output("gold", "pytorch")
 
 
 if __name__ == "__main__":

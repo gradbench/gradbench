@@ -53,6 +53,7 @@ jobs:
       eval: ${{ steps.matrix.outputs.eval }}
       fast: ${{ steps.matrix.outputs.fast }}
       slow: ${{ steps.matrix.outputs.slow }}
+      gold: ${{ steps.matrix.outputs.gold }}
     steps:
       - uses: actions/checkout@v4
       - id: matrix
@@ -108,11 +109,39 @@ jobs:
           name: tool-${{ matrix.tool }}
           path: tool-${{ matrix.tool }}.tar
 
+  gold:
+    needs:
+      - matrix
+      - eval
+      - tool-fast
+    strategy:
+      matrix:
+        eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
+        tool:
+          - ${{ fromJSON(needs.matrix.outputs.gold) }}
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: eval-${{ matrix.eval }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: tool-${{ matrix.tool }}
+      - run: docker load --input eval-${{ matrix.eval }}.tar
+      - run: docker load --input tool-${{ matrix.tool }}.tar
+      - run: ./run.py --eval './eval.sh ${{ matrix.eval }}' --tool './tool.sh ${{ matrix.tool }}' | tee log.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gold-${{ matrix.eval }}
+          path: log.json
+
   run-fast:
     needs:
       - matrix
       - eval
       - tool-fast
+      - gold
     strategy:
       matrix:
         eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
@@ -131,7 +160,7 @@ jobs:
       - run: ./run.py --eval './eval.sh ${{ matrix.eval }}' --tool './tool.sh ${{ matrix.tool }}' | tee log.json
       - uses: actions/upload-artifact@v4
         with:
-          name: log-${{ matrix.eval }}-${{ matrix.tool }}
+          name: run-${{ matrix.eval }}-${{ matrix.tool }}
           path: log.json
 
   run-slow:
@@ -139,6 +168,7 @@ jobs:
       - matrix
       - eval
       - tool-slow
+      - gold
     strategy:
       matrix:
         eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
@@ -157,5 +187,5 @@ jobs:
       - run: ./run.py --eval './eval.sh ${{ matrix.eval }}' --tool './tool.sh ${{ matrix.tool }}' | tee log.json
       - uses: actions/upload-artifact@v4
         with:
-          name: log-${{ matrix.eval }}-${{ matrix.tool }}
+          name: run-${{ matrix.eval }}-${{ matrix.tool }}
           path: log.json
