@@ -92,11 +92,10 @@ npm install
 
 ### Markdown
 
-This file and [`README.md`](README.md) use [markdown-toc][] to generate the table of contents at the top. If you add/modify/delete any Markdown section headers, run these commands to regenerate those tables of contents:
+This file and [`README.md`](README.md) use [markdown-toc][] to generate the table of contents at the top. If you add/modify/delete any Markdown section headers, run this command to regenerate those tables of contents:
 
 ```sh
-npm run toc-contributing
-npm run toc-readme
+npm run toc
 ```
 
 ### Website

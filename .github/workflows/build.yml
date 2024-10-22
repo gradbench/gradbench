@@ -15,8 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: npm ci
-      - run: npm run toc-contributing
-      - run: npm run toc-readme
+      - run: npm run toc
       - run: |
           CHANGES=$(git status --porcelain)
           echo "$CHANGES"

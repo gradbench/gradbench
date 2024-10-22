@@ -20,6 +20,7 @@
     "vite": "^5"
   },
   "scripts": {
+    "toc": "npm run toc-contributing && npm run toc-readme",
     "toc-contributing": "markdown-toc --bullets='-' -i CONTRIBUTING.md",
     "toc-readme": "markdown-toc --bullets='-' -i README.md"
   }
