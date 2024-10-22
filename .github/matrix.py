@@ -19,7 +19,7 @@ def main():
     output("eval", sorted(ls("evals")))
     tool = set(ls("tools"))
     output("tool", sorted(tool))
-    slow = ["scilean", "tensorflow"]
+    slow = ["scilean"]
     output("fast", sorted(tool - set(slow)))
     output("slow", slow)
 
