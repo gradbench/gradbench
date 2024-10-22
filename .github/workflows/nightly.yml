@@ -59,3 +59,29 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - run: docker push --all-tags $IMAGE
+
+  run:
+    needs:
+      - matrix
+      - eval
+      - tool
+    strategy:
+      matrix:
+        eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
+        tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: eval-${{ matrix.eval }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: tool-${{ matrix.tool }}
+      - run: docker load --input eval-${{ matrix.eval }}.tar
+      - run: docker load --input tool-${{ matrix.tool }}.tar
+      - run: ./run.py --eval './eval.sh ${{ matrix.eval }}' --tool './tool.sh ${{ matrix.tool }}' | tee log.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: log-${{ matrix.eval }}-${{ matrix.tool }}
+          path: log.json
