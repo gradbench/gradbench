@@ -138,7 +138,7 @@ def timeout_handler(signum, frame):
 def objective_output(errors):
     try:
         r_err, w_err = errors
-        num_r = len(r_err.tolist()) / 2
+        num_r = len(r_err.tolist()) // 2
         num_w = len(w_err.tolist())
         return {
             "reproj_error": {"elements": r_err.tolist()[:2], "repeated": num_r},

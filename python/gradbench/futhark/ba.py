@@ -36,15 +36,19 @@ def calculate_objectiveBA(server):
     server.cmd_call(
         "calculate_objective", "reproj_error", "w_err", "cams", "X", "w", "obs", "feats"
     )
-    return (server.get_value("reproj_error"), server.get_value("w_err"))
-
+    r_err = server.get_value("reproj_error")
+    w_err = server.get_value("w_err")
+    num_r = r_err.shape[0]
+    num_w = w_err.shape[0]
+    return {
+        "reproj_error": {"elements": r_err[0].tolist(), "repeated": num_r},
+        "w_err": {"element": w_err[0], "repeared": num_w},
+    }
 
 def calculate_jacobianBA(server):
     server.cmd_call(
         "calculate_jacobian", "rows", "cols", "vals", "cams", "X", "w", "obs", "feats"
     )
-    return (
-        server.get_value("rows"),
-        server.get_value("cols"),
-        server.get_value("vals"),
-    )
+    return {"BASparseMat": {"rows": server.get_value("rows").shape[0],
+                            "columns": server.get_value("cols").shape[0]}
+            }
