@@ -31,7 +31,7 @@ def run(params):
         start = time.perf_counter_ns()
         ret = run(server)
         end = time.perf_counter_ns()
-        return {"output": str(ret), "nanoseconds": {"evaluate": end - start}}
+        return {"output": ret, "nanoseconds": {"evaluate": end - start}}
 
 
 FUTHARK_BACKEND = "c"
