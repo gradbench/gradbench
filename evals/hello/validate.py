@@ -8,16 +8,15 @@ from random import Random
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--eval", required=True)
     parser.add_argument("--golden", required=True)
     parser.add_argument("--tool", required=True)
     parser.add_argument("--results", type=str, default='results', metavar='DIR')
     args = parser.parse_args()
 
-    double_golden_results = os.listdir(os.path.join(args.results, args.eval, args.golden, 'double'))
-    square_golden_results = os.listdir(os.path.join(args.results, args.eval, args.golden, 'square'))
-    double_tool_results = os.listdir(os.path.join(args.results, args.eval, args.tool, 'double'))
-    square_tool_results = os.listdir(os.path.join(args.results, args.eval, args.tool, 'square'))
+    double_golden_results = os.listdir(os.path.join(args.results, 'hello', args.golden, 'double'))
+    square_golden_results = os.listdir(os.path.join(args.results, 'hello', args.golden, 'square'))
+    double_tool_results = os.listdir(os.path.join(args.results, 'hello', args.tool, 'double'))
+    square_tool_results = os.listdir(os.path.join(args.results, 'hello', args.tool, 'square'))
 
     bad = False
 
@@ -29,8 +28,8 @@ def main():
         print("Missing golden result: {x}")
 
     for workload in double_golden_results:
-        golden_result = json.load(open(os.path.join(args.results, args.eval, args.golden, 'double', workload, 'output'), 'r'))
-        tool_result = json.load(open(os.path.join(args.results, args.eval, args.tool, 'double', workload, 'output'), 'r'))
+        golden_result = json.load(open(os.path.join(args.results, 'hello', args.golden, 'double', workload, 'output'), 'r'))
+        tool_result = json.load(open(os.path.join(args.results, 'hello', args.tool, 'double', workload, 'output'), 'r'))
         if golden_result != tool_result:
             bad = True
             print(f'Mismatch for double, workload={workload}')
