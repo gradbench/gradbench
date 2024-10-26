@@ -42,13 +42,13 @@ def calculate_objectiveBA(server):
     num_w = w_err.shape[0]
     return {
         "reproj_error": {"elements": r_err[0].tolist(), "repeated": num_r},
-        "w_err": {"element": w_err[0], "repeared": num_w},
+        "w_err": {"element": w_err[0], "repeated": num_w},
     }
 
 def calculate_jacobianBA(server):
     server.cmd_call(
         "calculate_jacobian", "rows", "cols", "vals", "cams", "X", "w", "obs", "feats"
     )
-    return {"BASparseMat": {"rows": server.get_value("rows").shape[0],
-                            "columns": server.get_value("cols").shape[0]}
+    return {"BASparseMat": {"rows": server.get_value("rows").shape[0]-1,
+                            "columns": int(server.get_value("cols")[-1]+1)}
             }
