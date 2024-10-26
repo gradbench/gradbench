@@ -5,6 +5,8 @@ import shlex
 import subprocess
 import sys
 import time
+import os
+import json
 
 
 def run(cmd):
@@ -20,10 +22,13 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--eval", required=True)
     parser.add_argument("--tool", required=True)
+    parser.add_argument("--results", type=str, default='results', metavar='DIR')
     args = parser.parse_args()
 
     server = run(args.tool)
     client = run(args.eval)
+
+    os.makedirs(args.results, exist_ok=True)
 
     print("[")
     first = True
@@ -48,6 +53,22 @@ def main():
         client.stdin.write(response)
         client.stdin.flush()
         print("  }", end="")
+
+        message_json = json.loads(message)
+        response_json = json.loads(response)
+
+        if message_json.get("kind") == "evaluate":
+            results_dir = os.path.join(args.results,
+                                       message_json["module"],
+                                       response_json["tool"],
+                                       message_json["name"])
+            os.makedirs(results_dir, exist_ok=True)
+            input_fname = open(os.path.join(results_dir,message_json["workload"] + ".input"), 'w')
+            output_fname = open(os.path.join(results_dir,message_json["workload"] + ".output"), 'w')
+            json.dump(message_json["input"], input_fname)
+            json.dump(response_json["output"], output_fname)
+
+
     print()
     print("]")
     sys.exit((server.poll() or 0) | (client.poll() or 0))
