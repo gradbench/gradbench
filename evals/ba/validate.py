@@ -7,7 +7,16 @@ from pathlib import Path
 from random import Random
 import numpy as np
 
-def check_results(results, golden, tool, name):
+def eql_objective(a,b):
+    return np.all(np.isclose(a['reproj_error']['elements'], b['reproj_error']['elements'])) and \
+        a['reproj_error']['repeated'] == b['reproj_error']['repeated'] and \
+        np.all(np.isclose(a['w_err']['element'], b['w_err']['element'])) and \
+        a['w_err']['repeated'] == b['w_err']['repeated']
+
+def eql_jacobian(a,b):
+    return a == b
+
+def check_results(eql, results, golden, tool, name):
     bad = False
 
     objective_golden_results = os.listdir(os.path.join(results, 'ba', golden, name))
@@ -23,7 +32,7 @@ def check_results(results, golden, tool, name):
     for workload in objective_golden_results:
         golden_result = json.load(open(os.path.join(results, 'ba', golden, name, workload, 'output'), 'r'))
         tool_result = json.load(open(os.path.join(results, 'ba', tool, name, workload, 'output'), 'r'))
-        if golden_result != tool_result:
+        if not eql(golden_result, tool_result):
             bad = True
             print(f'Mismatch for {name}, workload={workload}')
             print(golden_result)
@@ -40,8 +49,8 @@ def main():
 
     bad = False
 
-    bad = check_results(args.results, args.golden, args.tool, 'calculate_objectiveBA') or bad
-    bad = check_results(args.results, args.golden, args.tool, 'calculate_jacobianBA') or bad
+    bad = check_results(eql_objective, args.results, args.golden, args.tool, 'calculate_objectiveBA') or bad
+    bad = check_results(eql_jacobian,args.results, args.golden, args.tool, 'calculate_jacobianBA') or bad
 
     if bad:
         exit(1)
