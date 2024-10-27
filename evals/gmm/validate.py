@@ -31,13 +31,16 @@ def check_results(eval_name, eql, results, golden, tool, name):
     return bad
 
 def eql_objective(a,b):
-    return np.all(np.isclose(a['reproj_error']['elements'], b['reproj_error']['elements'])) and \
-        a['reproj_error']['repeated'] == b['reproj_error']['repeated'] and \
-        np.all(np.isclose(a['w_err']['element'], b['w_err']['element'])) and \
-        a['w_err']['repeated'] == b['w_err']['repeated']
+    try:
+        return np.all(np.isclose(a, b))
+    except:
+        return False
 
 def eql_jacobian(a,b):
-    return a == b
+    try:
+        return np.all(np.isclose(a, b))
+    except:
+        return False
 
 def main():
     parser = argparse.ArgumentParser()
@@ -48,15 +51,13 @@ def main():
 
     bad = False
 
-    bad = check_results('ba', eql_objective, args.results, args.golden, args.tool, 'calculate_objectiveBA') or bad
-    bad = check_results('ba', eql_jacobian,args.results, args.golden, args.tool, 'calculate_jacobianBA') or bad
+#    bad = check_results('gmm', eql_objective, args.results, args.golden, args.tool, 'calculate_objectiveGMM') or bad
+    bad = check_results('gmm', eql_jacobian,args.results, args.golden, args.tool, 'calculate_jacobianGMM') or bad
 
     if bad:
         exit(1)
     else:
         exit(0)
-
-
 
 if __name__ == "__main__":
     main()

@@ -32,8 +32,7 @@ def calculate_jacobianGMM(server):
         "gamma",
         "m",
     )
-    return (
-        server.get_value("output0").tolist(),
-        server.get_value("output1").tolist(),
-        server.get_value("output2").tolist(),
-    )
+    return \
+        server.get_value("output0").flatten().tolist() + \
+        server.get_value("output1").flatten().tolist() + \
+        server.get_value("output2").flatten().tolist()
