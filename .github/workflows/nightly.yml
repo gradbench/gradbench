@@ -38,6 +38,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - run: docker push --all-tags $IMAGE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eval-${{ matrix.eval }}
+          path: eval-${{ matrix.eval }}.tar
 
   tool:
     needs: matrix
@@ -60,6 +64,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - run: docker push --all-tags $IMAGE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tool-${{ matrix.tool }}
+          path: tool-${{ matrix.tool }}.tar
 
   gold:
     needs:
