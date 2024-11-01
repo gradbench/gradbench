@@ -123,10 +123,19 @@ Then you can use `poetry run` to run a command in this virtual environment:
 ./run.py --eval './eval.sh hello' --tool 'poetry run python3 python/gradbench/pytorch/run.py'
 ```
 
+We autoformat Python code using [Black][] and [isort][]. If you're using [VS Code][], our configuration in this repository should automatically recommend that you install the corresponding extensions for those formatters, as well as automatically run them whenever you save a Python file. You can also run them manually via the command line:
+
+```sh
+poetry run black .
+poetry run isort .
+```
+
+[black]: https://black.readthedocs.io/en/stable/
 [containerd]: https://docs.docker.com/storage/containerd/
 [docker]: https://docs.docker.com/engine/install/
 [git]: https://git-scm.com/downloads
 [github cli]: https://github.com/cli/cli#installation
+[isort]: https://pycqa.github.io/isort/
 [log in to GHCR]: https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-with-a-personal-access-token-classic
 [markdown-toc]: https://www.npmjs.com/package/markdown-toc
 [multi-platform images]: https://docs.docker.com/build/building/multi-platform/
@@ -135,3 +144,4 @@ Then you can use `poetry run` to run a command in this virtual environment:
 [python]: https://www.python.org/downloads/
 [qemu]: https://docs.docker.com/build/building/multi-platform/#qemu-without-docker-desktop
 [vite]: https://vitejs.dev/
+[vs code]: https://code.visualstudio.com/

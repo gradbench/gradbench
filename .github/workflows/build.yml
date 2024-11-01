@@ -10,10 +10,11 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  toc:
+  lint:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+      - run: snok/install-poetry@v1
       - run: npm ci
       - run: npm run toc
       - run: |
@@ -21,6 +22,8 @@ jobs:
           echo "$CHANGES"
           git diff
           [ -z "$CHANGES" ]
+      - run: poetry run black --check .
+      - run: poetry run isort --check .
 
   site:
     runs-on: ubuntu-22.04
