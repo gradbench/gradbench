@@ -1,5 +1,5 @@
-import numpy as np
 import futhark_server
+import numpy as np
 
 
 def prepare(server, params):
