@@ -6,7 +6,7 @@ authors = []
 packages = [{ include = "gradbench", from = "python" }]
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "^3.11"
 autograd = "^1"
 jax = "^0.4"
 jaxlib = "^0.4"
@@ -15,6 +15,14 @@ scipy = "^1"
 tensorflow = "^2"
 torch = "^2"
 
+[tool.poetry.group.dev.dependencies]
+black = "^24"
+isort = "^5"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.isort]
+profile = "black"
+skip_gitignore = true
