@@ -45,10 +45,14 @@ def calculate_objectiveBA(server):
         "w_err": {"element": w_err[0], "repeated": num_w},
     }
 
+
 def calculate_jacobianBA(server):
     server.cmd_call(
         "calculate_jacobian", "rows", "cols", "vals", "cams", "X", "w", "obs", "feats"
     )
-    return {"BASparseMat": {"rows": server.get_value("rows").shape[0]-1,
-                            "columns": int(server.get_value("cols")[-1]+1)}
-            }
+    return {
+        "BASparseMat": {
+            "rows": server.get_value("rows").shape[0] - 1,
+            "columns": int(server.get_value("cols")[-1] + 1),
+        }
+    }

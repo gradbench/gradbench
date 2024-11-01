@@ -112,7 +112,7 @@ def generate(data_uniform, data_normal, D, k, n):
 
 def generator(d_, k, n):
 
-    np.random.seed(31337) # For determinism.
+    np.random.seed(31337)  # For determinism.
 
     d = 2  # ADBench used powers of 2 up through 128 (2^7)
     K_max = 200  # K[-1] from [5, 10, 25, 50, 100, 200]

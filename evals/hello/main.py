@@ -42,11 +42,13 @@ def main():
 
     def evaluate(*, module, name, workload, input):
         return send(
-            {"kind": "evaluate",
-             "module": module,
-             "name": name,
-             "workload": workload,
-             "input": input}
+            {
+                "kind": "evaluate",
+                "module": module,
+                "name": name,
+                "workload": workload,
+                "input": input,
+            }
         )
 
     module = "hello"
@@ -54,8 +56,12 @@ def main():
     if response.get("success"):
         x = 1.0
         for _ in range(4):
-            y = evaluate(module=module, name="square", workload=str(x), input=x)["output"]
-            x = evaluate(module=module, name="double", workload=str(y), input=y)["output"]
+            y = evaluate(module=module, name="square", workload=str(x), input=x)[
+                "output"
+            ]
+            x = evaluate(module=module, name="double", workload=str(y), input=y)[
+                "output"
+            ]
 
 
 if __name__ == "__main__":

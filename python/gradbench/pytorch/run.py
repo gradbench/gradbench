@@ -30,7 +30,9 @@ def main():
                 response["success"] = True
             except:
                 response["success"] = False
-        print(json.dumps({"id": message["id"], "tool": "pytorch"} | response), flush=True)
+        print(
+            json.dumps({"id": message["id"], "tool": "pytorch"} | response), flush=True
+        )
 
 
 if __name__ == "__main__":

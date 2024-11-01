@@ -54,7 +54,9 @@ def main():
                 ]
             )
             response["success"] = c.returncode == 0
-        print(json.dumps({"id": message["id"], "tool": "futhark"} | response), flush=True)
+        print(
+            json.dumps({"id": message["id"], "tool": "futhark"} | response), flush=True
+        )
 
 
 if __name__ == "__main__":

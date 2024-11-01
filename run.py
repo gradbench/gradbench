@@ -22,7 +22,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--eval", required=True)
     parser.add_argument("--tool", required=True)
-    parser.add_argument("--results", type=str, default='results', metavar='DIR')
+    parser.add_argument("--results", type=str, default="results", metavar="DIR")
     args = parser.parse_args()
 
     server = run(args.tool)
@@ -58,19 +58,20 @@ def main():
         response_json = json.loads(response)
 
         if message_json.get("kind") == "evaluate":
-            results_dir = os.path.join(args.results,
-                                       message_json["module"],
-                                       response_json["tool"],
-                                       message_json["name"],
-                                       message_json["workload"])
+            results_dir = os.path.join(
+                args.results,
+                message_json["module"],
+                response_json["tool"],
+                message_json["name"],
+                message_json["workload"],
+            )
             os.makedirs(results_dir, exist_ok=True)
-            input_fname = os.path.join(results_dir,"input")
-            output_fname = os.path.join(results_dir,"output")
-            nanoseconds_fname = os.path.join(results_dir,"nanoseconds.json")
-            json.dump(message_json["input"], open(input_fname, 'w'))
-            json.dump(response_json["output"], open(output_fname, 'w'))
-            json.dump(response_json["nanoseconds"], open(nanoseconds_fname, 'w'))
-
+            input_fname = os.path.join(results_dir, "input")
+            output_fname = os.path.join(results_dir, "output")
+            nanoseconds_fname = os.path.join(results_dir, "nanoseconds.json")
+            json.dump(message_json["input"], open(input_fname, "w"))
+            json.dump(response_json["output"], open(output_fname, "w"))
+            json.dump(response_json["nanoseconds"], open(nanoseconds_fname, "w"))
 
     print()
     print("]")
