@@ -15,6 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: snok/install-poetry@v1
+      - run: poetry install
       - run: npm ci
       - run: npm run toc
       - run: |
