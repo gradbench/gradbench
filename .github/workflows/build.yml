@@ -175,7 +175,7 @@ jobs:
           path: log.json
       - uses: actions/download-artifact@v4
         with:
-          name: gold-${{ fromJSON(needs.matrix.outputs.gold) }}
+          name: gold-${{ matrix.eval }}
           path: golden
       - uses: actions/setup-python@v5
         with:
@@ -214,7 +214,7 @@ jobs:
           path: log.json
       - uses: actions/download-artifact@v4
         with:
-          name: gold-${{ fromJSON(needs.matrix.outputs.gold) }}
+          name: gold-${{ matrix.eval }}
           path: golden
       - uses: actions/setup-python@v5
         with:
