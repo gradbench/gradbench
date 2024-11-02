@@ -24,7 +24,7 @@ class IdGenerator:
 
 
 def main():
-    source = Path("hello.adroit").read_text()
+    source = (Path(__file__).parent / "hello.adroit").read_text()
 
     id_gen = IdGenerator(seed=0)
 

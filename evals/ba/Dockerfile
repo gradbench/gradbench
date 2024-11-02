@@ -1,7 +1,11 @@
 FROM python:slim
-WORKDIR /home/gradbench
 
-COPY evals/ba/ .
+RUN pip install pydantic
 
-ENTRYPOINT ["python3", "/home/gradbench/main.py"]
+COPY python /home/gradbench/python
+ENV PYTHONPATH=/home/gradbench/python
+
+RUN ln -s /home/gradbench/python/gradbench/evals/ba/validate.py /home/gradbench/validate
+
+ENTRYPOINT ["python", "/home/gradbench/python/gradbench/evals/ba/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench

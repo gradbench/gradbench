@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-import argparse
-from pathlib import Path
+import sys
 
 import numpy as np
 
@@ -26,15 +25,9 @@ def checker(name, input, a, b):
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--golden", required=True)
-    parser.add_argument("--log", required=True)
-    args = parser.parse_args()
-
     validate_fixed(
+        raw=sys.stdin.read(),
         module="ba",
-        golden=Path(args.golden).read_text(),
-        log=Path(args.log).read_text(),
         checker=checker,
     )
 

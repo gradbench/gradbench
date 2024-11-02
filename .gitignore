@@ -8,5 +8,6 @@ __pycache__/
 /log.json
 /packages/vscode/bin/
 /target/
+/validate
 dist/
 node_modules/

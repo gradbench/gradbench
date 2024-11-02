@@ -8,7 +8,7 @@ i = 0
 
 
 def main():
-    source = Path("gmm.adroit").read_text()
+    source = (Path(__file__).parent / "gmm.adroit").read_text()
 
     def send(message):
         global i

@@ -49,6 +49,11 @@ class EvaluateExchange(BaseModel):
 Exchange = DefineExchange | EvaluateExchange
 
 
+class Logs(BaseModel):
+    golden: list[Exchange]
+    log: list[Exchange]
+
+
 def expect_define(exchange: Exchange) -> DefineExchange:
     assert_equal(exchange.message.kind, "define")
     return exchange
@@ -59,14 +64,10 @@ def expect_evaluate(exchange: Exchange) -> EvaluateExchange:
     return exchange
 
 
-Log = list[Exchange]
-
-
 def validate_fixed(
     *,
-    module: str,
-    golden: str,
-    log: str,
+    raw: str,
+    module: Any,
     checker: Callable[[str, Any, Any, Any], None],
 ) -> None:
     """
@@ -85,8 +86,6 @@ def validate_fixed(
     the `"id"` from the corresponding `"message"`, and that there was no
     `"id"` reuse across messages.
 
-    Both the `log` and the `golden` log should be JSON strings.
-
     The `checker` argument is a function that takes four arguments (the
     `"name"` of the function being evaluated, the `"input"` to that
     function, the `"output"` from the `golden` log, and the `"output"`
@@ -94,8 +93,10 @@ def validate_fixed(
     checker should `raise` an `Exception`.
     """
 
-    log1 = TypeAdapter(Log).validate_json(golden)
-    log2 = TypeAdapter(Log).validate_json(log)
+    logs = Logs.model_validate_json(raw)
+
+    log1 = logs.golden
+    log2 = logs.log
 
     ids1: set[int] = set()
     ids2: set[int] = set()

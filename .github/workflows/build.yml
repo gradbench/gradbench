@@ -177,12 +177,7 @@ jobs:
         with:
           name: gold-${{ matrix.eval }}
           path: golden
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - uses: snok/install-poetry@v1
-      - run: poetry install
-      - run: poetry run evals/${{ matrix.eval }}/validate.py --golden golden/log.json --log log.json
+      - run: ./validate.sh ${{ matrix.eval }}
 
   run-slow:
     needs:
@@ -216,9 +211,4 @@ jobs:
         with:
           name: gold-${{ matrix.eval }}
           path: golden
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - uses: snok/install-poetry@v1
-      - run: poetry install
-      - run: poetry run evals/${{ matrix.eval }}/validate.py --golden golden/log.json --log log.json
+      - run: ./validate.sh ${{ matrix.eval }}

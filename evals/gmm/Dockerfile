@@ -1,9 +1,11 @@
 FROM python:3.12-slim
-WORKDIR /home/gradbench
 
-COPY evals/gmm/ .
+RUN pip install numpy==1.26.0 pydantic
 
-RUN pip install numpy==1.26.0
+COPY python /home/gradbench/python
+ENV PYTHONPATH=/home/gradbench/python
 
-ENTRYPOINT ["python3", "/home/gradbench/main.py"]
+RUN ln -s /home/gradbench/python/gradbench/evals/gmm/validate.py /home/gradbench/validate
+
+ENTRYPOINT ["python", "/home/gradbench/python/gradbench/evals/gmm/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench

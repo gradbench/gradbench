@@ -57,7 +57,7 @@ def main():
         # NOTE: data files are taken directly from ADBench. See README for more information.
         # Currently set to run on the smallest two data files. To run on all 20 set loop range to be: range(1,21)
         for i in range(1, 3):
-            datafile = next(Path("data").glob(f"ba{i}_*.txt"), None)
+            datafile = next((Path(__file__).parent / "data").glob(f"ba{i}_*.txt"), None)
             if datafile:
                 input = parse(datafile)
                 evaluate(module=module, name="calculate_objectiveBA", input=input)
