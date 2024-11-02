@@ -46,15 +46,9 @@ def main():
     def define(*, module, source):
         return send({"kind": "define", "module": module, "source": source})
 
-    def evaluate(*, module, name, workload, input):
+    def evaluate(*, module, name, input):
         return send(
-            {
-                "kind": "evaluate",
-                "module": module,
-                "name": name,
-                "workload": workload,
-                "input": input,
-            }
+            {"kind": "evaluate", "module": module, "name": name, "input": input}
         )
 
     module = "ba"
@@ -66,19 +60,8 @@ def main():
             datafile = next(Path("data").glob(f"ba{i}_*.txt"), None)
             if datafile:
                 input = parse(datafile)
-                workload = str(datafile.stem)
-                evaluate(
-                    module=module,
-                    name="calculate_objectiveBA",
-                    workload=workload,
-                    input=input,
-                )
-                evaluate(
-                    module=module,
-                    name="calculate_jacobianBA",
-                    workload=workload,
-                    input=input,
-                )
+                evaluate(module=module, name="calculate_objectiveBA", input=input)
+                evaluate(module=module, name="calculate_jacobianBA", input=input)
 
 
 if __name__ == "__main__":

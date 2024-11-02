@@ -1,95 +1,42 @@
 #!/usr/bin/env python3
 
 import argparse
-import json
-import os
 from pathlib import Path
-from random import Random
 
 import numpy as np
 
+from gradbench.validate import validate_fixed
 
-# Generic checking function.
-def check_results(eval_name, eql, results, golden, tool, name):
-    bad = False
 
-    objective_golden_results = os.listdir(
-        os.path.join(results, eval_name, golden, name)
-    )
-    objective_tool_results = os.listdir(os.path.join(results, eval_name, tool, name))
-
-    for x in set(objective_golden_results) - set(objective_tool_results):
-        bad = True
-        print("Missing tool result: {x}")
-    for x in set(objective_tool_results) - set(objective_golden_results):
-        bad = True
-        print("Missing golden result: {x}")
-
-    for workload in objective_golden_results:
-        golden_result = json.load(
-            open(
-                os.path.join(results, eval_name, golden, name, workload, "output"), "r"
+def checker(name, input, a, b):
+    match name:
+        case "calculate_objectiveBA":
+            assert np.all(np.isclose(a, b))
+        case "calculate_jacobianBA":
+            assert (
+                np.all(
+                    np.isclose(
+                        a["reproj_error"]["elements"], b["reproj_error"]["elements"]
+                    )
+                )
+                and a["reproj_error"]["repeated"] == b["reproj_error"]["repeated"]
+                and np.all(np.isclose(a["w_err"]["element"], b["w_err"]["element"]))
+                and a["w_err"]["repeated"] == b["w_err"]["repeated"]
             )
-        )
-        tool_result = json.load(
-            open(os.path.join(results, eval_name, tool, name, workload, "output"), "r")
-        )
-        if not eql(golden_result, tool_result):
-            bad = True
-            print(f"Mismatch for {name}, workload={workload}")
-
-    return bad
-
-
-def eql_objective(a, b):
-    return (
-        np.all(np.isclose(a["reproj_error"]["elements"], b["reproj_error"]["elements"]))
-        and a["reproj_error"]["repeated"] == b["reproj_error"]["repeated"]
-        and np.all(np.isclose(a["w_err"]["element"], b["w_err"]["element"]))
-        and a["w_err"]["repeated"] == b["w_err"]["repeated"]
-    )
-
-
-def eql_jacobian(a, b):
-    return a == b
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--golden", required=True)
-    parser.add_argument("--tool", required=True)
-    parser.add_argument("--results", type=str, default="results", metavar="DIR")
+    parser.add_argument("--log", required=True)
     args = parser.parse_args()
 
-    bad = False
-
-    bad = (
-        check_results(
-            "ba",
-            eql_objective,
-            args.results,
-            args.golden,
-            args.tool,
-            "calculate_objectiveBA",
-        )
-        or bad
+    validate_fixed(
+        module="ba",
+        golden=Path(args.golden).read_text(),
+        log=Path(args.log).read_text(),
+        checker=checker,
     )
-    bad = (
-        check_results(
-            "ba",
-            eql_jacobian,
-            args.results,
-            args.golden,
-            args.tool,
-            "calculate_jacobianBA",
-        )
-        or bad
-    )
-
-    if bad:
-        exit(1)
-    else:
-        exit(0)
 
 
 if __name__ == "__main__":

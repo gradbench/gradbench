@@ -4,6 +4,7 @@ __pycache__/
 .lake/
 *.vsix
 /.config/dotnet-tools.json
+/golden/
 /log.json
 /packages/vscode/bin/
 /target/

@@ -23,15 +23,9 @@ def main():
     def define(*, module, source):
         return send({"kind": "define", "module": module, "source": source})
 
-    def evaluate(*, module, name, workload, input):
+    def evaluate(*, module, name, input):
         return send(
-            {
-                "kind": "evaluate",
-                "module": module,
-                "name": name,
-                "workload": workload,
-                "input": input,
-            }
+            {"kind": "evaluate", "module": module, "name": name, "input": input}
         )
 
     module = "gmm"
@@ -40,19 +34,8 @@ def main():
         for n in [1000, 10000]:
             for k in [5, 10, 25, 50, 100, 200]:
                 input = data_gen.main(2, k, n)  # d k n
-                workload = f"2_{k}_{n}"
-                evaluate(
-                    module=module,
-                    name="calculate_objectiveGMM",
-                    workload=workload,
-                    input=input,
-                )
-                evaluate(
-                    module=module,
-                    name="calculate_jacobianGMM",
-                    workload=workload,
-                    input=input,
-                )
+                evaluate(module=module, name="calculate_objectiveGMM", input=input)
+                evaluate(module=module, name="calculate_jacobianGMM", input=input)
 
 
 if __name__ == "__main__":

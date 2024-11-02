@@ -40,15 +40,9 @@ def main():
     def define(*, module, source):
         return send({"kind": "define", "module": module, "source": source})
 
-    def evaluate(*, module, name, workload, input):
+    def evaluate(*, module, name, input):
         return send(
-            {
-                "kind": "evaluate",
-                "module": module,
-                "name": name,
-                "workload": workload,
-                "input": input,
-            }
+            {"kind": "evaluate", "module": module, "name": name, "input": input}
         )
 
     module = "hello"
@@ -56,12 +50,8 @@ def main():
     if response.get("success"):
         x = 1.0
         for _ in range(4):
-            y = evaluate(module=module, name="square", workload=str(x), input=x)[
-                "output"
-            ]
-            x = evaluate(module=module, name="double", workload=str(y), input=y)[
-                "output"
-            ]
+            y = evaluate(module=module, name="square", input=x)["output"]
+            x = evaluate(module=module, name="double", input=y)["output"]
 
 
 if __name__ == "__main__":

@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import json
-import os
 import shlex
 import subprocess
 import sys
@@ -22,13 +20,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--eval", required=True)
     parser.add_argument("--tool", required=True)
-    parser.add_argument("--results", type=str, default="results", metavar="DIR")
     args = parser.parse_args()
 
     server = run(args.tool)
     client = run(args.eval)
-
-    os.makedirs(args.results, exist_ok=True)
 
     print("[")
     first = True
@@ -53,26 +48,6 @@ def main():
         client.stdin.write(response)
         client.stdin.flush()
         print("  }", end="")
-
-        message_json = json.loads(message)
-        response_json = json.loads(response)
-
-        if message_json.get("kind") == "evaluate":
-            results_dir = os.path.join(
-                args.results,
-                message_json["module"],
-                response_json["tool"],
-                message_json["name"],
-                message_json["workload"],
-            )
-            os.makedirs(results_dir, exist_ok=True)
-            input_fname = os.path.join(results_dir, "input")
-            output_fname = os.path.join(results_dir, "output")
-            nanoseconds_fname = os.path.join(results_dir, "nanoseconds.json")
-            json.dump(message_json["input"], open(input_fname, "w"))
-            json.dump(response_json["output"], open(output_fname, "w"))
-            json.dump(response_json["nanoseconds"], open(nanoseconds_fname, "w"))
-
     print()
     print("]")
     sys.exit((server.poll() or 0) | (client.poll() or 0))
