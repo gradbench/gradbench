@@ -38,6 +38,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - run: docker push --all-tags $IMAGE
+      - run: docker save --output eval-${{ matrix.eval }}.tar $IMAGE
       - uses: actions/upload-artifact@v4
         with:
           name: eval-${{ matrix.eval }}
@@ -64,6 +65,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - run: docker push --all-tags $IMAGE
+      - run: docker save --output tool-${{ matrix.tool }}.tar $IMAGE
       - uses: actions/upload-artifact@v4
         with:
           name: tool-${{ matrix.tool }}
