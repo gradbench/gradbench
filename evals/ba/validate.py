@@ -11,8 +11,6 @@ from gradbench.validate import validate_fixed
 def checker(name, input, a, b):
     match name:
         case "calculate_objectiveBA":
-            assert np.all(np.isclose(a, b))
-        case "calculate_jacobianBA":
             assert (
                 np.all(
                     np.isclose(
@@ -23,6 +21,8 @@ def checker(name, input, a, b):
                 and np.all(np.isclose(a["w_err"]["element"], b["w_err"]["element"]))
                 and a["w_err"]["repeated"] == b["w_err"]["repeated"]
             )
+        case "calculate_jacobianBA":
+            assert a == b
 
 
 def main():
