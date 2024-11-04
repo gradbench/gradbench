@@ -1,6 +1,6 @@
 FROM python:slim
 
-RUN pip install pydantic
+RUN pip install pydantic numpy
 
 COPY python /home/gradbench/python
 ENV PYTHONPATH=/home/gradbench/python
