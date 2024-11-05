@@ -142,7 +142,7 @@ def objective_output(errors):
         num_w = len(w_err.tolist())
         return {
             "reproj_error": {"elements": r_err.tolist()[:2], "repeated": num_r},
-            "w_err": {"element": w_err.tolist()[0], "repeared": num_w},
+            "w_err": {"element": w_err.tolist()[0], "repeated": num_w},
         }
     except:
         return errors
