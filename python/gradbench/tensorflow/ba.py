@@ -25,6 +25,7 @@
 """
 Changes Made:
 - Added two functions to create a TensorflowBA object and call calculate_objective and calculate_jacobian
+- Added timeout feature for function calls
 - Added two functions to convert BA output to JSON serializable objects
 - Import a decorator to use converter functions
 - Added a function to create BA input based on data provided in files
