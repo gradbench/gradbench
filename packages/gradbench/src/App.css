@@ -1,3 +1,25 @@
+:root {
+  font-family: sans-serif;
+}
+
+a:link {
+  text-decoration: none;
+}
+
 .column-header {
+  align-items: center;
+  display: flex;
   writing-mode: vertical-lr;
+}
+
+.row-header {
+  align-items: center;
+  display: flex;
+}
+
+.cell {
+  align-items: center;
+  background-color: lightgrey;
+  display: flex;
+  justify-content: center;
 }

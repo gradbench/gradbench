@@ -19,11 +19,14 @@ const Table = ({ date }: { date: string }) => {
   const tag = `nightly-${date}`;
   const summary: Summary = JSON.parse(raw);
   const numTools = summary.table[0].tools.length;
+  const cellSize = "30px";
   return (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: `repeat(${numTools + 1}, 1fr)`,
+        gridTemplateColumns: `min-content repeat(${numTools}, ${cellSize})`,
+        gridTemplateRows: `min-content repeat(${numTools}, ${cellSize})`,
+        gap: "3px",
       }}
     >
       <div />
@@ -38,7 +41,7 @@ const Table = ({ date }: { date: string }) => {
       ))}
       {summary.table.map((row) => (
         <>
-          <div>
+          <div className="row-header">
             <a
               href={`https://github.com/gradbench/gradbench/tree/${tag}/evals/${row.eval}`}
             >
@@ -46,7 +49,9 @@ const Table = ({ date }: { date: string }) => {
             </a>
           </div>
           {row.tools.map((cell) => (
-            <div>{cell.status === "implemented" ? "✓" : ""}</div>
+            <div className="cell">
+              {cell.status === "implemented" ? "✓" : ""}
+            </div>
           ))}
         </>
       ))}
