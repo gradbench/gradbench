@@ -138,8 +138,9 @@ jobs:
       - uses: actions/checkout@v4
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh run download ${{ github.run_id }} --pattern 'run-*'
+        run: gh run download ${{ github.run_id }} --dir run --pattern 'run-*'
       - run: .github/release.py
       - env:
+          DATE: ${{ fromJSON(needs.matrix.outputs.date) }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create nightly-${{ fromJSON(needs.matrix.outputs.date) }} release/*
+        run: gh release create --target "$GITHUB_SHA" "nightly-$DATE" release/*
