@@ -38,6 +38,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - run: docker push --all-tags $IMAGE
+      - run: docker save --output eval-${{ matrix.eval }}.tar $IMAGE
       - uses: actions/upload-artifact@v4
         with:
           name: eval-${{ matrix.eval }}
@@ -64,6 +65,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - run: docker push --all-tags $IMAGE
+      - run: docker save --output tool-${{ matrix.tool }}.tar $IMAGE
       - uses: actions/upload-artifact@v4
         with:
           name: tool-${{ matrix.tool }}
@@ -126,3 +128,18 @@ jobs:
         with:
           name: run-${{ matrix.eval }}-${{ matrix.tool }}
           path: log.json
+
+  release:
+    needs:
+      - matrix
+      - run
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh run download ${{ github.run_id }} --pattern 'run-*'
+      - run: .github/release.py
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create nightly-${{ fromJSON(needs.matrix.outputs.date) }} release/*
