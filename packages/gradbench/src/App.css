@@ -1,4 +1,3 @@
-td {
-  background-color: lightgrey;
-  text-align: center;
+.column-header {
+  writing-mode: vertical-lr;
 }

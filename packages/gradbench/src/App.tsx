@@ -18,39 +18,39 @@ interface Summary {
 const Table = ({ date }: { date: string }) => {
   const tag = `nightly-${date}`;
   const summary: Summary = JSON.parse(raw);
+  const numTools = summary.table[0].tools.length;
   return (
-    <table>
-      <thead>
-        <tr>
-          <th></th>
-          {summary.table[0].tools.map((cell) => (
-            <th scope="col">
-              <a
-                href={`https://github.com/gradbench/gradbench/tree/${tag}/tools/${cell.tool}`}
-              >
-                {cell.tool}
-              </a>
-            </th>
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(${numTools + 1}, 1fr)`,
+      }}
+    >
+      <div />
+      {summary.table[0].tools.map((cell) => (
+        <div className="column-header">
+          <a
+            href={`https://github.com/gradbench/gradbench/tree/${tag}/tools/${cell.tool}`}
+          >
+            {cell.tool}
+          </a>
+        </div>
+      ))}
+      {summary.table.map((row) => (
+        <>
+          <div>
+            <a
+              href={`https://github.com/gradbench/gradbench/tree/${tag}/evals/${row.eval}`}
+            >
+              {row.eval}
+            </a>
+          </div>
+          {row.tools.map((cell) => (
+            <div>{cell.status === "implemented" ? "✓" : ""}</div>
           ))}
-        </tr>
-      </thead>
-      <tbody>
-        {summary.table.map((row) => (
-          <tr>
-            <th scope="row">
-              <a
-                href={`https://github.com/gradbench/gradbench/tree/${tag}/evals/${row.eval}`}
-              >
-                {row.eval}
-              </a>
-            </th>
-            {row.tools.map((cell) => (
-              <td>{cell.status === "implemented" ? "✓" : ""}</td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
+        </>
+      ))}
+    </div>
   );
 };
 
