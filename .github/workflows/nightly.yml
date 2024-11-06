@@ -136,8 +136,10 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - run: gh run download ${{ github.run_id }} --pattern 'run-*'
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh run download ${{ github.run_id }} --pattern 'run-*'
       - run: .github/release.py
       - env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release create nightly-${{ fromJSON(needs.matrix.outputs.date) }} release/*
