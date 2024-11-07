@@ -1,19 +1,19 @@
 from pathlib import Path
 from typing import Any
 
-from gradbench.evaluation import SingleModuleValidatedEvaluation, correctness
+from gradbench.evaluation import SingleModuleValidatedEvaluation, assertion
 
 
-def check(name: str, input: Any, output: Any) -> bool:
+def check(name: str, input: Any, output: Any) -> None:
     match name:
         case "double":
-            return output == input * 2
+            assert output == input * 2
         case "square":
-            return output == input * input
+            assert output == input * input
 
 
 def main():
-    e = SingleModuleValidatedEvaluation(module="hello", validator=correctness(check))
+    e = SingleModuleValidatedEvaluation(module="hello", validator=assertion(check))
     if e.define(source=(Path(__file__).parent / "hello.adroit").read_text()).success:
         x = 1.0
         for _ in range(4):

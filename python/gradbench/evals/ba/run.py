@@ -4,7 +4,7 @@ from typing import Any
 import numpy as np
 
 import gradbench.pytorch.ba as golden
-from gradbench.evaluation import SingleModuleValidatedEvaluation, correctness
+from gradbench.evaluation import SingleModuleValidatedEvaluation, assertion
 from gradbench.wrap_module import Functions
 
 
@@ -32,12 +32,12 @@ def parse(file):
     }
 
 
-def check(name: str, input: Any, b: Any) -> bool:
+def check(name: str, input: Any, b: Any) -> None:
     func: Functions = getattr(golden, name)
     a = func.unwrap(func(func.prepare(input)))
     match name:
         case "calculate_objectiveBA":
-            return (
+            assert (
                 np.all(
                     np.isclose(
                         a["reproj_error"]["elements"], b["reproj_error"]["elements"]
@@ -48,11 +48,11 @@ def check(name: str, input: Any, b: Any) -> bool:
                 and a["w_err"]["repeated"] == b["w_err"]["repeated"]
             )
         case "calculate_jacobianBA":
-            return a == b
+            assert a == b
 
 
 def main():
-    e = SingleModuleValidatedEvaluation(module="ba", validator=correctness(check))
+    e = SingleModuleValidatedEvaluation(module="ba", validator=assertion(check))
     if e.define(source="PLACE HOLDER").success:
         # NOTE: data files are taken directly from ADBench. See README for more information.
         # Currently set to run on the smallest two data files. To run on all 20 set loop range to be: range(1,21)
