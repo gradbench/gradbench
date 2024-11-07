@@ -11,7 +11,11 @@ def ls(path):
 
 def summarize(run):
     implemented = run[0]["response"]["success"]
-    return {"status": "implemented" if implemented else "unimplemented"}
+    if not implemented:
+        return {"status": "unimplemented"}
+    validations = run[-1]["message"]["validations"]
+    correct = all(validation["correct"] for validation in validations)
+    return {"status": "correct" if correct else "incorrect"}
 
 
 def main():
