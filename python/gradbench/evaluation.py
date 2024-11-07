@@ -1,6 +1,7 @@
 import json
 import sys
-from typing import Any, Callable
+import traceback
+from typing import Any, Callable, Optional
 
 from pydantic import BaseModel
 
@@ -18,14 +19,20 @@ class EvaluateResponse(BaseModel):
 
 class Validation(BaseModel):
     correct: bool
+    error: Optional[str]
 
 
 Validator = Callable[[str, Any, Any], Validation]
 
 
-def correctness(check: Callable[[str, Any, Any], bool]) -> Validator:
+def assertion(check: Callable[[str, Any, Any], None]) -> Validator:
     def validator(name: str, input: Any, output: Any) -> Validation:
-        return Validation(correct=check(name, input, output))
+        try:
+            check(name, input, output)
+            return Validation(correct=True, error=None)
+        except Exception as e:
+            error = "".join(traceback.format_exception(e))
+            return Validation(correct=False, error=error)
 
     return validator
 
