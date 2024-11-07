@@ -1,8 +1,11 @@
-import json
-import sys
 from pathlib import Path
+from typing import Any
 
-i = 0
+import numpy as np
+
+import gradbench.pytorch.ba as golden
+from gradbench.evaluation import SingleModuleValidatedEvaluation, correctness
+from gradbench.wrap_module import Functions
 
 
 def parse(file):
@@ -29,39 +32,37 @@ def parse(file):
     }
 
 
+def check(name: str, input: Any, b: Any) -> bool:
+    func: Functions = getattr(golden, name)
+    a = func.unwrap(func(func.prepare(input)))
+    match name:
+        case "calculate_objectiveBA":
+            return (
+                np.all(
+                    np.isclose(
+                        a["reproj_error"]["elements"], b["reproj_error"]["elements"]
+                    )
+                )
+                and a["reproj_error"]["repeated"] == b["reproj_error"]["repeated"]
+                and np.all(np.isclose(a["w_err"]["element"], b["w_err"]["element"]))
+                and a["w_err"]["repeated"] == b["w_err"]["repeated"]
+            )
+        case "calculate_jacobianBA":
+            return a == b
+
+
 def main():
-    # source = Path("hello.adroit").read_text()
-    source = "PLACE HOLDER"
-
-    def send(message):
-        global i
-        json.dump({"id": i} | message, sys.stdout)
-        print(flush=True)
-        response = json.loads(sys.stdin.readline())
-        if response["id"] != i:
-            raise ValueError(f"expected message ID {i}, got {response['id']}")
-        i += 1
-        return response
-
-    def define(*, module, source):
-        return send({"kind": "define", "module": module, "source": source})
-
-    def evaluate(*, module, name, input):
-        return send(
-            {"kind": "evaluate", "module": module, "name": name, "input": input}
-        )
-
-    module = "ba"
-    response = define(module=module, source=source)
-    if response.get("success"):
+    e = SingleModuleValidatedEvaluation(module="ba", validator=correctness(check))
+    if e.define(source="PLACE HOLDER").success:
         # NOTE: data files are taken directly from ADBench. See README for more information.
         # Currently set to run on the smallest two data files. To run on all 20 set loop range to be: range(1,21)
         for i in range(1, 3):
             datafile = next((Path(__file__).parent / "data").glob(f"ba{i}_*.txt"), None)
             if datafile:
                 input = parse(datafile)
-                evaluate(module=module, name="calculate_objectiveBA", input=input)
-                evaluate(module=module, name="calculate_jacobianBA", input=input)
+                e.evaluate(name="calculate_objectiveBA", input=input)
+                e.evaluate(name="calculate_jacobianBA", input=input)
+    e.end()
 
 
 if __name__ == "__main__":
