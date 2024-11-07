@@ -5,6 +5,9 @@ on:
     - cron: "0 1 * * *"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   matrix:
     runs-on: ubuntu-22.04
@@ -20,6 +23,7 @@ jobs:
   eval:
     needs: matrix
     strategy:
+      fail-fast: false
       matrix:
         eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
     runs-on: ubuntu-22.04
@@ -46,6 +50,7 @@ jobs:
   tool:
     needs: matrix
     strategy:
+      fail-fast: false
       matrix:
         tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
     runs-on: ubuntu-22.04
@@ -76,6 +81,7 @@ jobs:
       - eval
       - tool
     strategy:
+      fail-fast: false
       matrix:
         eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
         tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
