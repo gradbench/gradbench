@@ -1,6 +1,7 @@
-import numpy as np
 import os
+
 import futhark_server
+import numpy as np
 
 
 def prepare(server, params):
@@ -33,7 +34,7 @@ def calculate_jacobianGMM(server):
         "m",
     )
     return (
-        server.get_value("output0"),
-        server.get_value("output1"),
-        server.get_value("output2"),
+        server.get_value("output0").flatten().tolist()
+        + server.get_value("output1").flatten().tolist()
+        + server.get_value("output2").flatten().tolist()
     )

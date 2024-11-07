@@ -1,9 +1,10 @@
-FROM python:3.12-slim
-WORKDIR /home/gradbench
+FROM python:3.11-slim
 
-COPY evals/gmm/ .
+RUN pip install numpy==1.26.0 pydantic scipy && \
+    pip install torch --index-url https://download.pytorch.org/whl/cpu
 
-RUN pip install numpy==1.26.0
+COPY python /home/gradbench/python
+ENV PYTHONPATH=/home/gradbench/python
 
-ENTRYPOINT ["python3", "/home/gradbench/main.py"]
+ENTRYPOINT ["python", "/home/gradbench/python/gradbench/evals/gmm/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench

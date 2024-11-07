@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 
-import numpy as np
-import os
 import json
+import os
+import subprocess
 import sys
 import time
-import futhark_server
-import subprocess
 from importlib import import_module
+
+import futhark_server
+import numpy as np
 
 
 def server_prog_source(prog):
@@ -31,7 +32,7 @@ def run(params):
         start = time.perf_counter_ns()
         ret = run(server)
         end = time.perf_counter_ns()
-        return {"output": str(ret), "nanoseconds": {"evaluate": end - start}}
+        return {"output": ret, "nanoseconds": {"evaluate": end - start}}
 
 
 FUTHARK_BACKEND = "c"

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import json
 import shlex
 import subprocess
 import sys
@@ -32,7 +33,12 @@ def main():
             print(",")
         first = False
         print("  {")
-        print(f'    "message": {message.strip()},')
+        print(f'    "message": {message.strip()}', end="")
+        if json.loads(message)["kind"] == "end":
+            print()
+            print("  }", end="")
+            break
+        print(",")
         server.stdin.write(message)
         server.stdin.flush()
         start = time.perf_counter_ns()

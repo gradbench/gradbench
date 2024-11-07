@@ -12,7 +12,6 @@ jobs:
       date: ${{ steps.matrix.outputs.date }}
       eval: ${{ steps.matrix.outputs.eval }}
       tool: ${{ steps.matrix.outputs.tool }}
-      gold: ${{ steps.matrix.outputs.gold }}
     steps:
       - uses: actions/checkout@v4
       - id: matrix
@@ -38,6 +37,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - run: docker push --all-tags $IMAGE
+      - run: docker save --output eval-${{ matrix.eval }}.tar $IMAGE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eval-${{ matrix.eval }}
+          path: eval-${{ matrix.eval }}.tar
 
   tool:
     needs: matrix
@@ -60,40 +64,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - run: docker push --all-tags $IMAGE
-
-  gold:
-    needs:
-      - matrix
-      - eval
-      - tool
-    strategy:
-      matrix:
-        eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
-        tool:
-          - ${{ fromJSON(needs.matrix.outputs.gold) }}
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: eval-${{ matrix.eval }}
-      - uses: actions/download-artifact@v4
-        with:
-          name: tool-${{ matrix.tool }}
-      - run: docker load --input eval-${{ matrix.eval }}.tar
-      - run: docker load --input tool-${{ matrix.tool }}.tar
-      - run: ./run.py --eval './eval.sh ${{ matrix.eval }}' --tool './tool.sh ${{ matrix.tool }}' | tee log.json
+      - run: docker save --output tool-${{ matrix.tool }}.tar $IMAGE
       - uses: actions/upload-artifact@v4
         with:
-          name: gold-${{ matrix.eval }}
-          path: log.json
+          name: tool-${{ matrix.tool }}
+          path: tool-${{ matrix.tool }}.tar
 
   run:
     needs:
       - matrix
       - eval
       - tool
-      - gold
     strategy:
       matrix:
         eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
@@ -109,8 +90,26 @@ jobs:
           name: tool-${{ matrix.tool }}
       - run: docker load --input eval-${{ matrix.eval }}.tar
       - run: docker load --input tool-${{ matrix.tool }}.tar
-      - run: ./run.py --eval './eval.sh ${{ matrix.eval }}' --tool './tool.sh ${{ matrix.tool }}' | tee log.json
+      - run: |
+          set -o pipefail
+          ./run.py --eval './eval.sh ${{ matrix.eval }}' --tool './tool.sh ${{ matrix.tool }}' | tee log.json
       - uses: actions/upload-artifact@v4
         with:
           name: run-${{ matrix.eval }}-${{ matrix.tool }}
           path: log.json
+
+  release:
+    needs:
+      - matrix
+      - run
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh run download ${{ github.run_id }} --dir run --pattern 'run-*'
+      - run: .github/release.py
+      - env:
+          DATE: ${{ fromJSON(needs.matrix.outputs.date) }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create --target "$GITHUB_SHA" "nightly-$DATE" release/*
