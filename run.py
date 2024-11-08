@@ -54,6 +54,7 @@ def main():
         client.stdin.write(response)
         client.stdin.flush()
         print("  }", end="")
+        sys.stdout.flush()
     print()
     print("]")
     sys.exit((server.poll() or 0) | (client.poll() or 0))
