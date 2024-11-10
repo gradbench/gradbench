@@ -1,6 +1,6 @@
+import { useEffect, useState } from "react";
 import { Fragment } from "react/jsx-runtime";
 import "./App.css";
-import raw from "./summary.json?raw";
 
 interface Cell {
   tool: string;
@@ -17,8 +17,20 @@ interface Summary {
 }
 
 const Table = ({ date }: { date: string }) => {
+  const [summary, setSummary] = useState<Summary | undefined>(undefined);
+
+  useEffect(() => {
+    const download = async () => {
+      const url = `https://github.com/gradbench/gradbench/releases/download/nightly-${date}/summary.json`;
+      const response = await fetch(url);
+      setSummary(await response.json());
+    };
+    download();
+  }, [date]);
+
+  if (summary === undefined) return <p>Downloading...</p>;
+
   const tag = `nightly-${date}`;
-  const summary: Summary = JSON.parse(raw);
   const numTools = summary.table[0].tools.length;
   const cellSize = "30px";
   return (
