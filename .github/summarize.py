@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import argparse
 import json
 from pathlib import Path
 
@@ -18,6 +19,10 @@ def summarize(run):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--date", required=True)
+    args = parser.parse_args()
+
     folder = Path("run")
     table = []
     for e in sorted(ls("evals")):
@@ -28,7 +33,7 @@ def main():
             cell = {"tool": t} | summarize(run)
             row.append(cell)
         table.append({"eval": e, "tools": row})
-    summary = {"table": table}
+    summary = {"date": args.date, "table": table}
     (folder / "summary.json").write_text(json.dumps(summary))
 
 
