@@ -17,7 +17,7 @@ def check(name: str, input: Any, output: Any) -> None:
 
 def main():
     e = SingleModuleValidatedEvaluation(module="gmm", validator=assertion(check))
-    if e.define(source=(Path(__file__).parent / "gmm.adroit").read_text()).success:
+    if e.define().success:
         for n in [1000, 10000]:
             for k in [5, 10, 25, 50, 100, 200]:
                 input = data_gen.main(2, k, n)  # d k n

@@ -14,7 +14,7 @@ def check(name: str, input: Any, output: Any) -> None:
 
 def main():
     e = SingleModuleValidatedEvaluation(module="hello", validator=assertion(check))
-    if e.define(source=(Path(__file__).parent / "hello.adroit").read_text()).success:
+    if e.define().success:
         x = 1.0
         for _ in range(4):
             y = e.evaluate(name="square", input=x).output
