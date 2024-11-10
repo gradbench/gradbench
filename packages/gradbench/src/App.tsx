@@ -1,3 +1,4 @@
+import { Fragment } from "react/jsx-runtime";
 import "./App.css";
 import raw from "./summary.json?raw";
 
@@ -31,7 +32,7 @@ const Table = ({ date }: { date: string }) => {
     >
       <div />
       {summary.table[0].tools.map((cell) => (
-        <div className="column-header">
+        <div key={cell.tool} className="column-header">
           <a
             href={`https://github.com/gradbench/gradbench/tree/${tag}/tools/${cell.tool}`}
           >
@@ -40,7 +41,7 @@ const Table = ({ date }: { date: string }) => {
         </div>
       ))}
       {summary.table.map((row) => (
-        <>
+        <Fragment key={row.eval}>
           <div className="row-header">
             <a
               href={`https://github.com/gradbench/gradbench/tree/${tag}/evals/${row.eval}`}
@@ -49,11 +50,11 @@ const Table = ({ date }: { date: string }) => {
             </a>
           </div>
           {row.tools.map((cell) => (
-            <div className="cell">
+            <div key={cell.tool} className="cell">
               {cell.status === "implemented" ? "✓" : ""}
             </div>
           ))}
-        </>
+        </Fragment>
       ))}
     </div>
   );
