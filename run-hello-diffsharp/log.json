@@ -1,7 +1,7 @@
 [
   {
     "message": {"id": 0, "kind": "define", "module": "hello", "source": "import \"autodiff\" use grad\n\ndef square(x: Float): Float = x * x\n\ndef double: Float -> Float = grad square\n"},
-    "nanoseconds": 6544714783,
+    "nanoseconds": 6411850767,
     "response": {"id":0,"success":false}
   },
   {
