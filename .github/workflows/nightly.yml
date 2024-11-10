@@ -104,19 +104,3 @@ jobs:
         with:
           name: run-${{ matrix.eval }}-${{ matrix.tool }}
           path: log.json
-
-  release:
-    needs:
-      - matrix
-      - run
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh run download ${{ github.run_id }} --dir run --pattern 'run-*'
-      - run: .github/release.py
-      - env:
-          DATE: ${{ fromJSON(needs.matrix.outputs.date) }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create --target "$GITHUB_SHA" "nightly-$DATE" release/*
