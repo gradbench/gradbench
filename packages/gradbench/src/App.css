@@ -19,7 +19,20 @@ a:link {
 
 .cell {
   align-items: center;
-  background-color: lightgrey;
   display: flex;
   justify-content: center;
+}
+
+.unimplemented {
+  background-color: lightgrey;
+}
+
+.incorrect {
+  background-color: lightpink;
+  color: red;
+}
+
+.correct {
+  background-color: lightgreen;
+  color: green;
 }
