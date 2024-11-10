@@ -1,0 +1,50 @@
+[
+  {
+    "message": {"id": 0, "kind": "define", "module": "hello", "source": "import \"autodiff\" use grad\n\ndef square(x: Float): Float = x * x\n\ndef double: Float -> Float = grad square\n"},
+    "nanoseconds": 1204993465,
+    "response": {"id": 0, "success": true}
+  },
+  {
+    "message": {"id": 1, "kind": "evaluate", "module": "hello", "name": "square", "input": 1.0},
+    "nanoseconds": 949728,
+    "response": {"id": 1, "output": 1.0, "nanoseconds": {"evaluate": 315691}}
+  },
+  {
+    "message": {"id": 2, "kind": "evaluate", "module": "hello", "name": "double", "input": 1.0},
+    "nanoseconds": 1552003,
+    "response": {"id": 2, "output": 2.0, "nanoseconds": {"evaluate": 1184436}}
+  },
+  {
+    "message": {"id": 3, "kind": "evaluate", "module": "hello", "name": "square", "input": 2.0},
+    "nanoseconds": 349474,
+    "response": {"id": 3, "output": 4.0, "nanoseconds": {"evaluate": 15459}}
+  },
+  {
+    "message": {"id": 4, "kind": "evaluate", "module": "hello", "name": "double", "input": 4.0},
+    "nanoseconds": 509393,
+    "response": {"id": 4, "output": 8.0, "nanoseconds": {"evaluate": 110126}}
+  },
+  {
+    "message": {"id": 5, "kind": "evaluate", "module": "hello", "name": "square", "input": 8.0},
+    "nanoseconds": 327533,
+    "response": {"id": 5, "output": 64.0, "nanoseconds": {"evaluate": 12784}}
+  },
+  {
+    "message": {"id": 6, "kind": "evaluate", "module": "hello", "name": "double", "input": 64.0},
+    "nanoseconds": 423581,
+    "response": {"id": 6, "output": 128.0, "nanoseconds": {"evaluate": 122870}}
+  },
+  {
+    "message": {"id": 7, "kind": "evaluate", "module": "hello", "name": "square", "input": 128.0},
+    "nanoseconds": 279574,
+    "response": {"id": 7, "output": 16384.0, "nanoseconds": {"evaluate": 14948}}
+  },
+  {
+    "message": {"id": 8, "kind": "evaluate", "module": "hello", "name": "double", "input": 16384.0},
+    "nanoseconds": 370273,
+    "response": {"id": 8, "output": 32768.0, "nanoseconds": {"evaluate": 98434}}
+  },
+  {
+    "message": {"id": 9, "kind": "end", "validations": [{"id": 1, "correct": true, "error": null}, {"id": 2, "correct": true, "error": null}, {"id": 3, "correct": true, "error": null}, {"id": 4, "correct": true, "error": null}, {"id": 5, "correct": true, "error": null}, {"id": 6, "correct": true, "error": null}, {"id": 7, "correct": true, "error": null}, {"id": 8, "correct": true, "error": null}]}
+  }
+]
