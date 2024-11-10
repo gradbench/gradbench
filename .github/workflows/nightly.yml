@@ -126,7 +126,9 @@ jobs:
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh run download ${{ github.run_id }} --dir run --pattern 'run-*'
-      - run: .github/summarize.py
+      - env:
+          DATE: ${{ fromJSON(needs.matrix.outputs.date) }}
+        run: .github/summarize.py --date "$DATE"
       - working-directory: run
         env:
           DATE: ${{ fromJSON(needs.matrix.outputs.date) }}
@@ -136,5 +138,5 @@ jobs:
           git add .
           git commit --allow-empty -m "Nightly run on $DATE for commit $GITHUB_SHA"
           git push -f origin HEAD
-          git tag nightly-$DATE
-          git push origin nightly-$DATE
+          git tag "nightly-$DATE"
+          git push origin "nightly-$DATE"
