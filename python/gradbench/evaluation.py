@@ -60,8 +60,8 @@ class SingleModuleValidatedEvaluation:
         self.id += 1
         return response
 
-    def define(self, *, source: str) -> DefineResponse:
-        message = {"kind": "define", "module": self.module, "source": source}
+    def define(self) -> DefineResponse:
+        message = {"kind": "define", "module": self.module}
         response = DefineResponse.model_validate(self.send(message))
         return response
 

@@ -77,7 +77,6 @@ structure Definition where
   id: Int
   kind: String
   module: String
-  source: String
 deriving FromJson
 
 structure Params where
