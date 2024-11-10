@@ -6,7 +6,6 @@ __pycache__/
 /.config/dotnet-tools.json
 /log.json
 /packages/vscode/bin/
-/release/
 /run/
 /target/
 dist/
