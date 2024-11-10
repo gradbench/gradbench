@@ -66,7 +66,7 @@ const App = () => {
     <>
       <h1>
         <a href="https://github.com/gradbench/gradbench">GradBench</a>{" "}
-        <input type="date" min="2024-11-04" max={today} value={today} />
+        <input type="date" defaultValue={today} />
       </h1>
       <Table date={today} />
     </>
