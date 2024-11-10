@@ -136,3 +136,5 @@ jobs:
           git add .
           git commit --allow-empty -m "Nightly run on $DATE for commit $GITHUB_SHA"
           git push -f origin HEAD
+          git tag nightly-$DATE
+          git push origin nightly-$DATE
