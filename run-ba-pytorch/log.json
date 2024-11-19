@@ -1,28 +1,28 @@
 [
   {
     "message": {"id": 0, "kind": "define", "module": "ba"},
-    "nanoseconds": 1171955700,
+    "nanoseconds": 1161491754,
     "response": {"id": 0, "success": true}
   },
   {
     "message": {"id": 1, "kind": "evaluate", "module": "ba", "name": "calculate_objectiveBA", "input": {"n": 49, "m": 7776, "p": 31843, "cam": [-0.758453, -1.109613, -0.845551, 34.556073, 39.676747, 53.881673, 419.194514, 5.864426, -8.51887, 0.087812, 0.002739], "x": [7.203245, 0.001144, 3.023326], "w": 0.417022, "feat": [271.760969, 834.209256]}},
-    "nanoseconds": 8712517776,
-    "response": {"id": 1, "output": {"reproj_error": {"elements": [0.10133583791448515, -0.06896776592448106], "repeated": 31843}, "w_err": {"element": 0.8260926604270935, "repeated": 31843}}, "nanoseconds": {"evaluate": 7311303058}}
+    "nanoseconds": 8756352501,
+    "response": {"id": 1, "output": {"reproj_error": {"elements": [0.10133583791448515, -0.06896776592448106], "repeated": 31843}, "w_err": {"element": 0.8260926604270935, "repeated": 31843}}, "nanoseconds": {"evaluate": 7377063499}}
   },
   {
     "message": {"id": 2, "kind": "evaluate", "module": "ba", "name": "calculate_jacobianBA", "input": {"n": 49, "m": 7776, "p": 31843, "cam": [-0.758453, -1.109613, -0.845551, 34.556073, 39.676747, 53.881673, 419.194514, 5.864426, -8.51887, 0.087812, 0.002739], "x": [7.203245, 0.001144, 3.023326], "w": 0.417022, "feat": [271.760969, 834.209256]}},
-    "nanoseconds": 49464137732,
-    "response": {"id": 2, "output": {"BASparseMat": {"rows": 95529, "columns": 55710}}, "nanoseconds": {"evaluate": 49451550696}}
+    "nanoseconds": 50316630199,
+    "response": {"id": 2, "output": {"BASparseMat": {"rows": 95529, "columns": 55710}}, "nanoseconds": {"evaluate": 50304718906}}
   },
   {
     "message": {"id": 3, "kind": "evaluate", "module": "ba", "name": "calculate_objectiveBA", "input": {"n": 21, "m": 11315, "p": 36455, "cam": [-0.758453, -1.109613, -0.845551, 34.556073, 39.676747, 53.881673, 419.194514, 5.864426, -8.51887, 0.087812, 0.002739], "x": [7.203245, 0.001144, 3.023326], "w": 0.417022, "feat": [271.760969, 834.209256]}},
-    "nanoseconds": 8854285326,
-    "response": {"id": 3, "output": {"reproj_error": {"elements": [0.10133583791448515, -0.06896776592448106], "repeated": 36455}, "w_err": {"element": 0.8260926604270935, "repeated": 36455}}, "nanoseconds": {"evaluate": 7371464132}}
+    "nanoseconds": 8918611176,
+    "response": {"id": 3, "output": {"reproj_error": {"elements": [0.10133583791448515, -0.06896776592448106], "repeated": 36455}, "w_err": {"element": 0.8260926604270935, "repeated": 36455}}, "nanoseconds": {"evaluate": 7496277359}}
   },
   {
     "message": {"id": 4, "kind": "evaluate", "module": "ba", "name": "calculate_jacobianBA", "input": {"n": 21, "m": 11315, "p": 36455, "cam": [-0.758453, -1.109613, -0.845551, 34.556073, 39.676747, 53.881673, 419.194514, 5.864426, -8.51887, 0.087812, 0.002739], "x": [7.203245, 0.001144, 3.023326], "w": 0.417022, "feat": [271.760969, 834.209256]}},
-    "nanoseconds": 56464786211,
-    "response": {"id": 4, "output": {"BASparseMat": {"rows": 109365, "columns": 70631}}, "nanoseconds": {"evaluate": 56452492925}}
+    "nanoseconds": 57343662533,
+    "response": {"id": 4, "output": {"BASparseMat": {"rows": 109365, "columns": 70631}}, "nanoseconds": {"evaluate": 57331557000}}
   },
   {
     "message": {"id": 5, "kind": "end", "validations": [{"id": 1, "correct": true, "error": null}, {"id": 2, "correct": true, "error": null}, {"id": 3, "correct": true, "error": null}, {"id": 4, "correct": true, "error": null}]}
