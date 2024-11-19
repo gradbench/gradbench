@@ -43,7 +43,7 @@ class AutogradGMM(ITest):
         self.gradient = None
 
     def output(self):
-        return
+        return self.objective, self.gradient
 
     def calculate_objective(self, times):
         for i in range(times):
@@ -55,11 +55,12 @@ class AutogradGMM(ITest):
                 self.inputs[4],
                 self.inputs[5],
             )
+        self.objective = self._convert_to_scalar(self.objective)
 
     def calculate_jacobian(self, times):
         grad_gmm_objective_wrapper = value_and_grad(gmm_objective_wrapper)
         for i in range(times):
-            _, self.gradient = grad_gmm_objective_wrapper(
+            _, gradient = grad_gmm_objective_wrapper(
                 self.inputs[0],
                 self.inputs[1],
                 self.inputs[2],
@@ -67,6 +68,23 @@ class AutogradGMM(ITest):
                 self.inputs[4],
                 self.inputs[5],
             )
+            self.gradient = gradient
+
+        self.gradient = self._reshape_gradient(self.gradient)
+
+    def _reshape_gradient(self, gradient):
+        """Reshape the gradient to match PyTorch's output."""
+        # Replace the reshape logic with specifics from the expected shape
+        reshaped = gradient.reshape(
+            self.inputs[0].shape
+        )  # Example: adjust based on needs
+        return reshaped
+
+    def _convert_to_scalar(self, objective):
+        """Ensure the objective matches PyTorch's scalar output."""
+        if isinstance(objective, np.ndarray) and objective.size == 1:
+            return objective.item()  # Convert single-element array to scalar
+        return objective
 
 
 def gmm_objective_wrapper(alphas, means, icf, x, wishart_gamma, wishart_m):
