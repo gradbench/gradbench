@@ -25,11 +25,13 @@
 """
 Changes Made:
 - Used pieces of original but adjusted the format to follow a class base structure similar to pytorch/gmm.py
+- Adjusted jacobian calculation to align with how it is computed in pytorch/gmm.py
 """
 
+import sys
 
 import autograd.numpy as np
-from autograd import value_and_grad
+from autograd import grad
 
 from gradbench.adbench.itest import ITest
 from gradbench.autograd.gmm_objective import gmm_objective
@@ -55,36 +57,27 @@ class AutogradGMM(ITest):
                 self.inputs[4],
                 self.inputs[5],
             )
-        self.objective = self._convert_to_scalar(self.objective)
 
     def calculate_jacobian(self, times):
-        grad_gmm_objective_wrapper = value_and_grad(gmm_objective_wrapper)
-        for i in range(times):
-            _, gradient = grad_gmm_objective_wrapper(
-                self.inputs[0],
-                self.inputs[1],
-                self.inputs[2],
-                self.inputs[3],
-                self.inputs[4],
-                self.inputs[5],
+        grad_gmm_objective_wrapper = grad(gmm_objective, argnum=(0, 1, 2))
+        for _ in range(times):
+            g_alphas, g_means, g_icf = grad_gmm_objective_wrapper(
+                self.inputs[0],  # alphas
+                self.inputs[1],  # means
+                self.inputs[2],  # icf
+                self.inputs[3],  # x
+                self.inputs[4],  # wishart_gamma
+                self.inputs[5],  # wishart_m
             )
-            self.gradient = gradient
 
-        self.gradient = self._reshape_gradient(self.gradient)
-
-    def _reshape_gradient(self, gradient):
-        """Reshape the gradient to match PyTorch's output."""
-        # Replace the reshape logic with specifics from the expected shape
-        reshaped = gradient.reshape(
-            self.inputs[0].shape
-        )  # Example: adjust based on needs
-        return reshaped
-
-    def _convert_to_scalar(self, objective):
-        """Ensure the objective matches PyTorch's scalar output."""
-        if isinstance(objective, np.ndarray) and objective.size == 1:
-            return objective.item()  # Convert single-element array to scalar
-        return objective
+            # Flatten and concatenate gradients to match the expected shape of G
+            self.gradient = np.concatenate(
+                [
+                    g_alphas.flatten(),  # Shape (K,)
+                    g_means.flatten(),  # Shape (K×D,)
+                    g_icf.flatten(),  # Shape (K×(D + D(D-1)/2))
+                ]
+            )
 
 
 def gmm_objective_wrapper(alphas, means, icf, x, wishart_gamma, wishart_m):
