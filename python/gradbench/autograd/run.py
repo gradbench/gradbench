@@ -23,7 +23,10 @@ def main():
         message = json.loads(line)
         response = {}
         if message["kind"] == "evaluate":
-            response = run(message)
+            if message["module"] == "gmm" and message["id"] > 20:
+                response = "Too Large: Will cause memory error."
+            else:
+                response = run(message)
         elif message["kind"] == "define":
             try:
                 import_module(message["module"])
