@@ -29,6 +29,7 @@ Changes Made:
 """
 
 import sys
+import tracemalloc
 
 import autograd.numpy as np
 from autograd import grad
@@ -80,6 +81,11 @@ class AutogradGMM(ITest):
             )
 
 
+def get_current_memory_usage():
+    current, peak = tracemalloc.get_traced_memory()
+    return f"Current memory usage: {current / (1024 * 1024):.2f} MB, Peak memory usage: {peak / (1024 * 1024):.2f} MB"
+
+
 def gmm_objective_wrapper(alphas, means, icf, x, wishart_gamma, wishart_m):
     return gmm_objective(alphas, means, icf, x, wishart_gamma, wishart_m)
 
@@ -97,15 +103,21 @@ def prepare_input(input):
 
 @wrap(prepare_input, lambda x: x.tolist())
 def calculate_jacobianGMM(input):
+    tracemalloc.start()
     py = AutogradGMM()
     py.prepare(input)
     py.calculate_jacobian(1)
+    print(get_current_memory_usage(), file=sys.stderr)
+    tracemalloc.stop()
     return py.gradient
 
 
 @wrap(prepare_input, lambda x: x.tolist())
 def calculate_objectiveGMM(input):
+    tracemalloc.start()
     py = AutogradGMM()
     py.prepare(input)
     py.calculate_objective(1)
+    print(get_current_memory_usage(), file=sys.stderr)
+    tracemalloc.stop()
     return py.objective
