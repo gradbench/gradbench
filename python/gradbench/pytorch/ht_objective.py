@@ -1,8 +1,9 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT license.
 
-import torch
 import sys
+
+import torch
 
 
 def to_pose_params(theta, nbones):

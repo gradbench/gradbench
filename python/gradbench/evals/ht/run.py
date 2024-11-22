@@ -1,11 +1,12 @@
 from pathlib import Path
 from typing import Any
+
 import numpy as np
 
 import gradbench.pytorch.ht as golden
+from gradbench.evals.ht import io
 from gradbench.evaluation import SingleModuleValidatedEvaluation, assertion
 from gradbench.wrap_module import Functions
-from gradbench.evals.ht import io
 
 
 def check(name: str, input: Any, output: Any) -> None:

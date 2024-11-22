@@ -1,5 +1,6 @@
 import futhark_server
 import numpy as np
+
 from gradbench.adbench.ht_data import HandInput, HandOutput
 
 

@@ -2,9 +2,10 @@
 # Licensed under the MIT license.
 
 from dataclasses import dataclass, field
-from dataclasses_json import config, dataclass_json
 from typing import Tuple
+
 import numpy as np
+from dataclasses_json import config, dataclass_json
 
 
 @dataclass_json
