@@ -3,8 +3,7 @@ FROM python:3.11-slim
 RUN apt update
 RUN apt install -y xz-utils build-essential git
 
-RUN pip install futhark-data && \
-    pip install futhark-server
+RUN pip install futhark-data futhark-server dataclasses-json
 
 ADD https://futhark-lang.org/releases/futhark-0.25.23-linux-x86_64.tar.xz futhark-0.25.23-linux-x86_64.tar.xz
 
