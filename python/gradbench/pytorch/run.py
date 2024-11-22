@@ -25,7 +25,6 @@ def main():
         if message["kind"] == "evaluate":
             response = run(message)
         elif message["kind"] == "define":
-            import_module(message["module"])
             try:
                 import_module(message["module"])
                 response["success"] = True
