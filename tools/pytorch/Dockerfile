@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-RUN pip install numpy==1.26.0 && \
+RUN pip install numpy==1.26.0 dataclasses-json && \
     pip install torch --index-url https://download.pytorch.org/whl/cpu && \
     pip install scipy
 
