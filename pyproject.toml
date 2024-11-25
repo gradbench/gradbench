@@ -7,7 +7,9 @@ packages = [{ include = "gradbench", from = "python" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"
+# alphabetize all the following
 autograd = "^1"
+dataclasses-json = "^0.6"
 jax = "^0.4"
 jaxlib = "^0.4"
 numpy = "^1"
@@ -15,7 +17,6 @@ pydantic = "^2"
 scipy = "^1"
 tensorflow = "^2"
 torch = "^2"
-dataclasses-json = "^0.6"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24"
