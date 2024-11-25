@@ -1,6 +1,13 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT license.
 
+# https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/modules/PyTorch/PyTorchHand.py
+
+"""
+Changes Made:
+- Added two functions to create a PyTorchHand object and call calculate_objective and calculate_jacobian
+"""
+
 import numpy as np
 import torch
 

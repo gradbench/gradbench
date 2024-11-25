@@ -1,6 +1,14 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT license.
 
+# https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/shared/HandData.py
+
+"""
+Changes Made:
+- Changed default= to default_factory in data classes.
+- Added dataclass_json decorators.
+"""
+
 from dataclasses import dataclass, field
 from typing import Tuple
 
