@@ -18,11 +18,12 @@ def check(name: str, input: Any, output: Any) -> None:
 def main():
     e = SingleModuleValidatedEvaluation(module="ht", validator=assertion(check))
     if e.define().success:
+        data_root = Path("evals/ht/data")  # assumes cwd is set correctly
         # NOTE: data files are taken directly from ADBench.
-        simple_small = Path(__file__).parent / "data" / "simple_small"
-        simple_big = Path(__file__).parent / "data" / "simple_big"
-        complicated_small = Path(__file__).parent / "data" / "complicated_small"
-        complicated_big = Path(__file__).parent / "data" / "complicated_big"
+        simple_small = data_root / "simple_small"
+        simple_big = data_root / "simple_big"
+        complicated_small = data_root / "complicated_small"
+        complicated_big = data_root / "complicated_big"
 
         def evals(data_dir, complicated):
             # Shrink the range because some of the larger datasets take an
