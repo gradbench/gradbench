@@ -53,7 +53,11 @@ def main():
         print(f'    "response": {response.strip()}')
         client.stdin.write(response)
         client.stdin.flush()
-        print("  }", end="")
+        if json.loads(message)["kind"] == "evaluate":
+            analysis = client.stdout.readline()
+            print(",")
+            print(f'    "analysis": {analysis.strip()}')
+            print("  }", end="")
         sys.stdout.flush()
     print()
     print("]")
