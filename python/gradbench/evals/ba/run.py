@@ -66,8 +66,8 @@ def main():
             datafile = next((Path(__file__).parent / "data").glob(f"ba{i}_*.txt"), None)
             if datafile:
                 input = parse(datafile)
-                e.evaluate(name="calculate_objectiveBA", input=input)
-                e.evaluate(name="calculate_jacobianBA", input=input)
+                e.evaluate(name="calculate_objectiveBA", workload=datafile.stem, input=input)
+                e.evaluate(name="calculate_jacobianBA", workload=datafile.stem, input=input)
     e.end()
 
 

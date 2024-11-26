@@ -17,8 +17,8 @@ def main():
     if e.define().success:
         x = 1.0
         for _ in range(4):
-            y = e.evaluate(name="square", input=x).output
-            x = e.evaluate(name="double", input=y).output
+            y = e.evaluate(name="square", workload=str(x), input=x).output
+            x = e.evaluate(name="double", workload=str(x), input=y).output
     e.end()
 
 
