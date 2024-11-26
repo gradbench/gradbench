@@ -55,7 +55,7 @@ def check(name: str, input: Any, b: Any) -> None:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--min", type=int, default=1)
-    parser.add_argument("--max", type=int, default=3)
+    parser.add_argument("--max", type=int, default=2)
     args = parser.parse_args()
 
     e = SingleModuleValidatedEvaluation(module="ba", validator=assertion(check))
