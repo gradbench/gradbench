@@ -57,7 +57,7 @@ def main():
             analysis = client.stdout.readline()
             print(",")
             print(f'    "analysis": {analysis.strip()}')
-            print("  }", end="")
+        print("  }", end="")
         sys.stdout.flush()
     print()
     print("]")
