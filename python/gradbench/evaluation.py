@@ -80,7 +80,7 @@ class SingleModuleValidatedEvaluation:
             "input": input,
         }
         if workload is not None:
-            message["workload"] = (workload,)
+            message["workload"] = workload
         id = self.id
         response = EvaluateResponse.model_validate(self.send(message))
         valid = self.validator(name, input, response.output)

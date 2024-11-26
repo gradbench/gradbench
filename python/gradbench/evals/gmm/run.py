@@ -29,10 +29,10 @@ def main():
                 d = 2
                 input = data_gen.main(d, k, n)
                 e.evaluate(
-                    name="calculate_objectiveGMM", workload="{d}_{k}_{n}", input=input
+                    name="calculate_objectiveGMM", workload=f"{d}_{k}_{n}", input=input
                 )
                 e.evaluate(
-                    name="calculate_jacobianGMM", workload="{d}_{k}_{n}", input=input
+                    name="calculate_jacobianGMM", workload=f"{d}_{k}_{n}", input=input
                 )
     e.end()
 
