@@ -30,7 +30,9 @@ def main():
             for c in args.c:
                 fn = next(data_root.glob(f"lstm_l{l}_c{1024}.txt"), None)
                 input = io.read_lstm_instance(fn).to_dict()
-                e.evaluate(name="calculate_objectiveLSTM", workload=fn.stem, input=input)
+                e.evaluate(
+                    name="calculate_objectiveLSTM", workload=fn.stem, input=input
+                )
                 e.evaluate(name="calculate_jacobianLSTM", workload=fn.stem, input=input)
 
     e.end()
