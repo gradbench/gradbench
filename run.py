@@ -50,7 +50,7 @@ def main():
             print("  }", end="")
             break
         print(",")
-        print(f'    "response": {response.strip()}')
+        print(f'    "response": {response.strip()}', end="")
         client.stdin.write(response)
         client.stdin.flush()
         if json.loads(message)["kind"] == "evaluate":
