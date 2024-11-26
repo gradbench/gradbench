@@ -28,7 +28,13 @@ def get_char_bits(text):
 
 def text_to_matrix(text, bits):
     # bits = math.ceil(math.log2(max([ord(c) for c in text])))
-    return np.array(list(map(lambda c: list(map(lambda b: int(b), bin(ord(c))[2:].zfill(bits))), text)))
+    return np.array(
+        list(
+            map(
+                lambda c: list(map(lambda b: int(b), bin(ord(c))[2:].zfill(bits))), text
+            )
+        )
+    )
 
 
 def f_write_mat(fid, matrix):
@@ -45,7 +51,7 @@ full_text = read_full_text(text_input, max(char_counts))
 for layer_count in layer_counts:
     for char_count in char_counts:
         # Get text extract
-        use_text = full_text[: char_count]
+        use_text = full_text[:char_count]
         char_bits = get_char_bits(use_text)
         text_mat = text_to_matrix(use_text, char_bits)
 
