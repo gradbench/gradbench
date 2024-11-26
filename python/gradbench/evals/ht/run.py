@@ -1,3 +1,4 @@
+import argparse
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,11 @@ def check(name: str, input: Any, output: Any) -> None:
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--min", type=int, default=1)
+    parser.add_argument("--max", type=int, default=2)
+    args = parser.parse_args()
+
     e = SingleModuleValidatedEvaluation(module="ht", validator=assertion(check))
     if e.define().success:
         data_root = Path("evals/ht/data")  # assumes cwd is set correctly
@@ -28,7 +34,7 @@ def main():
         def evals(data_dir, complicated):
             # Shrink the range because some of the larger datasets take an
             # excessive amount of time with PyTorch.
-            for i in range(1, 13)[:2]:
+            for i in range(args.min, args.max + 1):
                 fn = next(data_dir.glob(f"hand{i}_*.txt"), None)
                 model_dir = data_dir / "model"
                 input = io.read_hand_instance(model_dir, fn, complicated).to_dict()
