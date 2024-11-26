@@ -1,47 +1,47 @@
 [
   {
     "message": {"id": 0, "kind": "define", "module": "hello"},
-    "nanoseconds": 491217256,
+    "nanoseconds": 471378402,
     "response": {"id": 0, "success": true}
   },
   {
     "message": {"id": 1, "kind": "evaluate", "module": "hello", "name": "square", "input": 1.0},
-    "nanoseconds": 1888984,
+    "nanoseconds": 1934561,
     "response": {"id": 1, "output": 1.0, "nanoseconds": {"evaluate": 100}}
   },
   {
     "message": {"id": 2, "kind": "evaluate", "module": "hello", "name": "double", "input": 1.0},
-    "nanoseconds": 1778066,
-    "response": {"id": 2, "output": 2.0, "nanoseconds": {"evaluate": 90}}
+    "nanoseconds": 1872274,
+    "response": {"id": 2, "output": 2.0, "nanoseconds": {"evaluate": 121}}
   },
   {
     "message": {"id": 3, "kind": "evaluate", "module": "hello", "name": "square", "input": 2.0},
-    "nanoseconds": 1647008,
-    "response": {"id": 3, "output": 4.0, "nanoseconds": {"evaluate": 100}}
+    "nanoseconds": 1653714,
+    "response": {"id": 3, "output": 4.0, "nanoseconds": {"evaluate": 90}}
   },
   {
     "message": {"id": 4, "kind": "evaluate", "module": "hello", "name": "double", "input": 4.0},
-    "nanoseconds": 1729154,
+    "nanoseconds": 1621694,
     "response": {"id": 4, "output": 8.0, "nanoseconds": {"evaluate": 90}}
   },
   {
     "message": {"id": 5, "kind": "evaluate", "module": "hello", "name": "square", "input": 8.0},
-    "nanoseconds": 1522970,
-    "response": {"id": 5, "output": 64.0, "nanoseconds": {"evaluate": 100}}
+    "nanoseconds": 1748555,
+    "response": {"id": 5, "output": 64.0, "nanoseconds": {"evaluate": 90}}
   },
   {
     "message": {"id": 6, "kind": "evaluate", "module": "hello", "name": "double", "input": 64.0},
-    "nanoseconds": 1581729,
-    "response": {"id": 6, "output": 128.0, "nanoseconds": {"evaluate": 90}}
+    "nanoseconds": 1467800,
+    "response": {"id": 6, "output": 128.0, "nanoseconds": {"evaluate": 100}}
   },
   {
     "message": {"id": 7, "kind": "evaluate", "module": "hello", "name": "square", "input": 128.0},
-    "nanoseconds": 1498353,
+    "nanoseconds": 1443888,
     "response": {"id": 7, "output": 16384.0, "nanoseconds": {"evaluate": 90}}
   },
   {
     "message": {"id": 8, "kind": "evaluate", "module": "hello", "name": "double", "input": 16384.0},
-    "nanoseconds": 1545942,
+    "nanoseconds": 1574101,
     "response": {"id": 8, "output": 32768.0, "nanoseconds": {"evaluate": 100}}
   },
   {
