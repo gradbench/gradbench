@@ -38,8 +38,8 @@ def main():
                 fn = next(data_dir.glob(f"hand{i}_*.txt"), None)
                 model_dir = data_dir / "model"
                 input = io.read_hand_instance(model_dir, fn, complicated).to_dict()
-                e.evaluate(name="calculate_objectiveHT", input=input)
-                e.evaluate(name="calculate_jacobianHT", input=input)
+                e.evaluate(name="calculate_objectiveHT", workload=fn.stem, input=input)
+                e.evaluate(name="calculate_jacobianHT", workload=fn.stem, input=input)
 
         evals(simple_small, False)
         evals(simple_big, False)

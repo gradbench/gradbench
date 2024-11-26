@@ -26,9 +26,14 @@ def main():
     if e.define().success:
         for n in args.n:
             for k in args.k:
-                input = data_gen.main(2, k, n)  # d k n
-                e.evaluate(name="calculate_objectiveGMM", input=input)
-                e.evaluate(name="calculate_jacobianGMM", input=input)
+                d = 2
+                input = data_gen.main(d, k, n)
+                e.evaluate(
+                    name="calculate_objectiveGMM", workload="{d}_{k}_{n}", input=input
+                )
+                e.evaluate(
+                    name="calculate_jacobianGMM", workload="{d}_{k}_{n}", input=input
+                )
     e.end()
 
 

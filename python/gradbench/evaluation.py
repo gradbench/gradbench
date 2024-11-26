@@ -70,13 +70,17 @@ class SingleModuleValidatedEvaluation:
         response = DefineResponse.model_validate(self.send(message))
         return response
 
-    def evaluate(self, *, name: str, input: Any) -> EvaluateResponse:
+    def evaluate(
+        self, *, name: str, input: Any, workload: Optional[str] = None
+    ) -> EvaluateResponse:
         message = {
             "kind": "evaluate",
             "module": self.module,
             "name": name,
             "input": input,
         }
+        if workload is not None:
+            message["workload"] = (workload,)
         id = self.id
         response = EvaluateResponse.model_validate(self.send(message))
         valid = self.validator(name, input, response.output)
