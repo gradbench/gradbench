@@ -60,21 +60,34 @@ class SingleModuleValidatedEvaluation:
         self.id += 1
         return response
 
+    # Do not increment ID, do not ask for response.
+    def analysis(self, message: Any) -> Any:
+        json.dump(message, sys.stdout)
+        print(flush=True)
+
     def define(self) -> DefineResponse:
         message = {"kind": "define", "module": self.module}
         response = DefineResponse.model_validate(self.send(message))
         return response
 
-    def evaluate(self, *, name: str, input: Any) -> EvaluateResponse:
+    def evaluate(
+        self, *, name: str, input: Any, workload: Optional[str] = None
+    ) -> EvaluateResponse:
         message = {
             "kind": "evaluate",
             "module": self.module,
             "name": name,
             "input": input,
         }
+        if workload is not None:
+            message["workload"] = (workload,)
         id = self.id
         response = EvaluateResponse.model_validate(self.send(message))
-        self.validations[id] = self.validator(name, input, response.output)
+        valid = self.validator(name, input, response.output)
+        self.analysis(
+            {"id": id, "kind": "analysis", "valid": valid.correct, "error": valid.error}
+        )
+        self.validations[id] = valid
         return response
 
     def end(self) -> None:

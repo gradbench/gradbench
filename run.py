@@ -50,9 +50,13 @@ def main():
             print("  }", end="")
             break
         print(",")
-        print(f'    "response": {response.strip()}')
+        print(f'    "response": {response.strip()}', end="")
         client.stdin.write(response)
         client.stdin.flush()
+        if json.loads(message)["kind"] == "evaluate":
+            analysis = client.stdout.readline()
+            print(",")
+            print(f'    "analysis": {analysis.strip()}')
         print("  }", end="")
         sys.stdout.flush()
     print()
