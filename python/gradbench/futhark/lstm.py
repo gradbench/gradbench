@@ -13,7 +13,7 @@ def prepare(server, params):
     server.put_value("sequence", input.sequence)
 
 
-def calculate_objectiveHT(server):
+def calculate_objectiveLSTM(server):
     server.cmd_call(
         "calculate_objective",
         "obj",
@@ -27,7 +27,7 @@ def calculate_objectiveHT(server):
     return obj
 
 
-def calculate_jacobianHT(server):
+def calculate_jacobianLSTM(server):
     server.cmd_call(
         "calculate_jacobian",
         "J",
