@@ -1,9 +1,8 @@
 [
   {
     "message": {"id": 0, "kind": "define", "module": "hello"},
-    "nanoseconds": 320921,
-    "response": {"success": false, "id": 0}
-  },
+    "nanoseconds": 347076,
+    "response": {"success": false, "id": 0}  },
   {
     "message": {"id": 1, "kind": "end", "validations": []}
   }

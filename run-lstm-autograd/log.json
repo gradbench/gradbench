@@ -1,0 +1,9 @@
+[
+  {
+    "message": {"id": 0, "kind": "define", "module": "lstm"},
+    "nanoseconds": 544425,
+    "response": {"id": 0, "success": false}  },
+  {
+    "message": {"id": 1, "kind": "end", "validations": []}
+  }
+]
