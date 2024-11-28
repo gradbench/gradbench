@@ -22,6 +22,10 @@ class Validation(BaseModel):
     error: Optional[str]
 
 
+def dump_validation(valid: Validation) -> dict[str, Any]:
+    return valid.model_dump(exclude_none=True)
+
+
 Validator = Callable[[str, Any, Any], Validation]
 
 
@@ -84,15 +88,13 @@ class SingleModuleValidatedEvaluation:
         id = self.id
         response = EvaluateResponse.model_validate(self.send(message))
         valid = self.validator(name, input, response.output)
-        self.analysis(
-            {"id": id, "kind": "analysis", "valid": valid.correct, "error": valid.error}
-        )
+        self.analysis({"id": id, "kind": "analysis"} | dump_validation(valid))
         self.validations[id] = valid
         return response
 
     def end(self) -> None:
         validations = [
-            {"id": id} | validation.model_dump()
+            {"id": id} | dump_validation(validation)
             for id, validation in self.validations.items()
         ]
         message = {"kind": "end", "validations": validations}
