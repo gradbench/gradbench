@@ -1,7 +1,7 @@
 [
   {
     "message": {"id": 0, "kind": "define", "module": "lstm"},
-    "nanoseconds": 544425,
+    "nanoseconds": 527810,
     "response": {"id": 0, "success": false}  },
   {
     "message": {"id": 1, "kind": "end", "validations": []}
