@@ -7,6 +7,7 @@
 - [Docker](#docker)
   - [Multi-platform images](#multi-platform-images)
   - [Manual images](#manual-images)
+- [Tools](#tools)
 - [Node](#node)
   - [Markdown](#markdown)
   - [Website](#website)
@@ -77,11 +78,23 @@ These typically take much longer than `buildeval.sh` and `buildtool.sh`, so they
 
 ### Manual images
 
-All the Docker images for individual autodiff tools are in the `tools` directory and built automatically in GitHub Actions. However, some of those `Dockerfile`s are built `FROM` base images that we are unable to build in GitHub Actions. All such base images are in the `docker` directory. Each must have an `ENTRYPOINT` that simply prints the tag of the image. To build, tag, and push one of these images, first [log in to GHCR][], then use `manual.sh`:
+All the Docker images for individual autodiff tools are in the `tools` directory and built automatically in GitHub Actions. However, some of those `Dockerfile`s are built `FROM` base images that we are unable to build in GitHub Actions. All such base images are in the `docker` directory. Each must have an `ENTRYPOINT` that simply prints the tag of the image. _If you have write access to the GradBench organization on GitHub_, you can build, tag, and push one of these images by first [log in to GHCR][] and then running `manual.sh`:
 
 ```sh
 ./manual.sh mathlib4
 ```
+
+## Tools
+
+If you'd like to contribute a new tool: awesome! We're always excited to expand the set of automatic differentiation tools in GradBench. All you need to do is create a subdirectory under the `tools` directory in this repo, and create a `Dockerfile` in that new subdirectory. Other than having an `ENTRYPOINT`, you can pretty much do whatever you want; take a look at the already-supported tools to see some examples! You must include the following as the last line in your `Dockerfile`, though:
+
+```Dockerfile
+LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
+```
+
+We'd really appreciate it if you also write a short `README.md` file next to your `Dockerfile`; this can be as minimal as just a link to the tool's website, but can also include more information, e.g. anything specific about this setup of that tool for GradBench.
+
+Before taking a look at any of the other evals, you should implement the [`hello` eval](evals/hello) for the tool you're adding! This will help you get all the structure for the GradBench protocol working correctly first, after which you can implement other evals for that tool over time.
 
 ## Node
 
