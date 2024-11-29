@@ -54,7 +54,7 @@ To illustrate, here is a hypothetical example of a complete session of the proto
     "message": { "id": 1, "kind": "evaluate", "module": "foo", "name": "bar", "input": 3.14159 },
     "nanoseconds": 56789,
     "response": { "id": 1, "output": 2.71828, "nanoseconds": { "evaluate": 45678 } },
-    "analysis": { "id": 1, "kind": "analysis", "correct": true, "error": "Expected tau, got e." }
+    "analysis": { "id": 1, "kind": "analysis", "correct": false, "error": "Expected tau, got e." }
   },
   {
     "message": { "id": 2, "kind": "evaluate", "module": "foo", "name": "baz", "input": { "mynumber": 121 } },
@@ -74,7 +74,7 @@ Here is that example from the perspective of the eval. (Output is listed first h
   ```json
   { "id": 0, "kind": "define", "module": "foo" }
   { "id": 1, "kind": "evaluate", "module": "foo", "name": "bar", "input": 3.14159 }
-  { "id": 1, "kind": "analysis", "correct": true, "error": "Expected tau, got e." }
+  { "id": 1, "kind": "analysis", "correct": false, "error": "Expected tau, got e." }
   { "id": 2, "kind": "evaluate", "module": "foo", "name": "baz", "input": { "mynumber": 121 } }
   { "id": 2, "kind": "analysis", "correct": true }
   { "id": 3, "kind": "end", "validations": [ { "id": 1, "correct": false, "error": "Expected tau, got e." }, { "id": 2, "correct": true } ] }
