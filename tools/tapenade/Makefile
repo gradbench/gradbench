@@ -8,9 +8,12 @@ GMM_OBJECTS=TapenadeGMM.o gmm/gmm.o gmm/gmm_b.o run_gmm.o
 BA_OBJECTS=TapenadeBA.o ba/ba.o ba/ba_b.o run_ba.o
 LSTM_OBJECTS=TapenadeLSTM.o lstm/lstm.o lstm/lstm_b.o run_lstm.o
 HT_OBJECTS=TapenadeHT.o hand/hand.o hand/hand_b.o run_hand.o
-EXECUTABLES=run_gmm
+EXECUTABLES=run_gmm run_ba
 
-all: run_gmm
+all: $(EXECUTABLES)
+
+run_ba: $(BA_OBJECTS) $(UTIL_OBJECTS)
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
 run_gmm: $(GMM_OBJECTS) $(UTIL_OBJECTS)
 	$(CXX) -o $@ $^ $(LDFLAGS)

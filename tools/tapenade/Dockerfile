@@ -20,7 +20,7 @@ COPY cpp /cpp/
 
 COPY tools/tapenade/ .
 
-RUN make
+RUN make -j
 
 ENTRYPOINT ["python3", "/home/gradbench/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
