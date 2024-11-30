@@ -3,7 +3,7 @@
 
 // https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/cpp/shared/ITest.h
 
-#pragma once 
+#pragma once
 
 #if defined _WIN32 || defined __CYGWIN__
     #ifdef __GNUC__

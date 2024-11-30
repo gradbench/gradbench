@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "adbench/shared/ITest.h"
-#include "adbench/shared/HandData.h"
+#include "adbench/shared/HTData.h"
 #include "adbench/shared/light_matrix.h"
 #include "adbench/shared/defs.h"
 

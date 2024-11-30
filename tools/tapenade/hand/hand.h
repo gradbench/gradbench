@@ -12,7 +12,7 @@ extern "C" {
 #include <stdlib.h>
 #include <math.h>
 
-#include "../../../shared/defs.h"
+#include "adbench/shared/defs.h"
 
 typedef struct
 {

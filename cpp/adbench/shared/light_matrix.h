@@ -3,6 +3,8 @@
 
 // https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/cpp/shared/light_matrix.h
 
+// Changes made: fixed a few annoying warnings.
+
 #pragma once
 
 ////////////////////////////////////////////////////////////
@@ -13,8 +15,8 @@ template<typename T>
 class LightMatrix
 {
 public:
-  LightMatrix() : nrows_(0), ncols_(0), data_(nullptr), is_data_owner_(true) {}
-  LightMatrix(int nrows, int ncols) : nrows_(nrows), ncols_(ncols), is_data_owner_(true) { data_ = new T[nrows*ncols]; }
+  LightMatrix() : is_data_owner_(true), nrows_(0), ncols_(0), data_(nullptr) {}
+  LightMatrix(int nrows, int ncols) : is_data_owner_(true), nrows_(nrows), ncols_(ncols) { data_ = new T[nrows*ncols]; }
   LightMatrix(int nrows, int ncols, T* data, bool is_data_owner = false);
   LightMatrix(const LightMatrix<T>& other);
   LightMatrix(LightMatrix<T>&& other);
@@ -68,7 +70,7 @@ LightMatrix<T>& LightMatrix<T>::operator=(const LightMatrix<T>& other)
 
 template<typename T>
 LightMatrix<T>::LightMatrix(const LightMatrix<T>& other)
-  : nrows_(0), ncols_(0), data_(nullptr), is_data_owner_(true)
+  : is_data_owner_(true), nrows_(0), ncols_(0), data_(nullptr)
 {
   resize(other.nrows_, other.ncols_);
   for (int i = 0; i < size(); i++)
@@ -78,7 +80,7 @@ LightMatrix<T>::LightMatrix(const LightMatrix<T>& other)
 
 template<typename T>
 LightMatrix<T>::LightMatrix(LightMatrix<T>&& other)
-    : nrows_(other.nrows_), ncols_(other.ncols_), data_(other.data_), is_data_owner_(other.is_data_owner_)
+  : is_data_owner_(other.is_data_owner_), nrows_(other.nrows_), ncols_(other.ncols_), data_(other.data_)
 {
     other.ncols_ = 0;
     other.nrows_ = 0;
@@ -106,7 +108,7 @@ LightMatrix<T>& LightMatrix<T>::operator=(LightMatrix<T>&& other)
 
 template<typename T>
 LightMatrix<T>::LightMatrix(int nrows, int ncols, T* data, bool is_data_owner)
-  : nrows_(nrows), ncols_(ncols), data_(data), is_data_owner_(is_data_owner) {}
+  : is_data_owner_(is_data_owner), nrows_(nrows), ncols_(ncols), data_(data) {}
 
 template<typename T>
 void LightMatrix<T>::set_block(int row_off, int col_off, const LightMatrix<T>& block)
