@@ -3,15 +3,16 @@
 
 #include "adbench/shared/GMMData.h"
 #include "adbench/shared/BAData.h"
+#include "adbench/shared/LSTMData.h"
 
 void read_GMMInput_json(const char* fname, GMMInput &input);
-
 void write_GMMOutput_objective_json(std::ostream& f, GMMOutput &output);
-
 void write_GMMOutput_jacobian_json(std::ostream& f, GMMOutput &output);
 
 void read_BAInput_json(const char* fname, BAInput &input);
-
 void write_BAOutput_objective_json(std::ostream& f, BAOutput &output);
-
 void write_BAOutput_jacobian_json(std::ostream& f, BAOutput &output);
+
+void read_LSTMInput_json(const char* fname, LSTMInput &input);
+void write_LSTMOutput_objective_json(std::ostream& f, LSTMOutput &output);
+void write_LSTMOutput_jacobian_json(std::ostream& f, LSTMOutput &output);

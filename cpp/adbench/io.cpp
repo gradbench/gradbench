@@ -4,6 +4,7 @@
 #include "adbench/shared/BAData.h"
 
 void read_GMMInput_json(const char* fname, GMMInput &input) {
+  // Based on read_lstm_instance from ADBench.
   using json = nlohmann::json;
   std::ifstream f(fname);
   json data = json::parse(f);
@@ -39,7 +40,7 @@ void write_GMMOutput_jacobian_json(std::ostream& f, GMMOutput &output) {
 
 
 void read_BAInput_json(const char* fname, BAInput &input) {
-  // This code based on read_ba_instance from ADBench.
+  // Based on read_ba_instance from ADBench.
   using json = nlohmann::json;
   std::ifstream f(fname);
   json data = json::parse(f);
@@ -116,4 +117,46 @@ void write_BAOutput_jacobian_json(std::ostream& f, BAOutput &output) {
       }}
   };
   f << out;
+}
+
+void read_LSTMInput_json(const char* fname, LSTMInput &input) {
+  // Based on read_lstm_instance from ADBench.
+  using json = nlohmann::json;
+  std::ifstream f(fname);
+  json data = json::parse(f);
+
+  auto main_params = data["main_params"].get<std::vector<std::vector<double>>>();
+  auto extra_params = data["extra_params"].get<std::vector<std::vector<double>>>();
+  auto state = data["state"].get<std::vector<std::vector<double>>>();
+  auto sequence = data["sequence"].get<std::vector<std::vector<double>>>();
+
+  input.l = main_params.size() / 2;
+  input.b = main_params[0].size() / 4;
+  input.c = sequence.size();
+
+  for (auto it = main_params.begin(); it != main_params.end(); it++) {
+    input.main_params.insert(input.main_params.end(), it->begin(), it->end());
+  }
+
+  for (auto it = extra_params.begin(); it != extra_params.end(); it++) {
+    input.extra_params.insert(input.extra_params.end(), it->begin(), it->end());
+  }
+
+  for (auto it = state.begin(); it != state.end(); it++) {
+    input.state.insert(input.state.end(), it->begin(), it->end());
+  }
+
+  for (auto it = sequence.begin(); it != sequence.end(); it++) {
+    input.sequence.insert(input.sequence.end(), it->begin(), it->end());
+  }
+}
+
+void write_LSTMOutput_objective_json(std::ostream& f, LSTMOutput &output) {
+  using json = nlohmann::json;
+  f << json(output.objective);
+}
+
+void write_LSTMOutput_jacobian_json(std::ostream& f, LSTMOutput &output) {
+  using json = nlohmann::json;
+  f << json(output.gradient);
 }
