@@ -1,6 +1,6 @@
+import json
 import subprocess
 import tempfile
-import json
 from os import listdir
 
 
