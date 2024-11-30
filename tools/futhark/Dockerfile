@@ -14,7 +14,9 @@ RUN make -C futhark-0.25.23-linux-x86_64 install
 COPY python /home/gradbench/python
 ENV PYTHONPATH=/home/gradbench/python
 
-RUN cd /home/gradbench/python/gradbench/futhark/ && rm -rf lib && futhark pkg sync
+COPY tools/futhark /home/gradbench/tools/futhark
+RUN cd /home/gradbench/tools/futhark && futhark pkg sync
 
-ENTRYPOINT ["python", "/home/gradbench/python/gradbench/futhark/run.py"]
+WORKDIR /home/gradbench
+ENTRYPOINT ["python", "/home/gradbench/tools/futhark/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
