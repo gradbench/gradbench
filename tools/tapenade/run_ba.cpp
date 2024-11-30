@@ -42,6 +42,7 @@ int main(int argc, char* argv[]) {
   }
   std::cout << std::endl;
 
-  double time_taken = (double) (finish.tv_nsec - start.tv_nsec);
+  double time_taken = (double) ((finish.tv_sec*1e9 + finish.tv_nsec) -
+                                (start.tv_sec*1e9 + start.tv_nsec));
   std::cout << (long)time_taken;
 }
