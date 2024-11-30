@@ -1,2 +1,5 @@
 *.o
 run_gmm
+run_ba
+run_lstm
+run_ht

@@ -3,7 +3,7 @@ CC?=cc
 CFLAGS=-O3
 LDFLAGS=-lm
 
-UTIL_OBJECTS=utils/adBuffer.o utils/adStack.o ../../cpp/adbench/shared/utils.o
+UTIL_OBJECTS=utils/adBuffer.o utils/adStack.o ../../cpp/adbench/shared/utils.o ../../cpp/adbench/io.o
 GMM_OBJECTS=TapenadeGMM.o gmm/gmm.o gmm/gmm_b.o run_gmm.o
 BA_OBJECTS=TapenadeBA.o ba/ba.o ba/ba_b.o run_ba.o
 LSTM_OBJECTS=TapenadeLSTM.o lstm/lstm.o lstm/lstm_b.o run_lstm.o
