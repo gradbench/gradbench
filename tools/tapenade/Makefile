@@ -1,6 +1,6 @@
 CXX?=c++
 CC?=cc
-CFLAGS=-O3 -Wall
+CFLAGS=-std=c++17 -O3 -Wall
 LDFLAGS=-lm
 
 UTIL_OBJECTS=utils/adBuffer.o utils/adStack.o ../../cpp/adbench/shared/utils.o ../../cpp/adbench/io.o
