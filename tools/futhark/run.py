@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import argparse
 import json
 import os
 import subprocess
@@ -12,11 +13,11 @@ import numpy as np
 
 
 def server_prog_source(prog):
-    return os.path.join(os.path.dirname(__file__), prog + ".fut")
+    return os.path.join("tools/futhark/", prog + ".fut")
 
 
 def server_prog(prog):
-    return os.path.join(os.path.dirname(__file__), prog)
+    return os.path.join("tools/futhark/", prog)
 
 
 def resolve(module, name):
@@ -35,10 +36,11 @@ def run(params):
         return {"output": ret, "nanoseconds": {"evaluate": end - start}}
 
 
-FUTHARK_BACKEND = "c"
-
-
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--backend", type=str, default="c")
+    args = parser.parse_args()
+
     for line in sys.stdin:
         message = json.loads(line)
         response = {}
@@ -48,7 +50,7 @@ def main():
             c = subprocess.run(
                 [
                     "futhark",
-                    FUTHARK_BACKEND,
+                    args.backend,
                     "--server",
                     server_prog_source(message["module"]),
                 ]

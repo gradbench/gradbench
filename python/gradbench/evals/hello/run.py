@@ -1,15 +1,17 @@
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
 from gradbench.evaluation import SingleModuleValidatedEvaluation, assertion
 
 
 def check(name: str, input: Any, output: Any) -> None:
     match name:
         case "double":
-            assert output == input * 2
+            assert np.isclose(output, input * 2)
         case "square":
-            assert output == input * input
+            assert np.isclose(output, input * input)
 
 
 def main():

@@ -313,6 +313,35 @@ test-full = ["adlfs", "aiohttp (!=4.0.0a0,!=4.0.0a1)", "cloudpickle", "dask", "d
 tqdm = ["tqdm"]
 
 [[package]]
+name = "futhark-data"
+version = "1.0.2"
+description = "Reading and writing Futhark data files"
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "futhark-data-1.0.2.tar.gz", hash = "sha256:1493a156beb953790fe34f016c0e368db1860fac7eb5587e4cd86c62ff1b513d"},
+    {file = "futhark_data-1.0.2-py3-none-any.whl", hash = "sha256:7f901a75f58edfbda1d09ca9935adbdeeacfb6735fce9029d57b88fcdfcbe9e3"},
+]
+
+[package.dependencies]
+numpy = "*"
+
+[[package]]
+name = "futhark-server"
+version = "1.0.0"
+description = "Client side implementation of the Futhark server protocol"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "futhark-server-1.0.0.tar.gz", hash = "sha256:236fbc05e10e3ce5747d7b6b5ddcff7aa0a3f031402536ca9942b2e37a22ca31"},
+    {file = "futhark_server-1.0.0-py3-none-any.whl", hash = "sha256:4a97f66dfec82458e106afc403ef91ea896d0835b8cd43e7aeb8257e7756c68a"},
+]
+
+[package.dependencies]
+futhark-data = "*"
+numpy = "*"
+
+[[package]]
 name = "future"
 version = "1.0.0"
 description = "Clean single-source support for Python 3 and 2"
@@ -1849,4 +1878,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "ffada4c433dc7dbda6fa81a1dcd47c1da0af63798b3f3bbecb4a012ef6502817"
+content-hash = "64481ee33a6cc9f5fc5094c43095f056040188b873f024b625a92854f16a6854"
