@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
+// https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/cpp/modules/tapenade/gmm/gmm_b.c
+
 /*
  *   This file is a repaired version of the file "gmm_b_tapenade_generated.c"
  *   Fixing list (all fixings are marked by the comment TFIX):
