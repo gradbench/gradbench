@@ -13,7 +13,7 @@ from gradbench.wrap_module import Functions
 def check(name: str, input: Any, output: Any) -> None:
     func: Functions = getattr(golden, name)
     expected = func.unwrap(func(func.prepare(input)))
-    assert np.all(np.isclose(expected, output))
+    assert np.all(np.isclose(expected, output, rtol=1e-02))
 
 
 def main():

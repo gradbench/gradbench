@@ -13,28 +13,42 @@ jobs:
   lint:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-      - uses: snok/install-poetry@v1
-      - run: poetry install
-      - run: npm ci
-      - run: npm run toc
-      - run: |
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+      - name: Install Python dependencies
+        run: poetry install
+      - name: Install Node dependencies
+        run: npm ci
+      - name: Update Markdown tables of contents
+        run: npm run toc
+      - name: Check if that changed anything
+        run: |
           CHANGES=$(git status --porcelain)
           echo "$CHANGES"
           git diff
           [ -z "$CHANGES" ]
-      - run: poetry run black --check .
-      - run: poetry run isort --check .
+      - name: Check Python formatting
+        run: poetry run black --check .
+      - name: Check Python imports
+        run: poetry run isort --check .
 
   site:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - run: npm ci
-      - run: npm run --workspace=gradbench lint
-      - run: npm run --workspace=gradbench build
-      - uses: actions/upload-pages-artifact@v3
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Node dependencies
+        run: npm ci
+      - name: Lint website
+        run: npm run --workspace=gradbench lint
+      - name: Build website
+        run: npm run --workspace=gradbench build
+      - name: Upload website artifact
+        uses: actions/upload-pages-artifact@v3
         with:
           path: packages/gradbench/dist
 
@@ -49,7 +63,8 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     runs-on: ubuntu-22.04
     steps:
-      - id: deploy
+      - name: Deploy website
+        id: deploy
         uses: actions/deploy-pages@v4
 
   matrix:
@@ -59,8 +74,10 @@ jobs:
       fast: ${{ steps.matrix.outputs.fast }}
       slow: ${{ steps.matrix.outputs.slow }}
     steps:
-      - uses: actions/checkout@v4
-      - id: matrix
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Compute job parameters
+        id: matrix
         run: .github/matrix.py | tee -a "$GITHUB_OUTPUT"
 
   eval:
@@ -71,11 +88,16 @@ jobs:
         eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/docker
-      - run: ./crosseval.sh ${{ matrix.eval }}
-      - run: docker save --output eval-${{ matrix.eval }}.tar ghcr.io/gradbench/eval-${{ matrix.eval }}
-      - uses: actions/upload-artifact@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup multi-platform Docker
+        uses: ./.github/actions/docker
+      - name: Build eval Docker image
+        run: ./crosseval.sh ${{ matrix.eval }}
+      - name: Serialize eval Docker image
+        run: docker save --output eval-${{ matrix.eval }}.tar ghcr.io/gradbench/eval-${{ matrix.eval }}
+      - name: Upload eval Docker image as artifact
+        uses: actions/upload-artifact@v4
         with:
           name: eval-${{ matrix.eval }}
           path: eval-${{ matrix.eval }}.tar
@@ -88,12 +110,18 @@ jobs:
         tool: ${{ fromJSON(needs.matrix.outputs.fast) }}
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/space
-      - uses: ./.github/actions/docker
-      - run: ./crosstool.sh ${{ matrix.tool }}
-      - run: docker save --output tool-${{ matrix.tool }}.tar ghcr.io/gradbench/tool-${{ matrix.tool }}
-      - uses: actions/upload-artifact@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Increase disk space
+        uses: ./.github/actions/space
+      - name: Setup multi-platform Docker
+        uses: ./.github/actions/docker
+      - name: Build tool Docker image
+        run: ./crosstool.sh ${{ matrix.tool }}
+      - name: Serialize tool Docker image
+        run: docker save --output tool-${{ matrix.tool }}.tar ghcr.io/gradbench/tool-${{ matrix.tool }}
+      - name: Upload tool Docker image as artifact
+        uses: actions/upload-artifact@v4
         with:
           name: tool-${{ matrix.tool }}
           path: tool-${{ matrix.tool }}.tar
@@ -106,12 +134,18 @@ jobs:
         tool: ${{ fromJSON(needs.matrix.outputs.slow) }}
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/space
-      - uses: ./.github/actions/docker
-      - run: ./crosstool.sh ${{ matrix.tool }}
-      - run: docker save --output tool-${{ matrix.tool }}.tar ghcr.io/gradbench/tool-${{ matrix.tool }}
-      - uses: actions/upload-artifact@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Increase disk space
+        uses: ./.github/actions/space
+      - name: Setup multi-platform Docker
+        uses: ./.github/actions/docker
+      - name: Build tool Docker image
+        run: ./crosstool.sh ${{ matrix.tool }}
+      - name: Serialize tool Docker image
+        run: docker save --output tool-${{ matrix.tool }}.tar ghcr.io/gradbench/tool-${{ matrix.tool }}
+      - name: Upload tool Docker image as artifact
+        uses: actions/upload-artifact@v4
         with:
           name: tool-${{ matrix.tool }}
           path: tool-${{ matrix.tool }}.tar
@@ -128,23 +162,31 @@ jobs:
         tool: ${{ fromJSON(needs.matrix.outputs.fast) }}
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Download eval Docker image from artifact
+        uses: actions/download-artifact@v4
         with:
           name: eval-${{ matrix.eval }}
-      - uses: actions/download-artifact@v4
+      - name: Download tool Docker image from artifact
+        uses: actions/download-artifact@v4
         with:
           name: tool-${{ matrix.tool }}
-      - run: docker load --input eval-${{ matrix.eval }}.tar
-      - run: docker load --input tool-${{ matrix.tool }}.tar
-      - run: |
+      - name: Load eval Docker image
+        run: docker load --input eval-${{ matrix.eval }}.tar
+      - name: Load tool Docker image
+        run: docker load --input tool-${{ matrix.tool }}.tar
+      - name: Run tool on eval
+        run: |
           set -o pipefail
           ./run.py --eval './eval.sh ${{ matrix.eval }}' --tool './tool.sh ${{ matrix.tool }}' | tee log.json
-      - uses: actions/upload-artifact@v4
+      - name: Upload log as artifact
+        uses: actions/upload-artifact@v4
         with:
           name: run-${{ matrix.eval }}-${{ matrix.tool }}
           path: log.json
-      - run: .github/errors.py
+      - name: Check for errors
+        run: .github/errors.py
 
   run-slow:
     needs:
@@ -158,20 +200,28 @@ jobs:
         tool: ${{ fromJSON(needs.matrix.outputs.slow) }}
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Download eval Docker image from artifact
+        uses: actions/download-artifact@v4
         with:
           name: eval-${{ matrix.eval }}
-      - uses: actions/download-artifact@v4
+      - name: Download tool Docker image from artifact
+        uses: actions/download-artifact@v4
         with:
           name: tool-${{ matrix.tool }}
-      - run: docker load --input eval-${{ matrix.eval }}.tar
-      - run: docker load --input tool-${{ matrix.tool }}.tar
-      - run: |
+      - name: Load eval Docker image
+        run: docker load --input eval-${{ matrix.eval }}.tar
+      - name: Load tool Docker image
+        run: docker load --input tool-${{ matrix.tool }}.tar
+      - name: Run tool on eval
+        run: |
           set -o pipefail
           ./run.py --eval './eval.sh ${{ matrix.eval }}' --tool './tool.sh ${{ matrix.tool }}' | tee log.json
-      - uses: actions/upload-artifact@v4
+      - name: Upload log as artifact
+        uses: actions/upload-artifact@v4
         with:
           name: run-${{ matrix.eval }}-${{ matrix.tool }}
           path: log.json
-      - run: .github/errors.py
+      - name: Check for errors
+        run: .github/errors.py

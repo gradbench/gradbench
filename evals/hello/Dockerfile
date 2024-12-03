@@ -1,6 +1,6 @@
-FROM python:3.11-alpine
+FROM python:3.11-slim
 
-RUN pip install pydantic
+RUN pip install numpy==1.26.0 pydantic
 
 COPY python /home/gradbench/python
 ENV PYTHONPATH=/home/gradbench/python
