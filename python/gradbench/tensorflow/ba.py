@@ -33,8 +33,8 @@ Changes Made:
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import signal
-import sys
+# import signal
+# import sys
 import time
 
 import numpy as np
@@ -143,15 +143,15 @@ class TensorflowBA(ITest):
             self.w_err = tf.stack(w_err, 0)
 
 
-TIMEOUT = 400
+# TIMEOUT = 400
 
 
 class TimeoutException(Exception):
     pass
 
 
-def timeout_handler(signum, frame):
-    raise TimeoutException()
+# def timeout_handler(signum, frame):
+#     raise TimeoutException()
 
 
 def objective_output(errors):
@@ -207,16 +207,16 @@ def calculate_objectiveBA(input):
     py.prepare(input)
 
     start_time = time.time()
-    signal.signal(signal.SIGALRM, timeout_handler)
-    signal.alarm(TIMEOUT)
+    # signal.signal(signal.SIGALRM, timeout_handler)
+    # signal.alarm(TIMEOUT)
 
-    try:
-        py.calculate_objective(1)
-        signal.alarm(0)  # Disable the alarm
-        return (py.reproj_error, py.w_err)
-    except TimeoutException:
-        elapsed_time = time.time() - start_time
-        return f"Process terminated due to timeout after {elapsed_time:.2f} seconds."
+    # try:
+    py.calculate_objective(1)
+    # signal.alarm(0)  # Disable the alarm
+    return (py.reproj_error, py.w_err)
+    # except TimeoutException:
+    #     elapsed_time = time.time() - start_time
+    #     return f"Process terminated due to timeout after {elapsed_time:.2f} seconds."
 
 
 @wrap(prepare_input, jacobian_output)
@@ -226,14 +226,13 @@ def calculate_jacobianBA(input):
 
     start_time = time.time()
 
-    signal.signal(signal.SIGALRM, timeout_handler)
-    signal.alarm(TIMEOUT)
+    # signal.signal(signal.SIGALRM, timeout_handler)
+    # signal.alarm(TIMEOUT)
 
-    try:
-        py.calculate_jacobian(1)
-        # print(f"Jacobian Completed in {time.time() - start_time} seconds", file=sys.stderr)
-        signal.alarm(0)  # Disable the alarm
-        return py.jacobian
-    except TimeoutException:
-        elapsed_time = time.time() - start_time
-        return f"Process terminated due to timeout after {elapsed_time:.2f} seconds."
+    # try:
+    py.calculate_jacobian(1)
+    # signal.alarm(0)  # Disable the alarm
+    return py.jacobian
+    # except TimeoutException:
+    #     elapsed_time = time.time() - start_time
+    #     return f"Process terminated due to timeout after {elapsed_time:.2f} seconds."
