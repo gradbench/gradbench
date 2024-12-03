@@ -47,7 +47,7 @@ def message_evaluate(client, message):
     module = message["module"]
     name = message["name"]
     id = message["id"]
-    print(f"{tag(id)} Eval {name:25} {message["workload"]:15} ", end="")
+    print(f"{tag(id)} Eval {name:25} {message['workload']:15} ", end="")
     sys.stdout.flush()
 
     def f(response):
