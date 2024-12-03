@@ -15,12 +15,12 @@ RUN tar -xvzf tapenade_3.16.tar
 # ensure Tapenade is accessible
 RUN ln -s /home/gradbench/tapenade_3.16/bin/tapenade /usr/local/bin/tapenade
 
-# Make the cpp directory available in a somewhat odd location.
-COPY cpp /cpp/
+COPY cpp /home/gradbench/cpp
 
-COPY tools/tapenade/ .
+COPY tools/tapenade/ /home/gradbench/tools/tapenade
 
-RUN make -j -B
+RUN make -j -B -C /home/gradbench/tools/tapenade
 
-ENTRYPOINT ["python3", "/home/gradbench/run.py"]
+WORKDIR /home/gradbench/tools/tapenade
+ENTRYPOINT ["python3", "/home/gradbench/tools/tapenade/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
