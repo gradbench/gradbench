@@ -12,4 +12,5 @@ jobs:
   cancel-ci:
     runs-on: ubuntu-22.04
     steps:
-      - run: echo 'PR closed; cancelling in-progress CI workflow runs.'
+      - name: Note that this job canceled any running CI
+        run: echo 'PR closed; cancelling in-progress CI workflow runs.'
