@@ -7,7 +7,10 @@ packages = [{ include = "gradbench", from = "python" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"
+# alphabetize all the following
 autograd = "^1"
+dataclasses-json = "^0.6"
+futhark-server = "^1"
 jax = "^0.4"
 jaxlib = "^0.4"
 numpy = "^1"

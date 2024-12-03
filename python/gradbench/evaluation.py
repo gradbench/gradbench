@@ -22,6 +22,10 @@ class Validation(BaseModel):
     error: Optional[str]
 
 
+def dump_validation(valid: Validation) -> dict[str, Any]:
+    return valid.model_dump(exclude_none=True)
+
+
 Validator = Callable[[str, Any, Any], Validation]
 
 
@@ -60,26 +64,37 @@ class SingleModuleValidatedEvaluation:
         self.id += 1
         return response
 
-    def define(self, *, source: str) -> DefineResponse:
-        message = {"kind": "define", "module": self.module, "source": source}
+    # Do not increment ID, do not ask for response.
+    def analysis(self, message: Any) -> Any:
+        json.dump(message, sys.stdout)
+        print(flush=True)
+
+    def define(self) -> DefineResponse:
+        message = {"kind": "define", "module": self.module}
         response = DefineResponse.model_validate(self.send(message))
         return response
 
-    def evaluate(self, *, name: str, input: Any) -> EvaluateResponse:
+    def evaluate(
+        self, *, name: str, input: Any, workload: Optional[str] = None
+    ) -> EvaluateResponse:
         message = {
             "kind": "evaluate",
             "module": self.module,
             "name": name,
             "input": input,
         }
+        if workload is not None:
+            message["workload"] = workload
         id = self.id
         response = EvaluateResponse.model_validate(self.send(message))
-        self.validations[id] = self.validator(name, input, response.output)
+        valid = self.validator(name, input, response.output)
+        self.analysis({"id": id, "kind": "analysis"} | dump_validation(valid))
+        self.validations[id] = valid
         return response
 
     def end(self) -> None:
         validations = [
-            {"id": id} | validation.model_dump()
+            {"id": id} | dump_validation(validation)
             for id, validation in self.validations.items()
         ]
         message = {"kind": "end", "validations": validations}

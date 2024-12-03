@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   matrix:
@@ -17,6 +18,11 @@ jobs:
       tool: ${{ steps.matrix.outputs.tool }}
     steps:
       - uses: actions/checkout@v4
+      - run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git checkout -B nightly
+          git push origin nightly --force
       - id: matrix
         run: .github/matrix.py | tee -a "$GITHUB_OUTPUT"
 
@@ -104,18 +110,33 @@ jobs:
           name: run-${{ matrix.eval }}-${{ matrix.tool }}
           path: log.json
 
-  release:
+  commit:
     needs:
       - matrix
       - run
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          path: run
+          ref: ci/refs/heads/nightly
+      - working-directory: run
+        run: git rm -rf .
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh run download ${{ github.run_id }} --dir run --pattern 'run-*'
-      - run: .github/release.py
       - env:
           DATE: ${{ fromJSON(needs.matrix.outputs.date) }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create --target "$GITHUB_SHA" "nightly-$DATE" release/*
+        run: .github/summarize.py --date "$DATE"
+      - working-directory: run
+        env:
+          DATE: ${{ fromJSON(needs.matrix.outputs.date) }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git add .
+          git commit --allow-empty -m "Nightly run on $DATE for commit $GITHUB_SHA"
+          git push -f origin HEAD
+          git tag "nightly-$DATE"
+          git push origin "nightly-$DATE"

@@ -1,3 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
-docker run --rm --interactive "ghcr.io/gradbench/eval-$1"
+eval=$1
+shift
+docker run --rm --interactive "ghcr.io/gradbench/eval-${eval}" "$@"

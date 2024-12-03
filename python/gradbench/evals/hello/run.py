@@ -1,24 +1,26 @@
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
 from gradbench.evaluation import SingleModuleValidatedEvaluation, assertion
 
 
 def check(name: str, input: Any, output: Any) -> None:
     match name:
         case "double":
-            assert output == input * 2
+            assert np.isclose(output, input * 2)
         case "square":
-            assert output == input * input
+            assert np.isclose(output, input * input)
 
 
 def main():
     e = SingleModuleValidatedEvaluation(module="hello", validator=assertion(check))
-    if e.define(source=(Path(__file__).parent / "hello.adroit").read_text()).success:
+    if e.define().success:
         x = 1.0
         for _ in range(4):
-            y = e.evaluate(name="square", input=x).output
-            x = e.evaluate(name="double", input=y).output
+            y = e.evaluate(name="square", workload=str(x), input=x).output
+            x = e.evaluate(name="double", workload=str(x), input=y).output
     e.end()
 
 
