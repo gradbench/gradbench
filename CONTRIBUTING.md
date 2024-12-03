@@ -136,6 +136,12 @@ Then you can use `poetry run` to run a command in this virtual environment:
 ./run.py --eval './eval.sh hello' --tool 'poetry run python3 python/gradbench/pytorch/run.py'
 ```
 
+When iterating locally, the full JSON log printed by `run.py` can be a bit much. For convenience, we provide an alternative `run-pretty.py` script which only prints a summary, and uses colors to make it more human-friendly. Here's the same example given above, this time using the alternative script:
+
+```sh
+poetry run ./run-pretty.py --eval './eval.sh hello' --tool 'poetry run python3 python/gradbench/pytorch/run.py'
+```
+
 We autoformat Python code using [Black][] and [isort][]. If you're using [VS Code][], our configuration in this repository should automatically recommend that you install the corresponding extensions for those formatters, as well as automatically run them whenever you save a Python file. You can also run them manually via the command line:
 
 ```sh
