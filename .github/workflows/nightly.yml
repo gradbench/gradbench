@@ -17,13 +17,16 @@ jobs:
       eval: ${{ steps.matrix.outputs.eval }}
       tool: ${{ steps.matrix.outputs.tool }}
     steps:
-      - uses: actions/checkout@v4
-      - run: |
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Update nightly branch
+        run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           git checkout -B nightly
           git push origin nightly --force
-      - id: matrix
+      - name: Compute job parameters
+        id: matrix
         run: .github/matrix.py | tee -a "$GITHUB_OUTPUT"
 
   eval:
@@ -37,18 +40,26 @@ jobs:
       IMAGE: ghcr.io/gradbench/eval-${{ matrix.eval }}
       TAG: ${{ fromJSON(needs.matrix.outputs.date) }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/docker
-      - run: ./crosseval.sh ${{ matrix.eval }}
-      - run: docker tag $IMAGE $IMAGE:$TAG
-      - uses: docker/login-action@v3
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup multi-platform Docker
+        uses: ./.github/actions/docker
+      - name: Build eval Docker image
+        run: ./crosseval.sh ${{ matrix.eval }}
+      - name: Tag eval Docker image
+        run: docker tag $IMAGE $IMAGE:$TAG
+      - name: Login to GitHub Container registry
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - run: docker push --all-tags $IMAGE
-      - run: docker save --output eval-${{ matrix.eval }}.tar $IMAGE
-      - uses: actions/upload-artifact@v4
+      - name: Push eval Docker image to GitHub Container registry
+        run: docker push --all-tags $IMAGE
+      - name: Serialize eval Docker image
+        run: docker save --output eval-${{ matrix.eval }}.tar $IMAGE
+      - name: Upload eval Docker image as artifact
+        uses: actions/upload-artifact@v4
         with:
           name: eval-${{ matrix.eval }}
           path: eval-${{ matrix.eval }}.tar
@@ -64,19 +75,28 @@ jobs:
       IMAGE: ghcr.io/gradbench/tool-${{ matrix.tool }}
       TAG: ${{ fromJSON(needs.matrix.outputs.date) }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/space
-      - uses: ./.github/actions/docker
-      - run: ./crosstool.sh ${{ matrix.tool }}
-      - run: docker tag $IMAGE $IMAGE:$TAG
-      - uses: docker/login-action@v3
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Increase disk space
+        uses: ./.github/actions/space
+      - name: Setup multi-platform Docker
+        uses: ./.github/actions/docker
+      - name: Build tool Docker image
+        run: ./crosstool.sh ${{ matrix.tool }}
+      - name: Tag tool Docker image
+        run: docker tag $IMAGE $IMAGE:$TAG
+      - name: Login to GitHub Container registry
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - run: docker push --all-tags $IMAGE
-      - run: docker save --output tool-${{ matrix.tool }}.tar $IMAGE
-      - uses: actions/upload-artifact@v4
+      - name: Push tool Docker image to GitHub Container registry
+        run: docker push --all-tags $IMAGE
+      - name: Serialize tool Docker image
+        run: docker save --output tool-${{ matrix.tool }}.tar $IMAGE
+      - name: Upload tool Docker image as artifact
+        uses: actions/upload-artifact@v4
         with:
           name: tool-${{ matrix.tool }}
           path: tool-${{ matrix.tool }}.tar
@@ -93,19 +113,26 @@ jobs:
         tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Download eval Docker image from artifact
+        uses: actions/download-artifact@v4
         with:
           name: eval-${{ matrix.eval }}
-      - uses: actions/download-artifact@v4
+      - name: Download tool Docker image from artifact
+        uses: actions/download-artifact@v4
         with:
           name: tool-${{ matrix.tool }}
-      - run: docker load --input eval-${{ matrix.eval }}.tar
-      - run: docker load --input tool-${{ matrix.tool }}.tar
-      - run: |
+      - name: Load eval Docker image
+        run: docker load --input eval-${{ matrix.eval }}.tar
+      - name: Load tool Docker image
+        run: docker load --input tool-${{ matrix.tool }}.tar
+      - name: Run tool on eval
+        run: |
           set -o pipefail
           ./run.py --eval './eval.sh ${{ matrix.eval }}' --tool './tool.sh ${{ matrix.tool }}' | tee log.json
-      - uses: actions/upload-artifact@v4
+      - name: Upload log as artifact
+        uses: actions/upload-artifact@v4
         with:
           name: run-${{ matrix.eval }}-${{ matrix.tool }}
           path: log.json
@@ -116,20 +143,26 @@ jobs:
       - run
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Checkout nightly outputs branch
+        uses: actions/checkout@v4
         with:
           path: run
           ref: ci/refs/heads/nightly
-      - working-directory: run
+      - name: Delete contents of nightly outputs branch dir
+        working-directory: run
         run: git rm -rf .
-      - env:
+      - name: Download all log artifacts into nightly outputs branch dir
+        env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh run download ${{ github.run_id }} --dir run --pattern 'run-*'
-      - env:
+      - name: Create summary of logs in nightly outputs branch dir
+        env:
           DATE: ${{ fromJSON(needs.matrix.outputs.date) }}
         run: .github/summarize.py --date "$DATE"
-      - working-directory: run
+      - name: Commit and push nightly outputs branch
+        working-directory: run
         env:
           DATE: ${{ fromJSON(needs.matrix.outputs.date) }}
         run: |
