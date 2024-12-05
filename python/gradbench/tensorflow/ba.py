@@ -33,8 +33,6 @@ Changes Made:
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-# import signal
-# import sys
 import time
 
 import numpy as np
@@ -143,17 +141,6 @@ class TensorflowBA(ITest):
             self.w_err = tf.stack(w_err, 0)
 
 
-# TIMEOUT = 400
-
-
-class TimeoutException(Exception):
-    pass
-
-
-# def timeout_handler(signum, frame):
-#     raise TimeoutException()
-
-
 def objective_output(errors):
     try:
         r_err, w_err = errors
@@ -205,34 +192,13 @@ def prepare_input(input):
 def calculate_objectiveBA(input):
     py = TensorflowBA()
     py.prepare(input)
-
-    start_time = time.time()
-    # signal.signal(signal.SIGALRM, timeout_handler)
-    # signal.alarm(TIMEOUT)
-
-    # try:
     py.calculate_objective(1)
-    # signal.alarm(0)  # Disable the alarm
     return (py.reproj_error, py.w_err)
-    # except TimeoutException:
-    #     elapsed_time = time.time() - start_time
-    #     return f"Process terminated due to timeout after {elapsed_time:.2f} seconds."
 
 
 @wrap(prepare_input, jacobian_output)
 def calculate_jacobianBA(input):
     py = TensorflowBA()
     py.prepare(input)
-
-    start_time = time.time()
-
-    # signal.signal(signal.SIGALRM, timeout_handler)
-    # signal.alarm(TIMEOUT)
-
-    # try:
     py.calculate_jacobian(1)
-    # signal.alarm(0)  # Disable the alarm
     return py.jacobian
-    # except TimeoutException:
-    #     elapsed_time = time.time() - start_time
-    #     return f"Process terminated due to timeout after {elapsed_time:.2f} seconds."
