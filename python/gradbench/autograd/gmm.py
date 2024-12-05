@@ -29,8 +29,9 @@ Changes Made:
 """
 
 import autograd.numpy as np
-from autograd import grad
+from autograd import value_and_grad
 
+# from autograd import value_and_grad
 from gradbench.adbench.itest import ITest
 from gradbench.autograd.gmm_objective import gmm_objective
 from gradbench.wrap_module import wrap
@@ -44,6 +45,7 @@ class AutogradGMM(ITest):
 
     def output(self):
         return self.objective, self.gradient
+        # return
 
     def calculate_objective(self, times):
         for i in range(times):
@@ -57,18 +59,23 @@ class AutogradGMM(ITest):
             )
 
     def calculate_jacobian(self, times):
-        grad_gmm_objective_wrapper = grad(gmm_objective, argnum=(0, 1, 2))
+        def fixed_objective(alphas, means, icf):
+            return gmm_objective(
+                alphas, means, icf, self.inputs[3], self.inputs[4], self.inputs[5]
+            )
+
+        objective_and_grad = value_and_grad(fixed_objective, argnum=(0, 1, 2))
+
         for _ in range(times):
-            g_alphas, g_means, g_icf = grad_gmm_objective_wrapper(
+            _, gradients = objective_and_grad(
                 self.inputs[0],  # alphas
                 self.inputs[1],  # means
                 self.inputs[2],  # icf
-                self.inputs[3],  # x
-                self.inputs[4],  # wishart_gamma
-                self.inputs[5],  # wishart_m
             )
 
+            g_alphas, g_means, g_icf = gradients
             # Flatten and concatenate gradients to match the expected shape of G
+
             self.gradient = np.concatenate(
                 [
                     g_alphas.flatten(),  # Shape (K,)
