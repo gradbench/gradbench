@@ -1,7 +1,7 @@
 [
   {
     "message": {"id": 0, "kind": "define", "module": "hello"},
-    "nanoseconds": 319489,
+    "nanoseconds": 298451,
     "response": {"success": false, "id": 0}  },
   {
     "message": {"id": 1, "kind": "end", "validations": []}
