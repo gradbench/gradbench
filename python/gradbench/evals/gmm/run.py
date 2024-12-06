@@ -18,27 +18,27 @@ def check(name: str, input: Any, output: Any) -> None:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-n", nargs="+", type=int, default=[1000, 10000])
+    parser.add_argument("-n", type=int, default=1000)
     parser.add_argument("-k", nargs="+", type=int, default=[5, 10, 25, 50, 100, 200])
     parser.add_argument("-d", nargs="+", type=int, default=[2, 10, 20, 32, 64, 128])
     args = parser.parse_args()
 
     e = SingleModuleValidatedEvaluation(module="gmm", validator=assertion(check))
     if e.define().success:
-        for n in args.n:
-            for d in args.d:
-                for k in args.k:
-                    input = data_gen.main(d, k, n)
-                    e.evaluate(
-                        name="calculate_objectiveGMM",
-                        workload=f"{d}_{k}_{n}",
-                        input=input,
-                    )
-                    e.evaluate(
-                        name="calculate_jacobianGMM",
-                        workload=f"{d}_{k}_{n}",
-                        input=input,
-                    )
+        n = args.n
+        for d in args.d:
+            for k in args.k:
+                input = data_gen.main(d, k, n)
+                e.evaluate(
+                    name="calculate_objectiveGMM",
+                    workload=f"{d}_{k}_{n}",
+                    input=input,
+                )
+                e.evaluate(
+                    name="calculate_jacobianGMM",
+                    workload=f"{d}_{k}_{n}",
+                    input=input,
+                )
     e.end()
 
 
