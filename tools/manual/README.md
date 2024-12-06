@@ -1,11 +1,8 @@
 # Manual
 
-This repository contains programs that have been differentiated by
-hand.
+This tool contains programs that have been differentiated by hand.
 
-To run this outside Docker, you'll first need to run the following
-commands from the GradBench repository root to setup the C++ build and
-build the programs:
+To run this outside Docker, you'll first need to run the following commands from the GradBench repository root to setup the C++ build and build the programs:
 
 ```sh
 make -C cpp
