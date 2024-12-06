@@ -14,7 +14,7 @@ def calculate_objectiveGMM(input):
         json.dump(input, tmp)
         tmp.flush()
         return subprocess.run(
-            ["./run_gmm", tmp.name, "F"], text=True, capture_output=True
+            ["tools/tapenade/run_gmm", tmp.name, "F"], text=True, capture_output=True
         )
 
 
@@ -23,5 +23,5 @@ def calculate_jacobianGMM(input):
         json.dump(input, tmp)
         tmp.flush()
         return subprocess.run(
-            ["./run_gmm", tmp.name, "J"], text=True, capture_output=True
+            ["tools/tapenade/run_gmm", tmp.name, "J"], text=True, capture_output=True
         )

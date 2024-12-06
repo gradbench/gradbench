@@ -8,13 +8,15 @@ def compile():
         # generate AD code
         result = subprocess.run(
             [
-                "tapenade",
+                "tapenade_3.16/bin/tapenade",
                 "-reverse",
                 "-head",
                 "square(x)\\y",
+                "-outputdirectory",
+                "tools/tapenade",
                 "-output",
                 "double",
-                "functions.c",
+                "tools/tapenade/functions.c",
             ],
             text=True,
             capture_output=True,
@@ -26,19 +28,27 @@ def compile():
         result = subprocess.run(
             [
                 "gcc",
-                "-I/home/gradbench/tapenade_3.16/ADFirstAidKit/",
-                "run_deriv.c",
-                "functions.c",
-                "double_b.c",
+                "-Itapenade_3.16/ADFirstAidKit/",
+                "tools/tapenade/run_deriv.c",
+                "tools/tapenade/functions.c",
+                "tools/tapenade/double_b.c",
                 "-o",
-                "derivative",
+                "tools/tapenade/derivative",
             ]
         )
         if result.returncode != 0:
             return False
 
         # compile original code
-        result = subprocess.run(["gcc", "run_origin.c", "functions.c", "-o", "normal"])
+        result = subprocess.run(
+            [
+                "gcc",
+                "tools/tapenade/run_origin.c",
+                "tools/tapenade/functions.c",
+                "-o",
+                "tools/tapenade/normal",
+            ]
+        )
         if result.returncode != 0:
             return False
 
@@ -50,10 +60,14 @@ def compile():
 
 
 def double(vals):
-    ret = subprocess.run(["./derivative", str(vals)], text=True, capture_output=True)
+    ret = subprocess.run(
+        ["tools/tapenade/derivative", str(vals)], text=True, capture_output=True
+    )
     return ret
 
 
 def square(vals):
-    ret = subprocess.run(["./normal", str(vals)], text=True, capture_output=True)
+    ret = subprocess.run(
+        ["tools/tapenade/normal", str(vals)], text=True, capture_output=True
+    )
     return ret

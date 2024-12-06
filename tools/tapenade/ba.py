@@ -14,7 +14,7 @@ def calculate_objectiveBA(input):
         json.dump(input, tmp)
         tmp.flush()
         return subprocess.run(
-            ["./run_ba", tmp.name, "F"], text=True, capture_output=True
+            ["tools/tapenade/run_ba", tmp.name, "F"], text=True, capture_output=True
         )
 
 
@@ -23,5 +23,5 @@ def calculate_jacobianBA(input):
         json.dump(input, tmp)
         tmp.flush()
         return subprocess.run(
-            ["./run_ba", tmp.name, "J"], text=True, capture_output=True
+            ["tools/tapenade/run_ba", tmp.name, "J"], text=True, capture_output=True
         )

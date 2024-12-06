@@ -14,7 +14,7 @@ def calculate_objectiveLSTM(input):
         json.dump(input, tmp)
         tmp.flush()
         return subprocess.run(
-            ["./run_lstm", tmp.name, "F"], text=True, capture_output=True
+            ["tools/tapenade/run_lstm", tmp.name, "F"], text=True, capture_output=True
         )
 
 
@@ -23,5 +23,5 @@ def calculate_jacobianLSTM(input):
         json.dump(input, tmp)
         tmp.flush()
         return subprocess.run(
-            ["./run_lstm", tmp.name, "J"], text=True, capture_output=True
+            ["tools/tapenade/run_lstm", tmp.name, "J"], text=True, capture_output=True
         )

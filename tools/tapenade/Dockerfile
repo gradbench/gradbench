@@ -21,6 +21,5 @@ COPY tools/tapenade/ /home/gradbench/tools/tapenade
 
 RUN make -j -B -C /home/gradbench/tools/tapenade
 
-WORKDIR /home/gradbench/tools/tapenade
 ENTRYPOINT ["python3", "/home/gradbench/tools/tapenade/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
