@@ -12,6 +12,7 @@
   - [Markdown](#markdown)
   - [Website](#website)
 - [Python](#python)
+- [C++](#c)
 
 <!-- tocstop -->
 
