@@ -143,6 +143,14 @@ poetry run black .
 poetry run isort .
 ```
 
+## C++
+
+Some tools make use of C++ code shared in the `cpp` directory; if doing local development with any of those tools, you must first run the following command:
+
+```sh
+make -C cpp
+```
+
 [black]: https://black.readthedocs.io/en/stable/
 [containerd]: https://docs.docker.com/storage/containerd/
 [docker]: https://docs.docker.com/engine/install/
