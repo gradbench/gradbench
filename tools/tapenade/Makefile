@@ -1,6 +1,7 @@
 CXX?=c++
 CC?=cc
-CFLAGS=-std=c++17 -O3 -Wall
+CFLAGS=-std=c11 -O3 -Wall
+CXXFLAGS=-std=c++17 -O3 -Wall
 LDFLAGS=-lm
 
 UTIL_OBJECTS=utils/adBuffer.o utils/adStack.o ../../cpp/adbench/shared/utils.o ../../cpp/adbench/io.o
@@ -28,7 +29,7 @@ run_ht: $(HT_OBJECTS) $(UTIL_OBJECTS)
 	$(CC) $< -c -o $@ $(CFLAGS) -I../../cpp
 
 %.o: %.cpp
-	$(CXX) $< -c -o $@ $(CFLAGS) -I../../cpp
+	$(CXX) $< -c -o $@ $(CXXFLAGS) -I../../cpp
 
 clean:
 	rm -f $(UTIL_OBJECTS) $(GMM_OBJECTS) $(BA_OBJECTS) $(LSTM_OBJECTS) $(HT_OBJECTS) $(EXECUTABLES)
