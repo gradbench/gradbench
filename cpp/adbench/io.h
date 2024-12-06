@@ -1,10 +1,15 @@
 // Functions for converting between ADBench objects and the JSON
 // format used by the Gradbench protocol.
 
+#include "adbench/shared/HelloData.h"
 #include "adbench/shared/GMMData.h"
 #include "adbench/shared/BAData.h"
 #include "adbench/shared/LSTMData.h"
 #include "adbench/shared/HTData.h"
+
+void read_HelloInput_json(const char* fname, HelloInput &input);
+void write_HelloOutput_objective_json(std::ostream& f, HelloOutput &output);
+void write_HelloOutput_jacobian_json(std::ostream& f, HelloOutput &output);
 
 void read_GMMInput_json(const char* fname, GMMInput &input);
 void write_GMMOutput_objective_json(std::ostream& f, GMMOutput &output);
