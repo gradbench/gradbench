@@ -10,11 +10,19 @@ from gradbench.evaluation import SingleModuleValidatedEvaluation, assertion
 from gradbench.wrap_module import Functions
 
 
+# This definition is ported from ADBench's JacobianComparison.cs.
+def difference(x,y):
+        absX = np.abs(x)
+        absY = np.abs(y)
+        absdiff = np.abs(x-y)
+        normCoef = np.clip(absX+absY, a_min=1, a_max=None)
+        return absdiff / normCoef
+
 def check(name: str, input: Any, output: Any) -> None:
     func: Functions = getattr(golden, name)
     expected = func.unwrap(func(func.prepare(input)))
-    assert np.all(np.isclose(expected, output, rtol=1e-02))
-
+    tolerance = 1e-4 # From ADBench defaults.
+    assert np.all(difference(np.array(output),np.array(expected)) < tolerance)
 
 def main():
     parser = argparse.ArgumentParser()
