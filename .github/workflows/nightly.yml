@@ -130,7 +130,7 @@ jobs:
       - name: Run tool on eval
         run: |
           set -o pipefail
-          ./run.py --eval './eval.sh ${{ matrix.eval }}' --tool './tool.sh ${{ matrix.tool }}' | tee log.json
+          ./run-pretty.py --eval './eval.sh ${{ matrix.eval }}' --tool './tool.sh ${{ matrix.tool }}' --json log.json
       - name: Upload log as artifact
         uses: actions/upload-artifact@v4
         with:
