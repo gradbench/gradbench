@@ -4,9 +4,13 @@
 # messages, run-pretty.py produces concise human-readable output, with
 # one line per definition/evaluation, and checkmarks to indicate
 # successful validation.
+#
+# A machine-readable log file containing all messages can also be
+# produced with the --json option.
 
 import argparse
 import json
+import os
 import shlex
 import subprocess
 import sys
@@ -43,7 +47,7 @@ def message_define(message):
     return f
 
 
-def message_evaluate(client, message):
+def message_evaluate(log, client, message):
     module = message["module"]
     name = message["name"]
     id = message["id"]
@@ -55,6 +59,8 @@ def message_evaluate(client, message):
         print(f"{ns:10} ns ", end="")
         sys.stdout.flush()
         analysis = json.loads(client.stdout.readline())
+        log.write(",\n")
+        log.write(f'    "analysis": {json.dumps(analysis)}')
         valid = analysis["correct"]
         print(colored("✓", "green") if valid else colored("⚠", "red"))
         if not valid:
@@ -67,31 +73,55 @@ def message_end(message):
     sys.exit(0)
 
 
-def on_message(client, message):
+def on_message(log, client, message):
     if message["kind"] == "define":
         return message_define(message)
     elif message["kind"] == "end":
         return message_end(message)
     elif message["kind"] == "evaluate":
-        return message_evaluate(client, message)
+        return message_evaluate(log, client, message)
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--eval", required=True)
     parser.add_argument("--tool", required=True)
+    parser.add_argument("--json", required=False)
     args = parser.parse_args()
+
+    if args.json:
+        print(f"Writing log to {args.json}.")
+        log = open(args.json, "w")
+    else:
+        log = open(os.devnull, "w")
+
+    log.write("[\n")
 
     server = run(args.tool)
     client = run(args.eval)
 
     first = True
     for message in client.stdout:
+        if not first:
+            log.write(",\n")
+        first = False
+
+        log.write("  {\n")
+        log.write(f'    "message": {message.strip()}')
+
         message_json = json.loads(message)
-        on_response = on_message(client, message_json)
+
+        if json.loads(message)["kind"] == "end":
+            log.write("\n  }")
+            break
+        log.write(",\n")
+
+        on_response = on_message(log, client, message_json)
         server.stdin.write(message)
         server.stdin.flush()
         response = server.stdout.readline()
+
+        log.write(f'    "response": {response.strip()}')
 
         client.stdin.write(response)
         client.stdin.flush()
@@ -100,7 +130,9 @@ def main():
             response_json = json.loads(response)
             on_response(response_json)
 
+        log.write("  }")
         sys.stdout.flush()
+    log.write("\n]")
     sys.exit((server.poll() or 0) | (client.poll() or 0))
 
 
