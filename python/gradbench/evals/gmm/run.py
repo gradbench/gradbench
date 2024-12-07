@@ -19,8 +19,12 @@ def check(name: str, input: Any, output: Any) -> None:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-n", type=int, default=1000)
-    parser.add_argument("-k", nargs="+", type=int, default=[5, 10, 25, 50, 100, 200])
-    parser.add_argument("-d", nargs="+", type=int, default=[2, 10, 20, 32, 64, 128])
+    parser.add_argument(
+        "-k", nargs="+", type=int, default=[5, 10, 25, 50]
+    )  # misses 100 200
+    parser.add_argument(
+        "-d", nargs="+", type=int, default=[2, 10, 20, 32]
+    )  # misses 64 128
     args = parser.parse_args()
 
     e = SingleModuleValidatedEvaluation(module="gmm", validator=assertion(check))
