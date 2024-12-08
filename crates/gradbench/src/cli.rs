@@ -301,8 +301,10 @@ fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyho
                 let response_json: EvaluateResponse = serde_json::from_str(&response)?;
                 if let Some(ns) = response_json.nanoseconds.evaluate {
                     print!("{ns:>10} ns ");
-                    io::stdout().flush()?;
+                } else {
+                    print!("              ");
                 }
+                io::stdout().flush()?;
                 let mut analysis = String::new();
                 eval_out.read_line(&mut analysis)?;
                 writeln!(o, ",\n    \"analysis\": {}", analysis.trim())?;
@@ -320,6 +322,7 @@ fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyho
             Message::End => unreachable!(),
         }
         write!(o, "  }}")?;
+        io::stdout().flush()?;
     }
     writeln!(o, "\n]")?;
     Ok(invalid)
