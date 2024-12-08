@@ -32,7 +32,11 @@ Then if you have [Docker][] installed, you can use the GradBench CLI to run any 
 gradbench run --eval 'gradbench eval hello' --tool 'gradbench tool pytorch'
 ```
 
-This will first automatically download our latest nightly Docker images for the given eval and tool, and then run the eval against the tool while printing the entire communication log to the terminal.
+This will first automatically download our latest nightly Docker images for the given eval and tool, and then run the eval against the tool while printing a summary of the communication log to the terminal. To save the full log to a file, use the `--output` flag. Or, to see a list of all possible subcommands:
+
+```sh
+gradbench --help
+```
 
 ## Protocol
 
