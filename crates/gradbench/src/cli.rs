@@ -85,7 +85,7 @@ enum RepoCommands {
     /// Build the Docker image for an eval.
     ///
     /// The Docker image name is `ghcr.io/gradbench/eval-<EVAL>:latest`.
-    Eval {
+    BuildEval {
         /// The name of the eval to build
         eval: String,
 
@@ -97,7 +97,7 @@ enum RepoCommands {
     /// Build the Docker image for a tool.
     ///
     /// The Docker image name is `ghcr.io/gradbench/tool-<TOOL>:latest`.
-    Tool {
+    BuildTool {
         /// The name of the tool to build
         tool: String,
 
@@ -520,7 +520,7 @@ fn cli_result() -> Result<(), ExitCode> {
         Commands::Repo { command } => {
             check_git()?;
             match command {
-                RepoCommands::Eval { eval, cross } => {
+                RepoCommands::BuildEval { eval, cross } => {
                     let mut cmd = Command::new("docker");
                     cmd.arg("build");
                     if cross {
@@ -532,7 +532,7 @@ fn cli_result() -> Result<(), ExitCode> {
                         .arg(format!("ghcr.io/gradbench/eval-{eval}"));
                     run(&mut cmd)
                 }
-                RepoCommands::Tool { tool, cross } => {
+                RepoCommands::BuildTool { tool, cross } => {
                     let mut cmd = Command::new("docker");
                     cmd.arg("build");
                     if cross {

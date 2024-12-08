@@ -65,7 +65,7 @@ jobs:
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Build eval Docker image
-        run: gradbench repo eval --cross ${{ matrix.eval }}
+        run: gradbench repo build-eval --cross ${{ matrix.eval }}
       - name: Tag eval Docker image
         run: docker tag $IMAGE $IMAGE:$TAG
       - name: Login to GitHub Container registry
@@ -106,7 +106,7 @@ jobs:
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Build tool Docker image
-        run: gradbench repo tool --cross ${{ matrix.tool }}
+        run: gradbench repo build-tool --cross ${{ matrix.tool }}
       - name: Tag tool Docker image
         run: docker tag $IMAGE $IMAGE:$TAG
       - name: Login to GitHub Container registry

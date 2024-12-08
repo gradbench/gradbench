@@ -67,16 +67,16 @@ This script will always automatically rebuild the CLI if it is not already up to
 
 ## Docker
 
-Use the `repo eval` subcommand to build the Docker image for any evaluation script:
+Use the `repo build-eval` subcommand to build the Docker image for any evaluation script:
 
 ```sh
-./gradbench repo eval hello
+./gradbench repo build-eval hello
 ```
 
-Use the `repo tool` subcommand to build the Docker image for any tool:
+Use the `repo build-tool` subcommand to build the Docker image for any tool:
 
 ```sh
-./gradbench repo tool pytorch
+./gradbench repo build-tool pytorch
 ```
 
 Then use the `run` subcommand to run a given evaluation on a given tool. You can use pass any commands for the evaluation and tool, but to use the Docker images, the easiest way is to use the `eval` and `tool` subcommands:
@@ -90,8 +90,8 @@ Then use the `run` subcommand to run a given evaluation on a given tool. You can
 The above do not build a multi-platform image. If you have followed the above instructions to configure Docker for building such images, you can do so using the `--cross` flag:
 
 ```sh
-./gradbench repo eval --cross hello
-./gradbench repo tool --cross pytorch
+./gradbench repo build-eval --cross hello
+./gradbench repo build-tool --cross pytorch
 ```
 
 This typically takes much longer, so it tends not to be convenient for local development.

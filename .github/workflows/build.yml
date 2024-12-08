@@ -115,7 +115,7 @@ jobs:
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Build eval Docker image
-        run: gradbench repo eval --cross ${{ matrix.eval }}
+        run: gradbench repo build-eval --cross ${{ matrix.eval }}
       - name: Serialize eval Docker image
         run: docker save --output eval-${{ matrix.eval }}.tar ghcr.io/gradbench/eval-${{ matrix.eval }}
       - name: Upload eval Docker image as artifact
@@ -143,7 +143,7 @@ jobs:
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Build tool Docker image
-        run: gradbench repo tool --cross ${{ matrix.tool }}
+        run: gradbench repo build-tool --cross ${{ matrix.tool }}
       - name: Serialize tool Docker image
         run: docker save --output tool-${{ matrix.tool }}.tar ghcr.io/gradbench/tool-${{ matrix.tool }}
       - name: Upload tool Docker image as artifact
@@ -171,7 +171,7 @@ jobs:
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Build tool Docker image
-        run: gradbench repo tool --cross ${{ matrix.tool }}
+        run: gradbench repo build-tool --cross ${{ matrix.tool }}
       - name: Serialize tool Docker image
         run: docker save --output tool-${{ matrix.tool }}.tar ghcr.io/gradbench/tool-${{ matrix.tool }}
       - name: Upload tool Docker image as artifact
