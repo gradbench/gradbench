@@ -499,8 +499,10 @@ fn cli_result() -> Result<(), ExitCode> {
                 },
                 None => intermediary(&mut io::sink(), &mut client, &mut server),
             };
-            match (&result, client.kill(), server.kill()) {
-                (&Ok(invalid), Ok(_), Ok(_)) => {
+            match (&result, client.wait(), server.wait()) {
+                (&Ok(invalid), Ok(e), Ok(s)) => {
+                    status_code(e)?;
+                    status_code(s)?;
                     if invalid == 0 {
                         Ok(())
                     } else {
