@@ -345,13 +345,15 @@ fn check_git() -> Result<(), ExitCode> {
         eprintln!("error getting current working directory: {err}");
         ExitCode::FAILURE
     })?;
-    let dir = stdout(Command::new("git").args(["rev-parse", "--show-toplevel"]))?;
-    if dir.strip_suffix('\n') == cwd.to_str() {
-        Ok(())
-    } else {
-        eprintln!("error running a repo subcommand: current working directory is not a Git repository root");
-        Err(ExitCode::FAILURE)
+    if let Ok(dir) = stdout(Command::new("git").args(["rev-parse", "--show-toplevel"])) {
+        if dir.strip_suffix('\n') == cwd.to_str() {
+            return Ok(());
+        }
     }
+    eprintln!(
+        "error running a repo subcommand: current working directory is not a Git repository root"
+    );
+    Err(ExitCode::FAILURE)
 }
 
 /// List the entries in a directory.
