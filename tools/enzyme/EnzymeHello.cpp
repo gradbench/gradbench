@@ -26,8 +26,3 @@ void EnzymeHello::calculate_jacobian(int times)
       _output.gradient = __enzyme_autodiff((void*)hello_objective, _input.x);
     }
 }
-
-extern "C" DLL_PUBLIC ITest<HelloInput, HelloOutput>* get_ba_test()
-{
-    return new EnzymeHello();
-}
