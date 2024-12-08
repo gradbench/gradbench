@@ -6,5 +6,3 @@ runs:
       with:
         name: cli
         path: /usr/local/bin
-    - shell: bash
-      run: chmod +x /usr/local/bin/gradbench
