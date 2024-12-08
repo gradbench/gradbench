@@ -1,0 +1,10 @@
+name: CLI
+runs:
+  using: composite
+  steps:
+    - uses: actions/download-artifact@v4
+      with:
+        name: cli
+        path: /usr/local/bin
+    - shell: bash
+      run: chmod +x /usr/local/bin/gradbench

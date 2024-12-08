@@ -20,17 +20,16 @@ See https://gradben.ch for a daily overview of all the tools (columns) and bench
 
 ## Usage
 
-If you have [Git][] installed, you can clone this repository; for instance, via the [GitHub CLI][]:
+If you have [Rust][] installed, you can download and install the GradBench CLI:
 
 ```sh
-gh repo clone gradbench/gradbench
-cd gradbench
+cargo install --locked --git https://github.com/gradbench/gradbench
 ```
 
-Then if you have [Python][] and [Docker][] installed, you can run any of our [evals](evals) against any of our [tools](tools) via our `run.py` script:
+Then if you have [Docker][] installed, you can use the GradBench CLI to run any of our [evals](evals) against any of our [tools](tools):
 
 ```sh
-./run.py --eval './eval.sh hello' --tool './tool.sh pytorch'
+gradbench run --eval 'gradbench eval hello' --tool 'gradbench tool pytorch'
 ```
 
 This will first automatically download our latest nightly Docker images for the given eval and tool, and then run the eval against the tool while printing the entire communication log to the terminal.
@@ -196,8 +195,6 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 GradBench is licensed under the [MIT License](LICENSE).
 
 [docker]: https://docs.docker.com/engine/install/
-[git]: https://git-scm.com/downloads
-[github cli]: https://github.com/cli/cli#installation
 [json]: https://json.org/
-[python]: https://www.python.org/downloads/
+[rust]: https://www.rust-lang.org/tools/install
 [typescript]: https://www.typescriptlang.org/
