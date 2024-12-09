@@ -1,5 +1,4 @@
 {
-  "[markdown]": { "editor.formatOnSave": false },
   "[python]": {
     "editor.codeActionsOnSave": { "source.organizeImports": "always" },
     "editor.defaultFormatter": "ms-python.black-formatter"

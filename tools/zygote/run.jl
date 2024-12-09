@@ -1,4 +1,4 @@
-module gradbench
+module hello
 
 import Zygote
 
@@ -24,13 +24,13 @@ function resolve(mod, name)
 end
 
 function run(params)
-  func = resolve(params["module"],params["name"])
+  func = resolve(params["module"], params["function"])
   arg = params["input"]
   start = time_ns()
   ret = func(arg)
   done = time_ns()
-  ns = Dict("evaluate" => done - start)
-  return Dict("output" => ret, "nanoseconds" => ns)
+  timings = [Dict("name" => "evaluate", "nanoseconds" => done - start)]
+  return Dict("output" => ret, "timings" => timings)
 end
 
 function main()

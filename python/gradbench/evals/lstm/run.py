@@ -10,8 +10,8 @@ from gradbench.evaluation import SingleModuleValidatedEvaluation, assertion
 from gradbench.wrap_module import Functions
 
 
-def check(name: str, input: Any, output: Any) -> None:
-    func: Functions = getattr(golden, name)
+def check(function: str, input: Any, output: Any) -> None:
+    func: Functions = getattr(golden, function)
     expected = func.unwrap(func(func.prepare(input)))
     assert np.all(np.isclose(expected, output))
 
@@ -23,6 +23,7 @@ def main():
     args = parser.parse_args()
 
     e = SingleModuleValidatedEvaluation(module="lstm", validator=assertion(check))
+    e.start()
     if e.define().success:
         data_root = Path("evals/lstm/data")  # assumes cwd is set correctly
 
@@ -31,11 +32,11 @@ def main():
                 fn = next(data_root.glob(f"lstm_l{l}_c{1024}.txt"), None)
                 input = io.read_lstm_instance(fn).to_dict()
                 e.evaluate(
-                    name="calculate_objectiveLSTM", workload=fn.stem, input=input
+                    function="calculate_objectiveLSTM", input=input, description=fn.stem
                 )
-                e.evaluate(name="calculate_jacobianLSTM", workload=fn.stem, input=input)
-
-    e.end()
+                e.evaluate(
+                    function="calculate_jacobianLSTM", input=input, description=fn.stem
+                )
 
 
 if __name__ == "__main__":
