@@ -1,4 +1,5 @@
 use std::{
+    collections::BTreeMap,
     env, fs,
     io::{self, BufRead, Write},
     path::{Path, PathBuf},
@@ -387,16 +388,25 @@ fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyho
             }
             Message::Evaluate { .. } => {
                 let response: EvaluateResponse = serde_json::from_str(&tool_line)?;
-                let mut timings = String::new();
-                let mut first = true;
+                let mut timings = BTreeMap::new();
                 for Timing { name, nanoseconds } in response.timings.unwrap_or_default() {
+                    let (num, ns) = timings.entry(name).or_insert((0, 0));
+                    *num += 1;
+                    *ns += nanoseconds;
+                }
+                let mut first = true;
+                for (name, (num, ns)) in timings {
                     if !first {
-                        timings.push_str(", ")
+                        print!(",");
                     }
                     first = false;
-                    timings.push_str(&format!("{nanoseconds} ns ({name})"));
+                    print!(" {ns:>10} ns ({name}");
+                    if num > 1 {
+                        print!("×{num})");
+                    } else {
+                        print!(")");
+                    }
                 }
-                print!(" {timings:>24}");
             }
             Message::Analysis { .. } => {}
         }
