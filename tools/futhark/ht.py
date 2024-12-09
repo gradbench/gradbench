@@ -1,11 +1,12 @@
 import futhark_server
+import futhark_utils
 import numpy as np
 
 from gradbench.adbench.ht_data import HandInput, HandOutput
 
 
-def prepare(server, params):
-    input = HandInput.from_dict(params["input"])
+def prepare(server, input):
+    input = HandInput.from_dict(input)
 
     server.put_value("parents", input.data.model.parents)
     server.put_value("base_relatives", input.data.model.base_relatives)
@@ -20,43 +21,47 @@ def prepare(server, params):
     server.put_value("us", input.us.flatten())
 
 
-def calculate_objectiveHT(server):
-    server.cmd_call(
+def calculate_objectiveHT(server, runs):
+    (obj,), times = futhark_utils.run(
+        server,
         "calculate_objective",
-        "obj",
-        "parents",
-        "base_relatives",
-        "inverse_base_absolutes",
-        "weights",
-        "base_positions",
-        "triangles",
-        "is_mirrored",
-        "correspondences",
-        "points",
-        "theta",
-        "us",
+        ("obj",),
+        (
+            "parents",
+            "base_relatives",
+            "inverse_base_absolutes",
+            "weights",
+            "base_positions",
+            "triangles",
+            "is_mirrored",
+            "correspondences",
+            "points",
+            "theta",
+            "us",
+        ),
+        runs,
     )
-    obj = server.get_value("obj")
-    server.cmd_free("obj")
-    return obj.flatten().tolist()
+    return (obj.flatten().tolist(), times)
 
 
-def calculate_jacobianHT(server):
-    server.cmd_call(
+def calculate_jacobianHT(server, runs):
+    (J,), times = futhark_utils.run(
+        server,
         "calculate_jacobian",
-        "J",
-        "parents",
-        "base_relatives",
-        "inverse_base_absolutes",
-        "weights",
-        "base_positions",
-        "triangles",
-        "is_mirrored",
-        "correspondences",
-        "points",
-        "theta",
-        "us",
+        ("J",),
+        (
+            "parents",
+            "base_relatives",
+            "inverse_base_absolutes",
+            "weights",
+            "base_positions",
+            "triangles",
+            "is_mirrored",
+            "correspondences",
+            "points",
+            "theta",
+            "us",
+        ),
+        runs,
     )
-    J = server.get_value("J")
-    server.cmd_free("J")
-    return J.T.tolist()
+    return (J.T.tolist(), times)

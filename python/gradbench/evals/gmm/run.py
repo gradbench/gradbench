@@ -20,6 +20,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-n", nargs="+", type=int, default=[1000, 10000])
     parser.add_argument("-k", nargs="+", type=int, default=[5, 10, 25, 50, 100, 200])
+    parser.add_argument("--runs", type=int, default=10)
     args = parser.parse_args()
 
     e = SingleModuleValidatedEvaluation(module="gmm", validator=assertion(check))
@@ -31,12 +32,12 @@ def main():
                 input = data_gen.main(d, k, n)
                 e.evaluate(
                     function="calculate_objectiveGMM",
-                    input=input,
+                    input=input | {"runs": args.runs},
                     description=f"{d}_{k}_{n}",
                 )
                 e.evaluate(
                     function="calculate_jacobianGMM",
-                    input=input,
+                    input=input | {"runs": args.runs},
                     description=f"{d}_{k}_{n}",
                 )
 

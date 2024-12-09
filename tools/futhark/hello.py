@@ -2,8 +2,8 @@ import futhark_server
 import numpy as np
 
 
-def prepare(server, params):
-    server.put_value("input", np.float64(params["input"]))
+def prepare(server, input):
+    server.put_value("input", np.float64(input))
 
 
 def square(server):
