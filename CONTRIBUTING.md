@@ -91,10 +91,10 @@ Some evals support further configuration via their own CLI flags, which you can 
 ./gradbench eval gmm -- --help
 ```
 
-So for instance, to run only a subset of the default inputs for the GMM eval:
+So for instance, to increase `n` for the GMM eval:
 
 ```sh
-./gradbench run --eval './gradbench eval gmm -- -n1000' --tool './gradbench tool pytorch'
+./gradbench run --eval './gradbench eval gmm -- -n10000' --tool './gradbench tool pytorch'
 ```
 
 ### Multi-platform images
