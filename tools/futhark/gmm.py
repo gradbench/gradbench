@@ -1,9 +1,9 @@
 import os
+import re
 
 import futhark_server
-import numpy as np
-import re
 import futhark_utils
+import numpy as np
 
 
 def prepare(server, input):
