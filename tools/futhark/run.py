@@ -30,7 +30,7 @@ def run(params):
         prepare = resolve(params["module"], "prepare")
         run = resolve(params["module"], params["function"])
         prepare(server, params["input"])
-        if "runs" in params["input"]:
+        if type(params["input"]) is dict and "runs" in params["input"]:
             runs = params["input"]["runs"]
         else:
             runs = 1
