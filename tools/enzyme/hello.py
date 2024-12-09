@@ -6,8 +6,7 @@ from os import listdir
 
 def compile():
     c = subprocess.run(
-        ["make", "-C", "tools/enzyme", "-B", "-j", "run_hello"],
-        stdout=2
+        ["make", "-C", "tools/enzyme", "-B", "-j", "run_hello"], stdout=2
     )
     return c.returncode == 0
 

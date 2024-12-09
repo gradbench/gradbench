@@ -11,7 +11,7 @@ GMM_OBJECTS=EnzymeGMM.o run_gmm.o
 BA_OBJECTS=EnzymeBA.o run_ba.o
 LSTM_OBJECTS=EnzymeLSTM.o run_lstm.o
 HT_OBJECTS=EnzymeHT.o run_ht.o
-EXECUTABLES=run_hello run_gmm # run_ba run_lstm run_ht
+EXECUTABLES=run_hello # run_gmm run_ba run_lstm run_ht
 
 all: $(EXECUTABLES)
 
