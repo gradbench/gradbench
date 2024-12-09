@@ -85,6 +85,18 @@ Then use the `run` subcommand to run a given evaluation on a given tool. You can
 ./gradbench run --eval './gradbench eval hello' --tool './gradbench tool pytorch'
 ```
 
+Some evals support further configuration via their own CLI flags, which you can see by passing `--help` to the eval itself:
+
+```sh
+./gradbench eval gmm -- --help
+```
+
+So for instance, to run only a subset of the default inputs for the GMM eval:
+
+```sh
+./gradbench run --eval './gradbench eval gmm -- -n1000' --tool './gradbench tool pytorch'
+```
+
 ### Multi-platform images
 
 The above do not build a multi-platform image. If you have followed the above instructions to configure Docker for building such images, you can do so using the `--cross` flag:
