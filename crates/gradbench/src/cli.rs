@@ -36,6 +36,9 @@ enum Commands {
         /// The Docker image tag, or `latest` by default. For example: `2024-12-01`
         #[clap(short, long)]
         tag: Option<String>,
+
+        /// Arguments for the eval itself
+        args: Vec<String>,
     },
 
     /// Run a tool using Docker.
@@ -50,11 +53,14 @@ enum Commands {
         /// The Docker image tag, or `latest` by default. For example: `2024-12-01`
         #[clap(short, long)]
         tag: Option<String>,
+
+        /// Arguments for the tool itself
+        args: Vec<String>,
     },
 
     /// Run a given tool on a given eval. For example:
     ///
-    ///     gradbench run -o log.json --eval 'gradbench eval hello' --tool 'gradbench tool pytorch'
+    ///     gradbench run -o log.jsonl --eval 'gradbench eval hello' --tool 'gradbench tool pytorch'
     #[clap(about = "Run a given tool on a given eval", verbatim_doc_comment)]
     Run {
         /// A shell script to run the eval. For example: `gradbench eval hello`
@@ -65,7 +71,7 @@ enum Commands {
         #[clap(long)]
         tool: String,
 
-        /// A path to save the full log. For example: `log.json`
+        /// A path to save the full log. For example: `log.jsonl`
         #[clap(short, long)]
         output: Option<PathBuf>,
     },
@@ -126,7 +132,7 @@ enum RepoCommands {
 
     /// Generate summary data files in a directory containing log files.
     ///
-    /// The directory should first contain a `run-<EVAL>-<TOOL>/log.json` file for each `<EVAL>`
+    /// The directory should first contain a `run-<EVAL>-<TOOL>/log.jsonl` file for each `<EVAL>`
     /// under `evals` and each `<TOOL>` under `tools`.
     ///
     /// Used in the nightly builds, producing files that can be easily downloaded by JavaScript on
@@ -170,9 +176,15 @@ type Id = i64;
 
 /// A message from the eval.
 #[derive(Debug, Deserialize)]
-#[serde(tag = "kind", rename_all = "lowercase")]
+#[serde(tag = "kind", rename_all = "snake_case")]
 enum Message {
-    /// A message to define a module.
+    /// The first message.
+    Start {
+        /// The message ID.
+        id: Id,
+    },
+
+    /// A request to define a module.
     Define {
         /// The message ID.
         id: Id,
@@ -181,21 +193,37 @@ enum Message {
         module: String,
     },
 
-    /// A message to evaluate a function.
+    /// A request to evaluate a function.
     Evaluate {
         /// The message ID.
         id: Id,
 
         /// The name of the function.
-        name: String,
+        function: String,
 
-        /// A human-readable name for the workload.
-        workload: Option<String>,
+        /// The input to the function.
+        input: serde_json::Value,
+
+        /// A short human-readable description of the input.
+        description: Option<String>,
     },
 
-    /// A final message with all analysis results.
-    End,
+    /// Analysis results from evaluating a function.
+    Analysis {
+        /// The ID of the original message being analyzed.
+        of: Id,
+
+        /// Whether the tool's response was valid.
+        valid: bool,
+
+        /// An error message if the tool's response was invalid.
+        message: Option<String>,
+    },
 }
+
+/// A response from the tool to a `"start"` message.
+#[derive(Debug, Deserialize)]
+struct StartResponse {}
 
 /// A response from the tool to a `"define"` message.
 #[derive(Debug, Deserialize)]
@@ -204,33 +232,58 @@ struct DefineResponse {
     success: bool,
 }
 
-/// A response from the tool to a `"define"` message.
+/// Nanosecond timings from the tool.
+#[derive(Debug, Deserialize)]
+struct Timing {
+    /// The name of this timing.
+    name: String,
+
+    /// How many nanoseconds elapsed in this timing.
+    nanoseconds: u128,
+}
+
+/// A response from the tool to an `"evaluate"` message.
 #[derive(Debug, Deserialize)]
 struct EvaluateResponse {
     /// More granular timings.
-    nanoseconds: Nanoseconds,
+    timings: Option<Vec<Timing>>,
 }
 
-/// Nanosecond timings from the tool.
+/// A response from the tool to an `"analysis"` message.
 #[derive(Debug, Deserialize)]
-struct Nanoseconds {
-    /// The time to just evaluate the function.
-    evaluate: Option<u128>,
+struct AnalysisResponse {}
+
+/// A line of printed output.
+struct Line {
+    /// The message ID of the current line.
+    id: Option<Id>,
 }
 
-/// Analysis from the eval for the tool's response.
-#[derive(Debug, Deserialize)]
-struct Analysis {
-    /// Whether the tool's response was valid.
-    correct: bool,
+impl Line {
+    /// Start with no lines.
+    fn new() -> Self {
+        Self { id: None }
+    }
 
-    /// An error message if the tool's response was invalid.
-    error: Option<String>,
-}
+    /// Begin a new line for a given message ID.
+    fn start(&mut self, id: Id) {
+        if self.id.is_some() {
+            self.end();
+        }
+        print!("{}", format!("[{id:>4}]").cyan().bold());
+        self.id = Some(id);
+    }
 
-/// Print a message ID with color.
-fn tag(id: Id) {
-    print!("{}", format!("[{id:>4}]").cyan().bold());
+    /// Get the current message ID.
+    fn id(&self) -> Option<Id> {
+        self.id
+    }
+
+    /// End a line.
+    fn end(&mut self) {
+        println!();
+        self.id = None;
+    }
 }
 
 /// Run an eval and a tool together, returning the number of validation failures.
@@ -240,95 +293,119 @@ fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyho
     let mut tool_in = tool.stdin.take().unwrap();
     let mut eval_out = io::BufReader::new(eval.stdout.take().unwrap());
     let mut tool_out = io::BufReader::new(tool.stdout.take().unwrap());
-    writeln!(o, "[")?;
-    let mut first = true;
-    while let Some(message) = {
+    let start = Instant::now();
+    let mut line = Line::new();
+    while let Some(eval_line) = {
         let mut s = String::new();
-        s.clear();
         if eval_out.read_line(&mut s)? == 0 {
             None
         } else {
             Some(s)
         }
     } {
-        if !first {
-            writeln!(o, ",")?;
-        }
-        first = false;
-        write!(o, "  {{\n    \"message\": {}", message.trim())?;
-        let message_json: Message = serde_json::from_str(&message)?;
-        match &message_json {
+        writeln!(
+            o,
+            r#"{{ "elapsed": {{ "nanoseconds": {} }}, "message": {} }}"#,
+            start.elapsed().as_nanos(),
+            eval_line.trim(),
+        )?;
+        tool_in.write_all(eval_line.as_bytes())?;
+        tool_in.flush()?;
+        let message: Message = serde_json::from_str(&eval_line)?;
+        match &message {
+            Message::Start { id: _ } => {
+                // Don't print message ID because we're still waiting for the tool to say it's
+                // ready, and e.g. if the tool is using `docker run` then it may mess with the
+                // terminal output until it actually starts.
+            }
             Message::Define { id, module } => {
-                writeln!(o, ",")?;
-                tag(*id);
-                print!(" Defining module {module}... ");
+                line.start(*id);
+                print!(" Defining module {module:?}...");
             }
-            Message::Evaluate { id, name, workload } => {
-                writeln!(o, ",")?;
-                tag(*id);
-                let workload = workload.as_deref().unwrap_or("");
-                print!(" Eval {name:<25} {workload:<15} ");
+            Message::Evaluate {
+                id,
+                function,
+                input,
+                description,
+            } => {
+                line.start(*id);
+                let mut workload = match description {
+                    Some(s) => s.clone(),
+                    None => serde_json::to_string(input)?,
+                };
+                let width = 15;
+                if workload.len() > width {
+                    workload.truncate(width - 3);
+                    workload.push_str("...");
+                }
+                print!(" Eval {function:<25} {workload:<width$}");
             }
-            Message::End => {
-                write!(o, "\n  }}")?;
-                break;
+            Message::Analysis { of, valid, message } => {
+                if !*valid {
+                    invalid += 1;
+                }
+                if line.id() == Some(*of) {
+                    if *valid {
+                        print!(" {}", "✓".green());
+                    } else {
+                        print!(" {}", "⚠".red());
+                    };
+                    line.end();
+                    if let Some(error) = message {
+                        println!("{}", error.red());
+                    }
+                }
             }
         }
         io::stdout().flush()?;
-        tool_in.write_all(message.as_bytes())?;
-        tool_in.flush()?;
-        let start = Instant::now();
-        let mut response = String::new();
-        tool_out.read_line(&mut response)?;
-        let end = Instant::now();
-        write!(o, "    \"nanoseconds\": {}", (end - start).as_nanos())?;
-        if tool.try_wait()?.is_some() {
-            write!(o, "\n  }}")?;
-            break;
-        }
-        write!(o, ",\n    \"response\": {}", response.trim())?;
-        eval_in.write_all(response.as_bytes())?;
+        let mut tool_line = String::new();
+        tool_out.read_line(&mut tool_line)?;
+        writeln!(
+            o,
+            r#"{{ "elapsed": {{ "nanoseconds": {} }}, "response": {} }}"#,
+            start.elapsed().as_nanos(),
+            tool_line.trim(),
+        )?;
+        eval_in.write_all(tool_line.as_bytes())?;
         eval_in.flush()?;
-        match message_json {
+        match message {
+            Message::Start { id } => {
+                let _: StartResponse = serde_json::from_str(&tool_line)?;
+                // OK now that we know the tool won't do anything weird with the terminal.
+                line.start(id);
+                print!(" Ready.");
+                line.end();
+            }
             Message::Define { .. } => {
-                writeln!(o)?;
-                let response_json: DefineResponse = serde_json::from_str(&response)?;
-                if response_json.success {
-                    println!("Victory!");
+                let response: DefineResponse = serde_json::from_str(&tool_line)?;
+                if response.success {
+                    print!(" success.");
+                } else {
+                    print!(" failure.");
                 }
+                line.end();
             }
             Message::Evaluate { .. } => {
-                let response_json: EvaluateResponse = serde_json::from_str(&response)?;
-                if let Some(ns) = response_json.nanoseconds.evaluate {
-                    print!("{ns:>10} ns ");
-                } else {
-                    print!("              ");
+                let response: EvaluateResponse = serde_json::from_str(&tool_line)?;
+                let mut timings = String::new();
+                let mut first = true;
+                for Timing { name, nanoseconds } in response.timings.unwrap_or_default() {
+                    if !first {
+                        timings.push_str(", ")
+                    }
+                    first = false;
+                    timings.push_str(&format!("{nanoseconds} ns ({name})"));
                 }
-                io::stdout().flush()?;
-                let mut analysis = String::new();
-                eval_out.read_line(&mut analysis)?;
-                writeln!(o, ",\n    \"analysis\": {}", analysis.trim())?;
-                let analysis_json: Analysis = serde_json::from_str(&analysis)?;
-                if analysis_json.correct {
-                    println!("{}", "✓".green());
-                } else {
-                    println!("{}", "⚠".red());
-                    invalid += 1;
-                };
-                if let Some(error) = analysis_json.error {
-                    println!("{}", error.red());
-                }
+                print!(" {timings:>24}");
             }
-            Message::End => unreachable!(),
+            Message::Analysis { .. } => {}
         }
-        write!(o, "  }}")?;
         io::stdout().flush()?;
     }
-    writeln!(o, "\n]")?;
     Ok(invalid)
 }
 
-/// Return a command's stdout as a string, preserving its exit code whenver possible.
+/// Return a command's stdout as a string, preserving its exit code whenever possible.
 fn stdout(command: &mut Command) -> Result<String, ExitCode> {
     let output = command.output().map_err(|err| {
         eprintln!("error running {:?}: {err}", command.get_program());
@@ -395,7 +472,7 @@ fn github_output(name: &str, value: impl Serialize) -> Result<(), ExitCode> {
 
 /// The status from running a tool on an eval.
 #[derive(Debug, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 enum Status {
     /// The tool is not implemented for the eval.
     Unimplemented,
@@ -409,15 +486,23 @@ enum Status {
 
 /// Read a log file and summarize the results.
 fn summarize(path: &Path) -> Option<Status> {
-    let log: serde_json::Value = serde_json::from_str(&fs::read_to_string(path).ok()?).ok()?;
-    let implemented = log.get(0)?.get("response")?.get("success")?;
-    if !implemented.as_bool()? {
-        return Some(Status::Unimplemented);
-    }
-    let validations = log.as_array()?.last()?.get("message")?.get("validations")?;
-    for validation in validations.as_array()? {
-        if !validation.get("correct")?.as_bool()? {
-            return Some(Status::Incorrect);
+    let mut message: Option<Message> = None;
+    for res in io::BufReader::new(fs::File::open(path).ok()?).lines() {
+        let mut line: serde_json::Value = serde_json::from_str(&res.ok()?).ok()?;
+        if let Some(response) = line.get("response") {
+            if let Message::Define { .. } = message.take()? {
+                if !response.get("success")?.as_bool()? {
+                    return Some(Status::Unimplemented);
+                }
+            }
+        }
+        if let Some(msg) = line.get_mut("message") {
+            message = Some(serde_json::from_value(msg.take()).ok()?);
+            if let Some(Message::Analysis { valid, .. }) = &message {
+                if !valid {
+                    return Some(Status::Incorrect);
+                }
+            }
         }
     }
     Some(Status::Correct)
@@ -456,17 +541,19 @@ struct Summary<'a> {
 /// Run the GradBench CLI, returning a `Result`.
 fn cli_result() -> Result<(), ExitCode> {
     match Cli::parse().command {
-        Commands::Eval { eval, tag } => {
+        Commands::Eval { eval, tag, args } => {
             let t = tag.as_deref().unwrap_or("latest");
             run(Command::new("docker")
                 .args(["run", "--rm", "--interactive"])
-                .arg(format!("ghcr.io/gradbench/eval-{eval}:{t}")))
+                .arg(format!("ghcr.io/gradbench/eval-{eval}:{t}"))
+                .args(args))
         }
-        Commands::Tool { tool, tag } => {
+        Commands::Tool { tool, tag, args } => {
             let t = tag.as_deref().unwrap_or("latest");
             run(Command::new("docker")
                 .args(["run", "--rm", "--interactive"])
-                .arg(format!("ghcr.io/gradbench/tool-{tool}:{t}")))
+                .arg(format!("ghcr.io/gradbench/tool-{tool}:{t}"))
+                .args(args))
         }
         Commands::Run { eval, tool, output } => {
             let (mut client, mut server) = match (
@@ -491,10 +578,7 @@ fn cli_result() -> Result<(), ExitCode> {
             };
             let result = match output {
                 Some(path) => match fs::File::create(&path) {
-                    Ok(mut file) => {
-                        println!("Writing log to {}.", path.display());
-                        intermediary(&mut file, &mut client, &mut server)
-                    }
+                    Ok(mut file) => intermediary(&mut file, &mut client, &mut server),
                     Err(err) => Err(anyhow!(err)),
                 },
                 None => intermediary(&mut io::sink(), &mut client, &mut server),
@@ -587,7 +671,7 @@ fn cli_result() -> Result<(), ExitCode> {
                     for eval in &evals {
                         let mut row = vec![];
                         for tool in &tools {
-                            let path = dir.join(format!("run-{eval}-{tool}/log.json"));
+                            let path = dir.join(format!("run-{eval}-{tool}/log.jsonl"));
                             let status = summarize(&path).unwrap_or(Status::Unimplemented);
                             row.push(Col { tool, status });
                         }

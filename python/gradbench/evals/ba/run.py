@@ -33,10 +33,10 @@ def parse(file):
     }
 
 
-def check(name: str, input: Any, b: Any) -> None:
-    func: Functions = getattr(golden, name)
+def check(function: str, input: Any, b: Any) -> None:
+    func: Functions = getattr(golden, function)
     a = func.unwrap(func(func.prepare(input)))
-    match name:
+    match function:
         case "calculate_objectiveBA":
             assert (
                 np.all(
@@ -59,6 +59,7 @@ def main():
     args = parser.parse_args()
 
     e = SingleModuleValidatedEvaluation(module="ba", validator=assertion(check))
+    e.start()
     if e.define().success:
         # NOTE: data files are taken directly from ADBench. See README for more information.
         # Currently set to run on the smallest two data files. To run on all 20 set loop range to be: range(1,21)
@@ -67,12 +68,15 @@ def main():
             if datafile:
                 input = parse(datafile)
                 e.evaluate(
-                    name="calculate_objectiveBA", workload=datafile.stem, input=input
+                    function="calculate_objectiveBA",
+                    input=input,
+                    description=datafile.stem,
                 )
                 e.evaluate(
-                    name="calculate_jacobianBA", workload=datafile.stem, input=input
+                    function="calculate_jacobianBA",
+                    input=input,
+                    description=datafile.stem,
                 )
-    e.end()
 
 
 if __name__ == "__main__":

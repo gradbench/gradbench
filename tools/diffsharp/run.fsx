@@ -9,7 +9,7 @@ open modules
 
 let run (pars: JToken) =
     let arg = pars.["input"]
-    let name = pars.["name"].ToString()
+    let name = pars.["function"].ToString()
     let moduleName = pars.["module"].ToString()
 
     let resolved =
@@ -32,20 +32,16 @@ let createJsonData (message: JToken) =
         match kind with
         | "evaluate" ->
             let (result, time) = run message
-            JObject(
-                JProperty("id", id),
-                JProperty("output", result),
-                JProperty("nanoseconds", JObject(JProperty("evaluate", time)))
-            )
+
+            let timings =
+                JArray([ JObject(JProperty("name", "evaluate"), JProperty("nanoseconds", time)) ])
+
+            JObject(JProperty("id", id), JProperty("output", result), JProperty("timings", timings))
         | "define" ->
             let moduleName = message.["module"].ToString()
             let success = Option.isSome (resolve moduleName)
-            JObject(
-                JProperty("id", id),
-                JProperty("success", success)
-            )
-        | _ ->
-            JObject(JProperty("id", id))
+            JObject(JProperty("id", id), JProperty("success", success))
+        | _ -> JObject(JProperty("id", id))
 
     response
 

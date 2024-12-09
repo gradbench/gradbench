@@ -28,6 +28,7 @@ Changes Made:
 - generator() now takes in those specifc values rather than the arrays as a whole. It then calls generate once with those variables instead of using a for loop.
 - Instead of writing to a file, generate() creates a dictionary with the new data. This dictionary is then returned from main()
 - Commented out and removed support for 2.5M datapoints
+- No longer obscures the origin of exceptions.
 """
 
 
@@ -110,11 +111,10 @@ def generate(data_uniform, data_normal, D, k, n):
     return output
 
 
-def generator(d_, k, n):
+def generator(d, k, n):
 
     np.random.seed(31337)  # For determinism.
 
-    d = 2  # ADBench used powers of 2 up through 128 (2^7)
     K_max = 200  # K[-1] from [5, 10, 25, 50, 100, 200]
     N_max = 10000  # N[-2] from [1000,10000,2500000]
 
@@ -130,17 +130,8 @@ def generator(d_, k, n):
     amount_of_normal_numbers = K_max * (1 + d + d * (d - 1) // 2) + N_max * d
     data_normal = np.random.normal(mean, sigma, amount_of_normal_numbers)
 
-    return generate(data_uniform, data_normal, d_, k, n)
+    return generate(data_uniform, data_normal, d, k, n)
 
 
-def main(d_, k, n):
-    try:
-
-        return generator(d_, k, n)
-
-    except RuntimeError as ex:
-        eprint("Runtime exception caught: ", ex)
-    except Exception as ex:
-        eprint("An exception caught: ", ex)
-
-    return 0
+def main(d, k, n):
+    return generator(d, k, n)
