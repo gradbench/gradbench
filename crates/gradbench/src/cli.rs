@@ -36,6 +36,9 @@ enum Commands {
         /// The Docker image tag, or `latest` by default. For example: `2024-12-01`
         #[clap(short, long)]
         tag: Option<String>,
+
+        /// Arguments for the eval itself
+        args: Vec<String>,
     },
 
     /// Run a tool using Docker.
@@ -50,6 +53,9 @@ enum Commands {
         /// The Docker image tag, or `latest` by default. For example: `2024-12-01`
         #[clap(short, long)]
         tag: Option<String>,
+
+        /// Arguments for the tool itself
+        args: Vec<String>,
     },
 
     /// Run a given tool on a given eval. For example:
@@ -535,17 +541,19 @@ struct Summary<'a> {
 /// Run the GradBench CLI, returning a `Result`.
 fn cli_result() -> Result<(), ExitCode> {
     match Cli::parse().command {
-        Commands::Eval { eval, tag } => {
+        Commands::Eval { eval, tag, args } => {
             let t = tag.as_deref().unwrap_or("latest");
             run(Command::new("docker")
                 .args(["run", "--rm", "--interactive"])
-                .arg(format!("ghcr.io/gradbench/eval-{eval}:{t}")))
+                .arg(format!("ghcr.io/gradbench/eval-{eval}:{t}"))
+                .args(args))
         }
-        Commands::Tool { tool, tag } => {
+        Commands::Tool { tool, tag, args } => {
             let t = tag.as_deref().unwrap_or("latest");
             run(Command::new("docker")
                 .args(["run", "--rm", "--interactive"])
-                .arg(format!("ghcr.io/gradbench/tool-{tool}:{t}")))
+                .arg(format!("ghcr.io/gradbench/tool-{tool}:{t}"))
+                .args(args))
         }
         Commands::Run { eval, tool, output } => {
             let (mut client, mut server) = match (
