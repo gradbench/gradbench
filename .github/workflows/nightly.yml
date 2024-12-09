@@ -10,7 +10,21 @@ permissions:
   packages: write
 
 jobs:
+  cli:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build CLI
+        run: cargo build --release
+      - name: Upload CLI as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli
+          path: target/release/gradbench
+
   matrix:
+    needs: cli
     runs-on: ubuntu-22.04
     outputs:
       date: ${{ steps.matrix.outputs.date }}
@@ -19,6 +33,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Install CLI from artifact
+        uses: ./.github/actions/cli
       - name: Update nightly branch
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -27,10 +43,12 @@ jobs:
           git push origin nightly --force
       - name: Compute job parameters
         id: matrix
-        run: .github/matrix.py | tee -a "$GITHUB_OUTPUT"
+        run: gradbench repo matrix | tee -a "$GITHUB_OUTPUT"
 
   eval:
-    needs: matrix
+    needs:
+      - cli
+      - matrix
     strategy:
       fail-fast: false
       matrix:
@@ -44,8 +62,10 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup multi-platform Docker
         uses: ./.github/actions/docker
+      - name: Install CLI from artifact
+        uses: ./.github/actions/cli
       - name: Build eval Docker image
-        run: ./crosseval.sh ${{ matrix.eval }}
+        run: gradbench repo build-eval --cross ${{ matrix.eval }}
       - name: Tag eval Docker image
         run: docker tag $IMAGE $IMAGE:$TAG
       - name: Login to GitHub Container registry
@@ -65,7 +85,9 @@ jobs:
           path: eval-${{ matrix.eval }}.tar
 
   tool:
-    needs: matrix
+    needs:
+      - cli
+      - matrix
     strategy:
       fail-fast: false
       matrix:
@@ -81,8 +103,10 @@ jobs:
         uses: ./.github/actions/space
       - name: Setup multi-platform Docker
         uses: ./.github/actions/docker
+      - name: Install CLI from artifact
+        uses: ./.github/actions/cli
       - name: Build tool Docker image
-        run: ./crosstool.sh ${{ matrix.tool }}
+        run: gradbench repo build-tool --cross ${{ matrix.tool }}
       - name: Tag tool Docker image
         run: docker tag $IMAGE $IMAGE:$TAG
       - name: Login to GitHub Container registry
@@ -103,6 +127,7 @@ jobs:
 
   run:
     needs:
+      - cli
       - matrix
       - eval
       - tool
@@ -115,6 +140,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Install CLI from artifact
+        uses: ./.github/actions/cli
       - name: Download eval Docker image from artifact
         uses: actions/download-artifact@v4
         with:
@@ -128,23 +155,25 @@ jobs:
       - name: Load tool Docker image
         run: docker load --input tool-${{ matrix.tool }}.tar
       - name: Run tool on eval
-        run: |
-          set -o pipefail
-          ./run.py --eval './eval.sh ${{ matrix.eval }}' --tool './tool.sh ${{ matrix.tool }}' | tee log.json
+        continue-on-error: true
+        run: gradbench run --eval 'gradbench eval ${{ matrix.eval }}' --tool 'gradbench tool ${{ matrix.tool }}' --output log.jsonl
       - name: Upload log as artifact
         uses: actions/upload-artifact@v4
         with:
           name: run-${{ matrix.eval }}-${{ matrix.tool }}
-          path: log.json
+          path: log.jsonl
 
   commit:
     needs:
+      - cli
       - matrix
       - run
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Install CLI from artifact
+        uses: ./.github/actions/cli
       - name: Checkout nightly outputs branch
         uses: actions/checkout@v4
         with:
@@ -160,7 +189,7 @@ jobs:
       - name: Create summary of logs in nightly outputs branch dir
         env:
           DATE: ${{ fromJSON(needs.matrix.outputs.date) }}
-        run: .github/summarize.py --date "$DATE"
+        run: gradbench repo summarize --date "$DATE" run
       - name: Commit and push nightly outputs branch
         working-directory: run
         env:

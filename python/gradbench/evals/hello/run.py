@@ -6,8 +6,8 @@ import numpy as np
 from gradbench.evaluation import SingleModuleValidatedEvaluation, assertion
 
 
-def check(name: str, input: Any, output: Any) -> None:
-    match name:
+def check(function: str, input: Any, output: Any) -> None:
+    match function:
         case "double":
             assert np.isclose(output, input * 2)
         case "square":
@@ -16,12 +16,12 @@ def check(name: str, input: Any, output: Any) -> None:
 
 def main():
     e = SingleModuleValidatedEvaluation(module="hello", validator=assertion(check))
+    e.start()
     if e.define().success:
         x = 1.0
         for _ in range(4):
-            y = e.evaluate(name="square", workload=str(x), input=x).output
-            x = e.evaluate(name="double", workload=str(x), input=y).output
-    e.end()
+            y = e.evaluate(function="square", input=x).output
+            x = e.evaluate(function="double", input=y).output
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@
 
 - [Prerequisites](#prerequisites)
 - [Setup](#setup)
+- [CLI](#cli)
 - [Docker](#docker)
   - [Multi-platform images](#multi-platform-images)
   - [Manual images](#manual-images)
@@ -21,6 +22,7 @@
 Make sure to have these tools installed:
 
 - [Git][]
+- [Rust][]
 - [Docker][]
 - [Python][]
 - [Node][]
@@ -31,6 +33,7 @@ Other tools that are optional but useful:
 
 - [GitHub CLI][]
 - [Poetry][]
+- [Make][]
 
 ## Setup
 
@@ -46,43 +49,71 @@ Then open a terminal in your clone of it; for instance, if you cloned it via the
 cd gradbench
 ```
 
+## CLI
+
+Many tasks make use of the GradBench CLI, which you can build using this command:
+
+```sh
+cargo build --release
+```
+
+That is strictly optional though, and is only listed here because it provides a progress indicator which is convenient when building for the first time. To actually run the CLI, use the `./gradbench` script:
+
+```sh
+./gradbench --help
+```
+
+This script will always automatically rebuild the CLI if it is not already up to date.
+
 ## Docker
 
-Use `buildeval.sh` to build the Docker image for any evaluation script:
+Use the `repo build-eval` subcommand to build the Docker image for any evaluation script:
 
 ```sh
-./buildeval.sh hello
+./gradbench repo build-eval hello
 ```
 
-Use `buildtool.sh` to build the Docker image for any tool:
+Use the `repo build-tool` subcommand to build the Docker image for any tool:
 
 ```sh
-./buildtool.sh pytorch
+./gradbench repo build-tool pytorch
 ```
 
-Then use `run.py` to run a given evaluation on a given tool. You can use pass this script any commands for the evaluation and tool, but to use the Docker images, the easiest way is to use the provided `eval.sh` and `tool.sh` scripts:
+Then use the `run` subcommand to run a given evaluation on a given tool. You can use pass any commands for the evaluation and tool, but to use the Docker images, the easiest way is to use the `eval` and `tool` subcommands:
 
 ```sh
-./run.py --eval './eval.sh hello' --tool './tool.sh pytorch'
+./gradbench run --eval './gradbench eval hello' --tool './gradbench tool pytorch'
+```
+
+Some evals support further configuration via their own CLI flags, which you can see by passing `--help` to the eval itself:
+
+```sh
+./gradbench eval gmm -- --help
+```
+
+So for instance, to run only a subset of the default inputs for the GMM eval:
+
+```sh
+./gradbench run --eval './gradbench eval gmm -- -n1000' --tool './gradbench tool pytorch'
 ```
 
 ### Multi-platform images
 
-The above do not build a multi-platform image. If you have followed the above instructions to configure Docker for building such images, you can do so using the `crosseval.sh` and `crosstool.sh` scripts:
+The above do not build a multi-platform image. If you have followed the above instructions to configure Docker for building such images, you can do so using the `--cross` flag:
 
 ```sh
-./crosseval.sh hello
-./crosstool.sh pytorch
+./gradbench repo build-eval --cross hello
+./gradbench repo build-tool --cross pytorch
 ```
 
-These typically take much longer than `buildeval.sh` and `buildtool.sh`, so they tend not to be convenient for local development.
+This typically takes much longer, so it tends not to be convenient for local development.
 
 ### Manual images
 
-All the Docker images for individual autodiff tools are in the `tools` directory and built automatically in GitHub Actions. However, some of those `Dockerfile`s are built `FROM` base images that we are unable to build in GitHub Actions. All such base images are in the `docker` directory. Each must have an `ENTRYPOINT` that simply prints the tag of the image. _If you have write access to the GradBench organization on GitHub_, you can build, tag, and push one of these images by first [log in to GHCR][] and then running `manual.sh`:
+All the Docker images for individual autodiff tools are in the `tools` directory and built automatically in GitHub Actions. However, some of those `Dockerfile`s are built `FROM` base images that we are unable to build in GitHub Actions. All such base images are in the `docker` directory. Each must have an `ENTRYPOINT` that simply prints the tag of the image. _If you have write access to the GradBench organization on GitHub_, you can build, tag, and push one of these images by first [log in to GHCR][] and then running the `repo manual` subcommand:
 
 ```sh
-./manual.sh mathlib4
+./gradbench repo manual mathlib4
 ```
 
 ## Tools
@@ -134,13 +165,7 @@ poetry install
 Then you can use `poetry run` to run a command in this virtual environment:
 
 ```sh
-./run.py --eval './eval.sh hello' --tool 'poetry run python3 python/gradbench/pytorch/run.py'
-```
-
-When iterating locally, the full JSON log printed by `run.py` can be a bit much. For convenience, we provide an alternative `run-pretty.py` script which only prints a summary, and uses colors to make it more human-friendly. Here's the same example given above, this time using the alternative script:
-
-```sh
-poetry run ./run-pretty.py --eval './eval.sh hello' --tool 'poetry run python3 python/gradbench/pytorch/run.py'
+./gradbench run --eval './gradbench eval hello' --tool 'poetry run python3 python/gradbench/pytorch/run.py'
 ```
 
 We autoformat Python code using [Black][] and [isort][]. If you're using [VS Code][], our configuration in this repository should automatically recommend that you install the corresponding extensions for those formatters, as well as automatically run them whenever you save a Python file. You can also run them manually via the command line:
@@ -165,11 +190,13 @@ make -C cpp
 [github cli]: https://github.com/cli/cli#installation
 [isort]: https://pycqa.github.io/isort/
 [log in to GHCR]: https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-with-a-personal-access-token-classic
+[make]: https://en.wikipedia.org/wiki/Make_(software)
 [markdown-toc]: https://www.npmjs.com/package/markdown-toc
 [multi-platform images]: https://docs.docker.com/build/building/multi-platform/
 [node]: https://nodejs.org/en/download
 [poetry]: https://python-poetry.org/docs/
 [python]: https://www.python.org/downloads/
 [qemu]: https://docs.docker.com/build/building/multi-platform/#qemu-without-docker-desktop
+[rust]: https://www.rust-lang.org/tools/install
 [vite]: https://vitejs.dev/
 [vs code]: https://code.visualstudio.com/

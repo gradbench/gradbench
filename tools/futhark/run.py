@@ -28,12 +28,13 @@ def resolve(module, name):
 def run(params):
     with futhark_server.Server(server_prog(params["module"])) as server:
         prepare = resolve(params["module"], "prepare")
-        run = resolve(params["module"], params["name"])
+        run = resolve(params["module"], params["function"])
         prepare(server, params)
         start = time.perf_counter_ns()
         ret = run(server)
         end = time.perf_counter_ns()
-        return {"output": ret, "nanoseconds": {"evaluate": end - start}}
+        timings = [{"name": "evaluate", "nanoseconds": end - start}]
+        return {"output": ret, "timings": timings}
 
 
 def main():
