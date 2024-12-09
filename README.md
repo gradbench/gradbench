@@ -82,7 +82,7 @@ Here is that example from the perspectives of the eval and the tool.
   { "id": 5 }
   ```
 
-As shown by this example, the intermediary forwards every message from the eval to tool, and vice versa. The tool only provides substantive responses for `"define"` and `"evaluate"` messages; for all others, it simply gives a response acknowledging the `"id"` of the original message.
+As shown by this example, the intermediary forwards every message from the eval to the tool, and vice versa. The tool only provides substantive responses for `"define"` and `"evaluate"` messages; for all others, it simply gives a response acknowledging the `"id"` of the original message.
 
 ### Specification
 
