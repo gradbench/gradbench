@@ -10,8 +10,8 @@ from gradbench.evaluation import SingleModuleValidatedEvaluation, assertion
 from gradbench.wrap_module import Functions
 
 
-def check(name: str, input: Any, output: Any) -> None:
-    func: Functions = getattr(golden, name)
+def check(function: str, input: Any, output: Any) -> None:
+    func: Functions = getattr(golden, function)
     expected = func.unwrap(func(func.prepare(input)))
     assert np.all(np.isclose(expected, output))
 
@@ -23,6 +23,7 @@ def main():
     args = parser.parse_args()
 
     e = SingleModuleValidatedEvaluation(module="ht", validator=assertion(check))
+    e.start()
     if e.define().success:
         data_root = Path("evals/ht/data")  # assumes cwd is set correctly
         # NOTE: data files are taken directly from ADBench.
@@ -38,15 +39,17 @@ def main():
                 fn = next(data_dir.glob(f"hand{i}_*.txt"), None)
                 model_dir = data_dir / "model"
                 input = io.read_hand_instance(model_dir, fn, complicated).to_dict()
-                e.evaluate(name="calculate_objectiveHT", workload=fn.stem, input=input)
-                e.evaluate(name="calculate_jacobianHT", workload=fn.stem, input=input)
+                e.evaluate(
+                    function="calculate_objectiveHT", input=input, description=fn.stem
+                )
+                e.evaluate(
+                    function="calculate_jacobianHT", input=input, description=fn.stem
+                )
 
         evals(simple_small, False)
         evals(simple_big, False)
         evals(complicated_small, True)
         evals(complicated_big, True)
-
-    e.end()
 
 
 if __name__ == "__main__":

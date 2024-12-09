@@ -10,8 +10,8 @@ from gradbench.evaluation import SingleModuleValidatedEvaluation, assertion
 from gradbench.wrap_module import Functions
 
 
-def check(name: str, input: Any, output: Any) -> None:
-    func: Functions = getattr(golden, name)
+def check(function: str, input: Any, output: Any) -> None:
+    func: Functions = getattr(golden, function)
     expected = func.unwrap(func(func.prepare(input)))
     assert np.all(np.isclose(expected, output, rtol=1e-02))
 
@@ -23,18 +23,22 @@ def main():
     args = parser.parse_args()
 
     e = SingleModuleValidatedEvaluation(module="gmm", validator=assertion(check))
+    e.start()
     if e.define().success:
         for n in args.n:
             for k in args.k:
                 d = 2
                 input = data_gen.main(d, k, n)
                 e.evaluate(
-                    name="calculate_objectiveGMM", workload=f"{d}_{k}_{n}", input=input
+                    function="calculate_objectiveGMM",
+                    input=input,
+                    description=f"{d}_{k}_{n}",
                 )
                 e.evaluate(
-                    name="calculate_jacobianGMM", workload=f"{d}_{k}_{n}", input=input
+                    function="calculate_jacobianGMM",
+                    input=input,
+                    description=f"{d}_{k}_{n}",
                 )
-    e.end()
 
 
 if __name__ == "__main__":

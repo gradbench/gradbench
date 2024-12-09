@@ -211,13 +211,13 @@ jobs:
         run: docker load --input tool-${{ matrix.tool }}.tar
       - name: Run tool on eval
         id: run
-        run: gradbench run --eval 'gradbench eval ${{ matrix.eval }}' --tool 'gradbench tool ${{ matrix.tool }}' --output log.json
+        run: gradbench run --eval 'gradbench eval ${{ matrix.eval }}' --tool 'gradbench tool ${{ matrix.tool }}' --output log.jsonl
       - name: Upload log as artifact
         if: success() || steps.run.conclusion == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: run-${{ matrix.eval }}-${{ matrix.tool }}
-          path: log.json
+          path: log.jsonl
 
   run-slow:
     needs:
@@ -250,10 +250,10 @@ jobs:
         run: docker load --input tool-${{ matrix.tool }}.tar
       - name: Run tool on eval
         id: run
-        run: gradbench run --eval 'gradbench eval ${{ matrix.eval }}' --tool 'gradbench tool ${{ matrix.tool }}' --output log.json
+        run: gradbench run --eval 'gradbench eval ${{ matrix.eval }}' --tool 'gradbench tool ${{ matrix.tool }}' --output log.jsonl
       - name: Upload log as artifact
         if: success() || steps.run.conclusion == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: run-${{ matrix.eval }}-${{ matrix.tool }}
-          path: log.json
+          path: log.jsonl

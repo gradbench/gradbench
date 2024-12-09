@@ -40,155 +40,134 @@ gradbench --help
 
 ## Protocol
 
-GradBench decouples benchmarks from tools via a [JSON][]-based protocol. In this protocol, there is an _intermediary_ (our `run.py` script), an _eval_, and a _tool_. The eval and the tool communicate with each other by sending and receiving messages over stdout and stdin, which are intercepted by the intermediary and forwarded as appropriate.
+GradBench decouples benchmarks from tools via a [JSON][]-based protocol. In this protocol, there is an _intermediary_ (the `run` subcommand of our `gradbench` CLI), an _eval_, and a _tool_. The eval and the tool communicate with each other by sending and receiving messages over stdout and stdin, which are intercepted and forwarded by the intermediary.
 
 ### Example
 
 To illustrate, here is a hypothetical example of a complete session of the protocol, as captured and reported by the intermediary:
 
-```json
-[
-  {
-    "message": { "id": 0, "kind": "define", "module": "foo" },
-    "nanoseconds": 12345,
-    "response": { "id": 0, "success": true }
-  },
-  {
-    "message": { "id": 1, "kind": "evaluate", "module": "foo", "name": "bar", "input": 3.14159 },
-    "nanoseconds": 56789,
-    "response": { "id": 1, "output": 2.71828, "nanoseconds": { "evaluate": 45678 } },
-    "analysis": { "id": 1, "kind": "analysis", "correct": false, "error": "Expected tau, got e." }
-  },
-  {
-    "message": { "id": 2, "kind": "evaluate", "module": "foo", "name": "baz", "input": { "mynumber": 121 } },
-    "nanoseconds": 34567,
-    "response": { "id": 2, "output": { "yournumber": 342 }, "nanoseconds": { "evaluate": 23456 } },
-    "analysis": { "id": 2, "kind": "analysis", "correct": true }
-  },
-  {
-    "message": { "id": 3, "kind": "end", "validations": [ { "id": 1, "correct": false, "error": "Expected tau, got e." }, { "id": 2, "correct": true } ] }
-  }
-]
+```jsonl
+{ "elapsed": { "nanoseconds": 100000 }, "message": { "id": 0, "kind": "start" } }
+{ "elapsed": { "nanoseconds": 150000 }, "response": { "id": 0 } }
+{ "elapsed": { "nanoseconds": 200000 }, "message": { "id": 1, "kind": "define", "module": "foo" } }
+{ "elapsed": { "nanoseconds": 250000 }, "response": { "id": 1, "success": true } }
+{ "elapsed": { "nanoseconds": 300000 }, "message": { "id": 2, "kind": "evaluate", "module": "foo", "function": "bar", "input": 3.14159 } }
+{ "elapsed": { "nanoseconds": 350000 }, "response": { "id": 2, "output": 2.71828, "timings": [{ "name": "evaluate", "nanoseconds": 45678 }] } }
+{ "elapsed": { "nanoseconds": 400000 }, "message": { "id": 3, "kind": "analysis", "of": 2, "valid": false, "message": "Expected tau, got e." } }
+{ "elapsed": { "nanoseconds": 450000 }, "response": { "id": 3 } }
+{ "elapsed": { "nanoseconds": 500000 }, "message": { "id": 4, "kind": "evaluate", "module": "foo", "function": "baz", "input": { "mynumber": 121 } } }
+{ "elapsed": { "nanoseconds": 550000 }, "response": { "id": 4, "output": { "yournumber": 342 }, "timings": [{ "name": "evaluate", "nanoseconds": 23456 }] } }
+{ "elapsed": { "nanoseconds": 600000 }, "message": { "id": 5, "kind": "analysis", "of": 4, "valid": true } }
+{ "elapsed": { "nanoseconds": 650000 }, "response": { "id": 5 } }
 ```
 
-Here is that example from the perspective of the eval. (Output is listed first here, because the eval drives the protocol.)
+Here is that example from the perspectives of the eval and the tool.
 
-- Output:
-  ```json
-  { "id": 0, "kind": "define", "module": "foo" }
-  { "id": 1, "kind": "evaluate", "module": "foo", "name": "bar", "input": 3.14159 }
-  { "id": 1, "kind": "analysis", "correct": false, "error": "Expected tau, got e." }
-  { "id": 2, "kind": "evaluate", "module": "foo", "name": "baz", "input": { "mynumber": 121 } }
-  { "id": 2, "kind": "analysis", "correct": true }
-  { "id": 3, "kind": "end", "validations": [ { "id": 1, "correct": false, "error": "Expected tau, got e." }, { "id": 2, "correct": true } ] }
+- Output from the eval, or equivalently, input to the tool:
+  ```jsonl
+  { "id": 0, "kind": "start" }
+  { "id": 1, "kind": "define", "module": "foo" }
+  { "id": 2, "kind": "evaluate", "module": "foo", "function": "bar", "input": 3.14159 }
+  { "id": 3, "kind": "analysis", "of": 2, "valid": false, "message": "Expected tau, got e." }
+  { "id": 4, "kind": "evaluate", "module": "foo", "function": "baz", "input": { "mynumber": 121 } }
+  { "id": 5, "kind": "analysis", "of": 4, "valid": true }
   ```
-- Input:
-  ```json
-  { "id": 0, "success": true }
-  { "id": 1, "output": 2.71828, "nanoseconds": { "evaluate": 45678 } }
-  { "id": 2, "output": { "yournumber": 342 }, "nanoseconds": { "evaluate": 23456 } }
-  ```
-
-And here is that example from the perspective of the tool. (Input is listed first here, because the tool does not drive the protocol.)
-
-- Input:
-  ```json
-  { "id": 0, "kind": "define", "module": "foo" }
-  { "id": 1, "kind": "evaluate", "module": "foo", "name": "bar", "input": 3.14159 }
-  { "id": 2, "kind": "evaluate", "module": "foo", "name": "baz", "input": { "mynumber": 121 } }
-  ```
-- Output:
-  ```json
-  { "id": 0, "success": true }
-  { "id": 1, "output": 2.71828, "nanoseconds": { "evaluate": 45678 } }
-  { "id": 2, "output": { "yournumber": 342 }, "nanoseconds": { "evaluate": 23456 } }
+- Output from the tool, or equivalently, input to the eval:
+  ```jsonl
+  { "id": 0 }
+  { "id": 1, "success": true }
+  { "id": 2, "output": 2.71828, "timings": [{ "name": "evaluate", "nanoseconds": 45678 }] }
+  { "id": 3 }
+  { "id": 4, "output": { "yournumber": 342 }, "timings": [{ "name": "evaluate", "nanoseconds": 23456 }] }
+  { "id": 5 }
   ```
 
-As shown by this example, the intermediary forwards every message from the tool back to the eval, but it only forwards `"define"` and `"evaluate"` messages from the eval to the tool.
+As shown by this example, the intermediary forwards every message from the eval to tool, and vice versa. The tool only provides substantive responses for `"define"` and `"evaluate"` messages; for all others, it simply gives a response acknowledging the `"id"` of the original message.
 
 ### Specification
 
-The session proceeds over a series of _rounds_, driven by the eval. At the beginning of each round, the eval sends a message, which always includes an `"id"` and a `"kind"`, the latter of which has three possibilities:
+The session proceeds over a series of _rounds_, driven by the eval. In each round, the eval sends a _message_ with a unique `"id"`, and the tool sends a _response_ with that same `"id"`. The message also includes a `"kind"`, which has four possibilities:
 
-1. `"kind": "define"` - The eval provides the name of a `"module"` which the tool will need in order to proceed further with this particular benchmark. This will allow the tool to respond saying whether or not it knows of and has an implementation for the module of that name.
+1. `"kind": "start"` - the eval always sends this message first, waiting for the tool's response to ensure that it is ready to receive further messages.
 
-   - The intermediary forwards this message to the tool, which must respond with the same `"id"` as the original message, and either `"success": true` or `"success": false`. In the former case, the benchmark proceeds normally. In the latter case, the tool is indicating that it does not have an implementation for the requested module, and the eval should stop and not send any further messages.
+2. `"kind": "define"` - the eval provides the name of a `"module"` which the tool will need in order to proceed further with this particular benchmark. This will allow the tool to respond saying whether or not it knows of and has an implementation for the module of that name.
 
-2. `"kind": "evaluate"` - the eval again provides a `"module"` name, as well as the `"name"` of a function in that module. Currently there is no formal process for registering module names or specifying the functions available in those modules; those are specified informally via documentation in the evals themselves. An `"input"` to that function is also provided; the tool will be expected to evaluate that function at that input, and return the result.
+   - The tool responds with the `"id"` and either `"success": true` or `"success": false`. In the former case, the benchmark proceeds normally. In the latter case, the tool is indicating that it does not have an implementation for the requested module, and the eval should stop and not send any further messages.
 
-   - The intermediary forwards this message to the tool, which must again respond with the same `"id"` as the original message, along with the `"output"` of evaluating the requested function with the given input. The intermediary can time this entire interaction, but that measurement is very coarse; the tool can provide more fine-grained timing data for sub-tasks in the `"nanoseconds"` field. Currently, most tools only provide one entry in `"nanoseconds"`: the `"evaluate"` entry, which by convention means the amount of time that tool spent evaluating the function itself, not including other time such as JSON encoding/decoding.
+3. `"kind": "evaluate"` - the eval again provides a `"module"` name, as well as the name of a `"function"` in that module. Currently there is no formal process for registering module names or specifying the functions available in those modules; those are specified informally via documentation in the evals themselves. An `"input"` to that function is also provided; the tool will be expected to evaluate that function at that input, and return the result. Optionally, the eval may also provide a short human-readable `"description"` of the input.
 
-   - The intermediary forwards that response back to the eval, which can then respond back to the intermediary with a `"kind": "analysis"` message, only valid in this specific context. The `"id"` must again match that of the original message. The `"correct"` field is a boolean saying whether the tool's output was acceptable; if `"correct": false`, the eval can also provide an `"error"` field with a string message explaining why the tool's output was not acceptable.
+   - The tool responds with the `"id"` and its `"output"` from evaluating the requested function with the given input. Optionally, the tool may also provide a list of `"timings"` for subtasks of the computation it performed. Each timing must include a `"name"` that does not need to be unique, and a number of `"nanoseconds"`. Currently, most tools only provide one entry in `"timings"`: an `"evaluate"` entry, which by convention means the amount of time that tool spent evaluating the function itself, not including other time such as JSON encoding/decoding.
 
-3. `"kind": "end"`, which must be the last message of the session and is not forwarded to the tool. The eval provides a list of `"validations"`; currently these are just a reiteration of the data already provided by the eval's `"kind": "analysis"` messages.
+4. `"kind": "analysis"` - the eval provides the ID of a prior `"evaluate"` message it performed analysis `"of"`, along with a boolean saying whether the tool's output was `"valid"`. If the output was invalid, the eval can also provide a string `"message"` explaining why.
+
+If the tool receives any message whose `"kind"` is neither `"define"` nor `"evaluate"`, it must always respond, but does not need to include anything other than the `"id"`.
 
 ### Types
 
-Here is a somewhat more formal definition of the protocol using [TypeScript][] types.
+Here is a somewhat more formal description of the protocol using [TypeScript][] types.
 
 ```typescript
-interface Message {
+interface Base {
   id: string;
 }
 
-interface DefineMessage extends Message {
+interface Duration {
+  nanoseconds: number;
+}
+
+interface Timing extends Duration {
+  name: string;
+}
+
+interface StartMessage extends Base {
+  kind: "start";
+}
+
+interface DefineMessage extends Base {
   kind: "define";
   module: string;
 }
 
-interface DefineResponse extends Message {
+interface EvaluateMessage extends Base {
+  kind: "evaluate";
+  module: string;
+  function: string;
+  input: any;
+  description?: string;
+}
+
+interface AnalysisMessage extends Base {
+  valid: boolean;
+  message?: string;
+}
+
+type Message = StartMessage | DefineMessage | EvaluateMessage | AnalysisMessage;
+
+interface DefineResponse extends Base {
   success: boolean;
 }
 
-interface EvaluateMessage extends Message {
-  kind: "evaluate";
-  module: string;
-  name: string;
-  input: any;
-}
-
-interface EvaluateResponse extends Message {
+interface EvaluateResponse extends Base {
   output: any;
-  nanoseconds: Record<string, number>;
+  timings?: Timing[];
 }
 
-interface EvaluateAnalysis extends Message {
-  correct: boolean;
-  error?: string;
+type Response = Base | DefineResponse | EvaluateResponse;
+
+interface Line {
+  elapsed: Duration;
 }
 
-interface Validation extends Message {
-  correct: boolean;
-  error?: string;
+interface MessageLine extends Line {
+  message: Message;
 }
 
-interface EndMessage extends Message {
-  kind: "end";
-  validations: Validation[];
+interface ResponseLine extends Line {
+  response: Response;
 }
 
-interface Define {
-  message: DefineMessage;
-  nanoseconds: number;
-  response: DefineResponse;
-}
-
-interface Evaluate {
-  message: EvaluateMessage;
-  nanoseconds: number;
-  response: EvaluateResponse;
-  analysis?: EvaluateAnalysis;
-}
-
-interface End {
-  message: EndMessage;
-}
-
-type Round = Define | Evaluate | End;
-
-type Session = Round[];
+type Session = (MessageLine | ResponseLine)[];
 ```
-
 
 ## Contributing
 
