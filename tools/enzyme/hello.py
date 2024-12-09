@@ -5,8 +5,11 @@ from os import listdir
 
 
 def compile():
-    # Nothing to do here. We assume everything is precompiled.
-    return True
+    c = subprocess.run(
+        ["make", "-C", "tools/enzyme", "-B", "-j", "run_hello"],
+        stdout=2
+    )
+    return c.returncode == 0
 
 
 def square(input):

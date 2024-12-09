@@ -1,5 +1,5 @@
-CXX?=clang++
-LLD?=lld
+CXX=clang++-19
+LLD=lld-19
 CXXFLAGS=-std=c++17 -O3 -Wall -flto
 LDFLAGS=-fuse-ld=$(LLD) -O3 -flto -Wl,--load-pass-plugin=$(LLDENZYME) -lm
 

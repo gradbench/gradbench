@@ -31,10 +31,5 @@ RUN make -C cpp
 
 COPY tools/enzyme/ /home/gradbench/tools/enzyme
 
-RUN make -j -B -C tools/enzyme \
-     LLDENZYME=/home/gradbench/enzyme-build/Enzyme/LLDEnzyme-19.so \
-     CXX=clang++-19 \
-     LLD=lld-19
-
 ENTRYPOINT ["python3", "/home/gradbench/tools/enzyme/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
