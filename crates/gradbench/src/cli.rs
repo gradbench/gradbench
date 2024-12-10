@@ -329,7 +329,7 @@ fn print_nanoseconds(nanoseconds: u128) {
     if min < 60 {
         print!(" {:2}:{:02}.{:03}  ", min, sec % 60, ms % 1000);
     } else {
-        print!(" {:2} {:2}>{:3}hr", "", "", "  1");
+        print!(" {:2} {:2}>{:3}hr", "", "", " 1 ");
     }
 }
 
