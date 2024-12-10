@@ -663,7 +663,7 @@ fn cli_result() -> Result<(), ExitCode> {
                     let mut tools = ls("tools")?;
                     tools.sort();
                     github_output("tool", &tools)?;
-                    let slow = ["scilean"];
+                    let slow = ["enzyme", "scilean"];
                     let fast: Vec<_> = tools
                         .iter()
                         .filter(|t| !slow.contains(&t.as_str()))
