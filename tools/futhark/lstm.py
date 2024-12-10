@@ -1,11 +1,12 @@
 import futhark_server
+import futhark_utils
 import numpy as np
 
 from gradbench.adbench.lstm_data import LSTMInput
 
 
-def prepare(server, params):
-    input = LSTMInput.from_dict(params["input"])
+def prepare(server, input):
+    input = LSTMInput.from_dict(input)
 
     server.put_value("main_params", input.main_params)
     server.put_value("extra_params", input.extra_params)
@@ -13,29 +14,25 @@ def prepare(server, params):
     server.put_value("sequence", input.sequence)
 
 
-def calculate_objectiveLSTM(server):
-    server.cmd_call(
+def calculate_objectiveLSTM(server, input):
+    runs = 1
+    (obj,), times = futhark_utils.run(
+        server,
         "calculate_objective",
-        "obj",
-        "main_params",
-        "extra_params",
-        "state",
-        "sequence",
+        ("obj",),
+        ("main_params", "extra_params", "state", "sequence"),
+        runs,
     )
-    obj = server.get_value("obj")
-    server.cmd_free("obj")
-    return obj
+    return (obj, times)
 
 
-def calculate_jacobianLSTM(server):
-    server.cmd_call(
+def calculate_jacobianLSTM(server, input):
+    runs = 1
+    (J,), times = futhark_utils.run(
+        server,
         "calculate_jacobian",
-        "J",
-        "main_params",
-        "extra_params",
-        "state",
-        "sequence",
+        ("J",),
+        ("main_params", "extra_params", "state", "sequence"),
+        runs,
     )
-    J = server.get_value("J")
-    server.cmd_free("J")
-    return J.tolist()
+    return (J.tolist(), times)
