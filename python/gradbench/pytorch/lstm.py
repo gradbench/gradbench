@@ -58,7 +58,7 @@ def prepare_input(input):
 
 
 def objective_output(output):
-    return output.detach().flatten().numpy()[0]
+    return float(output.detach().flatten().numpy()[0])
 
 
 def jacobian_output(output):
