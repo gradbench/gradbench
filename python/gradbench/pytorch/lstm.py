@@ -66,7 +66,7 @@ def jacobian_output(output):
 
 
 @wrap(prepare_input, objective_output)
-def calculate_objectiveLSTM(input):
+def objective(input):
     py = PyTorchLSTM()
     py.prepare(input)
     py.calculate_objective(1)
@@ -74,7 +74,7 @@ def calculate_objectiveLSTM(input):
 
 
 @wrap(prepare_input, jacobian_output)
-def calculate_jacobianLSTM(input):
+def jacobian(input):
     py = PyTorchLSTM()
     py.prepare(input)
     py.calculate_jacobian(1)

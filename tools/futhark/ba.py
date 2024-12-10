@@ -32,7 +32,7 @@ def prepare(server, input):
     server.put_value("feats", feats)
 
 
-def calculate_objectiveBA(server, input):
+def objective(server, input):
     runs = 1
     (r_err, w_err), times = futhark_utils.run(
         server,
@@ -52,7 +52,7 @@ def calculate_objectiveBA(server, input):
     )
 
 
-def calculate_jacobianBA(server, input):
+def jacobian(server, input):
     runs = 1
     (rows, cols, vals), times = futhark_utils.run(
         server,

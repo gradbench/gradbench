@@ -9,7 +9,7 @@ def compile():
     return True
 
 
-def calculate_objectiveBA(input):
+def objective(input):
     with tempfile.NamedTemporaryFile("w") as tmp:
         json.dump(input, tmp)
         tmp.flush()
@@ -18,7 +18,7 @@ def calculate_objectiveBA(input):
         )
 
 
-def calculate_jacobianBA(input):
+def jacobian(input):
     with tempfile.NamedTemporaryFile("w") as tmp:
         json.dump(input, tmp)
         tmp.flush()

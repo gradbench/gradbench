@@ -111,7 +111,7 @@ def prepare_input(input):
 
 
 @wrap(prepare_input, lambda x: x.numpy().tolist())
-def calculate_jacobianGMM(input):
+def jacobian(input):
     py = TensorflowGMM()
     py.prepare(input)
     py.calculate_jacobian(1)
@@ -119,7 +119,7 @@ def calculate_jacobianGMM(input):
 
 
 @wrap(prepare_input, lambda x: x.numpy().tolist())
-def calculate_objectiveGMM(input):
+def objective(input):
     py = TensorflowGMM()
     py.prepare(input)
     py.calculate_objective(1)
