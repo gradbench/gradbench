@@ -30,11 +30,7 @@ def run(params):
         prepare = resolve(params["module"], "prepare")
         run = resolve(params["module"], params["function"])
         prepare(server, params["input"])
-        if type(params["input"]) is dict and "runs" in params["input"]:
-            runs = params["input"]["runs"]
-        else:
-            runs = 1
-        ret, times = run(server, runs)
+        ret, times = run(server, params["input"])
         timings = [{"name": "evaluate", "nanoseconds": ns} for ns in times]
         return {"output": ret, "timings": timings}
 

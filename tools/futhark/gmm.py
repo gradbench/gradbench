@@ -15,7 +15,8 @@ def prepare(server, input):
     server.put_value("m", np.int64(input["m"]))
 
 
-def calculate_objectiveGMM(server, runs):
+def calculate_objectiveGMM(server, input):
+    runs = input["runs"]
     (o,), times = futhark_utils.run(
         server,
         "calculate_objective",
@@ -26,7 +27,8 @@ def calculate_objectiveGMM(server, runs):
     return (o, times)
 
 
-def calculate_jacobianGMM(server, runs):
+def calculate_jacobianGMM(server, input):
+    runs = input["runs"]
     (o1, o2, o3), times = futhark_utils.run(
         server,
         "calculate_jacobian",

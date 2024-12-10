@@ -7,7 +7,8 @@ def prepare(server, input):
     server.put_value("input", np.float64(input))
 
 
-def square(server, runs):
+def square(server, input):
+    runs = 1
     (out,), times = futhark_utils.run(
         server,
         "square",
@@ -18,6 +19,7 @@ def square(server, runs):
     return (out, times)
 
 
-def double(server, runs):
+def double(server, input):
+    runs = 1
     (out,), times = futhark_utils.run(server, "double", ("output",), ("input",), runs)
     return (out, times)
