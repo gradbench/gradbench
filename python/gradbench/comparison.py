@@ -26,7 +26,12 @@ def compare_json_objects(expected, actual, tolerance=1e-4, path=""):
     """
     mismatches = []
 
-    if isinstance(expected, dict) and isinstance(actual, dict):
+    if type(expected) != type(actual):
+        mismatches.append(
+            f"{path}: expected value of type {type(expected)}, got value of type {type(actual)}"
+        )
+
+    elif isinstance(expected, dict) and isinstance(actual, dict):
         all_keys = set(expected.keys()).union(set(actual.keys()))
         for key in all_keys:
             new_path = f"{path}.{key}" if path else key
