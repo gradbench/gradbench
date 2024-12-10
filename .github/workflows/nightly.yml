@@ -7,21 +7,48 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
+  cli:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build CLI
+        run: cargo build --release
+      - name: Upload CLI as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli
+          path: target/release/gradbench
+
   matrix:
+    needs: cli
     runs-on: ubuntu-22.04
     outputs:
       date: ${{ steps.matrix.outputs.date }}
       eval: ${{ steps.matrix.outputs.eval }}
       tool: ${{ steps.matrix.outputs.tool }}
     steps:
-      - uses: actions/checkout@v4
-      - id: matrix
-        run: .github/matrix.py | tee -a "$GITHUB_OUTPUT"
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install CLI from artifact
+        uses: ./.github/actions/cli
+      - name: Update nightly branch
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git checkout -B nightly
+          git push origin nightly --force
+      - name: Compute job parameters
+        id: matrix
+        run: gradbench repo matrix | tee -a "$GITHUB_OUTPUT"
 
   eval:
-    needs: matrix
+    needs:
+      - cli
+      - matrix
     strategy:
       fail-fast: false
       matrix:
@@ -31,24 +58,36 @@ jobs:
       IMAGE: ghcr.io/gradbench/eval-${{ matrix.eval }}
       TAG: ${{ fromJSON(needs.matrix.outputs.date) }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/docker
-      - run: ./crosseval.sh ${{ matrix.eval }}
-      - run: docker tag $IMAGE $IMAGE:$TAG
-      - uses: docker/login-action@v3
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup multi-platform Docker
+        uses: ./.github/actions/docker
+      - name: Install CLI from artifact
+        uses: ./.github/actions/cli
+      - name: Build eval Docker image
+        run: gradbench repo build-eval --cross ${{ matrix.eval }}
+      - name: Tag eval Docker image
+        run: docker tag $IMAGE $IMAGE:$TAG
+      - name: Login to GitHub Container registry
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - run: docker push --all-tags $IMAGE
-      - run: docker save --output eval-${{ matrix.eval }}.tar $IMAGE
-      - uses: actions/upload-artifact@v4
+      - name: Push eval Docker image to GitHub Container registry
+        run: docker push --all-tags $IMAGE
+      - name: Serialize eval Docker image
+        run: docker save --output eval-${{ matrix.eval }}.tar $IMAGE
+      - name: Upload eval Docker image as artifact
+        uses: actions/upload-artifact@v4
         with:
           name: eval-${{ matrix.eval }}
           path: eval-${{ matrix.eval }}.tar
 
   tool:
-    needs: matrix
+    needs:
+      - cli
+      - matrix
     strategy:
       fail-fast: false
       matrix:
@@ -58,25 +97,37 @@ jobs:
       IMAGE: ghcr.io/gradbench/tool-${{ matrix.tool }}
       TAG: ${{ fromJSON(needs.matrix.outputs.date) }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/space
-      - uses: ./.github/actions/docker
-      - run: ./crosstool.sh ${{ matrix.tool }}
-      - run: docker tag $IMAGE $IMAGE:$TAG
-      - uses: docker/login-action@v3
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Increase disk space
+        uses: ./.github/actions/space
+      - name: Setup multi-platform Docker
+        uses: ./.github/actions/docker
+      - name: Install CLI from artifact
+        uses: ./.github/actions/cli
+      - name: Build tool Docker image
+        run: gradbench repo build-tool --cross ${{ matrix.tool }}
+      - name: Tag tool Docker image
+        run: docker tag $IMAGE $IMAGE:$TAG
+      - name: Login to GitHub Container registry
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - run: docker push --all-tags $IMAGE
-      - run: docker save --output tool-${{ matrix.tool }}.tar $IMAGE
-      - uses: actions/upload-artifact@v4
+      - name: Push tool Docker image to GitHub Container registry
+        run: docker push --all-tags $IMAGE
+      - name: Serialize tool Docker image
+        run: docker save --output tool-${{ matrix.tool }}.tar $IMAGE
+      - name: Upload tool Docker image as artifact
+        uses: actions/upload-artifact@v4
         with:
           name: tool-${{ matrix.tool }}
           path: tool-${{ matrix.tool }}.tar
 
   run:
     needs:
+      - cli
       - matrix
       - eval
       - tool
@@ -87,35 +138,67 @@ jobs:
         tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install CLI from artifact
+        uses: ./.github/actions/cli
+      - name: Download eval Docker image from artifact
+        uses: actions/download-artifact@v4
         with:
           name: eval-${{ matrix.eval }}
-      - uses: actions/download-artifact@v4
+      - name: Download tool Docker image from artifact
+        uses: actions/download-artifact@v4
         with:
           name: tool-${{ matrix.tool }}
-      - run: docker load --input eval-${{ matrix.eval }}.tar
-      - run: docker load --input tool-${{ matrix.tool }}.tar
-      - run: |
-          set -o pipefail
-          ./run.py --eval './eval.sh ${{ matrix.eval }}' --tool './tool.sh ${{ matrix.tool }}' | tee log.json
-      - uses: actions/upload-artifact@v4
+      - name: Load eval Docker image
+        run: docker load --input eval-${{ matrix.eval }}.tar
+      - name: Load tool Docker image
+        run: docker load --input tool-${{ matrix.tool }}.tar
+      - name: Run tool on eval
+        continue-on-error: true
+        run: gradbench run --eval 'gradbench eval ${{ matrix.eval }}' --tool 'gradbench tool ${{ matrix.tool }}' --output log.jsonl
+      - name: Upload log as artifact
+        uses: actions/upload-artifact@v4
         with:
           name: run-${{ matrix.eval }}-${{ matrix.tool }}
-          path: log.json
+          path: log.jsonl
 
-  release:
+  commit:
     needs:
+      - cli
       - matrix
       - run
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - env:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install CLI from artifact
+        uses: ./.github/actions/cli
+      - name: Checkout nightly outputs branch
+        uses: actions/checkout@v4
+        with:
+          path: run
+          ref: ci/refs/heads/nightly
+      - name: Delete contents of nightly outputs branch dir
+        working-directory: run
+        run: git rm -rf .
+      - name: Download all log artifacts into nightly outputs branch dir
+        env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh run download ${{ github.run_id }} --dir run --pattern 'run-*'
-      - run: .github/release.py
-      - env:
+      - name: Create summary of logs in nightly outputs branch dir
+        env:
           DATE: ${{ fromJSON(needs.matrix.outputs.date) }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create --target "$GITHUB_SHA" "nightly-$DATE" release/*
+        run: gradbench repo summarize --date "$DATE" run
+      - name: Commit and push nightly outputs branch
+        working-directory: run
+        env:
+          DATE: ${{ fromJSON(needs.matrix.outputs.date) }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git add .
+          git commit --allow-empty -m "Nightly run on $DATE for commit $GITHUB_SHA"
+          git push -f origin HEAD
+          git tag "nightly-$DATE"
+          git push origin "nightly-$DATE"

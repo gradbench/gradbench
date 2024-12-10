@@ -12,14 +12,11 @@ def resolve(module, name):
 
 
 def run(params):
-    func = resolve(params["module"], params["name"])
-    vals = 1.0 * params["input"]
-
-    # start = time.perf_counter_ns()
-    ret, time = func(vals).stdout.split(" ")
-    # end = time.perf_counter_ns()
-
-    return {"output": float(ret), "nanoseconds": {"evaluate": int(time)}}
+    func = resolve(params["module"], params["function"])
+    vals = params["input"]
+    ret, time = func(vals).stdout.split("\n")
+    timings = [{"name": "evaluate", "nanoseconds": int(time)}]
+    return {"output": json.loads(ret), "timings": timings}
 
 
 def main():

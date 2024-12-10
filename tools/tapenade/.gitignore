@@ -1,0 +1,9 @@
+*.o
+/derivative
+/double_b.c
+/double_b.msg
+/normal
+/run_ba
+/run_gmm
+/run_ht
+/run_lstm

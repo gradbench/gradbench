@@ -1,3 +1,4 @@
+import argparse
 from pathlib import Path
 from typing import Any
 
@@ -9,21 +10,51 @@ from gradbench.evaluation import SingleModuleValidatedEvaluation, assertion
 from gradbench.wrap_module import Functions
 
 
-def check(name: str, input: Any, output: Any) -> None:
-    func: Functions = getattr(golden, name)
+# This definition is ported from ADBench's JacobianComparison.cs.
+def difference(x, y):
+    absX = np.abs(x)
+    absY = np.abs(y)
+    absdiff = np.abs(x - y)
+    normCoef = np.clip(absX + absY, a_min=1, a_max=None)
+    return absdiff / normCoef
+
+
+def check(function: str, input: Any, output: Any) -> None:
+    func: Functions = getattr(golden, function)
     expected = func.unwrap(func(func.prepare(input)))
-    assert np.all(np.isclose(expected, output))
+    tolerance = 1e-4  # From ADBench defaults.
+    assert np.all(difference(np.array(output), np.array(expected)) < tolerance)
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-n", type=int, default=1000)
+    parser.add_argument(
+        "-k", nargs="+", type=int, default=[5, 10, 25, 50]
+    )  # misses 100 200
+    parser.add_argument(
+        "-d", nargs="+", type=int, default=[2, 10, 20, 32]
+    )  # misses 64 128
+    parser.add_argument("--runs", type=int, default=10)
+    args = parser.parse_args()
+
     e = SingleModuleValidatedEvaluation(module="gmm", validator=assertion(check))
-    if e.define(source=(Path(__file__).parent / "gmm.adroit").read_text()).success:
-        for n in [1000, 10000]:
-            for k in [5, 10, 25, 50, 100, 200]:
-                input = data_gen.main(2, k, n)  # d k n
-                e.evaluate(name="calculate_objectiveGMM", input=input)
-                e.evaluate(name="calculate_jacobianGMM", input=input)
-    e.end()
+    e.start()
+    if e.define().success:
+        n = args.n
+        for d in args.d:
+            for k in args.k:
+                input = data_gen.main(d, k, n)
+                e.evaluate(
+                    function="calculate_objectiveGMM",
+                    input=input | {"runs": args.runs},
+                    description=f"{d}_{k}_{n}",
+                )
+                e.evaluate(
+                    function="calculate_jacobianGMM",
+                    input=input | {"runs": args.runs},
+                    description=f"{d}_{k}_{n}",
+                )
 
 
 if __name__ == "__main__":

@@ -6,33 +6,50 @@ from typing import Any, Callable, Optional
 from pydantic import BaseModel
 
 
+class StartResponse(BaseModel):
+    id: int
+
+
 class DefineResponse(BaseModel):
     id: int
     success: bool
 
 
+class Timing(BaseModel):
+    name: str
+    nanoseconds: int
+
+
 class EvaluateResponse(BaseModel):
     id: int
     output: Any
-    nanoseconds: dict[str, int]
+    timings: list[Timing]
 
 
-class Validation(BaseModel):
-    correct: bool
-    error: Optional[str]
+class AnalysisResponse(BaseModel):
+    id: int
 
 
-Validator = Callable[[str, Any, Any], Validation]
+class Analysis(BaseModel):
+    valid: bool
+    message: Optional[str]
+
+
+def dump_analysis(analysis: Analysis) -> dict[str, Any]:
+    return analysis.model_dump(exclude_none=True)
+
+
+Validator = Callable[[str, Any, Any], Analysis]
 
 
 def assertion(check: Callable[[str, Any, Any], None]) -> Validator:
-    def validator(name: str, input: Any, output: Any) -> Validation:
+    def validator(function: str, input: Any, output: Any) -> Analysis:
         try:
-            check(name, input, output)
-            return Validation(correct=True, error=None)
+            check(function, input, output)
+            return Analysis(valid=True, message=None)
         except Exception as e:
-            error = "".join(traceback.format_exception(e))
-            return Validation(correct=False, error=error)
+            message = "".join(traceback.format_exception(e))
+            return Analysis(valid=False, message=message)
 
     return validator
 
@@ -41,7 +58,6 @@ class SingleModuleValidatedEvaluation:
     module: str
     validator: Validator
     id: int
-    validations: dict[int, Validation]
 
     def __init__(self, *, module: str, validator: Validator):
         self.module = module
@@ -60,27 +76,36 @@ class SingleModuleValidatedEvaluation:
         self.id += 1
         return response
 
-    def define(self, *, source: str) -> DefineResponse:
-        message = {"kind": "define", "module": self.module, "source": source}
+    def start(self) -> StartResponse:
+        message = {"kind": "start"}
+        response = StartResponse.model_validate(self.send(message))
+        return response
+
+    def define(self) -> DefineResponse:
+        message = {"kind": "define", "module": self.module}
         response = DefineResponse.model_validate(self.send(message))
         return response
 
-    def evaluate(self, *, name: str, input: Any) -> EvaluateResponse:
+    def evaluate(
+        self, *, function: str, input: Any, description: Optional[str] = None
+    ) -> EvaluateResponse:
         message = {
             "kind": "evaluate",
             "module": self.module,
-            "name": name,
+            "function": function,
             "input": input,
         }
+        if description is not None:
+            message["description"] = description
         id = self.id
         response = EvaluateResponse.model_validate(self.send(message))
-        self.validations[id] = self.validator(name, input, response.output)
+        analysis = self.validator(function, input, response.output)
+        self.analysis(of=id, valid=analysis.valid, message=analysis.message)
         return response
 
-    def end(self) -> None:
-        validations = [
-            {"id": id} | validation.model_dump()
-            for id, validation in self.validations.items()
-        ]
-        message = {"kind": "end", "validations": validations}
-        self.send(message)
+    def analysis(self, *, of: int, valid: bool, message: Optional[str]) -> Any:
+        request = {"kind": "analysis", "of": of, "valid": valid}
+        if message is not None:
+            request["message"] = message
+        response = AnalysisResponse.model_validate(self.send(request))
+        return response

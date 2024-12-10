@@ -77,29 +77,29 @@ structure Definition where
   id: Int
   kind: String
   module: String
-  source: String
 deriving FromJson
 
 structure Params where
   id: Int
   kind: String
   module: String
-  name: String
+  function: String
   input: Json
 deriving FromJson
 
-structure Nanoseconds where
-  evaluate: Nat
+structure Timing where
+  name: String
+  nanoseconds: Nat
 deriving ToJson
 
 structure Output where
   output: Json
-  nanoseconds: Nanoseconds
+  timings: List Timing
 
 structure Response where
   id: Int
   output: Json
-  nanoseconds: Nanoseconds
+  timings: List Timing
 deriving ToJson
 
 def wrap [FromJson a] [ToJson b] (f : a -> b) (x' : Json)
@@ -110,13 +110,13 @@ def wrap [FromJson a] [ToJson b] (f : a -> b) (x' : Json)
     let y := f x
     let done <- IO.monoNanosNow
     let y' := toJson y
-    let nanoseconds := { evaluate := done - start }
-    return { output := y', nanoseconds }
+    let timings := [{ name := "evaluate", nanoseconds := done - start }]
+    return { output := y', timings }
 
 def resolve (module : String)
     : Option (String -> Option (Json -> Except String (IO Output))) :=
   match module with
-  | "gradbench" => some fun
+  | "hello" => some fun
     | "square" => some (wrap square)
     | "double" => some (wrap double)
     | _ => none
@@ -141,13 +141,13 @@ partial def loop (stdin : IO.FS.Stream) (stdout : IO.FS.Stream) :
         let resolved <- match resolve params.module with
           | some mod => ok mod
           | none => error "module not found"
-        let function <- match resolved params.name with
+        let function <- match resolved params.function with
           | some func => ok func
           | none => error "function not found"
         let action <- function params.input
         return do
-          let { output, nanoseconds } <- action
-          let response : Response := { id := params.id, output, nanoseconds }
+          let { output, timings } <- action
+          let response : Response := { id := params.id, output, timings }
           return toJson response
       else
         let id <- Json.getObjVal? message "id"
@@ -157,7 +157,7 @@ partial def loop (stdin : IO.FS.Stream) (stdout : IO.FS.Stream) :
     | error err => return error err
     | ok action => do
       let response <- action
-      IO.println response
+      IO.println (Json.render response)
       stdout.flush
       loop stdin stdout
 

@@ -3,11 +3,13 @@ __pycache__/
 .fake/
 .lake/
 *.vsix
+*~
 /.config/dotnet-tools.json
-/log.json
+/log.jsonl
 /packages/vscode/bin/
-/release/
 /run/
+/tapenade_3.16.tar
+/tapenade_3.16/
 /target/
 dist/
 node_modules/

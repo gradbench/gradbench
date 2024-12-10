@@ -1,3 +1,4 @@
+import argparse
 from pathlib import Path
 from typing import Any
 
@@ -32,10 +33,10 @@ def parse(file):
     }
 
 
-def check(name: str, input: Any, b: Any) -> None:
-    func: Functions = getattr(golden, name)
+def check(function: str, input: Any, b: Any) -> None:
+    func: Functions = getattr(golden, function)
     a = func.unwrap(func(func.prepare(input)))
-    match name:
+    match function:
         case "calculate_objectiveBA":
             assert (
                 np.all(
@@ -52,17 +53,30 @@ def check(name: str, input: Any, b: Any) -> None:
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--min", type=int, default=1)
+    parser.add_argument("--max", type=int, default=2)
+    args = parser.parse_args()
+
     e = SingleModuleValidatedEvaluation(module="ba", validator=assertion(check))
-    if e.define(source="PLACE HOLDER").success:
+    e.start()
+    if e.define().success:
         # NOTE: data files are taken directly from ADBench. See README for more information.
         # Currently set to run on the smallest two data files. To run on all 20 set loop range to be: range(1,21)
-        for i in range(1, 3):
+        for i in range(args.min, args.max + 1):
             datafile = next((Path(__file__).parent / "data").glob(f"ba{i}_*.txt"), None)
             if datafile:
                 input = parse(datafile)
-                e.evaluate(name="calculate_objectiveBA", input=input)
-                e.evaluate(name="calculate_jacobianBA", input=input)
-    e.end()
+                e.evaluate(
+                    function="calculate_objectiveBA",
+                    input=input,
+                    description=datafile.stem,
+                )
+                e.evaluate(
+                    function="calculate_jacobianBA",
+                    input=input,
+                    description=datafile.stem,
+                )
 
 
 if __name__ == "__main__":
