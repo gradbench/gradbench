@@ -144,7 +144,7 @@ class TensorflowBA(ITest):
 def objective_output(errors):
     try:
         r_err, w_err = errors
-        num_r = len(r_err.numpy().tolist()) / 2
+        num_r = len(r_err.numpy().tolist()) // 2
         num_w = len(w_err.numpy().tolist())
         return {
             "reproj_error": {"elements": r_err.numpy().tolist()[:2], "repeated": num_r},
