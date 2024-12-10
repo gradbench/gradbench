@@ -54,6 +54,20 @@ def assertion(check: Callable[[str, Any, Any], None]) -> Validator:
     return validator
 
 
+def mismatch(check: Callable[[str, Any, Any], None], max_mismatches=10) -> Validator:
+    def validator(function: str, input: Any, output: Any) -> Analysis:
+        mismatches = check(function, input, output)
+        if len(mismatches) == 0:
+            return Analysis(valid=True, message=None)
+        else:
+            shown_mismatches = mismatches[0:max_mismatches]
+            mismatches_str = "\n".join(shown_mismatches)
+            message = f"Found {len(mismatches)} mismatches, showing {len(shown_mismatches)}:\n{mismatches_str}"
+            return Analysis(valid=False, message=message)
+
+    return validator
+
+
 class SingleModuleValidatedEvaluation:
     module: str
     validator: Validator

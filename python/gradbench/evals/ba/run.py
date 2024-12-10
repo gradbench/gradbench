@@ -5,7 +5,8 @@ from typing import Any
 import numpy as np
 
 import gradbench.pytorch.ba as golden
-from gradbench.evaluation import SingleModuleValidatedEvaluation, assertion
+from gradbench.comparison import compare_json_objects
+from gradbench.evaluation import SingleModuleValidatedEvaluation, mismatch
 from gradbench.wrap_module import Functions
 
 
@@ -33,23 +34,10 @@ def parse(file):
     }
 
 
-def check(function: str, input: Any, b: Any) -> None:
+def check(function: str, input: Any, output: Any) -> None:
     func: Functions = getattr(golden, function)
-    a = func.unwrap(func(func.prepare(input)))
-    match function:
-        case "objective":
-            assert (
-                np.all(
-                    np.isclose(
-                        a["reproj_error"]["elements"], b["reproj_error"]["elements"]
-                    )
-                )
-                and a["reproj_error"]["repeated"] == b["reproj_error"]["repeated"]
-                and np.all(np.isclose(a["w_err"]["element"], b["w_err"]["element"]))
-                and a["w_err"]["repeated"] == b["w_err"]["repeated"]
-            )
-        case "jacobian":
-            assert a == b
+    expected = func.unwrap(func(func.prepare(input)))
+    return compare_json_objects(expected, output)
 
 
 def main():
@@ -58,7 +46,7 @@ def main():
     parser.add_argument("--max", type=int, default=2)
     args = parser.parse_args()
 
-    e = SingleModuleValidatedEvaluation(module="ba", validator=assertion(check))
+    e = SingleModuleValidatedEvaluation(module="ba", validator=mismatch(check))
     e.start()
     if e.define().success:
         # NOTE: data files are taken directly from ADBench. See README for more information.
