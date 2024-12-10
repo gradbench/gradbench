@@ -199,6 +199,9 @@ enum Message {
         /// The message ID.
         id: Id,
 
+        /// The name of the module.
+        module: String,
+
         /// The name of the function.
         function: String,
 
@@ -271,7 +274,7 @@ impl Line {
         if self.id.is_some() {
             self.end();
         }
-        print!("{}", format!("[{id:>4}]").cyan().bold());
+        print!("{:>WIDTH_ID$}", format!("[{id}]").cyan().bold());
         self.id = Some(id);
     }
 
@@ -284,6 +287,57 @@ impl Line {
     fn end(&mut self) {
         println!();
         self.id = None;
+    }
+}
+
+/// Width to print the ID of a message, including square brackets.
+const WIDTH_ID: usize = 5;
+
+/// Width to print the kind of a message, abbreviated.
+const WIDTH_KIND: usize = 5;
+
+/// Width to print the name of a module and function, separated by two colons.
+const WIDTH_NAME: usize = 15;
+
+/// Width to print the description of an input.
+const WIDTH_DESCRIPTION: usize = 15;
+
+/// Print left-aligned text with a fixed width, preceded by a space.
+fn print_left(width: usize, text: &str) {
+    if text.len() > width {
+        let mut truncated = text.to_string();
+        truncated.truncate(width - 3);
+        truncated.push_str("...");
+        print!(" {truncated:width$}");
+    } else {
+        print!(" {text:width$}");
+    }
+}
+
+fn print_nanoseconds(nanoseconds: u128) {
+    let ms = nanoseconds / 1_000_000;
+    let sec = ms / 1000;
+    if sec == 0 {
+        print!(" {:2} {:2} {:3}ms", "", "", ms);
+        return;
+    }
+    let min = sec / 60;
+    if min == 0 {
+        print!(" {:2} {:2}.{:03} s", "", sec, ms % 1000);
+        return;
+    }
+    if min < 60 {
+        print!(" {:2}:{:02}.{:03}  ", min, sec % 60, ms % 1000);
+    } else {
+        print!(" {:2} {:2}>{:3}hr", "", "", "  1");
+    }
+}
+
+fn print_status(success: bool) {
+    if success {
+        print!(" {}", "✓".green());
+    } else {
+        print!(" {}", "✗".red());
     }
 }
 
@@ -304,10 +358,11 @@ fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyho
             Some(s)
         }
     } {
+        let message_time = Instant::now();
         writeln!(
             o,
             r#"{{ "elapsed": {{ "nanoseconds": {} }}, "message": {} }}"#,
-            start.elapsed().as_nanos(),
+            (message_time - start).as_nanos(),
             eval_line.trim(),
         )?;
         tool_in.write_all(eval_line.as_bytes())?;
@@ -321,15 +376,18 @@ fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyho
             }
             Message::Define { id, module } => {
                 line.start(*id);
-                print!(" Defining module {module:?}...");
+                print_left(WIDTH_KIND, "def");
+                print_left(WIDTH_NAME, module);
             }
             Message::Evaluate {
                 id,
+                module,
                 function,
                 input,
                 description,
             } => {
                 line.start(*id);
+                print_left(WIDTH_KIND, "eval");
                 let mut workload = match description {
                     Some(s) => s.clone(),
                     None => serde_json::to_string(input)?,
@@ -339,18 +397,15 @@ fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyho
                     workload.truncate(width - 3);
                     workload.push_str("...");
                 }
-                print!(" Eval {function:<25} {workload:<width$}");
+                print_left(WIDTH_NAME, &format!("{module}::{function}"));
+                print_left(WIDTH_DESCRIPTION, &workload);
             }
             Message::Analysis { of, valid, message } => {
                 if !*valid {
                     invalid += 1;
                 }
                 if line.id() == Some(*of) {
-                    if *valid {
-                        print!(" {}", "✓".green());
-                    } else {
-                        print!(" {}", "⚠".red());
-                    };
+                    print_status(*valid);
                     line.end();
                     if let Some(error) = message {
                         println!("{}", error.red());
@@ -361,10 +416,12 @@ fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyho
         io::stdout().flush()?;
         let mut tool_line = String::new();
         tool_out.read_line(&mut tool_line)?;
+        let response_time = Instant::now();
+        let nanos = (response_time - message_time).as_nanos();
         writeln!(
             o,
             r#"{{ "elapsed": {{ "nanoseconds": {} }}, "response": {} }}"#,
-            start.elapsed().as_nanos(),
+            (response_time - start).as_nanos(),
             tool_line.trim(),
         )?;
         eval_in.write_all(tool_line.as_bytes())?;
@@ -374,19 +431,18 @@ fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyho
                 let _: StartResponse = serde_json::from_str(&tool_line)?;
                 // OK now that we know the tool won't do anything weird with the terminal.
                 line.start(id);
-                print!(" Ready.");
+                print_left(WIDTH_KIND, "start");
                 line.end();
             }
             Message::Define { .. } => {
+                print_left(WIDTH_DESCRIPTION, "");
+                print_nanoseconds(nanos);
                 let response: DefineResponse = serde_json::from_str(&tool_line)?;
-                if response.success {
-                    print!(" success.");
-                } else {
-                    print!(" failure.");
-                }
+                print_status(response.success);
                 line.end();
             }
             Message::Evaluate { .. } => {
+                print_nanoseconds(nanos);
                 let response: EvaluateResponse = serde_json::from_str(&tool_line)?;
                 let mut timings = BTreeMap::new();
                 for Timing { name, nanoseconds } in response.timings.unwrap_or_default() {
@@ -396,15 +452,16 @@ fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyho
                 }
                 let mut first = true;
                 for (name, (num, ns)) in timings {
-                    if !first {
+                    if first {
+                        print!(" =");
+                    } else {
                         print!(",");
                     }
                     first = false;
-                    print!(" {ns:>10} ns ({name}");
+                    print_nanoseconds(ns);
+                    print!(" {name}");
                     if num > 1 {
-                        print!("×{num})");
-                    } else {
-                        print!(")");
+                        print!("×{num}");
                     }
                 }
             }
