@@ -455,7 +455,7 @@ fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyho
                     if first {
                         print!(" =");
                     } else {
-                        print!(",");
+                        print!(" +");
                     }
                     first = false;
                     print_nanoseconds(ns);
