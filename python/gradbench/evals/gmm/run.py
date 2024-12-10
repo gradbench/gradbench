@@ -5,25 +5,16 @@ from typing import Any
 import numpy as np
 
 import gradbench.pytorch.gmm as golden
+from gradbench.comparison import compare_json_objects
 from gradbench.evals.gmm import data_gen
-from gradbench.evaluation import SingleModuleValidatedEvaluation, assertion
+from gradbench.evaluation import SingleModuleValidatedEvaluation, mismatch
 from gradbench.wrap_module import Functions
-
-
-# This definition is ported from ADBench's JacobianComparison.cs.
-def difference(x, y):
-    absX = np.abs(x)
-    absY = np.abs(y)
-    absdiff = np.abs(x - y)
-    normCoef = np.clip(absX + absY, a_min=1, a_max=None)
-    return absdiff / normCoef
 
 
 def check(function: str, input: Any, output: Any) -> None:
     func: Functions = getattr(golden, function)
     expected = func.unwrap(func(func.prepare(input)))
-    tolerance = 1e-4  # From ADBench defaults.
-    assert np.all(difference(np.array(output), np.array(expected)) < tolerance)
+    return compare_json_objects(expected, output)
 
 
 def main():
@@ -38,7 +29,7 @@ def main():
     parser.add_argument("--runs", type=int, default=10)
     args = parser.parse_args()
 
-    e = SingleModuleValidatedEvaluation(module="gmm", validator=assertion(check))
+    e = SingleModuleValidatedEvaluation(module="gmm", validator=mismatch(check))
     e.start()
     if e.define().success:
         n = args.n

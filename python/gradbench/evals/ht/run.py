@@ -5,15 +5,16 @@ from typing import Any
 import numpy as np
 
 import gradbench.pytorch.ht as golden
+from gradbench.comparison import compare_json_objects
 from gradbench.evals.ht import io
-from gradbench.evaluation import SingleModuleValidatedEvaluation, assertion
+from gradbench.evaluation import SingleModuleValidatedEvaluation, mismatch
 from gradbench.wrap_module import Functions
 
 
 def check(function: str, input: Any, output: Any) -> None:
     func: Functions = getattr(golden, function)
     expected = func.unwrap(func(func.prepare(input)))
-    assert np.all(np.isclose(expected, output))
+    return compare_json_objects(expected, output)
 
 
 def main():
@@ -22,7 +23,7 @@ def main():
     parser.add_argument("--max", type=int, default=2)
     args = parser.parse_args()
 
-    e = SingleModuleValidatedEvaluation(module="ht", validator=assertion(check))
+    e = SingleModuleValidatedEvaluation(module="ht", validator=mismatch(check))
     e.start()
     if e.define().success:
         data_root = Path("evals/ht/data")  # assumes cwd is set correctly
