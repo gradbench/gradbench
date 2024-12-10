@@ -46,12 +46,12 @@ def main():
             for k in args.k:
                 input = data_gen.main(d, k, n)
                 e.evaluate(
-                    function="calculate_objectiveGMM",
+                    function="objective",
                     input=input | {"runs": args.runs},
                     description=f"{d}_{k}_{n}",
                 )
                 e.evaluate(
-                    function="calculate_jacobianGMM",
+                    function="jacobian",
                     input=input | {"runs": args.runs},
                     description=f"{d}_{k}_{n}",
                 )

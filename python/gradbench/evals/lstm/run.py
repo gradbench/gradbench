@@ -31,12 +31,8 @@ def main():
             for c in args.c:
                 fn = next(data_root.glob(f"lstm_l{l}_c{1024}.txt"), None)
                 input = io.read_lstm_instance(fn).to_dict()
-                e.evaluate(
-                    function="calculate_objectiveLSTM", input=input, description=fn.stem
-                )
-                e.evaluate(
-                    function="calculate_jacobianLSTM", input=input, description=fn.stem
-                )
+                e.evaluate(function="objective", input=input, description=fn.stem)
+                e.evaluate(function="jacobian", input=input, description=fn.stem)
 
 
 if __name__ == "__main__":

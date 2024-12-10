@@ -189,7 +189,7 @@ def prepare_input(input):
 
 
 @wrap(prepare_input, objective_output)
-def calculate_objectiveBA(input):
+def objective(input):
     py = TensorflowBA()
     py.prepare(input)
     py.calculate_objective(1)
@@ -197,7 +197,7 @@ def calculate_objectiveBA(input):
 
 
 @wrap(prepare_input, jacobian_output)
-def calculate_jacobianBA(input):
+def jacobian(input):
     py = TensorflowBA()
     py.prepare(input)
     py.calculate_jacobian(1)

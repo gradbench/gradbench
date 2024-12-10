@@ -37,7 +37,7 @@ def check(function: str, input: Any, b: Any) -> None:
     func: Functions = getattr(golden, function)
     a = func.unwrap(func(func.prepare(input)))
     match function:
-        case "calculate_objectiveBA":
+        case "objective":
             assert (
                 np.all(
                     np.isclose(
@@ -48,7 +48,7 @@ def check(function: str, input: Any, b: Any) -> None:
                 and np.all(np.isclose(a["w_err"]["element"], b["w_err"]["element"]))
                 and a["w_err"]["repeated"] == b["w_err"]["repeated"]
             )
-        case "calculate_jacobianBA":
+        case "jacobian":
             assert a == b
 
 
@@ -67,16 +67,8 @@ def main():
             datafile = next((Path(__file__).parent / "data").glob(f"ba{i}_*.txt"), None)
             if datafile:
                 input = parse(datafile)
-                e.evaluate(
-                    function="calculate_objectiveBA",
-                    input=input,
-                    description=datafile.stem,
-                )
-                e.evaluate(
-                    function="calculate_jacobianBA",
-                    input=input,
-                    description=datafile.stem,
-                )
+                e.evaluate(function="objective", input=input, description=datafile.stem)
+                e.evaluate(function="jacobian", input=input, description=datafile.stem)
 
 
 if __name__ == "__main__":

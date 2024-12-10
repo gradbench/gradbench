@@ -9,7 +9,7 @@ def compile():
     return True
 
 
-def calculate_objectiveGMM(input):
+def objective(input):
     with tempfile.NamedTemporaryFile("w") as tmp:
         json.dump(input, tmp)
         tmp.flush()
@@ -18,7 +18,7 @@ def calculate_objectiveGMM(input):
         )
 
 
-def calculate_jacobianGMM(input):
+def jacobian(input):
     with tempfile.NamedTemporaryFile("w") as tmp:
         json.dump(input, tmp)
         tmp.flush()

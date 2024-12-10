@@ -183,7 +183,7 @@ def prepare_input(input):
 
 
 @wrap(prepare_input, objective_output)
-def calculate_objectiveBA(input):
+def objective(input):
     py = PyTorchBA()
     py.prepare(input)
 
@@ -199,7 +199,7 @@ def calculate_objectiveBA(input):
 
 
 @wrap(prepare_input, jacobian_output)
-def calculate_jacobianBA(input):
+def jacobian(input):
     py = PyTorchBA()
     py.prepare(input)
 
