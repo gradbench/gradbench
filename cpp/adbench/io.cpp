@@ -129,8 +129,9 @@ void write_BAOutput_jacobian_json(std::ostream& f, BAOutput &output) {
   using json = nlohmann::json;
   json out = {
     {"BASparseMat", {
-        {"rows", output.J.rows.size() - 1},
-        {"columns", output.J.cols[output.J.cols.size()-1] + 1}
+        {"rows", output.J.rows},
+        {"cols", output.J.cols},
+        {"vals", output.J.vals}
       }}
   };
   f << out;
