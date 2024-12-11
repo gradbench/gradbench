@@ -12,11 +12,8 @@ def resolve(module, name):
 def run(params):
     func = resolve(params["module"], params["function"])
     input = func.prepare(params["input"])
-    start = time.perf_counter_ns()
-    ret = func(input)
-    end = time.perf_counter_ns()
-    timings = [{"name": "evaluate", "nanoseconds": end - start}]
-    return {"output": func.unwrap(ret), "timings": timings}
+    output, timings = func.unwrap(func(input))
+    return {"output": output, "timings": timings}
 
 
 def main():

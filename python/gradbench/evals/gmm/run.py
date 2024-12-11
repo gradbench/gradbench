@@ -13,7 +13,7 @@ from gradbench.wrap_module import Functions
 
 def check(function: str, input: Any, output: Any) -> None:
     func: Functions = getattr(golden, function)
-    expected = func.unwrap(func(func.prepare(input)))
+    expected, _ = func.unwrap(func(func.prepare(input | {"runs": 1})))
     return compare_json_objects(expected, output)
 
 

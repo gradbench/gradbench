@@ -25,13 +25,13 @@
 """
 Changes Made:
 - Added two functions to create a PyTorchBA object and call calculate_objective and calculate_jacobian
-- Added timeout feature for function calls
 - Added two functions to convert BA output to JSON serializable objects
 - Import a decorator to use converter functions
 - Added a function to create BA input based on data provided in files
 """
 
 import signal
+import time
 
 import numpy as np
 import torch
@@ -123,37 +123,29 @@ class PyTorchBA(ITest):
             self.reproj_error = reproj_error.flatten()
 
 
-TIMEOUT = 300
-
-
-class TimeoutException(Exception):
-    pass
-
-
-def timeout_handler(signum, frame):
-    raise TimeoutException()
+def evaluate_times(times):
+    return [{"name": "evaluate", "nanoseconds": time} for time in times]
 
 
 # Convert objective output to dictionary
-def objective_output(errors):
-    try:
-        r_err, w_err = errors
-        num_r = len(r_err.tolist()) // 2
-        num_w = len(w_err.tolist())
-        return {
-            "reproj_error": {"elements": r_err.tolist()[:2], "repeated": num_r},
-            "w_err": {"element": w_err.tolist()[0], "repeated": num_w},
-        }
-    except:
-        return errors
+def unwrap_objective(output):
+    py, times = output
+    r_err = py.reproj_error
+    w_err = py.w_err
+    num_r = len(r_err.tolist()) // 2
+    num_w = len(w_err.tolist())
+    return {
+        "reproj_error": {"elements": r_err.tolist()[:2], "repeated": num_r},
+        "w_err": {"element": w_err.tolist()[0], "repeated": num_w},
+    }, evaluate_times(times)
 
 
 # Convert jacobian output to dictionary
-def jacobian_output(ba_mat):
-    try:
-        return {"BASparseMat": {"rows": ba_mat.nrows, "columns": ba_mat.ncols}}
-    except:
-        return ba_mat
+def unwrap_jacobian(output):
+    py, times = output
+    return {
+        "BASparseMat": {"rows": py.jacobian.nrows, "columns": py.jacobian.ncols}
+    }, evaluate_times(times)
 
 
 # Parse JSON input and convert to BAInput
@@ -179,36 +171,30 @@ def prepare_input(input):
         camIdx = (camIdx + 1) % n
         ptIdx = (ptIdx + 1) % m
 
-    return BAInput(cams, X, w, obs, feats)
+    py = PyTorchBA()
+    py.prepare(BAInput(cams, X, w, obs, feats))
+    return py, input["runs"]
 
 
-@wrap(prepare_input, objective_output)
+@wrap(prepare_input, unwrap_objective)
 def objective(input):
-    py = PyTorchBA()
-    py.prepare(input)
-
-    signal.signal(signal.SIGALRM, timeout_handler)
-    signal.alarm(TIMEOUT)
-
-    try:
-        py.calculate_objective(1)
-        signal.alarm(0)  # Disable the alarm
-        return (py.reproj_error, py.w_err)
-    except TimeoutException:
-        return "Process terminated due to timeout."
+    py, runs = input
+    times = runs * [None]
+    for i in range(runs):
+        start = time.perf_counter_ns()
+        py.calculate_objective(runs)
+        end = time.perf_counter_ns()
+        times[i] = end - start
+    return py, times
 
 
-@wrap(prepare_input, jacobian_output)
+@wrap(prepare_input, unwrap_jacobian)
 def jacobian(input):
-    py = PyTorchBA()
-    py.prepare(input)
-
-    signal.signal(signal.SIGALRM, timeout_handler)
-    signal.alarm(TIMEOUT)
-
-    try:
-        py.calculate_jacobian(1)
-        signal.alarm(0)  # Disable the alarm
-        return py.jacobian
-    except TimeoutException:
-        return "Process terminated due to timeout."
+    py, runs = input
+    times = runs * [None]
+    for i in range(runs):
+        start = time.perf_counter_ns()
+        py.calculate_jacobian(runs)
+        end = time.perf_counter_ns()
+        times[i] = end - start
+    return py, times

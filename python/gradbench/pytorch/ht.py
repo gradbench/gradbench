@@ -8,6 +8,8 @@ Changes Made:
 - Added two functions to create a PyTorchHand object and call calculate_objective and calculate_jacobian
 """
 
+import time
+
 import numpy as np
 import torch
 
@@ -115,29 +117,45 @@ class PyTorchHand(ITest):
                 self.jacobian = J
 
 
+def evaluate_times(times):
+    return [{"name": "evaluate", "nanoseconds": time} for time in times]
+
+
 def prepare_input(input):
-    return HandInput.from_dict(input)
+    py = PyTorchHand()
+    py.prepare(HandInput.from_dict(input))
+    return py, input["runs"]
 
 
-def objective_output(output):
-    return output.detach().flatten().numpy().tolist()
+def unwrap_objective(output):
+    py, times = output
+    return py.objective.detach().flatten().numpy().tolist(), evaluate_times(times)
 
 
-def jacobian_output(output):
-    return output.tolist()
+def unwrap_jacobian(output):
+    py, times = output
+    return py.jacobian.tolist(), evaluate_times(times)
 
 
-@wrap(prepare_input, objective_output)
+@wrap(prepare_input, unwrap_objective)
 def objective(input):
-    py = PyTorchHand()
-    py.prepare(input)
-    py.calculate_objective(1)
-    return py.objective
+    py, runs = input
+    times = runs * [None]
+    for i in range(runs):
+        start = time.perf_counter_ns()
+        py.calculate_objective(runs)
+        end = time.perf_counter_ns()
+        times[i] = end - start
+    return py, times
 
 
-@wrap(prepare_input, jacobian_output)
+@wrap(prepare_input, unwrap_jacobian)
 def jacobian(input):
-    py = PyTorchHand()
-    py.prepare(input)
-    py.calculate_jacobian(1)
-    return py.jacobian
+    py, runs = input
+    times = runs * [None]
+    for i in range(runs):
+        start = time.perf_counter_ns()
+        py.calculate_jacobian(runs)
+        end = time.perf_counter_ns()
+        times[i] = end - start
+    return py, times

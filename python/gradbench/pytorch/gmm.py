@@ -29,6 +29,8 @@ Changes Made:
 - Import a decorator to convert input and outputs to necessary types
 """
 
+import time
+
 import numpy as np
 import torch
 
@@ -77,26 +79,52 @@ class PyTorchGMM(ITest):
 
 
 def prepare_input(input):
-    return GMMInput(
-        input["alpha"],
-        input["means"],
-        input["icf"],
-        input["x"],
-        Wishart(input["gamma"], input["m"]),
+    py = PyTorchGMM()
+    py.prepare(
+        GMMInput(
+            input["alpha"],
+            input["means"],
+            input["icf"],
+            input["x"],
+            Wishart(input["gamma"], input["m"]),
+        )
     )
+    return py, input["runs"]
 
 
-@wrap(prepare_input, lambda x: x.tolist())
-def jacobian(input):
-    py = PyTorchGMM()
-    py.prepare(input)
-    py.calculate_jacobian(1)
-    return py.gradient
+def evaluate_times(times):
+    return [{"name": "evaluate", "nanoseconds": time} for time in times]
 
 
-@wrap(prepare_input, lambda x: x.tolist())
+def unwrap_objective(output):
+    py, times = output
+    return py.objective.tolist(), evaluate_times(times)
+
+
+def unwrap_jacobian(output):
+    py, times = output
+    return py.gradient.tolist(), evaluate_times(times)
+
+
+@wrap(prepare_input, unwrap_objective)
 def objective(input):
-    py = PyTorchGMM()
-    py.prepare(input)
-    py.calculate_objective(1)
-    return py.objective
+    py, runs = input
+    times = runs * [None]
+    for i in range(runs):
+        start = time.perf_counter_ns()
+        py.calculate_jacobian(runs)
+        end = time.perf_counter_ns()
+        times[i] = end - start
+    return py, times
+
+
+@wrap(prepare_input, unwrap_jacobian)
+def jacobian(input):
+    py, runs = input
+    times = runs * [None]
+    for i in range(runs):
+        start = time.perf_counter_ns()
+        py.calculate_jacobian(runs)
+        end = time.perf_counter_ns()
+        times[i] = end - start
+    return py, times

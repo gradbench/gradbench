@@ -8,6 +8,8 @@ Changes Made:
 - Added two functions to create a PyTorchHand object and call calculate_objective and calculate_jacobian
 """
 
+import time
+
 import numpy as np
 import torch
 
@@ -54,28 +56,44 @@ class PyTorchLSTM(ITest):
 
 
 def prepare_input(input):
-    return LSTMInput.from_dict(input)
+    py = PyTorchLSTM()
+    py.prepare(LSTMInput.from_dict(input))
+    return py, input["runs"]
 
 
-def objective_output(output):
-    return float(output.detach().flatten().numpy()[0])
+def evaluate_times(times):
+    return [{"name": "evaluate", "nanoseconds": time} for time in times]
 
 
-def jacobian_output(output):
-    return output.tolist()
+def unwrap_objective(output):
+    py, times = output
+    return float(py.objective.detach().flatten().numpy()[0]), evaluate_times(output[1])
 
 
-@wrap(prepare_input, objective_output)
+def unwrap_jacobian(output):
+    py, times = output
+    return py.gradient.tolist(), evaluate_times(times)
+
+
+@wrap(prepare_input, unwrap_objective)
 def objective(input):
-    py = PyTorchLSTM()
-    py.prepare(input)
-    py.calculate_objective(1)
-    return py.objective
+    py, runs = input
+    times = runs * [None]
+    for i in range(runs):
+        start = time.perf_counter_ns()
+        py.calculate_objective(runs)
+        end = time.perf_counter_ns()
+        times[i] = end - start
+    return py, times
 
 
-@wrap(prepare_input, jacobian_output)
+@wrap(prepare_input, unwrap_jacobian)
 def jacobian(input):
-    py = PyTorchLSTM()
-    py.prepare(input)
-    py.calculate_jacobian(1)
-    return py.gradient
+    py, runs = input
+    times = runs * [None]
+    for i in range(runs):
+        start = time.perf_counter_ns()
+        py.calculate_jacobian(runs)
+        end = time.perf_counter_ns()
+        times[i] = end - start
+    return py, times

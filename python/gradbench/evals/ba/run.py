@@ -36,7 +36,7 @@ def parse(file):
 
 def check(function: str, input: Any, output: Any) -> None:
     func: Functions = getattr(golden, function)
-    expected = func.unwrap(func(func.prepare(input)))
+    expected, _ = func.unwrap(func(func.prepare(input | {"runs": 1})))
     return compare_json_objects(expected, output)
 
 
@@ -44,6 +44,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--min", type=int, default=1)
     parser.add_argument("--max", type=int, default=2)
+    parser.add_argument("--runs", type=int, default=10)
     args = parser.parse_args()
 
     e = SingleModuleValidatedEvaluation(module="ba", validator=mismatch(check))
@@ -55,8 +56,16 @@ def main():
             datafile = next((Path(__file__).parent / "data").glob(f"ba{i}_*.txt"), None)
             if datafile:
                 input = parse(datafile)
-                e.evaluate(function="objective", input=input, description=datafile.stem)
-                e.evaluate(function="jacobian", input=input, description=datafile.stem)
+                e.evaluate(
+                    function="objective",
+                    input=input | {"runs": args.runs},
+                    description=datafile.stem,
+                )
+                e.evaluate(
+                    function="jacobian",
+                    input=input | {"runs": args.runs},
+                    description=datafile.stem,
+                )
 
 
 if __name__ == "__main__":
