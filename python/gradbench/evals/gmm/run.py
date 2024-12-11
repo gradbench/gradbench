@@ -26,7 +26,7 @@ def main():
     parser.add_argument(
         "-d", nargs="+", type=int, default=[2, 10, 20, 32]
     )  # misses 64 128
-    parser.add_argument("--runs", type=int, default=10)
+    parser.add_argument("--runs", type=int, default=1)
     args = parser.parse_args()
 
     e = SingleModuleValidatedEvaluation(module="gmm", validator=mismatch(check))

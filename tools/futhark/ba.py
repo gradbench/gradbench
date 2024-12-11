@@ -64,8 +64,9 @@ def jacobian(server, input):
     return (
         {
             "BASparseMat": {
-                "rows": rows.shape[0] - 1,
-                "columns": int(cols[-1] + 1),
+                "rows": rows.tolist(),
+                "cols": cols.tolist(),
+                "vals": vals.tolist(),
             }
         },
         times,

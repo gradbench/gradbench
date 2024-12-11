@@ -44,7 +44,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--min", type=int, default=1)
     parser.add_argument("--max", type=int, default=2)
-    parser.add_argument("--runs", type=int, default=10)
+    parser.add_argument("--runs", type=int, default=1)
     args = parser.parse_args()
 
     e = SingleModuleValidatedEvaluation(module="ba", validator=mismatch(check))

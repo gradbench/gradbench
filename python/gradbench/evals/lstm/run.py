@@ -21,7 +21,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-l", nargs="+", type=int, default=[2, 4])
     parser.add_argument("-c", nargs="+", type=int, default=[1024, 4096])
-    parser.add_argument("--runs", type=int, default=10)
+    parser.add_argument("--runs", type=int, default=1)
     args = parser.parse_args()
 
     e = SingleModuleValidatedEvaluation(module="lstm", validator=mismatch(check))
