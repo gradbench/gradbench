@@ -314,25 +314,23 @@ fn print_left(width: usize, text: &str) {
     }
 }
 
-fn print_nanoseconds(nanoseconds: u128) {
+/// Return a human-readable string for the given number of nanoseconds.
+fn nanostring(nanoseconds: u128) -> String {
     let ms = nanoseconds / 1_000_000;
     let sec = ms / 1000;
-    if sec == 0 {
-        print!(" {:2} {:2} {:3}ms", "", "", ms);
-        return;
-    }
     let min = sec / 60;
-    if min == 0 {
-        print!(" {:2} {:2}.{:03} s", "", sec, ms % 1000);
-        return;
-    }
-    if min < 60 {
-        print!(" {:2}:{:02}.{:03}  ", min, sec % 60, ms % 1000);
+    if sec == 0 {
+        format!("{:2} {:2} {:3}ms", "", "", ms)
+    } else if min == 0 {
+        format!("{:2} {:2}.{:03} s", "", sec, ms % 1000)
+    } else if min < 60 {
+        format!("{:2}:{:02}.{:03}  ", min, sec % 60, ms % 1000)
     } else {
-        print!(" {:2} {:2}>{:3}hr", "", "", " 1 ");
+        format!("{:2} {:2}>{:3}hr", "", "", " 1 ")
     }
 }
 
+/// Print a space, followed by either a green check mark or a red X mark.
 fn print_status(success: bool) {
     if success {
         print!(" {}", "✓".green());
@@ -436,13 +434,13 @@ fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyho
             }
             Message::Define { .. } => {
                 print_left(WIDTH_DESCRIPTION, "");
-                print_nanoseconds(nanos);
+                print!(" {}", nanostring(nanos).dimmed());
                 let response: DefineResponse = serde_json::from_str(&tool_line)?;
                 print_status(response.success);
                 line.end();
             }
             Message::Evaluate { .. } => {
-                print_nanoseconds(nanos);
+                print!(" {}", nanostring(nanos).dimmed());
                 let response: EvaluateResponse = serde_json::from_str(&tool_line)?;
                 let mut timings = BTreeMap::new();
                 for Timing { name, nanoseconds } in response.timings.unwrap_or_default() {
@@ -453,12 +451,12 @@ fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyho
                 let mut first = true;
                 for (name, (num, ns)) in timings {
                     if first {
-                        print!(" =");
+                        print!(" {}", "~".dimmed());
                     } else {
-                        print!(" +");
+                        print!(",");
                     }
                     first = false;
-                    print_nanoseconds(ns);
+                    print!(" {}", nanostring(ns));
                     print!(" {name}");
                     if num > 1 {
                         print!("×{num}");
