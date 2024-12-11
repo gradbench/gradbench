@@ -145,8 +145,8 @@ def unwrap_jacobian(output):
     py, times = output
     return {
         "BASparseMat": {
-            "rows": list(map(int,py.jacobian.rows)),
-            "cols": list(map(int,py.jacobian.cols)),
+            "rows": list(map(int, py.jacobian.rows)),
+            "cols": list(map(int, py.jacobian.cols)),
             "vals": list(map(float, list(py.jacobian.vals))),
         }
     }, evaluate_times(times)
