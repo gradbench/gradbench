@@ -1,0 +1,4 @@
+{ "elapsed": { "nanoseconds": 1614460756 }, "message": {"id": 0, "kind": "start"} }
+{ "elapsed": { "nanoseconds": 1614855497 }, "response": {"id": 0} }
+{ "elapsed": { "nanoseconds": 1615560715 }, "message": {"id": 1, "kind": "define", "module": "ba"} }
+{ "elapsed": { "nanoseconds": 1615976929 }, "response": {"id": 1, "success": false} }

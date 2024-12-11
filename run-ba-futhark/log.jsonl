@@ -1,20 +1,20 @@
-{ "elapsed": { "nanoseconds": 1652359306 }, "message": {"id": 0, "kind": "start"} }
-{ "elapsed": { "nanoseconds": 1652806942 }, "response": {"id": 0} }
-{ "elapsed": { "nanoseconds": 1653168228 }, "message": {"id": 1, "kind": "define", "module": "ba"} }
-{ "elapsed": { "nanoseconds": 4201367949 }, "response": {"id": 1, "success": true} }
-{ "elapsed": { "nanoseconds": 4202255529 }, "message": {"id": 2, "kind": "evaluate", "module": "ba", "function": "calculate_objectiveBA", "input": {"n": 49, "m": 7776, "p": 31843, "cam": [-0.758453, -1.109613, -0.845551, 34.556073, 39.676747, 53.881673, 419.194514, 5.864426, -8.51887, 0.087812, 0.002739], "x": [7.203245, 0.001144, 3.023326], "w": 0.417022, "feat": [271.760969, 834.209256]}, "description": "ba1_n49_m7776_p31843"} }
-{ "elapsed": { "nanoseconds": 4228507338 }, "response": {"id": 2, "output": {"reproj_error": {"elements": [0.10133583791446145, -0.06896776592448106], "repeated": 31843}, "w_err": {"element": 0.826092651516, "repeated": 31843}}, "timings": [{"name": "evaluate", "nanoseconds": 4568108}]} }
-{ "elapsed": { "nanoseconds": 12686883136 }, "message": {"id": 3, "kind": "analysis", "of": 2, "valid": true} }
-{ "elapsed": { "nanoseconds": 12687270467 }, "response": {"id": 3} }
-{ "elapsed": { "nanoseconds": 12687635763 }, "message": {"id": 4, "kind": "evaluate", "module": "ba", "function": "calculate_jacobianBA", "input": {"n": 49, "m": 7776, "p": 31843, "cam": [-0.758453, -1.109613, -0.845551, 34.556073, 39.676747, 53.881673, 419.194514, 5.864426, -8.51887, 0.087812, 0.002739], "x": [7.203245, 0.001144, 3.023326], "w": 0.417022, "feat": [271.760969, 834.209256]}, "description": "ba1_n49_m7776_p31843"} }
-{ "elapsed": { "nanoseconds": 12741105444 }, "response": {"id": 4, "output": {"BASparseMat": {"rows": 95529, "columns": 55710}}, "timings": [{"name": "evaluate", "nanoseconds": 30431090}]} }
-{ "elapsed": { "nanoseconds": 56454409492 }, "message": {"id": 5, "kind": "analysis", "of": 4, "valid": true} }
-{ "elapsed": { "nanoseconds": 56454824377 }, "response": {"id": 5} }
-{ "elapsed": { "nanoseconds": 56455708959 }, "message": {"id": 6, "kind": "evaluate", "module": "ba", "function": "calculate_objectiveBA", "input": {"n": 21, "m": 11315, "p": 36455, "cam": [-0.758453, -1.109613, -0.845551, 34.556073, 39.676747, 53.881673, 419.194514, 5.864426, -8.51887, 0.087812, 0.002739], "x": [7.203245, 0.001144, 3.023326], "w": 0.417022, "feat": [271.760969, 834.209256]}, "description": "ba2_n21_m11315_p36455"} }
-{ "elapsed": { "nanoseconds": 56480056370 }, "response": {"id": 6, "output": {"reproj_error": {"elements": [0.10133583791446145, -0.06896776592448106], "repeated": 36455}, "w_err": {"element": 0.826092651516, "repeated": 36455}}, "timings": [{"name": "evaluate", "nanoseconds": 4909407}]} }
-{ "elapsed": { "nanoseconds": 65248040211 }, "message": {"id": 7, "kind": "analysis", "of": 6, "valid": true} }
-{ "elapsed": { "nanoseconds": 65248464311 }, "response": {"id": 7} }
-{ "elapsed": { "nanoseconds": 65248918059 }, "message": {"id": 8, "kind": "evaluate", "module": "ba", "function": "calculate_jacobianBA", "input": {"n": 21, "m": 11315, "p": 36455, "cam": [-0.758453, -1.109613, -0.845551, 34.556073, 39.676747, 53.881673, 419.194514, 5.864426, -8.51887, 0.087812, 0.002739], "x": [7.203245, 0.001144, 3.023326], "w": 0.417022, "feat": [271.760969, 834.209256]}, "description": "ba2_n21_m11315_p36455"} }
-{ "elapsed": { "nanoseconds": 65303797173 }, "response": {"id": 8, "output": {"BASparseMat": {"rows": 109365, "columns": 70631}}, "timings": [{"name": "evaluate", "nanoseconds": 35766848}]} }
-{ "elapsed": { "nanoseconds": 115254243317 }, "message": {"id": 9, "kind": "analysis", "of": 8, "valid": true} }
-{ "elapsed": { "nanoseconds": 115254672102 }, "response": {"id": 9} }
+{ "elapsed": { "nanoseconds": 1752820396 }, "message": {"id": 0, "kind": "start"} }
+{ "elapsed": { "nanoseconds": 1753234323 }, "response": {"id": 0} }
+{ "elapsed": { "nanoseconds": 1753609444 }, "message": {"id": 1, "kind": "define", "module": "ba"} }
+{ "elapsed": { "nanoseconds": 4281871506 }, "response": {"id": 1, "success": true} }
+{ "elapsed": { "nanoseconds": 4282718614 }, "message": {"id": 2, "kind": "evaluate", "module": "ba", "function": "objective", "input": {"n": 49, "m": 7776, "p": 31843, "cam": [-0.758453, -1.109613, -0.845551, 34.556073, 39.676747, 53.881673, 419.194514, 5.864426, -8.51887, 0.087812, 0.002739], "x": [7.203245, 0.001144, 3.023326], "w": 0.417022, "feat": [271.760969, 834.209256]}, "description": "ba1_n49_m7776_p31843"} }
+{ "elapsed": { "nanoseconds": 4309248229 }, "response": {"id": 2, "output": {"reproj_error": {"elements": [0.10133583791446145, -0.06896776592448106], "repeated": 31843}, "w_err": {"element": 0.826092651516, "repeated": 31843}}, "timings": [{"name": "evaluate", "nanoseconds": 1676000}]} }
+{ "elapsed": { "nanoseconds": 12736215231 }, "message": {"id": 3, "kind": "analysis", "of": 2, "valid": true} }
+{ "elapsed": { "nanoseconds": 12736674540 }, "response": {"id": 3} }
+{ "elapsed": { "nanoseconds": 12737103426 }, "message": {"id": 4, "kind": "evaluate", "module": "ba", "function": "jacobian", "input": {"n": 49, "m": 7776, "p": 31843, "cam": [-0.758453, -1.109613, -0.845551, 34.556073, 39.676747, 53.881673, 419.194514, 5.864426, -8.51887, 0.087812, 0.002739], "x": [7.203245, 0.001144, 3.023326], "w": 0.417022, "feat": [271.760969, 834.209256]}, "description": "ba1_n49_m7776_p31843"} }
+{ "elapsed": { "nanoseconds": 12807178489 }, "response": {"id": 4, "output": {"BASparseMat": {"rows": 95529, "columns": 55710}}, "timings": [{"name": "evaluate", "nanoseconds": 19481000}]} }
+{ "elapsed": { "nanoseconds": 55717004400 }, "message": {"id": 5, "kind": "analysis", "of": 4, "valid": true} }
+{ "elapsed": { "nanoseconds": 55717443593 }, "response": {"id": 5} }
+{ "elapsed": { "nanoseconds": 55718178614 }, "message": {"id": 6, "kind": "evaluate", "module": "ba", "function": "objective", "input": {"n": 21, "m": 11315, "p": 36455, "cam": [-0.758453, -1.109613, -0.845551, 34.556073, 39.676747, 53.881673, 419.194514, 5.864426, -8.51887, 0.087812, 0.002739], "x": [7.203245, 0.001144, 3.023326], "w": 0.417022, "feat": [271.760969, 834.209256]}, "description": "ba2_n21_m11315_p36455"} }
+{ "elapsed": { "nanoseconds": 55742016925 }, "response": {"id": 6, "output": {"reproj_error": {"elements": [0.10133583791446145, -0.06896776592448106], "repeated": 36455}, "w_err": {"element": 0.826092651516, "repeated": 36455}}, "timings": [{"name": "evaluate", "nanoseconds": 1927000}]} }
+{ "elapsed": { "nanoseconds": 64237715492 }, "message": {"id": 7, "kind": "analysis", "of": 6, "valid": true} }
+{ "elapsed": { "nanoseconds": 64238128371 }, "response": {"id": 7} }
+{ "elapsed": { "nanoseconds": 64238509662 }, "message": {"id": 8, "kind": "evaluate", "module": "ba", "function": "jacobian", "input": {"n": 21, "m": 11315, "p": 36455, "cam": [-0.758453, -1.109613, -0.845551, 34.556073, 39.676747, 53.881673, 419.194514, 5.864426, -8.51887, 0.087812, 0.002739], "x": [7.203245, 0.001144, 3.023326], "w": 0.417022, "feat": [271.760969, 834.209256]}, "description": "ba2_n21_m11315_p36455"} }
+{ "elapsed": { "nanoseconds": 64315222463 }, "response": {"id": 8, "output": {"BASparseMat": {"rows": 109365, "columns": 70631}}, "timings": [{"name": "evaluate", "nanoseconds": 22729000}]} }
+{ "elapsed": { "nanoseconds": 112876195566 }, "message": {"id": 9, "kind": "analysis", "of": 8, "valid": true} }
+{ "elapsed": { "nanoseconds": 112876591105 }, "response": {"id": 9} }
