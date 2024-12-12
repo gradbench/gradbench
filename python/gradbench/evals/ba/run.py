@@ -7,7 +7,7 @@ import numpy as np
 import gradbench.pytorch.ba as golden
 from gradbench.comparison import compare_json_objects
 from gradbench.evaluation import SingleModuleValidatedEvaluation, mismatch
-from gradbench.wrap_module import Functions
+from gradbench.wrap import Wrapped
 
 
 def parse(file):
@@ -35,8 +35,8 @@ def parse(file):
 
 
 def check(function: str, input: Any, output: Any) -> None:
-    func: Functions = getattr(golden, function)
-    expected, _ = func.unwrap(func(func.prepare(input | {"runs": 1})))
+    func: Wrapped = getattr(golden, function)
+    expected = func.wrapped(input | {"runs": 1}).output
     return compare_json_objects(expected, output)
 
 

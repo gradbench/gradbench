@@ -29,17 +29,15 @@ Changes Made:
 - Import a decorator to convert input and outputs to necessary types
 """
 
-import time
-
 import numpy as np
 import torch
 
+from gradbench import wrap
 from gradbench.adbench.defs import Wishart
 from gradbench.adbench.gmm_data import GMMInput
 from gradbench.adbench.itest import ITest
 from gradbench.pytorch.gmm_objective import gmm_objective
 from gradbench.pytorch.utils import to_torch_tensor, to_torch_tensors, torch_jacobian
-from gradbench.wrap_module import wrap
 
 
 class PyTorchGMM(ITest):
@@ -79,52 +77,30 @@ class PyTorchGMM(ITest):
 
 
 def prepare_input(input):
-    py = PyTorchGMM()
-    py.prepare(
-        GMMInput(
-            input["alpha"],
-            input["means"],
-            input["icf"],
-            input["x"],
-            Wishart(input["gamma"], input["m"]),
-        )
+    return GMMInput(
+        input["alpha"],
+        input["means"],
+        input["icf"],
+        input["x"],
+        Wishart(input["gamma"], input["m"]),
     )
-    return py, input["runs"]
 
 
-def evaluate_times(times):
-    return [{"name": "evaluate", "nanoseconds": time} for time in times]
-
-
-def unwrap_objective(output):
-    py, times = output
-    return py.objective.tolist(), evaluate_times(times)
-
-
-def unwrap_jacobian(output):
-    py, times = output
-    return py.gradient.tolist(), evaluate_times(times)
-
-
-@wrap(prepare_input, unwrap_objective)
-def objective(input):
-    py, runs = input
-    times = runs * [None]
-    for i in range(runs):
-        start = time.perf_counter_ns()
-        py.calculate_jacobian(runs)
-        end = time.perf_counter_ns()
-        times[i] = end - start
-    return py, times
-
-
-@wrap(prepare_input, unwrap_jacobian)
+@wrap.multiple_runs(
+    runs=lambda x: x["runs"], pre=prepare_input, post=lambda x: x.tolist()
+)
 def jacobian(input):
-    py, runs = input
-    times = runs * [None]
-    for i in range(runs):
-        start = time.perf_counter_ns()
-        py.calculate_jacobian(runs)
-        end = time.perf_counter_ns()
-        times[i] = end - start
-    return py, times
+    py = PyTorchGMM()
+    py.prepare(input)
+    py.calculate_jacobian(1)
+    return py.gradient
+
+
+@wrap.multiple_runs(
+    runs=lambda x: x["runs"], pre=prepare_input, post=lambda x: x.tolist()
+)
+def objective(input):
+    py = PyTorchGMM()
+    py.prepare(input)
+    py.calculate_objective(1)
+    return py.objective

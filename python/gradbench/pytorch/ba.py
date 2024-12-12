@@ -31,17 +31,16 @@ Changes Made:
 """
 
 import signal
-import time
 
 import numpy as np
 import torch
 
+from gradbench import wrap
 from gradbench.adbench.ba_data import BAInput, BAOutput
 from gradbench.adbench.ba_sparse_mat import BASparseMat
 from gradbench.adbench.itest import ITest
 from gradbench.pytorch.ba_objective import compute_reproj_err, compute_w_err
 from gradbench.pytorch.utils import to_torch_tensor, torch_jacobian
-from gradbench.wrap_module import wrap
 
 
 class PyTorchBA(ITest):
@@ -128,28 +127,25 @@ def evaluate_times(times):
 
 
 # Convert objective output to dictionary
-def unwrap_objective(output):
-    py, times = output
-    r_err = py.reproj_error
-    w_err = py.w_err
+def objective_output(errors):
+    r_err, w_err = errors
     num_r = len(r_err.tolist()) // 2
     num_w = len(w_err.tolist())
     return {
         "reproj_error": {"elements": r_err.tolist()[:2], "repeated": num_r},
         "w_err": {"element": w_err.tolist()[0], "repeated": num_w},
-    }, evaluate_times(times)
+    }
 
 
 # Convert jacobian output to dictionary
-def unwrap_jacobian(output):
-    py, times = output
+def jacobian_output(ba_mat):
     return {
         "BASparseMat": {
-            "rows": list(map(int, py.jacobian.rows)),
-            "cols": list(map(int, py.jacobian.cols)),
-            "vals": list(map(float, list(py.jacobian.vals))),
+            "rows": list(map(int, list(ba_mat.rows))),
+            "cols": list(map(int, list(ba_mat.cols))),
+            "vals": list(map(float, list(ba_mat.vals))),
         }
-    }, evaluate_times(times)
+    }
 
 
 # Parse JSON input and convert to BAInput
@@ -175,30 +171,20 @@ def prepare_input(input):
         camIdx = (camIdx + 1) % n
         ptIdx = (ptIdx + 1) % m
 
-    py = PyTorchBA()
-    py.prepare(BAInput(cams, X, w, obs, feats))
-    return py, input["runs"]
+    return BAInput(cams, X, w, obs, feats)
 
 
-@wrap(prepare_input, unwrap_objective)
+@wrap.multiple_runs(runs=lambda x: x["runs"], pre=prepare_input, post=objective_output)
 def objective(input):
-    py, runs = input
-    times = runs * [None]
-    for i in range(runs):
-        start = time.perf_counter_ns()
-        py.calculate_objective(runs)
-        end = time.perf_counter_ns()
-        times[i] = end - start
-    return py, times
+    py = PyTorchBA()
+    py.prepare(input)
+    py.calculate_objective(1)
+    return py.reproj_error, py.w_err
 
 
-@wrap(prepare_input, unwrap_jacobian)
+@wrap.multiple_runs(runs=lambda x: x["runs"], pre=prepare_input, post=jacobian_output)
 def jacobian(input):
-    py, runs = input
-    times = runs * [None]
-    for i in range(runs):
-        start = time.perf_counter_ns()
-        py.calculate_jacobian(runs)
-        end = time.perf_counter_ns()
-        times[i] = end - start
-    return py, times
+    py = PyTorchBA()
+    py.prepare(input)
+    py.calculate_jacobian(1)
+    return py.jacobian

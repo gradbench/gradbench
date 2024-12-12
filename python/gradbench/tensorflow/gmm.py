@@ -33,12 +33,12 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import tensorflow as tf
 
+from gradbench import wrap
 from gradbench.adbench.defs import Wishart
 from gradbench.adbench.gmm_data import GMMInput, GMMOutput
 from gradbench.adbench.itest import ITest
 from gradbench.tensorflow.gmm_objective import gmm_objective
 from gradbench.tensorflow.utils import flatten, to_tf_tensor
-from gradbench.wrap_module import wrap
 
 
 class TensorflowGMM(ITest):
@@ -110,7 +110,7 @@ def prepare_input(input):
     )
 
 
-@wrap(prepare_input, lambda x: x.numpy().tolist())
+@wrap.function(pre=prepare_input, post=lambda x: x.numpy().tolist())
 def jacobian(input):
     py = TensorflowGMM()
     py.prepare(input)
@@ -118,7 +118,7 @@ def jacobian(input):
     return py.gradient
 
 
-@wrap(prepare_input, lambda x: x.numpy().tolist())
+@wrap.function(pre=prepare_input, post=lambda x: x.numpy().tolist())
 def objective(input):
     py = TensorflowGMM()
     py.prepare(input)

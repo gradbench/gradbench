@@ -1,7 +1,9 @@
 import json
 import sys
-import time
+from dataclasses import asdict
 from importlib import import_module
+
+from gradbench.wrap import Wrapped
 
 
 def resolve(module, name):
@@ -10,10 +12,8 @@ def resolve(module, name):
 
 
 def run(params):
-    func = resolve(params["module"], params["function"])
-    input = func.prepare(params["input"])
-    output, timings = func.unwrap(func(input))
-    return {"output": output, "timings": timings}
+    func: Wrapped = resolve(params["module"], params["function"])
+    return asdict(func.wrapped(params["input"]))
 
 
 def main():

@@ -1,14 +1,14 @@
 from autograd import grad
 
-from gradbench.wrap_module import wrap
+from gradbench import wrap
 
 
-@wrap(lambda x: x * 1.0, lambda x: x)
+@wrap.function(pre=lambda x: x * 1.0, post=id)
 def square(x):
     return x * x
 
 
-@wrap(lambda x: x * 1.0, lambda x: x)
+@wrap.function(pre=lambda x: x * 1.0, post=id)
 def double(x):
-    y = grad(square)
-    return y(x)
+    gradient = grad(square)
+    return gradient(x)

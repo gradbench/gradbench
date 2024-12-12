@@ -844,6 +844,25 @@ gmpy = ["gmpy2 (>=2.1.0a4)"]
 tests = ["pytest (>=4.6)"]
 
 [[package]]
+name = "mygrad"
+version = "2.3.0"
+description = "Drop-in automatic differentiation to NumPy"
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "mygrad-2.3.0-py3-none-any.whl", hash = "sha256:1c7167544ab5b329326d4386c8e18b9a882740aeb3ad67c1f285837d14d0f0ea"},
+    {file = "mygrad-2.3.0.tar.gz", hash = "sha256:aea9eabe9b81cc2db9d38a05e9a9db2f50566be50dbbdb95157e9d3cf7c95434"},
+]
+
+[package.dependencies]
+numpy = ">=1.24,<1.25.0 || >1.25.0"
+typing-extensions = ">=4.1.0,<4.6.0 || >4.6.0"
+
+[package.extras]
+rnn = ["numba (>=0.34.0)"]
+test = ["hypothesis (>=6.17.1)", "pytest (>=3.8)", "scipy"]
+
+[[package]]
 name = "mypy-extensions"
 version = "1.0.0"
 description = "Type system extensions for programs checked with the mypy type checker."
@@ -1878,4 +1897,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "64481ee33a6cc9f5fc5094c43095f056040188b873f024b625a92854f16a6854"
+content-hash = "b37fbe7728eaccb176dd77b1f23a7e6b6fe141cf11041fcd4e657f93a20d0fea"

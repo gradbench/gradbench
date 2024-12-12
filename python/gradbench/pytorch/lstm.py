@@ -8,16 +8,14 @@ Changes Made:
 - Added two functions to create a PyTorchHand object and call calculate_objective and calculate_jacobian
 """
 
-import time
-
 import numpy as np
 import torch
 
+from gradbench import wrap
 from gradbench.adbench.itest import ITest
 from gradbench.adbench.lstm_data import LSTMInput, LSTMOutput
 from gradbench.pytorch.lstm_objective import lstm_objective
 from gradbench.pytorch.utils import to_torch_tensors, torch_jacobian
-from gradbench.wrap_module import wrap
 
 
 class PyTorchLSTM(ITest):
@@ -56,44 +54,28 @@ class PyTorchLSTM(ITest):
 
 
 def prepare_input(input):
-    py = PyTorchLSTM()
-    py.prepare(LSTMInput.from_dict(input))
-    return py, input["runs"]
+    return LSTMInput.from_dict(input)
 
 
-def evaluate_times(times):
-    return [{"name": "evaluate", "nanoseconds": time} for time in times]
+def objective_output(output):
+    return float(output.detach().flatten().numpy()[0])
 
 
-def unwrap_objective(output):
-    py, times = output
-    return float(py.objective.detach().flatten().numpy()[0]), evaluate_times(output[1])
+def jacobian_output(output):
+    return output.tolist()
 
 
-def unwrap_jacobian(output):
-    py, times = output
-    return py.gradient.tolist(), evaluate_times(times)
-
-
-@wrap(prepare_input, unwrap_objective)
+@wrap.multiple_runs(runs=lambda x: x["runs"], pre=prepare_input, post=objective_output)
 def objective(input):
-    py, runs = input
-    times = runs * [None]
-    for i in range(runs):
-        start = time.perf_counter_ns()
-        py.calculate_objective(runs)
-        end = time.perf_counter_ns()
-        times[i] = end - start
-    return py, times
+    py = PyTorchLSTM()
+    py.prepare(input)
+    py.calculate_objective(1)
+    return py.objective
 
 
-@wrap(prepare_input, unwrap_jacobian)
+@wrap.multiple_runs(runs=lambda x: x["runs"], pre=prepare_input, post=jacobian_output)
 def jacobian(input):
-    py, runs = input
-    times = runs * [None]
-    for i in range(runs):
-        start = time.perf_counter_ns()
-        py.calculate_jacobian(runs)
-        end = time.perf_counter_ns()
-        times[i] = end - start
-    return py, times
+    py = PyTorchLSTM()
+    py.prepare(input)
+    py.calculate_jacobian(1)
+    return py.gradient

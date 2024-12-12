@@ -8,16 +8,14 @@ Changes Made:
 - Added two functions to create a PyTorchHand object and call calculate_objective and calculate_jacobian
 """
 
-import time
-
 import numpy as np
 import torch
 
+from gradbench import wrap
 from gradbench.adbench.ht_data import HandInput, HandOutput
 from gradbench.adbench.itest import ITest
 from gradbench.pytorch.ht_objective import hand_objective, hand_objective_complicated
 from gradbench.pytorch.utils import to_torch_tensor, torch_jacobian
-from gradbench.wrap_module import wrap
 
 
 class PyTorchHand(ITest):
@@ -117,45 +115,29 @@ class PyTorchHand(ITest):
                 self.jacobian = J
 
 
-def evaluate_times(times):
-    return [{"name": "evaluate", "nanoseconds": time} for time in times]
-
-
 def prepare_input(input):
-    py = PyTorchHand()
-    py.prepare(HandInput.from_dict(input))
-    return py, input["runs"]
+    return HandInput.from_dict(input)
 
 
-def unwrap_objective(output):
-    py, times = output
-    return py.objective.detach().flatten().numpy().tolist(), evaluate_times(times)
+def objective_output(output):
+    return output.detach().flatten().numpy().tolist()
 
 
-def unwrap_jacobian(output):
-    py, times = output
-    return py.jacobian.tolist(), evaluate_times(times)
+def jacobian_output(output):
+    return output.tolist()
 
 
-@wrap(prepare_input, unwrap_objective)
+@wrap.multiple_runs(runs=lambda x: x["runs"], pre=prepare_input, post=objective_output)
 def objective(input):
-    py, runs = input
-    times = runs * [None]
-    for i in range(runs):
-        start = time.perf_counter_ns()
-        py.calculate_objective(runs)
-        end = time.perf_counter_ns()
-        times[i] = end - start
-    return py, times
+    py = PyTorchHand()
+    py.prepare(input)
+    py.calculate_objective(1)
+    return py.objective
 
 
-@wrap(prepare_input, unwrap_jacobian)
+@wrap.multiple_runs(runs=lambda x: x["runs"], pre=prepare_input, post=jacobian_output)
 def jacobian(input):
-    py, runs = input
-    times = runs * [None]
-    for i in range(runs):
-        start = time.perf_counter_ns()
-        py.calculate_jacobian(runs)
-        end = time.perf_counter_ns()
-        times[i] = end - start
-    return py, times
+    py = PyTorchHand()
+    py.prepare(input)
+    py.calculate_jacobian(1)
+    return py.jacobian
