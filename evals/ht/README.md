@@ -8,9 +8,9 @@ also sometimes refers to the HT problem as "HAND", but GradBench seeks
 to use the name "HT" consistently.
 
 ADBench distinguishes explicitly between "complicated" and "simple"
-inputs, which differ in whether the `us` vector (see below) is empty
-array. In GradBench there is no such distinction, and the "simple"
-case is simply identified by a zero-length `us`.
+inputs, which differ in whether the `us` vector (see below) is empty.
+In GradBench there is no such distinction, and the "simple" case is
+simply identified by a zero-length `us`.
 
 ## Protocol
 
