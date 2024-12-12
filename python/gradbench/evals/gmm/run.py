@@ -8,12 +8,12 @@ import gradbench.pytorch.gmm as golden
 from gradbench.comparison import compare_json_objects
 from gradbench.evals.gmm import data_gen
 from gradbench.evaluation import SingleModuleValidatedEvaluation, mismatch
-from gradbench.wrap_module import Functions
+from gradbench.wrap import Wrapped
 
 
 def check(function: str, input: Any, output: Any) -> None:
-    func: Functions = getattr(golden, function)
-    expected = func.unwrap(func(func.prepare(input)))
+    func: Wrapped = getattr(golden, function)
+    expected = func.wrapped(input | {"runs": 1})["output"]
     return compare_json_objects(expected, output)
 
 
@@ -26,7 +26,7 @@ def main():
     parser.add_argument(
         "-d", nargs="+", type=int, default=[2, 10, 20, 32]
     )  # misses 64 128
-    parser.add_argument("--runs", type=int, default=10)
+    parser.add_argument("--runs", type=int, default=1)
     args = parser.parse_args()
 
     e = SingleModuleValidatedEvaluation(module="gmm", validator=mismatch(check))

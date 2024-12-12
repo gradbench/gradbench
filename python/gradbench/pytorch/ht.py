@@ -11,11 +11,11 @@ Changes Made:
 import numpy as np
 import torch
 
+from gradbench import wrap
 from gradbench.adbench.ht_data import HandInput, HandOutput
 from gradbench.adbench.itest import ITest
 from gradbench.pytorch.ht_objective import hand_objective, hand_objective_complicated
 from gradbench.pytorch.utils import to_torch_tensor, torch_jacobian
-from gradbench.wrap_module import wrap
 
 
 class PyTorchHand(ITest):
@@ -127,7 +127,7 @@ def jacobian_output(output):
     return output.tolist()
 
 
-@wrap(prepare_input, objective_output)
+@wrap.multiple_runs(runs=lambda x: x["runs"], pre=prepare_input, post=objective_output)
 def objective(input):
     py = PyTorchHand()
     py.prepare(input)
@@ -135,7 +135,7 @@ def objective(input):
     return py.objective
 
 
-@wrap(prepare_input, jacobian_output)
+@wrap.multiple_runs(runs=lambda x: x["runs"], pre=prepare_input, post=jacobian_output)
 def jacobian(input):
     py = PyTorchHand()
     py.prepare(input)

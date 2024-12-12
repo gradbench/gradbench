@@ -38,12 +38,12 @@ import time
 import numpy as np
 import tensorflow as tf
 
+from gradbench import wrap
 from gradbench.adbench.ba_data import BAInput, BAOutput
 from gradbench.adbench.ba_sparse_mat import BASparseMat
 from gradbench.adbench.itest import ITest
 from gradbench.tensorflow.ba_objective import compute_reproj_err, compute_w_err
 from gradbench.tensorflow.utils import flatten, to_tf_tensor
-from gradbench.wrap_module import wrap
 
 tf.get_logger().setLevel("ERROR")  # Suppress warnings
 
@@ -194,7 +194,7 @@ def prepare_input(input):
     return BAInput(cams, X, w, obs, feats)
 
 
-@wrap(prepare_input, objective_output)
+@wrap.function(pre=prepare_input, post=objective_output)
 def objective(input):
     py = TensorflowBA()
     py.prepare(input)
@@ -202,7 +202,7 @@ def objective(input):
     return (py.reproj_error, py.w_err)
 
 
-@wrap(prepare_input, jacobian_output)
+@wrap.function(pre=prepare_input, post=jacobian_output)
 def jacobian(input):
     py = TensorflowBA()
     py.prepare(input)

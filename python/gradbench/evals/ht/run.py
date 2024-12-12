@@ -8,12 +8,12 @@ import gradbench.pytorch.ht as golden
 from gradbench.comparison import compare_json_objects
 from gradbench.evals.ht import io
 from gradbench.evaluation import SingleModuleValidatedEvaluation, mismatch
-from gradbench.wrap_module import Functions
+from gradbench.wrap import Wrapped
 
 
 def check(function: str, input: Any, output: Any) -> None:
-    func: Functions = getattr(golden, function)
-    expected = func.unwrap(func(func.prepare(input)))
+    func: Wrapped = getattr(golden, function)
+    expected = func.wrapped(input | {"runs": 1})["output"]
     return compare_json_objects(expected, output)
 
 
@@ -21,6 +21,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--min", type=int, default=1)
     parser.add_argument("--max", type=int, default=2)
+    parser.add_argument("--runs", type=int, default=1)
     args = parser.parse_args()
 
     e = SingleModuleValidatedEvaluation(module="ht", validator=mismatch(check))
@@ -40,8 +41,16 @@ def main():
                 fn = next(data_dir.glob(f"hand{i}_*.txt"), None)
                 model_dir = data_dir / "model"
                 input = io.read_hand_instance(model_dir, fn, complicated).to_dict()
-                e.evaluate(function="objective", input=input, description=fn.stem)
-                e.evaluate(function="jacobian", input=input, description=fn.stem)
+                e.evaluate(
+                    function="objective",
+                    input=input | {"runs": args.runs},
+                    description=fn.stem,
+                )
+                e.evaluate(
+                    function="jacobian",
+                    input=input | {"runs": args.runs},
+                    description=fn.stem,
+                )
 
         evals(simple_small, False)
         evals(simple_big, False)

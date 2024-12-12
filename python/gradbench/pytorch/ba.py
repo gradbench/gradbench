@@ -25,7 +25,6 @@
 """
 Changes Made:
 - Added two functions to create a PyTorchBA object and call calculate_objective and calculate_jacobian
-- Added timeout feature for function calls
 - Added two functions to convert BA output to JSON serializable objects
 - Import a decorator to use converter functions
 - Added a function to create BA input based on data provided in files
@@ -36,12 +35,12 @@ import signal
 import numpy as np
 import torch
 
+from gradbench import wrap
 from gradbench.adbench.ba_data import BAInput, BAOutput
 from gradbench.adbench.ba_sparse_mat import BASparseMat
 from gradbench.adbench.itest import ITest
 from gradbench.pytorch.ba_objective import compute_reproj_err, compute_w_err
 from gradbench.pytorch.utils import to_torch_tensor, torch_jacobian
-from gradbench.wrap_module import wrap
 
 
 class PyTorchBA(ITest):
@@ -123,43 +122,30 @@ class PyTorchBA(ITest):
             self.reproj_error = reproj_error.flatten()
 
 
-TIMEOUT = 300
-
-
-class TimeoutException(Exception):
-    pass
-
-
-def timeout_handler(signum, frame):
-    raise TimeoutException()
+def evaluate_times(times):
+    return [{"name": "evaluate", "nanoseconds": time} for time in times]
 
 
 # Convert objective output to dictionary
 def objective_output(errors):
-    try:
-        r_err, w_err = errors
-        num_r = len(r_err.tolist()) // 2
-        num_w = len(w_err.tolist())
-        return {
-            "reproj_error": {"elements": r_err.tolist()[:2], "repeated": num_r},
-            "w_err": {"element": w_err.tolist()[0], "repeated": num_w},
-        }
-    except:
-        return errors
+    r_err, w_err = errors
+    num_r = len(r_err.tolist()) // 2
+    num_w = len(w_err.tolist())
+    return {
+        "reproj_error": {"elements": r_err.tolist()[:2], "repeated": num_r},
+        "w_err": {"element": w_err.tolist()[0], "repeated": num_w},
+    }
 
 
 # Convert jacobian output to dictionary
 def jacobian_output(ba_mat):
-    try:
-        return {
-            "BASparseMat": {
-                "rows": list(map(int, list(ba_mat.rows))),
-                "cols": list(map(int, list(ba_mat.cols))),
-                "vals": list(map(float, list(ba_mat.vals))),
-            }
+    return {
+        "BASparseMat": {
+            "rows": list(map(int, list(ba_mat.rows))),
+            "cols": list(map(int, list(ba_mat.cols))),
+            "vals": list(map(float, list(ba_mat.vals))),
         }
-    except:
-        return ba_mat
+    }
 
 
 # Parse JSON input and convert to BAInput
@@ -188,33 +174,17 @@ def prepare_input(input):
     return BAInput(cams, X, w, obs, feats)
 
 
-@wrap(prepare_input, objective_output)
+@wrap.multiple_runs(runs=lambda x: x["runs"], pre=prepare_input, post=objective_output)
 def objective(input):
     py = PyTorchBA()
     py.prepare(input)
-
-    signal.signal(signal.SIGALRM, timeout_handler)
-    signal.alarm(TIMEOUT)
-
-    try:
-        py.calculate_objective(1)
-        signal.alarm(0)  # Disable the alarm
-        return (py.reproj_error, py.w_err)
-    except TimeoutException:
-        return "Process terminated due to timeout."
+    py.calculate_objective(1)
+    return py.reproj_error, py.w_err
 
 
-@wrap(prepare_input, jacobian_output)
+@wrap.multiple_runs(runs=lambda x: x["runs"], pre=prepare_input, post=jacobian_output)
 def jacobian(input):
     py = PyTorchBA()
     py.prepare(input)
-
-    signal.signal(signal.SIGALRM, timeout_handler)
-    signal.alarm(TIMEOUT)
-
-    try:
-        py.calculate_jacobian(1)
-        signal.alarm(0)  # Disable the alarm
-        return py.jacobian
-    except TimeoutException:
-        return "Process terminated due to timeout."
+    py.calculate_jacobian(1)
+    return py.jacobian

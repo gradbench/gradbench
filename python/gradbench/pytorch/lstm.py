@@ -11,11 +11,11 @@ Changes Made:
 import numpy as np
 import torch
 
+from gradbench import wrap
 from gradbench.adbench.itest import ITest
 from gradbench.adbench.lstm_data import LSTMInput, LSTMOutput
 from gradbench.pytorch.lstm_objective import lstm_objective
 from gradbench.pytorch.utils import to_torch_tensors, torch_jacobian
-from gradbench.wrap_module import wrap
 
 
 class PyTorchLSTM(ITest):
@@ -65,7 +65,7 @@ def jacobian_output(output):
     return output.tolist()
 
 
-@wrap(prepare_input, objective_output)
+@wrap.multiple_runs(runs=lambda x: x["runs"], pre=prepare_input, post=objective_output)
 def objective(input):
     py = PyTorchLSTM()
     py.prepare(input)
@@ -73,7 +73,7 @@ def objective(input):
     return py.objective
 
 
-@wrap(prepare_input, jacobian_output)
+@wrap.multiple_runs(runs=lambda x: x["runs"], pre=prepare_input, post=jacobian_output)
 def jacobian(input):
     py = PyTorchLSTM()
     py.prepare(input)

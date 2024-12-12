@@ -32,12 +32,12 @@ Changes Made:
 import numpy as np
 import torch
 
+from gradbench import wrap
 from gradbench.adbench.defs import Wishart
 from gradbench.adbench.gmm_data import GMMInput
 from gradbench.adbench.itest import ITest
 from gradbench.pytorch.gmm_objective import gmm_objective
 from gradbench.pytorch.utils import to_torch_tensor, to_torch_tensors, torch_jacobian
-from gradbench.wrap_module import wrap
 
 
 class PyTorchGMM(ITest):
@@ -86,7 +86,9 @@ def prepare_input(input):
     )
 
 
-@wrap(prepare_input, lambda x: x.tolist())
+@wrap.multiple_runs(
+    runs=lambda x: x["runs"], pre=prepare_input, post=lambda x: x.tolist()
+)
 def jacobian(input):
     py = PyTorchGMM()
     py.prepare(input)
@@ -94,7 +96,9 @@ def jacobian(input):
     return py.gradient
 
 
-@wrap(prepare_input, lambda x: x.tolist())
+@wrap.multiple_runs(
+    runs=lambda x: x["runs"], pre=prepare_input, post=lambda x: x.tolist()
+)
 def objective(input):
     py = PyTorchGMM()
     py.prepare(input)
