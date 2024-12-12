@@ -43,13 +43,12 @@ interface HTData {
   model: HTModel;
   correspondences: int[];
   points: double[][];
-  us: double[];
 }
 
 interface HTInput {
   theta: double[];
-  data: HandData;
   data: HTData;
+  us: double[];
 }
 ```
 
