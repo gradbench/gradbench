@@ -191,20 +191,18 @@ def prepare_input(input):
         camIdx = (camIdx + 1) % n
         ptIdx = (ptIdx + 1) % m
 
-    return BAInput(cams, X, w, obs, feats)
+    py = TensorflowBA()
+    py.prepare(BAInput(cams, X, w, obs, feats))
+    return py
 
 
 @wrap.function(pre=prepare_input, post=objective_output)
-def objective(input):
-    py = TensorflowBA()
-    py.prepare(input)
+def objective(py):
     py.calculate_objective(1)
     return (py.reproj_error, py.w_err)
 
 
 @wrap.function(pre=prepare_input, post=jacobian_output)
-def jacobian(input):
-    py = TensorflowBA()
-    py.prepare(input)
+def jacobian(py):
     py.calculate_jacobian(1)
     return py.jacobian

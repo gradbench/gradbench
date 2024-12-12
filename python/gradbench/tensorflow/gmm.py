@@ -101,26 +101,26 @@ class TensorflowGMM(ITest):
 
 
 def prepare_input(input):
-    return GMMInput(
-        input["alpha"],
-        input["means"],
-        input["icf"],
-        input["x"],
-        Wishart(input["gamma"], input["m"]),
+    py = TensorflowGMM()
+    py.prepare(
+        GMMInput(
+            input["alpha"],
+            input["means"],
+            input["icf"],
+            input["x"],
+            Wishart(input["gamma"], input["m"]),
+        )
     )
+    return py
 
 
 @wrap.function(pre=prepare_input, post=lambda x: x.numpy().tolist())
-def jacobian(input):
-    py = TensorflowGMM()
-    py.prepare(input)
+def jacobian(py):
     py.calculate_jacobian(1)
     return py.gradient
 
 
 @wrap.function(pre=prepare_input, post=lambda x: x.numpy().tolist())
-def objective(input):
-    py = TensorflowGMM()
-    py.prepare(input)
+def objective(py):
     py.calculate_objective(1)
     return py.objective

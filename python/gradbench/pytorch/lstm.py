@@ -54,7 +54,9 @@ class PyTorchLSTM(ITest):
 
 
 def prepare_input(input):
-    return LSTMInput.from_dict(input)
+    py = PyTorchLSTM()
+    py.prepare(LSTMInput.from_dict(input))
+    return py
 
 
 def objective_output(output):
@@ -66,16 +68,12 @@ def jacobian_output(output):
 
 
 @wrap.multiple_runs(runs=lambda x: x["runs"], pre=prepare_input, post=objective_output)
-def objective(input):
-    py = PyTorchLSTM()
-    py.prepare(input)
+def objective(py):
     py.calculate_objective(1)
     return py.objective
 
 
 @wrap.multiple_runs(runs=lambda x: x["runs"], pre=prepare_input, post=jacobian_output)
-def jacobian(input):
-    py = PyTorchLSTM()
-    py.prepare(input)
+def jacobian(py):
     py.calculate_jacobian(1)
     return py.gradient
