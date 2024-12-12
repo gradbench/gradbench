@@ -1,6 +1,5 @@
 import json
 import sys
-from dataclasses import asdict
 from importlib import import_module
 
 from gradbench.wrap import Wrapped
@@ -13,7 +12,7 @@ def resolve(module, name):
 
 def run(params):
     func: Wrapped = resolve(params["module"], params["function"])
-    return asdict(func.wrapped(params["input"]))
+    return func.wrapped(params["input"])
 
 
 def main():

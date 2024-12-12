@@ -8,8 +8,7 @@ class Timing(TypedDict):
     nanoseconds: int
 
 
-@dataclass
-class OutputAndTimings:
+class OutputAndTimings(TypedDict):
     output: Any
     timings: list[Timing]
 
@@ -31,7 +30,7 @@ def function(*, pre: Callable[[Any], Any], post: Callable[[Any], Any]):
             output = function(input)
             end = time.perf_counter_ns()
             output_raw = post(output)
-            timing: Timing = {"name": "evaluate", "nanoseconds": end - start}
+            timing = Timing(name="evaluate", nanoseconds=end - start)
             return OutputAndTimings(output=output_raw, timings=[timing])
 
         return Wrapped(function=function, wrapped=wrapped)
@@ -50,7 +49,7 @@ def multiple_runs(
                 start = time.perf_counter_ns()
                 output = function(input)
                 end = time.perf_counter_ns()
-                timings.append({"name": "evaluate", "nanoseconds": end - start})
+                timings.append(Timing(name="evaluate", nanoseconds=end - start))
             output_raw = post(output)
             return OutputAndTimings(output=output_raw, timings=timings)
 
