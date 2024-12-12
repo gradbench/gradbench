@@ -122,10 +122,6 @@ class PyTorchBA(ITest):
             self.reproj_error = reproj_error.flatten()
 
 
-def evaluate_times(times):
-    return [{"name": "evaluate", "nanoseconds": time} for time in times]
-
-
 # Convert objective output to dictionary
 def objective_output(errors):
     r_err, w_err = errors
@@ -171,20 +167,18 @@ def prepare_input(input):
         camIdx = (camIdx + 1) % n
         ptIdx = (ptIdx + 1) % m
 
-    return BAInput(cams, X, w, obs, feats)
+    py = PyTorchBA()
+    py.prepare(BAInput(cams, X, w, obs, feats))
+    return py
 
 
 @wrap.multiple_runs(runs=lambda x: x["runs"], pre=prepare_input, post=objective_output)
-def objective(input):
-    py = PyTorchBA()
-    py.prepare(input)
+def objective(py):
     py.calculate_objective(1)
     return py.reproj_error, py.w_err
 
 
 @wrap.multiple_runs(runs=lambda x: x["runs"], pre=prepare_input, post=jacobian_output)
-def jacobian(input):
-    py = PyTorchBA()
-    py.prepare(input)
+def jacobian(py):
     py.calculate_jacobian(1)
     return py.jacobian

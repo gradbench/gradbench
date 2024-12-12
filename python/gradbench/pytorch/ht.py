@@ -116,7 +116,9 @@ class PyTorchHand(ITest):
 
 
 def prepare_input(input):
-    return HandInput.from_dict(input)
+    py = PyTorchHand()
+    py.prepare(HandInput.from_dict(input))
+    return py
 
 
 def objective_output(output):
@@ -128,16 +130,12 @@ def jacobian_output(output):
 
 
 @wrap.multiple_runs(runs=lambda x: x["runs"], pre=prepare_input, post=objective_output)
-def objective(input):
-    py = PyTorchHand()
-    py.prepare(input)
+def objective(py):
     py.calculate_objective(1)
     return py.objective
 
 
 @wrap.multiple_runs(runs=lambda x: x["runs"], pre=prepare_input, post=jacobian_output)
-def jacobian(input):
-    py = PyTorchHand()
-    py.prepare(input)
+def jacobian(py):
     py.calculate_jacobian(1)
     return py.jacobian

@@ -77,21 +77,23 @@ class PyTorchGMM(ITest):
 
 
 def prepare_input(input):
-    return GMMInput(
-        input["alpha"],
-        input["means"],
-        input["icf"],
-        input["x"],
-        Wishart(input["gamma"], input["m"]),
+    py = PyTorchGMM()
+    py.prepare(
+        GMMInput(
+            input["alpha"],
+            input["means"],
+            input["icf"],
+            input["x"],
+            Wishart(input["gamma"], input["m"]),
+        )
     )
+    return py
 
 
 @wrap.multiple_runs(
     runs=lambda x: x["runs"], pre=prepare_input, post=lambda x: x.tolist()
 )
-def jacobian(input):
-    py = PyTorchGMM()
-    py.prepare(input)
+def jacobian(py):
     py.calculate_jacobian(1)
     return py.gradient
 
@@ -99,8 +101,6 @@ def jacobian(input):
 @wrap.multiple_runs(
     runs=lambda x: x["runs"], pre=prepare_input, post=lambda x: x.tolist()
 )
-def objective(input):
-    py = PyTorchGMM()
-    py.prepare(input)
+def objective(py):
     py.calculate_objective(1)
     return py.objective
