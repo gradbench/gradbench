@@ -12,9 +12,10 @@ def resolve(module, name):
 def run(params):
     func = resolve(params["module"], params["function"])
     vals = params["input"]
-    ret, time = func(vals).stdout.split("\n")
-    timings = [{"name": "evaluate", "nanoseconds": int(time)}]
-    return {"output": json.loads(ret), "timings": timings}
+    ls = func(vals).stdout.splitlines()
+    output = ls[0]
+    timings = [{"name": "evaluate", "nanoseconds": int(time)} for time in ls[1:]]
+    return {"output": json.loads(output), "timings": timings}
 
 
 def main():

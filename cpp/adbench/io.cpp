@@ -3,11 +3,12 @@
 #include "adbench/shared/GMMData.h"
 #include "adbench/shared/BAData.h"
 
-void read_HelloInput_json(const char* fname, HelloInput &input) {
+void read_HelloInput_json(const char* fname, HelloInput &input, int *runs) {
   using json = nlohmann::json;
   std::ifstream f(fname);
   json data = json::parse(f);
   input.x = data.get<double>();
+  *runs = 1;
 }
 
 void write_HelloOutput_objective_json(std::ostream& f, HelloOutput &output) {
@@ -20,7 +21,7 @@ void write_HelloOutput_jacobian_json(std::ostream& f, HelloOutput &output) {
   f << json(output.gradient);
 }
 
-void read_GMMInput_json(const char* fname, GMMInput &input) {
+void read_GMMInput_json(const char* fname, GMMInput &input, int *runs) {
   // Based on read_lstm_instance from ADBench.
   using json = nlohmann::json;
   std::ifstream f(fname);
@@ -43,6 +44,8 @@ void read_GMMInput_json(const char* fname, GMMInput &input) {
 
   input.wishart.gamma = data["gamma"].get<double>();
   input.wishart.m = data["m"].get<int>();
+
+  *runs = data["runs"];
 }
 
 void write_GMMOutput_objective_json(std::ostream& f, GMMOutput &output) {
@@ -56,7 +59,7 @@ void write_GMMOutput_jacobian_json(std::ostream& f, GMMOutput &output) {
 }
 
 
-void read_BAInput_json(const char* fname, BAInput &input) {
+void read_BAInput_json(const char* fname, BAInput &input, int *runs) {
   // Based on read_ba_instance from ADBench.
   using json = nlohmann::json;
   std::ifstream f(fname);
@@ -105,6 +108,8 @@ void read_BAInput_json(const char* fname, BAInput &input) {
     input.feats[i * 2 + 0] = feat[0];
     input.feats[i * 2 + 1] = feat[1];
   }
+
+  *runs = data["runs"];
 }
 
 void write_BAOutput_objective_json(std::ostream& f, BAOutput &output) {
@@ -137,7 +142,7 @@ void write_BAOutput_jacobian_json(std::ostream& f, BAOutput &output) {
   f << out;
 }
 
-void read_LSTMInput_json(const char* fname, LSTMInput &input) {
+void read_LSTMInput_json(const char* fname, LSTMInput &input, int *runs) {
   // Based on read_lstm_instance from ADBench.
   using json = nlohmann::json;
   std::ifstream f(fname);
@@ -167,6 +172,8 @@ void read_LSTMInput_json(const char* fname, LSTMInput &input) {
   for (auto it = sequence.begin(); it != sequence.end(); it++) {
     input.sequence.insert(input.sequence.end(), it->begin(), it->end());
   }
+
+  *runs = data["runs"];
 }
 
 void write_LSTMOutput_objective_json(std::ostream& f, LSTMOutput &output) {
@@ -190,7 +197,7 @@ void to_light_matrix(LightMatrix<double> &m,
   }
 }
 
-void read_HandInput_json(const char* fname, HandInput &input) {
+void read_HandInput_json(const char* fname, HandInput &input, int *runs) {
   // Based on read_hand_instance from ADBench.
   using json = nlohmann::json;
   std::ifstream f(fname);
@@ -255,6 +262,8 @@ void read_HandInput_json(const char* fname, HandInput &input) {
                     inverse_base_absolutes[i]);
     input.data.model.inverse_base_absolutes[i].transpose_in_place();
   }
+
+  *runs = data["runs"];
 }
 
 void write_HandOutput_objective_json(std::ostream& f, HandOutput &output) {
