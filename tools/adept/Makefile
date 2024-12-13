@@ -12,12 +12,16 @@ LDFLAGS=-lm $(ADEPT_LIB_DIR)/libadept.a -fopenmp
 
 UTIL_OBJECTS=../../cpp/adbench/shared/utils.o ../../cpp/adbench/io.o
 HELLO_OBJECTS=AdeptHello.o run_hello.o
+GMM_OBJECTS=AdeptGMM.o run_gmm.o
 
-EXECUTABLES=run_hello
+EXECUTABLES=run_hello run_gmm
 
 all: $(EXECUTABLES)
 
 run_hello: $(HELLO_OBJECTS) $(UTIL_OBJECTS)
+	$(CXX) -o $@ $^ $(LDFLAGS)
+
+run_gmm: $(GMM_OBJECTS) $(UTIL_OBJECTS)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 %.o: %.c
