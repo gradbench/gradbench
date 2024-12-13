@@ -12,42 +12,49 @@ template<typename Input, typename Benchmark, auto ReadInput, auto WriteObjective
 int generic_main(int argc, char* argv[]) {
   if (argc != 3 ||
       (std::string(argv[2]) != "F" && (std::string(argv[2]) != "J"))) {
-    std::cerr << "Usage: " << argv[0] << " FILE <F|J>" << std::endl;
+    std::cerr << "Usage: " << argv[0] << " FILE <F|J>" << " [RUNS]" << std::endl;
     exit(1);
   }
 
   const char* input_file = argv[1];
 
+  int runs;
   Input input;
 
-  ReadInput(input_file, input);
+  ReadInput(input_file, input, &runs);
 
   Benchmark b;
 
   b.prepare(std::move(input));
 
-  struct timespec start, finish;
+  struct timespec start[runs], finish[runs];
 
   if (std::string(argv[2]) == "F") {
-    clock_gettime( CLOCK_REALTIME, &start );
-    b.calculate_objective(1);
-    clock_gettime( CLOCK_REALTIME, &finish );
+    for (int i = 0; i < runs; i++) {
+      clock_gettime( CLOCK_REALTIME, &start[i] );
+      b.calculate_objective(1);
+      clock_gettime( CLOCK_REALTIME, &finish[i] );
+    }
 
     auto output = b.output();
     WriteObjective(std::cout, output);
   } else {
-    clock_gettime( CLOCK_REALTIME, &start );
-    b.calculate_jacobian(1);
-    clock_gettime( CLOCK_REALTIME, &finish );
+    for (int i = 0; i < runs; i++) {
+      clock_gettime( CLOCK_REALTIME, &start[i] );
+      b.calculate_jacobian(1);
+      clock_gettime( CLOCK_REALTIME, &finish[i] );
+    }
 
     auto output = b.output();
     WriteJacobian(std::cout, output);
   }
   std::cout << std::endl;
 
-  double time_taken = (double) ((finish.tv_sec*1e9 + finish.tv_nsec) -
-                                (start.tv_sec*1e9 + start.tv_nsec));
-  std::cout << (long)time_taken;
+  for (int i = 0; i < runs; i++) {
+    long time_taken = ((finish[i].tv_sec*1e9 + finish[i].tv_nsec) -
+                       (start[i].tv_sec*1e9 + start[i].tv_nsec));
+    std::cout << (long)time_taken << std::endl;
+  }
 
   return 0;
 }
