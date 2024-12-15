@@ -1,0 +1,116 @@
+#!/usr/bin/env python3
+#
+# Based on the log files produces by 'gradbench', generates plots via
+# matplotlib. Three kinds of plots are produced, each with a line per
+# provided JSON file:
+#
+# * Absolute runtime of objective function.
+#
+# * Absolute runtime of Jacobian.
+#
+# * Relative runtime of the Jacobian compared to the objective, i.e.,
+# * the overhead of AD.
+#
+# Used like:
+#
+# $ scripts/plot --eval GMM futhark.json pytorch.json finite.json manual.json tapenade.json
+
+import argparse
+import json
+import sys
+
+import matplotlib
+import numpy as np
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
+def mean(xs):
+    if len(xs) == 0:
+        return 0
+    else:
+        return sum(xs) / len(xs)
+
+def read_msgs(fname):
+    try:
+        l = []
+        with open(fname, "r") as f:
+            for line in f:
+                l.append(json.loads(line))
+        if len(l) % 2 != 0:
+            print("{fname} contains an odd number of messages.")
+            sys.exit(1)
+        return list(zip(l[0::2], l[1::2]))
+    except Exception as e:
+        print(f"Failed to read {fname}:")
+        print(e)
+        sys.exit(1)
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--eval", type=str, required=True)
+parser.add_argument("jsons", nargs="+")
+args = parser.parse_args()
+
+jsons = {}
+for fname in args.jsons:
+    print(f'Reading {fname}...')
+    jsons[fname] = read_msgs(fname)
+
+workloads = set()
+obj_runtimes = {}
+jac_runtimes = {}
+for json in jsons:
+    print(f'Extrating measurements from {json}...')
+    obj_runtimes[json] = {}
+    jac_runtimes[json] = {}
+    for e in jsons[json]:
+        message = e[0]["message"]
+        response = e[1]["response"]
+        if message["kind"] == "evaluate":
+            workload = message["description"]
+            workloads.add(workload)
+            if message["function"] == "objective":
+                obj_runtimes[json][workload] = mean([x["nanoseconds"] for x in response["timings"] if x["name"] == "evaluate"])  / 1e9
+            if message["function"] == "jacobian":
+                jac_runtimes[json][workload] = mean([x["nanoseconds"] for x in response["timings"] if x["name"] == "evaluate"])  / 1e9
+
+fname_objective =f"{args.eval}-objective.png"
+print(f'Generating {fname_objective}...')
+for tool in obj_runtimes:
+    plt.plot(obj_runtimes[tool].keys(), obj_runtimes[tool].values(), label=tool)
+plt.tick_params(labelrotation=45)
+plt.legend()
+plt.yscale("log")
+plt.title(f"{args.eval} Objective runtimes")
+plt.ylabel("Runtime (s)")
+plt.xlabel("Workload")
+plt.savefig(fname_objective, bbox_inches="tight")
+plt.clf()
+
+fname_jacobian =f"{args.eval}-jacobian.png"
+print(f'Generating {fname_jacobian}...')
+for tool in jac_runtimes:
+    plt.plot(jac_runtimes[tool].keys(), jac_runtimes[tool].values(), label=tool)
+plt.tick_params(labelrotation=45)
+plt.yscale("log")
+plt.legend()
+plt.title(f"{args.eval} Jacobian runtimes")
+plt.ylabel("Runtime (s)")
+plt.xlabel("Workload")
+plt.savefig(fname_jacobian, bbox_inches="tight")
+plt.clf()
+
+fname_jacobian_vs_objective =f"{args.eval}-jacobian-vs-objective.png"
+print(f'Generating {fname_jacobian_vs_objective}...')
+for tool in jac_runtimes:
+    jac = np.array(list(jac_runtimes[tool].values()))
+    obj = np.array(list(obj_runtimes[tool].values()))
+    plt.plot(jac_runtimes[tool].keys(), jac / obj, label=tool)
+plt.tick_params(labelrotation=45)
+plt.yscale("log")
+plt.legend()
+plt.title(f"{args.eval} Jacobian Runtimes Relative to Objective Runtimes")
+plt.ylabel("Relative overhead")
+plt.xlabel("Workload")
+plt.savefig(fname_jacobian_vs_objective, bbox_inches="tight")
+plt.clf()
