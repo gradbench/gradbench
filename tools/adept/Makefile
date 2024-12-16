@@ -7,7 +7,7 @@ ADEPT_LIB_DIR=$(ADEPT_DIR)/adept/.libs/
 
 CXX?=c++
 CC?=cc
-CFLAGS=-std=c++17 -O -Wall -I$(ADEPT_INCLUDE_DIR) -fopenmp -g -fsanitize=address
+CFLAGS=-std=c++17 -O2 -Wall -I$(ADEPT_INCLUDE_DIR) -fopenmp
 LDFLAGS=-lm $(ADEPT_LIB_DIR)/libadept.a -fopenmp  -fsanitize=address
 
 UTIL_OBJECTS=../../cpp/adbench/shared/utils.o ../../cpp/adbench/io.o
