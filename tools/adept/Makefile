@@ -14,8 +14,9 @@ UTIL_OBJECTS=../../cpp/adbench/shared/utils.o ../../cpp/adbench/io.o
 HELLO_OBJECTS=AdeptHello.o run_hello.o
 GMM_OBJECTS=AdeptGMM.o run_gmm.o
 HT_OBJECTS=AdeptHT.o run_ht.o
+BA_OBJECTS=AdeptBA.o run_ba.o
 
-EXECUTABLES=run_hello run_gmm run_ht
+EXECUTABLES=run_hello run_gmm run_ht run_ba
 
 all: $(EXECUTABLES)
 
@@ -26,6 +27,9 @@ run_gmm: $(GMM_OBJECTS) $(UTIL_OBJECTS)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 run_ht: $(HT_OBJECTS) $(UTIL_OBJECTS)
+	$(CXX) -o $@ $^ $(LDFLAGS)
+
+run_ba: $(BA_OBJECTS) $(UTIL_OBJECTS)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 %.o: %.cpp

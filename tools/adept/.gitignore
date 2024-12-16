@@ -1,4 +1,6 @@
 adept-2.1.1
 *.o
 run_hello
+run_gmm
 run_ht
+run_ba
