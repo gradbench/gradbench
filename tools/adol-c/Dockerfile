@@ -20,7 +20,7 @@ RUN tar xvf 2.7.2.tar.gz
 RUN cd ADOL-C-releases-2.7.2 && autoreconf -fi
 RUN cd ADOL-C-releases-2.7.2 && ./configure --enable-sparse --prefix=/usr/local
 RUN cd ADOL-C-releases-2.7.2 && make install
-ENV LD_LIBRARY_PATH=/usr/local/lib64
+ENV LD_LIBRARY_PATH=/usr/local/lib64:/usr/local/lib
 
 COPY tools/adol-c/ /home/gradbench/tools/adol-c
 
