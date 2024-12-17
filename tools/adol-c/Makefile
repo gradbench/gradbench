@@ -1,14 +1,14 @@
 CXX?=c++
 CC?=cc
-CFLAGS=-std=c++17 -O3 -Wall
-LDFLAGS=-lm -ladolc
+CFLAGS=-std=c++17 -O3 -Wall -g -fsanitize=address
+LDFLAGS=-lm -ladolc -g -fsanitize=address
 
 UTIL_OBJECTS=../../cpp/adbench/shared/utils.o ../../cpp/adbench/io.o
 HELLO_OBJECTS=AdolCHello.o run_hello.o
 GMM_OBJECTS=AdolCGMM.o run_gmm.o
 BA_OBJECTS=AdolCBA.o run_ba.o
 HT_OBJECTS=AdolCHT.o run_ht.o
-EXECUTABLES=run_hello run_gmm run_ba # run_ht
+EXECUTABLES=run_hello run_gmm run_ba run_ht
 
 all: $(EXECUTABLES)
 

@@ -12,10 +12,20 @@ def resolve(module, name):
 def run(params):
     func = resolve(params["module"], params["function"])
     vals = params["input"]
-    ls = func(vals).stdout.splitlines()
-    output = ls[0]
-    timings = [{"name": "evaluate", "nanoseconds": int(time)} for time in ls[1:]]
-    return {"output": json.loads(output), "timings": timings}
+    proc = func(vals)
+    if proc.returncode == 0:
+        ls = proc.stdout.splitlines()
+        output = ls[0]
+        timings = [{"name": "evaluate", "nanoseconds": int(time)} for time in ls[1:]]
+        return {"output": json.loads(output), "timings": timings}
+    else:
+        return {
+            "output": None,
+            "timings": [],
+            "status": proc.returncode,
+            "stderr": proc.stderr,
+            "stdout": proc.stdout,
+        }
 
 
 def main():
