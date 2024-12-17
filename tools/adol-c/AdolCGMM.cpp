@@ -7,7 +7,6 @@
 #include "adbench/shared/gmm.h"
 
 #include <string.h>
-#include <iostream>
 
 #include <adolc/adouble.h>
 #include <adolc/drivers/drivers.h>
