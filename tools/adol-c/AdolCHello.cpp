@@ -9,6 +9,8 @@ static const int tapeTag = 1;
 
 void AdolCHello::prepare(HelloInput&& input) {
   _input = input;
+
+  // Construct tape.
   adouble ax;
   trace_on(tapeTag);
   ax <<= _input.x;

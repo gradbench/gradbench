@@ -8,7 +8,7 @@ HELLO_OBJECTS=AdolCHello.o run_hello.o
 GMM_OBJECTS=AdolCGMM.o run_gmm.o
 BA_OBJECTS=AdolCBA.o run_ba.o
 HT_OBJECTS=AdolCHT.o run_ht.o
-EXECUTABLES=run_hello # run_gmm run_ba run_ht
+EXECUTABLES=run_hello run_gmm # run_ba run_ht
 
 all: $(EXECUTABLES)
 
