@@ -26,7 +26,5 @@ RUN make -C cpp
 
 COPY tools/adept/ /home/gradbench/tools/adept
 
-RUN make -j -B -C tools/adept
-
 ENTRYPOINT ["python3", "/home/gradbench/tools/adept/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
