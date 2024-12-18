@@ -1,7 +1,7 @@
 CXX?=c++
 CC?=cc
-CFLAGS=-std=c++17 -O3 -Wall -g -fsanitize=address
-LDFLAGS=-lm -ladolc -g -fsanitize=address
+CFLAGS=-std=c++17 -O3 -Wall
+LDFLAGS=-lm -ladolc
 
 UTIL_OBJECTS=../../cpp/adbench/shared/utils.o ../../cpp/adbench/io.o
 HELLO_OBJECTS=AdolCHello.o run_hello.o
