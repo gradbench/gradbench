@@ -1,6 +1,3 @@
-// Copyright (c) Microsoft Corporation.
-// Licensed under the MIT license.
-
 #pragma once
 
 #include "adbench/shared/ITest.h"
@@ -15,7 +12,6 @@ private:
   std::vector<double> _reproj_err_d;
 
 public:
-  // This function must be called before any other function.
   virtual void prepare(BAInput&& input) override;
 
   virtual void calculate_objective(int times) override;

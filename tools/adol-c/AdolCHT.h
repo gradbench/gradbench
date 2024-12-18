@@ -1,6 +1,3 @@
-// Copyright (c) Microsoft Corporation.
-// Licensed under the MIT license.
-
 #pragma once
 
 #include "adbench/shared/ITest.h"
@@ -12,7 +9,6 @@ class AdolCHand : public ITest<HandInput, HandOutput> {
   bool _complicated = false;
 
 public:
-  // This function must be called before any other function.
   void prepare(HandInput&& input) override;
 
   void calculate_objective(int times) override;

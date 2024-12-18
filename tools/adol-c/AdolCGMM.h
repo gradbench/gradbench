@@ -1,6 +1,3 @@
-// Copyright (c) Microsoft Corporation.
-// Licensed under the MIT license.
-
 #pragma once
 
 #include "adbench/shared/ITest.h"
@@ -13,7 +10,6 @@ class AdolCGMM : public ITest<GMMInput, GMMOutput> {
   GMMOutput _output;
 
 public:
-  // This function must be called before any other function.
   void prepare(GMMInput&& input) override;
 
   void calculate_objective(int times) override;
