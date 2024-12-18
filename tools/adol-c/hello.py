@@ -18,7 +18,7 @@ def compile():
     )
 
 
-def objective(input):
+def square(input):
     with tempfile.NamedTemporaryFile("w") as tmp:
         json.dump(input, tmp)
         tmp.flush()
@@ -27,7 +27,7 @@ def objective(input):
         )
 
 
-def jacobian(input):
+def double(input):
     with tempfile.NamedTemporaryFile("w") as tmp:
         json.dump(input, tmp)
         tmp.flush()
