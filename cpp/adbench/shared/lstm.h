@@ -15,7 +15,7 @@
 // Sigmoid on scalar
 template<typename T>
 T sigmoid(T x) {
-    return 1 / (1 + std::exp(-x));
+    return 1 / (1 + exp(-x));
 }
 
 // log(sum(exp(x), 2))
@@ -23,7 +23,7 @@ template<typename T>
 T logsumexp(const T* vect, int sz) {
     T sum = 0.0;
     for (int i = 0; i < sz; ++i)
-        sum += std::exp(vect[i]);
+        sum += exp(vect[i]);
     sum += 2;
     return log(sum);
 }
@@ -153,9 +153,9 @@ void lstm_model(int hsize,
 {
     for (int i = 0; i < hsize; ++i) {
         // gates for i-th cell/hidden
-        T forget = sigmoid(input[i] * params.weight.forget[i] + params.bias.forget[i]);
-        T ingate = sigmoid(state.hidden[i] * params.weight.ingate[i] + params.bias.ingate[i]);
-        T outgate = sigmoid(input[i] * params.weight.outgate[i] + params.bias.outgate[i]);
+        T forget = sigmoid<T>(input[i] * params.weight.forget[i] + params.bias.forget[i]);
+        T ingate = sigmoid<T>(state.hidden[i] * params.weight.ingate[i] + params.bias.ingate[i]);
+        T outgate = sigmoid<T>(input[i] * params.weight.outgate[i] + params.bias.outgate[i]);
         T change = tanh(state.hidden[i] * params.weight.change[i] + params.bias.change[i]);
 
         state.cell[i] = state.cell[i] * forget + ingate * change;
