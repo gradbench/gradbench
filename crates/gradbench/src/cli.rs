@@ -225,17 +225,6 @@ enum Message {
     },
 }
 
-/// A response from the tool to a `"start"` message.
-#[derive(Debug, Deserialize)]
-struct StartResponse {}
-
-/// A response from the tool to a `"define"` message.
-#[derive(Debug, Deserialize)]
-struct DefineResponse {
-    /// Whether the module was successfully defined.
-    success: bool,
-}
-
 /// Nanosecond timings from the tool.
 #[derive(Debug, Deserialize)]
 struct Timing {
@@ -246,10 +235,24 @@ struct Timing {
     nanoseconds: u128,
 }
 
+/// A response from the tool to a `"start"` message.
+#[derive(Debug, Deserialize)]
+struct StartResponse {}
+
+/// A response from the tool to a `"define"` message.
+#[derive(Debug, Deserialize)]
+struct DefineResponse {
+    /// Whether the module was successfully defined.
+    success: bool,
+
+    /// Subtask timings.
+    timings: Option<Vec<Timing>>,
+}
+
 /// A response from the tool to an `"evaluate"` message.
 #[derive(Debug, Deserialize)]
 struct EvaluateResponse {
-    /// More granular timings.
+    /// Subtask timings.
     timings: Option<Vec<Timing>>,
 }
 
