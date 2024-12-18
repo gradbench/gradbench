@@ -8,6 +8,9 @@ RUN apt-get update && apt-get install -y \
     wget \
     curl
 
+COPY python /home/gradbench/python
+ENV PYTHONPATH=/home/gradbench/python
+
 # Download and compile Adept.
 #
 # We download new versions of config.guess and config.sub because the
