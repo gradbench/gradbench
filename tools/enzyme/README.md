@@ -1,4 +1,4 @@
-# Manual
+# Enzyme
 
 [Enzyme][] is a tool for computing derivatives of arbitrary LLVM IR code. The implementations here use the sequential objective functions implemented in C++ and differentiated with Enzyme, through an LLVM plugin.
 
