@@ -3,20 +3,20 @@
 # Retrieve the input associated with the evaluate message with the
 # given ID.
 
-import sys
-import json
 import argparse
+import json
+import sys
 
 parser = argparse.ArgumentParser()
 parser.add_argument("json", type=str)
 parser.add_argument("id", type=int)
 args = parser.parse_args()
 
-for l in open(args.json, 'r'):
+for l in open(args.json, "r"):
     l_json = json.loads(l)
     if l_json.get("message", {}).get("id") == args.id:
         print(json.dumps(l_json["message"]["input"]))
         sys.exit(0)
 
-print(f'Did not find a message with id={args.id}.', file=sys.stderr)
+print(f"Did not find a message with id={args.id}.", file=sys.stderr)
 sys.exit(1)

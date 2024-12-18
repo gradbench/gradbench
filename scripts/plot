@@ -25,11 +25,13 @@ import numpy as np
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+
 def mean(xs):
     if len(xs) == 0:
         return 0
     else:
         return sum(xs) / len(xs)
+
 
 def read_msgs(fname):
     try:
@@ -46,6 +48,7 @@ def read_msgs(fname):
         print(e)
         sys.exit(1)
 
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--eval", type=str, required=True)
 parser.add_argument("jsons", nargs="+")
@@ -53,14 +56,14 @@ args = parser.parse_args()
 
 jsons = {}
 for fname in args.jsons:
-    print(f'Reading {fname}...')
+    print(f"Reading {fname}...")
     jsons[fname] = read_msgs(fname)
 
 workloads = set()
 obj_runtimes = {}
 jac_runtimes = {}
 for json in jsons:
-    print(f'Extrating measurements from {json}...')
+    print(f"Extrating measurements from {json}...")
     obj_runtimes[json] = {}
     jac_runtimes[json] = {}
     for e in jsons[json]:
@@ -70,12 +73,30 @@ for json in jsons:
             workload = message["description"]
             workloads.add(workload)
             if message["function"] == "objective":
-                obj_runtimes[json][workload] = mean([x["nanoseconds"] for x in response["timings"] if x["name"] == "evaluate"])  / 1e9
+                obj_runtimes[json][workload] = (
+                    mean(
+                        [
+                            x["nanoseconds"]
+                            for x in response["timings"]
+                            if x["name"] == "evaluate"
+                        ]
+                    )
+                    / 1e9
+                )
             if message["function"] == "jacobian":
-                jac_runtimes[json][workload] = mean([x["nanoseconds"] for x in response["timings"] if x["name"] == "evaluate"])  / 1e9
+                jac_runtimes[json][workload] = (
+                    mean(
+                        [
+                            x["nanoseconds"]
+                            for x in response["timings"]
+                            if x["name"] == "evaluate"
+                        ]
+                    )
+                    / 1e9
+                )
 
-fname_objective =f"{args.eval}-objective.png"
-print(f'Generating {fname_objective}...')
+fname_objective = f"{args.eval}-objective.png"
+print(f"Generating {fname_objective}...")
 for tool in obj_runtimes:
     plt.plot(obj_runtimes[tool].keys(), obj_runtimes[tool].values(), label=tool)
 plt.tick_params(labelrotation=45)
@@ -87,8 +108,8 @@ plt.xlabel("Workload")
 plt.savefig(fname_objective, bbox_inches="tight")
 plt.clf()
 
-fname_jacobian =f"{args.eval}-jacobian.png"
-print(f'Generating {fname_jacobian}...')
+fname_jacobian = f"{args.eval}-jacobian.png"
+print(f"Generating {fname_jacobian}...")
 for tool in jac_runtimes:
     plt.plot(jac_runtimes[tool].keys(), jac_runtimes[tool].values(), label=tool)
 plt.tick_params(labelrotation=45)
@@ -100,8 +121,8 @@ plt.xlabel("Workload")
 plt.savefig(fname_jacobian, bbox_inches="tight")
 plt.clf()
 
-fname_jacobian_vs_objective =f"{args.eval}-jacobian-vs-objective.png"
-print(f'Generating {fname_jacobian_vs_objective}...')
+fname_jacobian_vs_objective = f"{args.eval}-jacobian-vs-objective.png"
+print(f"Generating {fname_jacobian_vs_objective}...")
 for tool in jac_runtimes:
     jac = np.array(list(jac_runtimes[tool].values()))
     obj = np.array(list(obj_runtimes[tool].values()))

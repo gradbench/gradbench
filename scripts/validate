@@ -6,6 +6,7 @@
 import argparse
 import json
 import sys
+
 from gradbench.comparison import compare_json_objects
 
 parser = argparse.ArgumentParser()
