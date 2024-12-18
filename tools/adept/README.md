@@ -1,3 +1,5 @@
+# Adept
+
 [Adept](https://www.met.reading.ac.uk/clouds/adept/) is a C++ library
 that uses operator overloading to implement AD. It mostly focuses on
 reverse mode, but is also effective in forward mode.
@@ -12,11 +14,11 @@ make -C cpp
 
 You need to download and compile Adept and set the environment
 variable `ADEPT_DIR` to point to the directory containing Adept (you
-don't need to install it). See the [Dockerfile](Dockerfile) for
-details.
+don't need to install it, but you do need to compile it). See the
+[Dockerfile](Dockerfile) for details.
 
 Then, to run the tool itself:
 
 ```sh
-python3 tools/manual/run.py
+python3 tools/adept/run.py
 ```
