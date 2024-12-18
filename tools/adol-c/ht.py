@@ -3,10 +3,19 @@ import subprocess
 import tempfile
 from os import listdir
 
+TOOL = "adol-c"
+EVAL = __name__
+
 
 def compile():
-    # Nothing to do here. We assume everything is precompiled.
-    return True
+    return (
+        subprocess.run(
+            ["make", "-C", f"tools/{TOOL}", f"run_{EVAL}", "-B"],
+            text=True,
+            capture_output=True,
+        ).returncode
+        == 0
+    )
 
 
 def objective(input):
@@ -14,7 +23,7 @@ def objective(input):
         json.dump(input, tmp)
         tmp.flush()
         return subprocess.run(
-            ["tools/adol-c/run_ht", tmp.name, "F"], text=True, capture_output=True
+            [f"tools/{TOOL}/run_{EVAL}", tmp.name, "F"], text=True, capture_output=True
         )
 
 
@@ -23,5 +32,5 @@ def jacobian(input):
         json.dump(input, tmp)
         tmp.flush()
         return subprocess.run(
-            ["tools/adol-c/run_ht", tmp.name, "J"], text=True, capture_output=True
+            [f"tools/{TOOL}/run_{EVAL}", tmp.name, "J"], text=True, capture_output=True
         )

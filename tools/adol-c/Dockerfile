@@ -25,7 +25,5 @@ ENV LD_LIBRARY_PATH=/usr/local/lib64
 
 COPY tools/adol-c/ /home/gradbench/tools/adol-c
 
-RUN make -j -B -C tools/adol-c
-
 ENTRYPOINT ["python3", "/home/gradbench/tools/adol-c/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
