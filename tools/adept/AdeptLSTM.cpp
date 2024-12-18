@@ -1,6 +1,3 @@
-// Copyright (c) Microsoft Corporation.
-// Licensed under the MIT license.
-
 #include "AdeptLSTM.h"
 #include "adbench/shared/lstm.h"
 #include "adept.h"
