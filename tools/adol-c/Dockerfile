@@ -10,6 +10,9 @@ RUN apt-get update && apt-get install -y \
     automake \
     autoconf
 
+COPY python /home/gradbench/python
+ENV PYTHONPATH=/home/gradbench/python
+
 COPY cpp /home/gradbench/cpp
 
 RUN make -C cpp
