@@ -3,6 +3,7 @@ WORKDIR /home/gradbench
 
 RUN pip install numpy==1.26.0
 RUN pip install autograd
+RUN pip install scipy
 
 COPY python /home/gradbench/python
 ENV PYTHONPATH=/home/gradbench/python
