@@ -2,129 +2,25 @@ import Lean
 import SciLean
 import Mathlib.Lean.CoreM
 
+import Gradbench
+
 open Lean
 open Except FromJson ToJson
 
--- This informs SciLean that we want to work primarly with `Float`
--- take it as a magic incantation that makes some of the following notation work
-set_default_scalar Float
+open Gradbench
 
-open SciLean
-
-def square (x : Float) : Float := x * x
-
-def double (x : Float) : Float :=
-  -- take derivative of square at `x`
-  -- it is just a syntactic sugar for `cderiv Float square x 1`
-  (∂ square x)
-    rewrite_by
-      -- the derivative `cderiv` is noncomputable function thus `∂ square x` is just
-      -- a symbolic expression that we need to rewrite using tactics into a computable form
-      unfold square -- right now autodiff can't see through new definitions so we have to unfold them manually
-      autodiff
-
---- Few examples of differentiation
-
--- specification that we want to differentiate `x*x` w.r.t. `x`
-#check ∂ (x : Float), x * x
-
--- because it is just a spec, we can evaluate it, the following fails
--- #eval ∂ (x:=3.14), x * x
-
--- to get the actual derivative we have to rewrite the term with autodiff
-#check (∂ (x : Float), x * x) rewrite_by autodiff
-
--- now we can evaluate
-#eval (∂ (x:=3.14), x * x) rewrite_by autodiff
-
--- short hand using `!` that automatically calls autodiff
-#eval (∂! (x:=3.14), x * x)
-
--- similarly we can compute gradient
-#eval (∇! (x:=(3.14,0.3)), ‖x‖₂²)
-
--- similarly we can compute forward mode AD
-#check (∂>! (x : Float×Float), ‖x‖₂²*x.1)
-
--- similarly we can compute reverse mode ad
-#check (<∂! (x : Float×Float), ‖x‖₂²*x.1)
-
--- If you want to know what is the notation actually doing just set an option
-set_option pp.notation false
-#check (<∂ (x : Float×Float), ‖x‖₂²)
-
--- Function measuring time to compute the derivative
-open Lean Meta Qq in
-def benchAD : MetaM Unit := do
-
-  let e := q(∂ square)
-
-  let start <- IO.monoNanosNow
-  let (e',_) ← rewriteByConv e (← `(conv| (unfold square; autodiff)))
-  let done <- IO.monoNanosNow
-
-  IO.println s!"differentiating took {1e-6*(done-start).toFloat}ms\n\n{← ppExpr e}\n==>\n{← ppExpr e'}"
-
-def ranBenchAD : IO Unit :=
-  let run : CoreM Unit := do
-    let _ ← benchAD.run {} {}
-
-  -- Here you have to specify all the lean files that need to be loaded
-  CoreM.withImportModules #[`SciLean,`Main] run
-    (searchPath:= compile_time_search_path%)
-
-structure Definition where
-  id: Int
-  kind: String
-  module: String
-deriving FromJson
-
-structure Params where
-  id: Int
-  kind: String
-  module: String
-  function: String
-  input: Json
-deriving FromJson
-
-structure Timing where
-  name: String
-  nanoseconds: Nat
-deriving ToJson
-
-structure Output where
-  output: Json
-  timings: List Timing
-
-structure Response where
-  id: Int
-  output: Json
-  timings: List Timing
-deriving ToJson
-
-def wrap [FromJson a] [ToJson b] (f : a -> b) (x' : Json)
-    : Except String (IO Output) := do
-  let x : a <- fromJson? x'
-  return do
-    let start <- IO.monoNanosNow
-    let y := f x
-    let done <- IO.monoNanosNow
-    let y' := toJson y
-    let timings := [{ name := "evaluate", nanoseconds := done - start }]
-    return { output := y', timings }
 
 def resolve (module : String)
     : Option (String -> Option (Json -> Except String (IO Output))) :=
   match module with
-  | "hello" => some fun
-    | "square" => some (wrap square)
-    | "double" => some (wrap double)
-    | _ => none
+  | "hello" => some hello
   | _ => none
+
 
 partial def loop (stdin : IO.FS.Stream) (stdout : IO.FS.Stream) :
     IO (Except String Unit) := do
   let line <- stdin.getLine
+  dbg_trace s!"\n{line}\n"
   if line.isEmpty then
     return ok ()
   else

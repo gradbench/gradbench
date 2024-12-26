@@ -6,6 +6,12 @@ package «gradbench»
 @[default_target]
 lean_exe «gradbench» where
   root := `Main
-  supportInterpreter := true
 
-require scilean from git "https://github.com/lecopivo/SciLean.git" @ "22d53b2f4e3db2a172e71da6eb9c916e62655744"
+lean_lib Gradbench where
+  roots := #[`Gradbench]
+
+@[default_target]
+lean_exe buildscilean where
+  root := `BuildSciLean
+
+require scilean from git "https://github.com/lecopivo/SciLean" @ "master"
