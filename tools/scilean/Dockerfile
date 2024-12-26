@@ -13,12 +13,12 @@ COPY tools/scilean/lean-toolchain .
 RUN lake exe cache get      # Fetch the cache for dependencies
 
 COPY tools/scilean/BuildSciLean.lean .
+COPY tools/scilean/c ./c/
 RUN lake build buildscilean # Build SciLean
 
 COPY tools/scilean/Main.lean .
 COPY tools/scilean/Gradbench.lean .
 COPY tools/scilean/Gradbench/ ./Gradbench/
-COPY tools/scilean/c ./c/
 RUN lake build              # Build the SciLean gradbench tool
 
 ENTRYPOINT ["/home/gradbench/.lake/build/bin/gradbench"]

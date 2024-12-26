@@ -43,7 +43,7 @@ def gmmObjective {d k n : Nat} (alphas: Float^[k]) (means: Float^[d]^[k]) (logdi
 
     let slse : Float :=
       -- maybe Qs[j]ᵀ
-      ∑ i, (⊞ j => alphas[j] + qsums[j] - 0.5 * ‖Qs[j]  * (x[i] - means[j])‖₂²).logsumexp
+      ∑ i, (⊞ j => alphas[j] + qsums[j] - 0.5 * ‖Qs[j]ᵀ  * (x[i] - means[j])‖₂²).logsumexp
     C + slse  - n * alphas.logsumexp + logWishartPrior Qs qsums wishartGamma wishartM d
 
 
