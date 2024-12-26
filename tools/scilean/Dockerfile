@@ -1,8 +1,10 @@
 FROM ubuntu
-RUN apt-get update && apt-get install -y curl git jq
-RUN curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | bash -s -- -y
+RUN apt-get update && apt-get install -y curl git jq build-essential
+RUN         curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | bash -s -- -y
 ENV PATH="/root/.elan/bin:$PATH"
 WORKDIR /home/gradbench
+
+RUN elan default leanprover/lean4:v4.14.0-rc2  # download specific lean version
 
 COPY tools/scilean/lakefile.lean .
 COPY tools/scilean/lake-manifest.json .
@@ -16,6 +18,7 @@ RUN lake build buildscilean # Build SciLean
 COPY tools/scilean/Main.lean .
 COPY tools/scilean/Gradbench.lean .
 COPY tools/scilean/Gradbench/ ./Gradbench/
+COPY tools/scilean/c ./c/
 RUN lake build              # Build the SciLean gradbench tool
 
 ENTRYPOINT ["/home/gradbench/.lake/build/bin/gradbench"]

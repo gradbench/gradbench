@@ -14,7 +14,7 @@ def unpackQ {d : Nat} (logdiag : Float^[d]) (lt : Float^[((d-1)*d/2)]) : Float^[
     if i < j then 0
        else if i == j then exp logdiag[i]
        else
-         let idx : Fin ((d-1)*d/2) := ⟨d*j.1 + i.1 - j.1 - 1 - (j.1 * (j.1+2))/2, sorry⟩
+         let idx : Fin ((d-1)*d/2) := ⟨d*j.1 + i.1 - j.1 - 1 - (j.1 * (j.1+1))/2, sorry⟩
          lt[idx]
 
 
@@ -22,8 +22,8 @@ def unpackQ {d : Nat} (logdiag : Float^[d]) (lt : Float^[((d-1)*d/2)]) : Float^[
 opaque lgamma : Float → Float
 
 def logGammaDistrib (a : Float) (p : Nat) :=
-  0.25 * p * (p.toFloat - 1) * log π +
-  ∑ (j : Fin p), lgamma (a + 0.5 * (1.0 - j.1.toFloat))
+  0.25 * p * (p - 1) * log π +
+  ∑ (j : Fin p), lgamma (a + 0.5 * j.1)
 
 
 def logWishartPrior {k d : Nat} (Qs : Float^[d,d]^[k]) (qsums : Float^[k]) (wishartGamma : Float) (wishartM p : Nat) :=
@@ -43,7 +43,7 @@ def gmmObjective {d k n : Nat} (alphas: Float^[k]) (means: Float^[d]^[k]) (logdi
 
     let slse : Float :=
       -- maybe Qs[j]ᵀ
-      ∑ i, (⊞ j => alphas[j] + qsums[j] - 0.5 * ‖Qs[j]ᵀ  * (x[i] - means[j])‖₂²).logsumexp
+      ∑ i, (⊞ j => alphas[j] + qsums[j] - 0.5 * ‖Qs[j]  * (x[i] - means[j])‖₂²).logsumexp
     C + slse  - n * alphas.logsumexp + logWishartPrior Qs qsums wishartGamma wishartM d
 
 
