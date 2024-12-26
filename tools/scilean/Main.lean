@@ -20,7 +20,6 @@ def resolve (module : String)
 partial def loop (stdin : IO.FS.Stream) (stdout : IO.FS.Stream) :
     IO (Except String Unit) := do
   let line <- stdin.getLine
-  dbg_trace s!"\n{line}\n"
   if line.isEmpty then
     return ok ()
   else

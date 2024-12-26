@@ -15,7 +15,7 @@ RUN lake build buildscilean # Build SciLean
 
 COPY tools/scilean/Main.lean .
 COPY tools/scilean/Gradbench.lean .
-COPY tools/scilean/Gradbench/ .
+COPY tools/scilean/Gradbench/ ./Gradbench/
 RUN lake build              # Build the SciLean gradbench tool
 
 ENTRYPOINT ["/home/gradbench/.lake/build/bin/gradbench"]
