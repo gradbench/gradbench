@@ -1,4 +1,4 @@
-{ "elapsed": { "nanoseconds": 1850358184 }, "message": {"id": 0, "kind": "start"} }
-{ "elapsed": { "nanoseconds": 7055636962 }, "response": {"id":0} }
-{ "elapsed": { "nanoseconds": 7056119909 }, "message": {"id": 1, "kind": "define", "module": "lstm"} }
-{ "elapsed": { "nanoseconds": 7057108003 }, "response": {"id":1,"success":false} }
+{ "elapsed": { "nanoseconds": 2106297477 }, "message": {"id": 0, "kind": "start"} }
+{ "elapsed": { "nanoseconds": 7065003510 }, "response": {"id":0} }
+{ "elapsed": { "nanoseconds": 7065493834 }, "message": {"id": 1, "kind": "define", "module": "lstm"} }
+{ "elapsed": { "nanoseconds": 7066345520 }, "response": {"id":1,"success":false} }
