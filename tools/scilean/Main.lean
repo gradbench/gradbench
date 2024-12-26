@@ -14,6 +14,7 @@ def resolve (module : String)
     : Option (String -> Option (Json -> Except String (IO Output))) :=
   match module with
   | "hello" => some hello
+  | "gmm" => some gmm
   | _ => none
 
 
