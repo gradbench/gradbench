@@ -23,17 +23,20 @@ opaque lgamma : Float → Float
 
 def logGammaDistrib (a : Float) (p : Nat) :=
   0.25 * p * (p - 1) * log π +
-  ∑ (j : Fin p), lgamma (a + 0.5 * j.1)
+  ∑ (j : Fin p), lgamma (a - 0.5 * j.1)
 
 
-def logWishartPrior {k d : Nat} (Qs : Float^[d,d]^[k]) (qsums : Float^[k]) (wishartGamma : Float) (wishartM p : Nat) :=
+def logWishartPrior {k d : Nat} (Qs : Float^[d,d]^[k]) (qsums : Float^[k]) (wishartGamma : Float) (wishartM : Nat) :=
+    let p := d
     let n := p + wishartM + 1
     let c := (n * p) * (log wishartGamma - 0.5 * log 2) - (logGammaDistrib (0.5 * n) p)
     let frobenius : Float := ‖Qs.uncurry‖₂²
     let sumQs : Float := qsums.sum
     0.5 * wishartGamma * wishartGamma * frobenius - wishartM * sumQs - k * c
 
-def gmmObjective {d k n : Nat} (alphas: Float^[k]) (means: Float^[d]^[k]) (logdiag : Float^[d]^[k]) (lt : Float^[((d-1)*d)/2]^[k])
+def gmmObjective {d k n : Nat}
+      (alphas: Float^[k]) (means: Float^[d]^[k])
+      (logdiag : Float^[d]^[k]) (lt : Float^[((d-1)*d)/2]^[k])
       (x : Float^[d]^[n]) (wishartGamma : Float) (wishartM: Nat) :=
     let C := -(n * d * 0.5 * log (2 * π))
 
@@ -42,9 +45,9 @@ def gmmObjective {d k n : Nat} (alphas: Float^[k]) (means: Float^[d]^[k]) (logdi
     let qsums := ⊞ i => logdiag[i].sum
 
     let slse : Float :=
-      -- maybe Qs[j]ᵀ
-      ∑ i, (⊞ j => alphas[j] + qsums[j] - 0.5 * ‖Qs[j]ᵀ  * (x[i] - means[j])‖₂²).logsumexp
-    C + slse  - n * alphas.logsumexp + logWishartPrior Qs qsums wishartGamma wishartM d
+      ∑ i, (⊞ j => alphas[j] + qsums[j] - 0.5 * ‖Qs[j]  * (x[i] - means[j])‖₂²).logsumexp
+
+    C + slse  - n * alphas.logsumexp + logWishartPrior Qs qsums wishartGamma wishartM
 
 
 def objective (data : GMMDataRaw) : Float :=

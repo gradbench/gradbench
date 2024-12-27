@@ -30,7 +30,7 @@ structure GMMData (d k n : Nat) where
   means : Float^[d]^[k]
   logdiag : Float^[d]^[k]
   lt : Float^[((d-1)*d)/2]^[k]
-  x : Float^[d]^[k]
+  x : Float^[d]^[n]
 
 
 def GMMDataRaw.toGMMData (d : GMMDataRaw) : (d k n : Nat) × GMMData d k n :=
@@ -38,8 +38,8 @@ def GMMDataRaw.toGMMData (d : GMMDataRaw) : (d k n : Nat) × GMMData d k n :=
     m := d.m
     gamma := d.gamma
     alpha := ⊞ (i : Fin d.k) => d.alpha[i.1]!
-    means := ⊞ (i : Fin d.k) (j : Fin d.d) => (d.means.get! i.1 |>.get! j.1) |>.curry
-    logdiag := ⊞ (i : Fin d.k) (j : Fin d.d) => (d.icf.get! i.1 |>.get! j.1) |>.curry
-    lt := ⊞ (i : Fin d.k) (j : Fin (((d.d-1)*d.d)/2)) => (d.icf.get! i.1 |>.get! (d.d+j.1)) |>.curry
-    x := ⊞ (i : Fin d.k) (j : Fin d.d) => (d.x.get! i.1 |>.get! j.1) |>.curry
+    means := ⊞ (i : Fin d.k) => ⊞ (j : Fin d.d) => (d.means.get! i.1 |>.get! j.1)
+    logdiag := ⊞ (i : Fin d.k) => ⊞ (j : Fin d.d) => (d.icf.get! i.1 |>.get! j.1)
+    lt := ⊞ (i : Fin d.k) => ⊞ (j : Fin (((d.d-1)*d.d)/2)) => (d.icf.get! i.1 |>.get! (d.d+j.1))
+    x := ⊞ (i : Fin d.n) => ⊞ (j : Fin d.d) => (d.x.get! i.1 |>.get! j.1)
    }⟩
