@@ -23,6 +23,6 @@ extern double __enzyme_autodiff(void*, double);
 void EnzymeHello::calculate_jacobian(int times)
 {
     for (int i = 0; i < times; ++i) {
-      _output.gradient = __enzyme_autodiff((void*)hello_objective, _input.x);
+      _output.gradient = __enzyme_autodiff((void*)hello_objective<double>, _input.x);
     }
 }
