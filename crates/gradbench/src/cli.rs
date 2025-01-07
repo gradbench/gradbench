@@ -430,7 +430,7 @@ fn intermediary(
                 let ns = (Instant::now() - start).as_nanos();
                 writeln!(
                     o,
-                    r#"{{ "elapsed": {{ "nanoseconds": {} }}, "response": "timeout" }}"#,
+                    r#"{{ "elapsed": {{ "nanoseconds": {} }}, "timeout": true }}"#,
                     ns,
                 )?;
                 println!("{} {}", nanostring(ns).dimmed(), "⧖".red());
