@@ -102,6 +102,8 @@ The session proceeds over a series of _rounds_, driven by the eval. In each roun
 
 If the tool receives any message whose `"kind"` is neither `"define"` nor `"evaluate"`, it must always respond, but does not need to include anything other than the `"id"`.
 
+As a special case, if a tool fails to respond to a message within some specified timeout, the intermediary may terminate the tool and pretend that it responded with a synthetic timeout message.
+
 ### Types
 
 Here is a somewhat more formal description of the protocol using [TypeScript][] types.
@@ -152,7 +154,7 @@ interface EvaluateResponse extends Base {
   timings?: Timing[];
 }
 
-type Response = Base | DefineResponse | EvaluateResponse;
+type Response = Base | TimeoutResponse | DefineResponse | EvaluateResponse;
 
 interface Line {
   elapsed: Duration;
@@ -166,7 +168,11 @@ interface ResponseLine extends Line {
   response: Response;
 }
 
-type Session = (MessageLine | ResponseLine)[];
+interface TimeoutLine extends Line {
+  timeout: true;
+}
+
+type Session = (MessageLine | ResponseLine | TimeoutLine)[];
 ```
 
 ## Contributing
