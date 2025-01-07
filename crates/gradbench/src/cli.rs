@@ -4,14 +4,13 @@ use std::{
     io::{self, BufRead, Write},
     path::{Path, PathBuf},
     process::{Child, Command, ExitCode, ExitStatus, Stdio},
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 use anyhow::anyhow;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
 use timeout_readwrite::TimeoutReader;
 
 /// CLI utilities for GradBench, a benchmark suite for differentiable programming across languages
@@ -426,18 +425,16 @@ fn intermediary(
         let mut tool_line = String::new();
         if let Err(err) = tool_out.read_line(&mut tool_line) {
             if err.kind() == io::ErrorKind::TimedOut {
+                let ns = (Instant::now() - start).as_nanos();
                 writeln!(
                     o,
                     r#"{{ "elapsed": {{ "nanoseconds": {} }}, "response": "timeout" }}"#,
-                    (Instant::now() - start).as_nanos(),
-                )?
+                    ns,
+                )?;
+                println!("{} {}", nanostring(ns).dimmed(), "⧖".red());
+                return Ok(0);
             };
-            eval.kill()?;
-            tool.kill()?;
-            return Err(anyhow!(
-                "tool failed to respond within {}s",
-                timeout.as_secs()
-            ));
+            return Err(anyhow!(err));
         }
         let response_time = Instant::now();
         let nanos = (response_time - message_time).as_nanos();
