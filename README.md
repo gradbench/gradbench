@@ -154,7 +154,11 @@ interface EvaluateResponse extends Base {
   timings?: Timing[];
 }
 
-type Response = Base | TimeoutResponse | DefineResponse | EvaluateResponse;
+interface TimeoutResponse extends Base {
+  timeout: true;
+}
+
+type Response = Base | TimeoutResponse | DefineResponse | EvaluateResponse | TimeoutResponse;
 
 interface Line {
   elapsed: Duration;
@@ -168,11 +172,7 @@ interface ResponseLine extends Line {
   response: Response;
 }
 
-interface TimeoutLine extends Line {
-  timeout: true;
-}
-
-type Session = (MessageLine | ResponseLine | TimeoutLine)[];
+type Session = (MessageLine | ResponseLine)[];
 ```
 
 ## Contributing

@@ -230,6 +230,22 @@ enum Message {
     },
 }
 
+/// Retrieve the `Id` from a message.
+fn message_id(message: Message) -> Id {
+    match message {
+        Message::Start { id } => { id }
+        Message::Define { id, .. } => {
+            id
+        }
+        Message::Analysis { of, .. } => {
+            of
+        }
+        Message::Evaluate { id, .. } => {
+            id
+        }
+    }
+}
+
 /// A response from the tool to a `"start"` message.
 #[derive(Debug, Deserialize)]
 struct StartResponse {}
@@ -430,8 +446,9 @@ fn intermediary(
                 let ns = (Instant::now() - start).as_nanos();
                 writeln!(
                     o,
-                    r#"{{ "elapsed": {{ "nanoseconds": {} }}, "timeout": true }}"#,
+                    r#"{{ "elapsed": {{ "nanoseconds": {} }}, "response": {{ "id": {}, "timeout": true}} }}"#,
                     ns,
+                    message_id(message)
                 )?;
                 println!("{} {}", nanostring(ns).dimmed(), "⧖".red());
                 tool.kill()?;
