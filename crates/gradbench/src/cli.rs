@@ -77,7 +77,7 @@ enum Commands {
         #[clap(short, long)]
         output: Option<PathBuf>,
 
-        /// The timeout for tool responses.
+        /// The timeout in seconds for tool responses.
         #[clap(long, default_value_t = 3600)]
         timeout: u64,
     },
