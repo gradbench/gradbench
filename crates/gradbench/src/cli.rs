@@ -233,16 +233,10 @@ enum Message {
 /// Retrieve the `Id` from a message.
 fn message_id(message: Message) -> Id {
     match message {
-        Message::Start { id } => { id }
-        Message::Define { id, .. } => {
-            id
-        }
-        Message::Analysis { of, .. } => {
-            of
-        }
-        Message::Evaluate { id, .. } => {
-            id
-        }
+        Message::Start { id } => id,
+        Message::Define { id, .. } => id,
+        Message::Analysis { of, .. } => of,
+        Message::Evaluate { id, .. } => id,
     }
 }
 
