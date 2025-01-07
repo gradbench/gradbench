@@ -344,13 +344,15 @@ fn print_status(success: bool) {
     }
 }
 
-/// Run an eval and a tool together, returning the number of validation failures.
+/// Run an eval and a tool together, returning the number of
+/// validation failures as well as a boolean indicating whether we are
+/// stopping early due to a timeout..
 fn intermediary(
     o: &mut impl Write,
     eval: &mut Child,
     tool: &mut Child,
     timeout: Duration,
-) -> anyhow::Result<usize> {
+) -> anyhow::Result<(usize, bool)> {
     let mut invalid = 0;
     let mut eval_in = eval.stdin.take().unwrap();
     let mut tool_in = tool.stdin.take().unwrap();
@@ -432,7 +434,8 @@ fn intermediary(
                     ns,
                 )?;
                 println!("{} {}", nanostring(ns).dimmed(), "⧖".red());
-                return Ok(0);
+                tool.kill()?;
+                return Ok((0, true));
             };
             return Err(anyhow!(err));
         }
@@ -489,7 +492,7 @@ fn intermediary(
         }
         io::stdout().flush()?;
     }
-    Ok(invalid)
+    Ok((invalid, false))
 }
 
 /// Return a command's stdout as a string, preserving its exit code whenever possible.
@@ -665,7 +668,7 @@ fn cli_result() -> Result<(), ExitCode> {
                 eprintln!("error starting eval and tool commands");
                 return Err(ExitCode::FAILURE);
             };
-            let timeout = Duration::new(timeout, 0);
+            let timeout = Duration::from_secs(timeout);
             let result = match output {
                 Some(path) => match fs::File::create(&path) {
                     Ok(mut file) => intermediary(&mut file, &mut client, &mut server, timeout),
@@ -674,9 +677,13 @@ fn cli_result() -> Result<(), ExitCode> {
                 None => intermediary(&mut io::sink(), &mut client, &mut server, timeout),
             };
             match (&result, client.wait(), server.wait()) {
-                (&Ok(invalid), Ok(e), Ok(s)) => {
+                (&Ok((invalid, timeout)), Ok(e), Ok(s)) => {
                     status_code(e)?;
-                    status_code(s)?;
+                    // In case of timeout, we don't expect the tool to
+                    // have died gracefully.
+                    if !timeout {
+                        status_code(s)?;
+                    }
                     if invalid == 0 {
                         Ok(())
                     } else {
