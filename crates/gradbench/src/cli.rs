@@ -11,6 +11,8 @@ use anyhow::anyhow;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
+use timeout_readwrite::TimeoutReader;
 
 /// CLI utilities for GradBench, a benchmark suite for differentiable programming across languages
 /// and domains.
@@ -75,6 +77,10 @@ enum Commands {
         /// A path to save the full log. For example: `log.jsonl`
         #[clap(short, long)]
         output: Option<PathBuf>,
+
+        /// The timeout for tool responses.
+        #[clap(long, default_value_t = 3600)]
+        timeout: u64,
     },
 
     /// Perform a task in a clone of the https://github.com/gradbench/gradbench repository.
@@ -340,12 +346,17 @@ fn print_status(success: bool) {
 }
 
 /// Run an eval and a tool together, returning the number of validation failures.
-fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyhow::Result<usize> {
+fn intermediary(
+    o: &mut impl Write,
+    eval: &mut Child,
+    tool: &mut Child,
+    timeout: Duration,
+) -> anyhow::Result<usize> {
     let mut invalid = 0;
     let mut eval_in = eval.stdin.take().unwrap();
     let mut tool_in = tool.stdin.take().unwrap();
     let mut eval_out = io::BufReader::new(eval.stdout.take().unwrap());
-    let mut tool_out = io::BufReader::new(tool.stdout.take().unwrap());
+    let mut tool_out = io::BufReader::new(TimeoutReader::new(tool.stdout.take().unwrap(), timeout));
     let start = Instant::now();
     let mut line = Line::new();
     while let Some(eval_line) = {
@@ -413,7 +424,21 @@ fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyho
         }
         io::stdout().flush()?;
         let mut tool_line = String::new();
-        tool_out.read_line(&mut tool_line)?;
+        if let Err(err) = tool_out.read_line(&mut tool_line) {
+            if err.kind() == io::ErrorKind::TimedOut {
+                writeln!(
+                    o,
+                    r#"{{ "elapsed": {{ "nanoseconds": {} }}, "response": "timeout" }}"#,
+                    (Instant::now() - start).as_nanos(),
+                )?
+            };
+            eval.kill()?;
+            tool.kill()?;
+            return Err(anyhow!(
+                "tool failed to respond within {}s",
+                timeout.as_secs()
+            ));
+        }
         let response_time = Instant::now();
         let nanos = (response_time - message_time).as_nanos();
         writeln!(
@@ -620,7 +645,12 @@ fn cli_result() -> Result<(), ExitCode> {
                 .arg(format!("ghcr.io/gradbench/tool-{tool}:{t}"))
                 .args(args))
         }
-        Commands::Run { eval, tool, output } => {
+        Commands::Run {
+            eval,
+            tool,
+            output,
+            timeout,
+        } => {
             let (Ok(mut client), Ok(mut server)) = (
                 Command::new("sh")
                     .arg("-c")
@@ -638,12 +668,13 @@ fn cli_result() -> Result<(), ExitCode> {
                 eprintln!("error starting eval and tool commands");
                 return Err(ExitCode::FAILURE);
             };
+            let timeout = Duration::new(timeout, 0);
             let result = match output {
                 Some(path) => match fs::File::create(&path) {
-                    Ok(mut file) => intermediary(&mut file, &mut client, &mut server),
+                    Ok(mut file) => intermediary(&mut file, &mut client, &mut server, timeout),
                     Err(err) => Err(anyhow!(err)),
                 },
-                None => intermediary(&mut io::sink(), &mut client, &mut server),
+                None => intermediary(&mut io::sink(), &mut client, &mut server, timeout),
             };
             match (&result, client.wait(), server.wait()) {
                 (&Ok(invalid), Ok(e), Ok(s)) => {
