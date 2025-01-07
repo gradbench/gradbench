@@ -346,7 +346,7 @@ fn print_status(success: bool) {
 
 /// Run an eval and a tool together, returning the number of
 /// validation failures as well as a boolean indicating whether we are
-/// stopping early due to a timeout..
+/// stopping early due to a timeout.
 fn intermediary(
     o: &mut impl Write,
     eval: &mut Child,
