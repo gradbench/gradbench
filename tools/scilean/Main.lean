@@ -1,6 +1,5 @@
 import Lean
 import SciLean
-import Mathlib.Lean.CoreM
 
 import Gradbench
 
@@ -8,7 +7,6 @@ open Lean
 open Except FromJson ToJson
 
 open Gradbench
-
 
 def resolve (module : String)
     : Option (String -> Option (Json -> Except String (IO Output))) :=
@@ -66,14 +64,3 @@ def main : IO UInt32 := do
     IO.eprintln err
     return 1
   | ok _ => return 0
-
-
-
-
-def a := (⊞[⊞[1.123,2.324],⊞[3.431,4.14,]])
-def A := (⊞[1.123,2.324;3.431,4.14,])
-
-
-def b := (#[#[1.123,2.324,10.23],#[3.431,4.14,20.324]])
-#eval ⊞ (i : Fin 3) (j : Fin 2) => (b.get! j |>.get! i)
-#eval A.curry

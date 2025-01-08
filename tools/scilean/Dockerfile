@@ -1,10 +1,10 @@
 FROM ubuntu
-RUN apt-get update && apt-get install -y curl git jq build-essential
+RUN apt-get update && apt-get install -y curl git jq build-essential libopenblas-dev
 RUN         curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | bash -s -- -y
 ENV PATH="/root/.elan/bin:$PATH"
 WORKDIR /home/gradbench
 
-RUN elan default leanprover/lean4:v4.14.0-rc2  # download specific lean version
+RUN elan default leanprover/lean4:v4.15.0-rc1  # download specific lean version
 
 COPY tools/scilean/lakefile.lean .
 COPY tools/scilean/lake-manifest.json .
@@ -13,7 +13,6 @@ COPY tools/scilean/lean-toolchain .
 RUN lake exe cache get      # Fetch the cache for dependencies
 
 COPY tools/scilean/BuildSciLean.lean .
-COPY tools/scilean/c ./c/
 RUN lake build buildscilean # Build SciLean
 
 COPY tools/scilean/Main.lean .
