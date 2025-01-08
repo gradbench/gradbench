@@ -1,4 +1,5 @@
 import SciLean
+import SciLean.Analysis.SpecialFunctions.MultiGamma
 
 import Gradbench.GMM.Data
 
@@ -6,11 +7,34 @@ open SciLean Scalar
 
 namespace Gradbench.GMM
 
+
+local macro (priority:=high+1) "Float^[" M:term ", " N:term "]" : term =>
+  `(FloatMatrix' .RowMajor .normal (Fin $M) (Fin $N))
+
+local macro (priority:=high+1) "Float^[" N:term "]" : term =>
+  `(FloatVector (Fin $N))
+
+-- notation: `v[i] := vᵢ`
+local macro (priority:=high+10) id:ident noWs "[" i:term "]" " := " v:term : doElem =>
+   `(doElem| $id:ident := VectorType.set $id $i $v)
+
+-- notation: `A[i,:] := r`
+local macro (priority:=high+10) id:ident noWs "[" i:term "," ":" "]" " := " v:term : doElem =>
+   `(doElem| $id:ident := MatrixType.updateRow $id $i $v)
+
+-- notation: `⊞ i => vᵢ`
+open Lean Parser Term in
+local macro (priority:=high+10) "⊞" i:funBinder " => " b:term : term =>
+   `(term| VectorType.fromVec  fun $i => $b)
+
+instance {n : Nat} : GetElem (Float^[n]) (Fin n) Float (fun _ _ => True) :=
+  ⟨fun x i _ => VectorType.toVec x i⟩
+
 set_default_scalar Float
 
 /-- unlack `logdiag` and `lt` to lower triangular matrix -/
 def unpackQ {d : Nat} (logdiag : Float^[d]) (lt : Float^[((d-1)*d/2)]) : Float^[d,d]  :=
-  ⊞ i j =>
+  MatrixType.fromMatrix fun (i j : Fin d) =>
     if i < j then 0
        else if i == j then exp logdiag[i]
        else
@@ -18,36 +42,35 @@ def unpackQ {d : Nat} (logdiag : Float^[d]) (lt : Float^[((d-1)*d/2)]) : Float^[
          lt[idx]
 
 
-@[extern "gradbench_lgamma"]
-opaque lgamma : Float → Float
-
-def logGammaDistrib (a : Float) (p : Nat) :=
-  0.25 * p * (p - 1) * log π +
-  ∑ (j : Fin p), lgamma (a - 0.5 * j.1)
-
-
 def logWishartPrior {k d : Nat} (Qs : Float^[d,d]^[k]) (qsums : Float^[k]) (wishartGamma : Float) (wishartM : Nat) :=
     let p := d
     let n := p + wishartM + 1
-    let c := (n * p) * (log wishartGamma - 0.5 * log 2) - (logGammaDistrib (0.5 * n) p)
-    let frobenius : Float := ‖Qs.uncurry‖₂²
-    let sumQs : Float := qsums.sum
+    let c := (n * p) * (log wishartGamma - 0.5 * log 2) - (logMultiGamma (0.5 * n.toFloat) p)
+    let frobenius : Float := ‖Qs‖₂²
+    let sumQs : Float := VectorType.sum qsums
     0.5 * wishartGamma * wishartGamma * frobenius - wishartM * sumQs - k * c
 
+open VectorType
 def gmmObjective {d k n : Nat}
-      (alphas: Float^[k]) (means: Float^[d]^[k])
-      (logdiag : Float^[d]^[k]) (lt : Float^[((d-1)*d)/2]^[k])
-      (x : Float^[d]^[n]) (wishartGamma : Float) (wishartM: Nat) :=
+      (alphas: Float^[k]) (means: Float^[k,d])
+      (logdiag : Float^[k,d]) (lt : Float^[k,((d-1)*d)/2])
+      (x : Float^[n,d]) (wishartGamma : Float) (wishartM: Nat) :=
     let C := -(n * d * 0.5 * log (2 * π))
 
     -- qsAndSums
-    let Qs := ⊞ i => unpackQ logdiag[i] lt[i]
-    let qsums := ⊞ i => logdiag[i].sum
+    let Qs := ⊞ i => unpackQ (MatrixType.row logdiag i) (MatrixType.row lt i)
+    let qsums := VectorType.fromVec fun i => VectorType.sum (MatrixType.row logdiag i)
 
     let slse : Float :=
-      ∑ i, (⊞ j => alphas[j] + qsums[j] - 0.5 * ‖Qs[j]  * (x[i] - means[j])‖₂²).logsumexp
+      ∑ (i : Fin n), logsumexp (VectorType.fromVec (X:=FloatVector _)
+        fun (j : Fin k) =>
+          toVec alphas j
+          +
+          toVec qsums j
+          -
+          0.5 * ‖MatrixType.gemv 1 1 Qs[j] ((MatrixType.row x i) - (MatrixType.row means j)) 0‖₂²)
 
-    C + slse  - n * alphas.logsumexp + logWishartPrior Qs qsums wishartGamma wishartM
+    C + slse  - n * VectorType.logsumexp alphas + logWishartPrior Qs qsums wishartGamma wishartM
 
 
 def objective (data : GMMDataRaw) : Float :=
