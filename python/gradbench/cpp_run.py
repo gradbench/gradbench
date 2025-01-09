@@ -32,17 +32,20 @@ def run(params):
 
 
 def main():
-    for line in sys.stdin:
-        message = json.loads(line)
-        response = {}
-        if message["kind"] == "evaluate":
-            response = run(message)
-        elif message["kind"] == "define":
-            try:
-                functions = import_module(message["module"])
-                func = getattr(functions, "compile")
-                success = func()  # compiles C code
-                response["success"] = success
-            except:
-                response["success"] = False
-        print(json.dumps({"id": message["id"]} | response), flush=True)
+    try:
+        for line in sys.stdin:
+            message = json.loads(line)
+            response = {}
+            if message["kind"] == "evaluate":
+                response = run(message)
+            elif message["kind"] == "define":
+                try:
+                    functions = import_module(message["module"])
+                    func = getattr(functions, "compile")
+                    success = func()  # compiles C code
+                    response["success"] = success
+                except:
+                    response["success"] = False
+            print(json.dumps({"id": message["id"]} | response), flush=True)
+    except (EOFError, BrokenPipeError):
+        pass
