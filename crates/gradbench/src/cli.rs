@@ -230,13 +230,15 @@ enum Message {
     },
 }
 
-/// Retrieve the `Id` from a message.
-fn message_id(message: Message) -> Id {
-    match message {
-        Message::Start { id } => id,
-        Message::Define { id, .. } => id,
-        Message::Analysis { of, .. } => of,
-        Message::Evaluate { id, .. } => id,
+impl Message {
+    /// Retrieve the `Id` from a message.
+    fn id(&self) -> Id {
+        match *self {
+            Message::Start { id } => id,
+            Message::Define { id, .. } => id,
+            Message::Analysis { of, .. } => of,
+            Message::Evaluate { id, .. } => id,
+        }
     }
 }
 
@@ -442,7 +444,7 @@ fn intermediary(
                     o,
                     r#"{{ "elapsed": {{ "nanoseconds": {} }}, "response": {{ "id": {}, "timeout": true}} }}"#,
                     ns,
-                    message_id(message)
+                    message.id(),
                 )?;
                 println!("{} {}", nanostring(ns).dimmed(), "⧖".red());
                 tool.kill()?;
