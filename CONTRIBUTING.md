@@ -9,7 +9,7 @@
   - [Multi-platform images](#multi-platform-images)
   - [Manual images](#manual-images)
 - [Tools](#tools)
-- [Node](#node)
+- [JavaScript](#javascript)
   - [Markdown](#markdown)
   - [Website](#website)
 - [Python](#python)
@@ -25,7 +25,7 @@ Make sure to have these tools installed:
 - [Rust][]
 - [Docker][]
 - [Python][]
-- [Node][]
+- [Bun][]
 
 We build [multi-platform images][] to support both x86 and ARM chips, so to build those, you need to enable [containerd][] in Docker. If you're running Docker Engine on Linux, without Docker Desktop, you also need to install [QEMU][].
 
@@ -128,12 +128,12 @@ We'd really appreciate it if you also write a short `README.md` file next to you
 
 Before taking a look at any of the other evals, you should implement the [`hello` eval](evals/hello) for the tool you're adding! This will help you get all the structure for the GradBench protocol working correctly first, after which you can implement other evals for that tool over time.
 
-## Node
+## JavaScript
 
-We use Node.js for our website. To work with the Node packages in this repository, first install all dependencies from npm:
+We use Bun for JavaScript code in this repository. First install all dependencies from npm:
 
 ```sh
-npm install
+bun install
 ```
 
 ### Markdown
@@ -141,7 +141,7 @@ npm install
 This file and [`README.md`](README.md) use [markdown-toc][] to generate the table of contents at the top. If you add/modify/delete any Markdown section headers, run this command to regenerate those tables of contents:
 
 ```sh
-npm run toc
+bun run toc
 ```
 
 ### Website
@@ -149,7 +149,7 @@ npm run toc
 We use [Vite][] for the website. To develop the website locally, run this command:
 
 ```sh
-npm run --workspace=gradbench dev
+bun run --filter=gradbench dev
 ```
 
 This will log a `localhost` URL to your terminal; open that URL in your browser. Any changes you make to files in `packages/gradbench/src` should automatically appear.
@@ -184,6 +184,7 @@ make -C cpp
 ```
 
 [black]: https://black.readthedocs.io/en/stable/
+[bun]: https://bun.sh/
 [containerd]: https://docs.docker.com/storage/containerd/
 [docker]: https://docs.docker.com/engine/install/
 [git]: https://git-scm.com/downloads
@@ -193,7 +194,6 @@ make -C cpp
 [make]: https://en.wikipedia.org/wiki/Make_(software)
 [markdown-toc]: https://www.npmjs.com/package/markdown-toc
 [multi-platform images]: https://docs.docker.com/build/building/multi-platform/
-[node]: https://nodejs.org/en/download
 [poetry]: https://python-poetry.org/docs/
 [python]: https://www.python.org/downloads/
 [qemu]: https://docs.docker.com/build/building/multi-platform/#qemu-without-docker-desktop
