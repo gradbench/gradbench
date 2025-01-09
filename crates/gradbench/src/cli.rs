@@ -454,7 +454,7 @@ fn intermediary(
                     ns,
                     message.id(),
                 )?;
-                println!("{} {}", nanostring(ns).dimmed(), "⧖".red());
+                println!(" {} {}", nanostring(ns).dimmed(), "⧖".red());
                 tool.kill()?;
                 return Ok((0, true));
             };
