@@ -21,10 +21,12 @@ jobs:
         uses: snok/install-poetry@v1
       - name: Install Python dependencies
         run: poetry install
-      - name: Install Node dependencies
-        run: npm ci
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Install npm dependencies
+        run: bun install
       - name: Update Markdown tables of contents
-        run: npm run toc
+        run: bun run toc
       - name: Check if that changed anything
         run: |
           CHANGES=$(git status --porcelain)
@@ -43,12 +45,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Install Node dependencies
-        run: npm ci
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Install npm dependencies
+        run: bun install
       - name: Lint website
-        run: npm run --workspace=gradbench lint
+        run: bun run --filter=gradbench lint
       - name: Build website
-        run: npm run --workspace=gradbench build
+        run: bun run --filter=gradbench build
       - name: Upload website artifact
         uses: actions/upload-pages-artifact@v3
         with:
