@@ -35,9 +35,9 @@ enum Commands {
         /// The name of the eval to run
         eval: String,
 
-        /// The Docker image tag, or `latest` by default. For example: `2024-12-01`
-        #[clap(short, long)]
-        tag: Option<String>,
+        /// The Docker image tag. For example: `2024-12-01`
+        #[clap(short, long, default_value = "latest")]
+        tag: String,
 
         /// Arguments for the eval itself
         args: Vec<String>,
@@ -52,9 +52,9 @@ enum Commands {
         /// The name of the tool to run
         tool: String,
 
-        /// The Docker image tag, or `latest` by default. For example: `2024-12-01`
-        #[clap(short, long)]
-        tag: Option<String>,
+        /// The Docker image tag. For example: `2024-12-01`
+        #[clap(short, long, default_value = "latest")]
+        tag: String,
 
         /// Arguments for the tool itself
         args: Vec<String>,
@@ -652,20 +652,14 @@ struct Summary<'a> {
 /// Run the GradBench CLI, returning a `Result`.
 fn cli_result() -> Result<(), ExitCode> {
     match Cli::parse().command {
-        Commands::Eval { eval, tag, args } => {
-            let t = tag.as_deref().unwrap_or("latest");
-            run(Command::new("docker")
-                .args(["run", "--rm", "--interactive"])
-                .arg(format!("ghcr.io/gradbench/eval-{eval}:{t}"))
-                .args(args))
-        }
-        Commands::Tool { tool, tag, args } => {
-            let t = tag.as_deref().unwrap_or("latest");
-            run(Command::new("docker")
-                .args(["run", "--rm", "--interactive"])
-                .arg(format!("ghcr.io/gradbench/tool-{tool}:{t}"))
-                .args(args))
-        }
+        Commands::Eval { eval, tag, args } => run(Command::new("docker")
+            .args(["run", "--rm", "--interactive"])
+            .arg(format!("ghcr.io/gradbench/eval-{eval}:{tag}"))
+            .args(args)),
+        Commands::Tool { tool, tag, args } => run(Command::new("docker")
+            .args(["run", "--rm", "--interactive"])
+            .arg(format!("ghcr.io/gradbench/tool-{tool}:{tag}"))
+            .args(args)),
         Commands::Run {
             eval,
             tool,
