@@ -158,7 +158,7 @@ interface TimeoutResponse extends Base {
   timeout: true;
 }
 
-type Response = Base | TimeoutResponse | DefineResponse | EvaluateResponse | TimeoutResponse;
+type Response = Base | DefineResponse | EvaluateResponse | TimeoutResponse;
 
 interface Line {
   elapsed: Duration;
