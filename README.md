@@ -109,8 +109,10 @@ As a special case, if a tool fails to respond to a message within some specified
 Here is a somewhat more formal description of the protocol using [TypeScript][] types.
 
 ```typescript
+type Id = number;
+
 interface Base {
-  id: string;
+  id: Id;
 }
 
 interface Duration {
@@ -139,6 +141,8 @@ interface EvaluateMessage extends Base {
 }
 
 interface AnalysisMessage extends Base {
+  kind: "analysis";
+  of: Id;
   valid: boolean;
   message?: string;
 }

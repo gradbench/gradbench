@@ -219,6 +219,9 @@ enum Message {
 
     /// Analysis results from evaluating a function.
     Analysis {
+        /// The message ID.
+        id: Id,
+
         /// The ID of the original message being analyzed.
         of: Id,
 
@@ -236,7 +239,7 @@ impl Message {
         match *self {
             Message::Start { id } => id,
             Message::Define { id, .. } => id,
-            Message::Analysis { of, .. } => of,
+            Message::Analysis { id, .. } => id,
             Message::Evaluate { id, .. } => id,
         }
     }
@@ -422,7 +425,12 @@ fn intermediary(
                 print_left(WIDTH_NAME, &format!("{module}::{function}"));
                 print_left(WIDTH_DESCRIPTION, &workload);
             }
-            Message::Analysis { of, valid, message } => {
+            Message::Analysis {
+                id: _,
+                of,
+                valid,
+                message,
+            } => {
                 if !*valid {
                     invalid += 1;
                 }
