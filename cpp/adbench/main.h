@@ -4,6 +4,7 @@
 
 #include <stdlib.h>
 #include <iostream>
+#include <vector>
 #include "adbench/io.h"
 #include "adbench/shared/utils.h"
 #include "json.hpp"
@@ -34,7 +35,7 @@ int generic_main(int argc, char* argv[]) {
     prepare_time_taken = (finish.tv_sec*1e9 + finish.tv_nsec) - (start.tv_sec*1e9 + start.tv_nsec);
   }
 
-  struct timespec start[runs], finish[runs];
+  std::vector<struct timespec> start(runs), finish(runs);
 
   if (std::string(argv[2]) == "F") {
     for (int i = 0; i < runs; i++) {
