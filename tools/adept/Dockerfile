@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
     curl
 
 COPY python /home/gradbench/python
-ENV PYTHONPATH=/home/gradbench/python
+ENV PYTHONPATH=/home/gradbench/python/gradbench
 
 # Download and compile Adept.
 #
