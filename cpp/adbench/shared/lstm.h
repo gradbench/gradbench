@@ -197,7 +197,8 @@ void lstm_objective(int l, int c, int b,
     int count = 0;
     MainParams<T> main_params_wrap(main_params, b, l);
     ExtraParams<T> extra_params_wrap(extra_params, b);
-    std::vector<T> state_copy(state, state + l*2*b);
+    std::vector<T> state_copy(l*2*b);
+    std::copy(&state[0], &state[l*2*b], state_copy.data());
     State<T> state_wrap(state_copy.data(), b, l);
     InputSequence<T> sequence_wrap(sequence, b, c);
     std::vector<T> ypred(b), ynorm(b);
