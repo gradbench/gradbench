@@ -1,3 +1,4 @@
 *.o
 /run_hello
+/run_lstm
 /run_gmm
