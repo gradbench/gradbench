@@ -46,5 +46,8 @@ pkgs.stdenv.mkDerivation {
      pkgs.rustc
      pkgs.rustfmt
      pkgs.futhark
+     pkgs.enzyme
+     pkgs.llvmPackages_19.lld
+     pkgs.llvmPackages_19.clang++
     ];
 }
