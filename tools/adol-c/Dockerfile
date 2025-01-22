@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y \
     autoconf
 
 COPY python /home/gradbench/python
-ENV PYTHONPATH=/home/gradbench/python
+ENV PYTHONPATH=/home/gradbench/python/gradbench
 
 COPY cpp /home/gradbench/cpp
 
