@@ -5,7 +5,7 @@ RUN pip install numpy==1.26.0 dataclasses-json && \
     pip install scipy
 
 COPY python /home/gradbench/python
-ENV PYTHONPATH=/home/gradbench/python
+ENV PYTHONPATH=/home/gradbench/python/gradbench
 
-ENTRYPOINT ["python", "/home/gradbench/python/gradbench/pytorch/run.py"]
+ENTRYPOINT ["python", "/home/gradbench/python/gradbench/gradbench/pytorch/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench

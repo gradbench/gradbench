@@ -24,15 +24,14 @@ Make sure to have these tools installed:
 - [Git][]
 - [Rust][]
 - [Docker][]
-- [Python][]
-- [Bun][]
 
 We build [multi-platform images][] to support both x86 and ARM chips, so to build those, you need to enable [containerd][] in Docker. If you're running Docker Engine on Linux, without Docker Desktop, you also need to install [QEMU][].
 
 Other tools that are optional but useful:
 
 - [GitHub CLI][]
-- [Poetry][]
+- [Bun][]
+- [uv][]
 - [Make][]
 
 ## Setup
@@ -156,23 +155,17 @@ This will log a `localhost` URL to your terminal; open that URL in your browser.
 
 ## Python
 
-The Docker images should be considered canonical, but for local development, it can be more convenient to instead install and run tools directly. Using Poetry, you can create a virtual environment with all the Python tools via this command:
+The Docker images should be considered canonical, but for local development, it can be more convenient to instead install and run tools directly. You can use `uv run` to do this:
 
 ```sh
-poetry install
-```
-
-Then you can use `poetry run` to run a command in this virtual environment:
-
-```sh
-./gradbench run --eval './gradbench eval hello' --tool 'poetry run python3 python/gradbench/pytorch/run.py'
+./gradbench run --eval './gradbench eval hello' --tool 'uv run python/gradbench/gradbench/pytorch/run.py'
 ```
 
 We autoformat Python code using [Black][] and [isort][]. If you're using [VS Code][], our configuration in this repository should automatically recommend that you install the corresponding extensions for those formatters, as well as automatically run them whenever you save a Python file. You can also run them manually via the command line:
 
 ```sh
-poetry run black .
-poetry run isort .
+uv run black .
+uv run isort .
 ```
 
 ## C++
@@ -194,9 +187,8 @@ make -C cpp
 [make]: https://en.wikipedia.org/wiki/Make_(software)
 [markdown-toc]: https://www.npmjs.com/package/markdown-toc
 [multi-platform images]: https://docs.docker.com/build/building/multi-platform/
-[poetry]: https://python-poetry.org/docs/
-[python]: https://www.python.org/downloads/
 [qemu]: https://docs.docker.com/build/building/multi-platform/#qemu-without-docker-desktop
 [rust]: https://www.rust-lang.org/tools/install
+[uv]: https://docs.astral.sh/uv
 [vite]: https://vitejs.dev/
 [vs code]: https://code.visualstudio.com/
