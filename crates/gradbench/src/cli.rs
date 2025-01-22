@@ -386,15 +386,10 @@ fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyho
             } => {
                 line.start(*id);
                 print_left(WIDTH_KIND, "eval");
-                let mut workload = match description {
+                let workload = match description {
                     Some(s) => s.clone(),
                     None => serde_json::to_string(input)?,
                 };
-                let width = 15;
-                if workload.len() > width {
-                    workload.truncate(width - 3);
-                    workload.push_str("...");
-                }
                 print_left(WIDTH_NAME, &format!("{module}::{function}"));
                 print_left(WIDTH_DESCRIPTION, &workload);
             }
