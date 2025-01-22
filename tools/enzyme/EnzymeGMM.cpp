@@ -1,7 +1,6 @@
 #include "EnzymeGMM.h"
 #include "adbench/shared/gmm.h"
-
-#include <iostream>
+#include <algorithm>
 
 void EnzymeGMM::prepare(GMMInput&& input) {
   _input = input;
@@ -45,8 +44,8 @@ void EnzymeGMM::calculate_jacobian(int times) {
   double* d_means = d_alphas + _input.alphas.size();
   double* d_icf = d_means + _input.means.size();
 
-
   for (int i = 0; i < times; ++i) {
+    std::fill(_output.gradient.begin(), _output.gradient.end(), 0);
     double d_err = 1;
     __enzyme_autodiff
       (gmm_objective<double>,
