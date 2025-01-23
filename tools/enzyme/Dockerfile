@@ -19,7 +19,7 @@ RUN apt-get install -y \
     lld-19
 
 COPY python /home/gradbench/python
-ENV PYTHONPATH=/home/gradbench/python
+ENV PYTHONPATH=/home/gradbench/python/gradbench
 
 # Install Enzyme
 RUN wget https://github.com/EnzymeAD/Enzyme/archive/refs/tags/v${ENZYME_VER}.tar.gz

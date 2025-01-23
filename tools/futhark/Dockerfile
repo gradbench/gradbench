@@ -12,7 +12,7 @@ RUN tar xvf futhark-0.25.23-linux-x86_64.tar.xz
 RUN make -C futhark-0.25.23-linux-x86_64 install
 
 COPY python /home/gradbench/python
-ENV PYTHONPATH=/home/gradbench/python
+ENV PYTHONPATH=/home/gradbench/python/gradbench
 
 COPY tools/futhark /home/gradbench/tools/futhark
 RUN cd /home/gradbench/tools/futhark && futhark pkg sync

@@ -1,4 +1,5 @@
 import argparse
+import os.path
 from pathlib import Path
 from typing import Any
 
@@ -35,8 +36,7 @@ def main():
         complicated_big = data_root / "complicated_big"
 
         def evals(data_dir, complicated):
-            # Shrink the range because some of the larger datasets take an
-            # excessive amount of time with PyTorch.
+            c = os.path.basename(os.path.normpath(data_dir)) + "/"
             for i in range(args.min, args.max + 1):
                 fn = next(data_dir.glob(f"hand{i}_*.txt"), None)
                 model_dir = data_dir / "model"
@@ -44,12 +44,12 @@ def main():
                 e.evaluate(
                     function="objective",
                     input=input | {"runs": args.runs},
-                    description=fn.stem,
+                    description=c + fn.stem,
                 )
                 e.evaluate(
                     function="jacobian",
                     input=input | {"runs": args.runs},
-                    description=fn.stem,
+                    description=c + fn.stem,
                 )
 
         evals(simple_small, False)
@@ -59,4 +59,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (EOFError, BrokenPipeError):
+        pass

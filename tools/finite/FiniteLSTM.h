@@ -15,7 +15,6 @@ class FiniteLSTM : public ITest<LSTMInput, LSTMOutput> {
 private:
     LSTMInput input;
     LSTMOutput result;
-    std::vector<double> state;
     FiniteDifferencesEngine<double> engine;
 
 public:

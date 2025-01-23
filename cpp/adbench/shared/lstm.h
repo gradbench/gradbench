@@ -190,14 +190,16 @@ void lstm_predict(int l, int b,
 template<typename T>
 void lstm_objective(int l, int c, int b, 
     const T* main_params, const T* extra_params,
-    std::vector<T> state, const T* sequence,
+    const T* state, const T* sequence,
     T* loss)
 {
     T total = 0.0;
     int count = 0;
     MainParams<T> main_params_wrap(main_params, b, l);
     ExtraParams<T> extra_params_wrap(extra_params, b);
-    State<T> state_wrap(state.data(), b, l);
+    std::vector<T> state_copy(l*2*b);
+    std::copy(&state[0], &state[l*2*b], state_copy.data());
+    State<T> state_wrap(state_copy.data(), b, l);
     InputSequence<T> sequence_wrap(sequence, b, c);
     std::vector<T> ypred(b), ynorm(b);
     for (int t = 0; t < c - 1; ++t)

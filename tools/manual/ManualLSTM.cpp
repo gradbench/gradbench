@@ -13,7 +13,6 @@ void ManualLSTM::prepare(LSTMInput&& input)
 {
     this->input = input;
     int Jcols = 8 * this->input.l * this->input.b + 3 * this->input.b;
-    state = std::vector<double>(this->input.state.size());
     result = { 0, std::vector<double>(Jcols) };
 }
 
@@ -25,20 +24,13 @@ LSTMOutput ManualLSTM::output()
 void ManualLSTM::calculate_objective(int times)
 {
     for (int i = 0; i < times; ++i) {
-        state = input.state;
-        lstm_objective(input.l, input.c, input.b, input.main_params.data(), input.extra_params.data(), state, input.sequence.data(), &result.objective);
+      lstm_objective(input.l, input.c, input.b, input.main_params.data(), input.extra_params.data(), input.state.data(), input.sequence.data(), &result.objective);
     }
 }
 
 void ManualLSTM::calculate_jacobian(int times)
 {
     for (int i = 0; i < times; ++i) {
-        state = input.state;
-        lstm_objective_d(input.l, input.c, input.b, input.main_params.data(), input.extra_params.data(), state, input.sequence.data(), &result.objective, result.gradient.data());
+      lstm_objective_d(input.l, input.c, input.b, input.main_params.data(), input.extra_params.data(), input.state, input.sequence.data(), &result.objective, result.gradient.data());
     }
-}
-
-extern "C" DLL_PUBLIC ITest<LSTMInput, LSTMOutput>*  get_lstm_test()
-{
-    return new ManualLSTM();
 }
