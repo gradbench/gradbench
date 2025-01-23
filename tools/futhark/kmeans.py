@@ -8,7 +8,7 @@ import numpy as np
 
 def prepare(server, input):
     server.put_value("k", np.int64(input["k"]))
-    server.put_value("points", np.array(input["points"], dtype=np.float32))
+    server.put_value("points", np.array(input["points"], dtype=np.float64))
 
 
 def kmeans(server, input):

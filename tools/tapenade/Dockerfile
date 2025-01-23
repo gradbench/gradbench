@@ -8,6 +8,9 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     python3
 
+COPY python /home/gradbench/python
+ENV PYTHONPATH=/home/gradbench/python/gradbench
+
 # install Tapenade
 RUN wget https://tapenade.gitlabpages.inria.fr/tapenade/distrib/tapenade_3.16.tar
 RUN tar -xvzf tapenade_3.16.tar

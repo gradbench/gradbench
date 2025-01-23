@@ -22,7 +22,7 @@ def cost(points, centers):
 
 def prepare_input(input):
     k = np.int64(input["k"])
-    features = torch.tensor(np.array(input["points"], dtype=np.float32))
+    features = torch.tensor(np.array(input["points"], dtype=np.float64))
     return k, features
 
 

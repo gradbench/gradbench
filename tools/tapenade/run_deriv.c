@@ -22,5 +22,5 @@ int main(int argc, char *argv[]) {
 
     double time_taken = (double) (finish.tv_nsec - start.tv_nsec);
 
-    printf("%f\n%.0f", xb, time_taken);
+    printf("%f\n{\"name\": \"evaluate\", \"nanoseconds\": %.0f}\n", xb, time_taken);
 }

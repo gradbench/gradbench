@@ -9,7 +9,6 @@ class AdeptLSTM : public ITest<LSTMInput, LSTMOutput> {
 private:
   LSTMInput input;
   LSTMOutput result;
-  std::vector<double> state;
 
 public:
   virtual void prepare(LSTMInput&& input) override;

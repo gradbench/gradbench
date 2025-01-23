@@ -20,7 +20,7 @@ def cost(points, centers):
 
 def prepare_input(input):
     k = input["k"]
-    features = np.array(input["points"], dtype=np.float32)
+    features = np.array(input["points"], dtype=np.float64)
     clusters = np.flip(features[-int(k) :], (0,))
     return k, clusters, features
 

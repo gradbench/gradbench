@@ -84,7 +84,10 @@ class SingleModuleValidatedEvaluation:
         print(flush=True)
         if message["kind"] == "end":
             return
-        response = json.loads(sys.stdin.readline())
+        l = sys.stdin.readline()
+        if l == "":
+            raise EOFError
+        response = json.loads(l)
         if response["id"] != self.id:
             raise ValueError(f"expected message ID {self.id}, got {response['id']}")
         self.id += 1

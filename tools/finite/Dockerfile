@@ -7,6 +7,9 @@ RUN apt-get update && apt-get install -y \
     python3 \
     wget
 
+COPY python /home/gradbench/python
+ENV PYTHONPATH=/home/gradbench/python/gradbench
+
 COPY cpp /home/gradbench/cpp
 
 RUN make -C cpp

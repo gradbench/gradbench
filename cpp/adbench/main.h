@@ -4,6 +4,7 @@
 
 #include <stdlib.h>
 #include <iostream>
+#include <vector>
 #include "adbench/io.h"
 #include "adbench/shared/utils.h"
 #include "json.hpp"
@@ -12,7 +13,7 @@ template<typename Input, typename Benchmark, auto ReadInput, auto WriteObjective
 int generic_main(int argc, char* argv[]) {
   if (argc != 3 ||
       (std::string(argv[2]) != "F" && (std::string(argv[2]) != "J"))) {
-    std::cerr << "Usage: " << argv[0] << " FILE <F|J>" << " [RUNS]" << std::endl;
+    std::cerr << "Usage: " << argv[0] << " FILE <F|J>" << std::endl;
     exit(1);
   }
 
@@ -25,9 +26,16 @@ int generic_main(int argc, char* argv[]) {
 
   Benchmark b;
 
-  b.prepare(std::move(input));
+  double prepare_time_taken;
+  {
+    struct timespec start, finish;
+    clock_gettime( CLOCK_REALTIME, &start);
+    b.prepare(std::move(input));
+    clock_gettime( CLOCK_REALTIME, &finish);
+    prepare_time_taken = (finish.tv_sec*1e9 + finish.tv_nsec) - (start.tv_sec*1e9 + start.tv_nsec);
+  }
 
-  struct timespec start[runs], finish[runs];
+  std::vector<struct timespec> start(runs), finish(runs);
 
   if (std::string(argv[2]) == "F") {
     for (int i = 0; i < runs; i++) {
@@ -50,10 +58,11 @@ int generic_main(int argc, char* argv[]) {
   }
   std::cout << std::endl;
 
+  std::cout << "{\"name\": \"prepare\", \"nanoseconds\": " << (long)prepare_time_taken << "}" << std::endl;
   for (int i = 0; i < runs; i++) {
     long time_taken = ((finish[i].tv_sec*1e9 + finish[i].tv_nsec) -
                        (start[i].tv_sec*1e9 + start[i].tv_nsec));
-    std::cout << (long)time_taken << std::endl;
+    std::cout << "{\"name\": \"evaluate\", \"nanoseconds\": " << (long)time_taken << "}" << std::endl;
   }
 
   return 0;
