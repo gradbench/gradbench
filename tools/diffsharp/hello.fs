@@ -1,7 +1,5 @@
 module hello
 
-#r "nuget: DiffSharp-lite"
-
 open DiffSharp
 
 let square x = x * x
