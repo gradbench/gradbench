@@ -6,7 +6,7 @@ import numpy as np
 from gradbench.evaluation import SingleModuleValidatedEvaluation, assertion
 
 
-def check(function: str, input: Any, output: Any) -> None:
+def check(function: str, input: Any, output: Any, golden: Any) -> None:
     match function:
         case "double":
             assert np.isclose(output, input * 2)
