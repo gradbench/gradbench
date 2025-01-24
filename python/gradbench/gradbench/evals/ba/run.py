@@ -1,13 +1,11 @@
 import argparse
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 
-import gradbench.pytorch.ba as golden
 from gradbench.comparison import compare_json_objects
 from gradbench.evaluation import SingleModuleValidatedEvaluation, mismatch
-from gradbench.wrap import Wrapped
 
 
 def parse(file):
@@ -34,10 +32,11 @@ def parse(file):
     }
 
 
-def check(function: str, input: Any, output: Any) -> None:
-    func: Wrapped = getattr(golden, function)
-    expected = func.wrapped(input | {"runs": 1})["output"]
-    return compare_json_objects(expected, output)
+def check(function: str, input: Any, output: Any, golden: Optional[Any]) -> None:
+    if golden is not None:
+        return compare_json_objects(golden["output"], output)
+    else:
+        return None
 
 
 def main():

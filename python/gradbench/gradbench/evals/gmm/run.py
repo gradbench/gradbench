@@ -5,11 +5,9 @@ from typing import Any, Optional
 
 import numpy as np
 
-import gradbench.pytorch.gmm as golden
 from gradbench.comparison import compare_json_objects
 from gradbench.evals.gmm import data_gen
 from gradbench.evaluation import SingleModuleValidatedEvaluation, mismatch
-from gradbench.wrap import Wrapped
 
 
 def check(function: str, input: Any, output: Any, golden: Optional[Any]) -> None:
