@@ -23,6 +23,7 @@ class Timing(BaseModel):
 class EvaluateResponse(BaseModel):
     id: int
     output: Any
+    golden: Optional[Any] = None
     timings: list[Timing]
 
 
@@ -31,21 +32,23 @@ class AnalysisResponse(BaseModel):
 
 
 class Analysis(BaseModel):
-    valid: bool
-    message: Optional[str]
+    valid: Optional[bool] = None
+    message: Optional[str] = None
 
 
 def dump_analysis(analysis: Analysis) -> dict[str, Any]:
     return analysis.model_dump(exclude_none=True)
 
 
-Validator = Callable[[str, Any, Any], Analysis]
+Validator = Callable[[str, Any, Any, Optional[Any]], Analysis]
 
 
-def assertion(check: Callable[[str, Any, Any], None]) -> Validator:
-    def validator(function: str, input: Any, output: Any) -> Analysis:
+def assertion(check: Callable[[str, Any, Any, Optional[Any]], None]) -> Validator:
+    def validator(
+        function: str, input: Any, output: Any, golden: Optional[Any]
+    ) -> Analysis:
         try:
-            check(function, input, output)
+            check(function, input, output, golden)
             return Analysis(valid=True, message=None)
         except Exception as e:
             message = "".join(traceback.format_exception(e))
@@ -54,9 +57,15 @@ def assertion(check: Callable[[str, Any, Any], None]) -> Validator:
     return validator
 
 
-def mismatch(check: Callable[[str, Any, Any], None], max_mismatches=10) -> Validator:
-    def validator(function: str, input: Any, output: Any) -> Analysis:
-        mismatches = check(function, input, output)
+def mismatch(
+    check: Callable[[str, Any, Any, Optional[Any]], None], max_mismatches=10
+) -> Validator:
+    def validator(
+        function: str, input: Any, output: Any, golden: Optional[any]
+    ) -> Analysis:
+        mismatches = check(function, input, output, golden)
+        if mismatches is None:
+            return Analysis(message=None)
         if len(mismatches) == 0:
             return Analysis(valid=True, message=None)
         else:
@@ -116,7 +125,7 @@ class SingleModuleValidatedEvaluation:
             message["description"] = description
         id = self.id
         response = EvaluateResponse.model_validate(self.send(message))
-        analysis = self.validator(function, input, response.output)
+        analysis = self.validator(function, input, response.output, response.golden)
         self.analysis(of=id, valid=analysis.valid, message=analysis.message)
         return response
 

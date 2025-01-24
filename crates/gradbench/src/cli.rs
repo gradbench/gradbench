@@ -1,7 +1,8 @@
 use std::{
     collections::BTreeMap,
-    env, fs,
-    io::{self, BufRead, Write},
+    env,
+    fs::{self, File},
+    io::{self, BufRead, BufReader, Write},
     path::{Path, PathBuf},
     process::{Child, Command, ExitCode, ExitStatus, Stdio},
     time::Instant,
@@ -71,6 +72,10 @@ enum Commands {
         /// A shell script to run the tool. For example: `gradbench tool pytorch`
         #[clap(long)]
         tool: String,
+
+        /// A path to a golden log from a previous run.
+        #[clap(short, long)]
+        golden: Option<PathBuf>,
 
         /// A path to save the full log. For example: `log.jsonl`
         #[clap(short, long)]
@@ -217,8 +222,9 @@ enum Message {
         /// The ID of the original message being analyzed.
         of: Id,
 
-        /// Whether the tool's response was valid.
-        valid: bool,
+        /// Whether the tool's response was valid. None if no
+        /// validation as performed.
+        valid: Option<bool>,
 
         /// An error message if the tool's response was invalid.
         message: Option<String>,
@@ -340,7 +346,12 @@ fn print_status(success: bool) {
 }
 
 /// Run an eval and a tool together, returning the number of validation failures.
-fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyhow::Result<usize> {
+fn intermediary(
+    o: &mut impl Write,
+    opt_golden: &mut Option<BufReader<File>>,
+    eval: &mut Child,
+    tool: &mut Child,
+) -> anyhow::Result<usize> {
     let mut invalid = 0;
     let mut eval_in = eval.stdin.take().unwrap();
     let mut tool_in = tool.stdin.take().unwrap();
@@ -366,6 +377,17 @@ fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyho
         tool_in.write_all(eval_line.as_bytes())?;
         tool_in.flush()?;
         let message: Message = serde_json::from_str(&eval_line)?;
+
+        // Skip line in golden, as we do not care about it - in
+        // principle we could check that it is as expected.
+        match opt_golden {
+            Some(golden) => {
+                let mut golden_line = String::new();
+                golden.read_line(&mut golden_line)?;
+            }
+            None => {}
+        }
+
         match &message {
             Message::Start { id: _ } => {
                 // Don't print message ID because we're still waiting for the tool to say it's
@@ -394,11 +416,14 @@ fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyho
                 print_left(WIDTH_DESCRIPTION, &workload);
             }
             Message::Analysis { of, valid, message } => {
-                if !*valid {
+                if let Some(false) = *valid {
                     invalid += 1;
                 }
                 if line.id() == Some(*of) {
-                    print_status(*valid);
+                    match valid {
+                        Some(valid) => print_status(*valid),
+                        None => print!(" {}", "?".blue()),
+                    }
                     line.end();
                     if let Some(error) = message {
                         println!("{}", error.red());
@@ -417,7 +442,29 @@ fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyho
             (response_time - start).as_nanos(),
             tool_line.trim(),
         )?;
-        eval_in.write_all(tool_line.as_bytes())?;
+        // Parse the tool response into JSON, and fail if it is invalid.
+        let mut tool_message: serde_json::Value = serde_json::from_str(&tool_line)?;
+
+        // If we have a golden log, jam the response into the "golden"
+        // field of the tool response.
+        match opt_golden {
+            Some(golden) => {
+                let mut golden_line = String::new();
+                golden.read_line(&mut golden_line)?;
+                let golden_message: serde_json::Value = serde_json::from_str(&golden_line)?;
+                match (tool_message.as_object_mut(), golden_message.as_object()) {
+                    (Some(tool_obj), Some(golden_obj)) => {
+                        let _ =
+                            tool_obj.insert(String::from("golden"), golden_obj["response"].clone());
+                    }
+                    _ => {}
+                }
+            }
+            None => {}
+        };
+
+        eval_in.write_all(tool_message.to_string().as_bytes())?;
+        eval_in.write_all(b"\n")?;
         eval_in.flush()?;
         match message {
             Message::Start { id } => {
@@ -558,7 +605,10 @@ fn summarize(path: &Path) -> Option<Status> {
         }
         if let Some(msg) = line.get_mut("message") {
             message = Some(serde_json::from_value(msg.take()).ok()?);
-            if let Some(Message::Analysis { valid, .. }) = &message {
+            if let Some(Message::Analysis {
+                valid: Some(valid), ..
+            }) = &message
+            {
                 if !valid {
                     return Some(Status::Incorrect);
                 }
@@ -615,7 +665,12 @@ fn cli_result() -> Result<(), ExitCode> {
                 .arg(format!("ghcr.io/gradbench/tool-{tool}:{t}"))
                 .args(args))
         }
-        Commands::Run { eval, tool, output } => {
+        Commands::Run {
+            eval,
+            tool,
+            golden,
+            output,
+        } => {
             let (Ok(mut client), Ok(mut server)) = (
                 Command::new("sh")
                     .arg("-c")
@@ -633,12 +688,24 @@ fn cli_result() -> Result<(), ExitCode> {
                 eprintln!("error starting eval and tool commands");
                 return Err(ExitCode::FAILURE);
             };
+            let mut golden_f = match golden {
+                Some(path) => match fs::File::open(&path) {
+                    Ok(file) => Some(BufReader::new(file)),
+                    Err(err) => {
+                        eprintln!("{err}");
+                        return Err(ExitCode::FAILURE);
+                    }
+                },
+                None => None,
+            };
             let result = match output {
                 Some(path) => match fs::File::create(&path) {
-                    Ok(mut file) => intermediary(&mut file, &mut client, &mut server),
+                    Ok(mut file) => {
+                        intermediary(&mut file, &mut golden_f, &mut client, &mut server)
+                    }
                     Err(err) => Err(anyhow!(err)),
                 },
-                None => intermediary(&mut io::sink(), &mut client, &mut server),
+                None => intermediary(&mut io::sink(), &mut golden_f, &mut client, &mut server),
             };
             match (&result, client.wait(), server.wait()) {
                 (&Ok(invalid), Ok(e), Ok(s)) => {
