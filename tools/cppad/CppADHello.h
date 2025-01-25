@@ -9,6 +9,7 @@ class CppADHello : public ITest<HelloInput, HelloOutput> {
 private:
   HelloInput _input;
   HelloOutput _output;
+  CppAD::ADFun<double> *_tape;
 
 public:
   virtual void prepare(HelloInput&& input) override;
