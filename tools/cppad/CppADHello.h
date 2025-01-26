@@ -3,7 +3,6 @@
 #include "adbench/shared/ITest.h"
 #include "adbench/shared/HelloData.h"
 #include <cppad/cppad.hpp>
-#include <vector>
 
 class CppADHello : public ITest<HelloInput, HelloOutput> {
 private:
