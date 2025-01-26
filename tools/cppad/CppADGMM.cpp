@@ -9,21 +9,17 @@ void CppADGMM::prepare(GMMInput&& input) {
   int Jcols = (_input.k * (_input.d + 1) * (_input.d + 2)) / 2;
   _output = { 0,  std::vector<double>(Jcols) };
 
-  input_flat.insert(input_flat.end(), _input.alphas.begin(), _input.alphas.end());
-  input_flat.insert(input_flat.end(), _input.means.begin(), _input.means.end());
-  input_flat.insert(input_flat.end(), _input.icf.begin(), _input.icf.end());
+  _input_flat.insert(_input_flat.end(), _input.alphas.begin(), _input.alphas.end());
+  _input_flat.insert(_input_flat.end(), _input.means.begin(), _input.means.end());
+  _input_flat.insert(_input_flat.end(), _input.icf.begin(), _input.icf.end());
 
-  std::vector<ADdouble> X(_input.alphas.size() +
-                          _input.means.size() +
-                          _input.icf.size());
+  std::vector<ADdouble> X(_input_flat.size());
 
   ADdouble* aalphas = &X[0];
   ADdouble* ameans = aalphas + _input.alphas.size();
   ADdouble* aicf = ameans + _input.means.size();
 
-  std::copy(_input.alphas.begin(), _input.alphas.end(), aalphas);
-  std::copy(_input.means.begin(), _input.means.end(), ameans);
-  std::copy(_input.icf.begin(), _input.icf.end(), aicf);
+  std::copy(_input_flat.begin(), _input_flat.end(), X.data());
 
   CppAD::Independent(X);
 
@@ -50,6 +46,6 @@ void CppADGMM::calculate_objective(int times) {
 
 void CppADGMM::calculate_jacobian(int times) {
   for (int i = 0; i < times; ++i) {
-    _output.gradient = _tape->Jacobian(input_flat);
+    _output.gradient = _tape->Jacobian(_input_flat);
   }
 }

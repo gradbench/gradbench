@@ -8,7 +8,7 @@ class CppADGMM : public ITest<GMMInput, GMMOutput> {
   GMMInput _input;
   GMMOutput _output;
 
-  std::vector<double> input_flat;
+  std::vector<double> _input_flat;
   CppAD::ADFun<double> *_tape;
 
 public:
