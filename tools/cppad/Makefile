@@ -6,7 +6,8 @@ LDFLAGS=-lm $(shell pkg-config --libs cppad)
 UTIL_OBJECTS=../../cpp/adbench/shared/utils.o ../../cpp/adbench/io.o
 HELLO_OBJECTS=CppADHello.o run_hello.o
 GMM_OBJECTS=CppADGMM.o run_gmm.o
-EXECUTABLES=run_hello run_gmm
+LSTM_OBJECTS=CppADLSTM.o run_lstm.o
+EXECUTABLES=run_hello run_gmm run_lstm
 
 all: $(EXECUTABLES)
 
@@ -14,6 +15,9 @@ run_hello: $(HELLO_OBJECTS) $(UTIL_OBJECTS)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 run_gmm: $(GMM_OBJECTS) $(UTIL_OBJECTS)
+	$(CXX) -o $@ $^ $(LDFLAGS)
+
+run_lstm: $(LSTM_OBJECTS) $(UTIL_OBJECTS)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 %.o: %.cpp
