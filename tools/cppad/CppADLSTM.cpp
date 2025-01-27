@@ -32,6 +32,8 @@ void CppADLSTM::prepare(LSTMInput&& input) {
                  &Y[0]);
 
   _tape = new CppAD::ADFun<double>(X, Y);
+
+  _tape->optimize();
 }
 
 LSTMOutput CppADLSTM::output() {

@@ -30,6 +30,8 @@ void CppADGMM::prepare(GMMInput&& input) {
                           _input.x.data(), _input.wishart, &Y[0]);
 
   _tape = new CppAD::ADFun<double>(X, Y);
+
+  _tape->optimize();
 }
 
 GMMOutput CppADGMM::output() {
