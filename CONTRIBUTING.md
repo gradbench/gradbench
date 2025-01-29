@@ -66,7 +66,7 @@ This script will always automatically rebuild the CLI if it is not already up to
 
 ## Docker
 
-Use the `run` subcommand to run a given evaluation on a given tool. You can use pass any commands for the evaluation and tool, but to use the Docker images, the easiest way is to use the `repo eval` and `repo tool` subcommands:
+Use the `run` subcommand to run a given eval on a given tool. You can use pass any commands for the eval and tool, but to use the Docker images, the easiest way is to use the `repo eval` and `repo tool` subcommands:
 
 ```sh
 ./gradbench run --eval './gradbench repo eval hello' --tool './gradbench repo tool pytorch'
