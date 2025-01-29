@@ -4,8 +4,7 @@
 
 typedef CppAD::AD<double> ADdouble;
 
-void CppADLSTM::prepare(LSTMInput&& input) {
-  _input = input;
+CppADLSTM::CppADLSTM(LSTMInput& input) : ITest(input) {
   int Jcols = 8 * _input.l * _input.b + 3 * _input.b;
   _output = { 0,  std::vector<double>(Jcols) };
 
@@ -36,21 +35,13 @@ void CppADLSTM::prepare(LSTMInput&& input) {
   _tape->optimize();
 }
 
-LSTMOutput CppADLSTM::output() {
-  return _output;
+void CppADLSTM::calculate_objective() {
+  lstm_objective(_input.l, _input.c, _input.b,
+                 _input.main_params.data(), _input.extra_params.data(),
+                 _input.state.data(), _input.sequence.data(),
+                 &_output.objective);
 }
 
-void CppADLSTM::calculate_objective(int times) {
-  for (int i = 0; i < times; ++i) {
-    lstm_objective(_input.l, _input.c, _input.b,
-                   _input.main_params.data(), _input.extra_params.data(),
-                   _input.state.data(), _input.sequence.data(),
-                   &_output.objective);
-  }
-}
-
-void CppADLSTM::calculate_jacobian(int times) {
-  for (int i = 0; i < times; ++i) {
-    _output.gradient = _tape->Jacobian(_input_flat);
-  }
+void CppADLSTM::calculate_jacobian() {
+  _output.gradient = _tape->Jacobian(_input_flat);
 }

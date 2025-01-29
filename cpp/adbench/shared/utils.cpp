@@ -2,10 +2,10 @@
 // Licensed under the MIT license.
 
 // https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/cpp/shared/utils.cpp
+//
+// Changes made: silenced some warnings.
 
 #include "utils.h"
-
-#pragma warning (disable : 4996) // fopen
 
 #include <iostream>
 #include <string>

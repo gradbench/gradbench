@@ -6,16 +6,9 @@
 #include <vector>
 
 class EnzymeLSTM : public ITest<LSTMInput, LSTMOutput> {
-private:
-  LSTMInput input;
-  LSTMOutput result;
-
 public:
-  virtual void prepare(LSTMInput&& input) override;
+  EnzymeLSTM(LSTMInput& input);
 
-  virtual void calculate_objective(int times) override;
-  virtual void calculate_jacobian(int times) override;
-  virtual LSTMOutput output() override;
-
-  ~EnzymeLSTM() {}
+  virtual void calculate_objective() override;
+  virtual void calculate_jacobian() override;
 };

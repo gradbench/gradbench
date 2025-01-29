@@ -5,74 +5,51 @@
 
 #include "TapenadeGMM.h"
 
-// This function must be called before any other function.
-void TapenadeGMM::prepare(GMMInput&& input)
-{
-    this->input = input;
-    int Jcols = (this->input.k * (this->input.d + 1) * (this->input.d + 2)) / 2;
-    result = { 0, std::vector<double>(Jcols) };
+TapenadeGMM::TapenadeGMM(GMMInput& input) : ITest(input) {
+    int Jcols = (_input.k * (_input.d + 1) * (_input.d + 2)) / 2;
+    _output = { 0, std::vector<double>(Jcols) };
 }
 
-
-
-GMMOutput TapenadeGMM::output()
-{
-    return result;
+void TapenadeGMM::calculate_objective() {
+  gmm_objective(
+                _input.d,
+                _input.k,
+                _input.n,
+                _input.alphas.data(),
+                _input.means.data(),
+                _input.icf.data(),
+                _input.x.data(),
+                _input.wishart,
+                &_output.objective
+                );
 }
 
+void TapenadeGMM::calculate_jacobian() {
+  double* alphas_gradient_part = _output.gradient.data();
+  double* means_gradient_part = _output.gradient.data() + _input.alphas.size();
+  double* icf_gradient_part =
+    _output.gradient.data() +
+    _input.alphas.size() +
+    _input.means.size();
 
+  double tmp = 0.0;       // stores fictive _output
+  // (Tapenade doesn't calculate an original function in reverse mode)
 
-void TapenadeGMM::calculate_objective(int times)
-{
-    for (int i = 0; i < times; i++)
-    {
-        gmm_objective(
-            input.d,
-            input.k,
-            input.n,
-            input.alphas.data(),
-            input.means.data(),
-            input.icf.data(),
-            input.x.data(),
-            input.wishart,
-            &result.objective
-        );
-    }
-}
+  double errb = 1.0;      // stores dY
+  // (equals to 1.0 for gradient calculation)
 
-
-
-void TapenadeGMM::calculate_jacobian(int times)
-{
-    double* alphas_gradient_part = result.gradient.data();
-    double* means_gradient_part = result.gradient.data() + input.alphas.size();
-    double* icf_gradient_part =
-        result.gradient.data() +
-        input.alphas.size() +
-        input.means.size();
-
-    for (int i = 0; i < times; i++)
-    {
-        double tmp = 0.0;       // stores fictive result
-                                // (Tapenade doesn't calculate an original function in reverse mode)
-
-        double errb = 1.0;      // stores dY
-                                // (equals to 1.0 for gradient calculation)
-
-        gmm_objective_b(
-            input.d,
-            input.k,
-            input.n,
-            input.alphas.data(),
-            alphas_gradient_part,
-            input.means.data(),
-            means_gradient_part,
-            input.icf.data(),
-            icf_gradient_part,
-            input.x.data(),
-            input.wishart,
-            &tmp,
-            &errb
-        );
-    }
+  gmm_objective_b(_input.d,
+                  _input.k,
+                  _input.n,
+                  _input.alphas.data(),
+                  alphas_gradient_part,
+                  _input.means.data(),
+                  means_gradient_part,
+                  _input.icf.data(),
+                  icf_gradient_part,
+                  _input.x.data(),
+                  _input.wishart,
+                  &tmp,
+                  &errb
+                  );
 }

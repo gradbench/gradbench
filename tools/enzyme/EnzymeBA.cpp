@@ -2,8 +2,7 @@
 #include "adbench/shared/ba.h"
 #include <algorithm>
 
-void EnzymeBA::prepare(BAInput&& input) {
-  _input = input;
+EnzymeBA::EnzymeBA(BAInput& input) : ITest(input) {
   _output = {
     std::vector<double>(2 * _input.p),
     std::vector<double>(_input.p),
@@ -13,17 +12,11 @@ void EnzymeBA::prepare(BAInput&& input) {
   _reproj_err_d = std::vector<double>(2 * n_new_cols);
 }
 
-BAOutput EnzymeBA::output() {
-  return _output;
-}
-
-void EnzymeBA::calculate_objective(int times) {
-  for (int i = 0; i < times; ++i) {
-    ba_objective(_input.n, _input.m, _input.p,
-                 _input.cams.data(), _input.X.data(), _input.w.data(),
-                 _input.obs.data(), _input.feats.data(),
-                 _output.reproj_err.data(), _output.w_err.data());
-  }
+void EnzymeBA::calculate_objective() {
+  ba_objective(_input.n, _input.m, _input.p,
+               _input.cams.data(), _input.X.data(), _input.w.data(),
+               _input.obs.data(), _input.feats.data(),
+               _output.reproj_err.data(), _output.w_err.data());
 }
 
 extern int enzyme_dup;
@@ -109,13 +102,11 @@ void compute_ba_J(int n, int m, int p,
   }
 }
 
-void EnzymeBA::calculate_jacobian(int times) {
-  for (int i = 0; i < times; ++i) {
-    _output.J.clear();
-    compute_ba_J(_input.n, _input.m, _input.p,
-                 _input.cams.data(), _input.X.data(), _input.w.data(),
-                 _input.obs.data(), _input.feats.data(),
-                 _output.reproj_err.data(), _output.w_err.data(),
-                 &_output.J);
-  }
+void EnzymeBA::calculate_jacobian() {
+  _output.J.clear();
+  compute_ba_J(_input.n, _input.m, _input.p,
+               _input.cams.data(), _input.X.data(), _input.w.data(),
+               _input.obs.data(), _input.feats.data(),
+               _output.reproj_err.data(), _output.w_err.data(),
+               &_output.J);
 }
