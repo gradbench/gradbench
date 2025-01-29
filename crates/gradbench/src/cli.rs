@@ -218,12 +218,17 @@ fn run_tool(name: &str, tag: Option<&str>, args: &[String]) -> Result<(), ExitCo
     Ok(())
 }
 
+/// A set of platforms to build a Docker image for.
 enum Platforms {
+    /// Build only for the current platform.
     Native,
+
+    /// Build for both x86 and ARM.
     Cross,
 }
 
 impl Platforms {
+    /// Return a configuration which is cross-platform only if `cross` is `true``.
     fn cross(cross: bool) -> Self {
         if cross {
             Platforms::Cross
@@ -233,8 +238,12 @@ impl Platforms {
     }
 }
 
+/// A level of verbosity for building a Docker image.
 enum Verbosity {
+    /// Normal output.
     Normal,
+
+    /// No output except for errors.
     Quiet,
 }
 
@@ -256,7 +265,7 @@ fn build_eval(name: &str, platforms: Platforms, verbosity: Verbosity) -> Result<
         Verbosity::Normal => {}
         Verbosity::Quiet => {
             cmd.arg("--quiet");
-            cmd.stdout(Stdio::null());
+            cmd.stdout(Stdio::null()); // Suppress the printed image ID.
         }
     }
     run(&mut cmd)?;
@@ -281,7 +290,7 @@ fn build_tool(name: &str, platforms: Platforms, verbosity: Verbosity) -> Result<
         Verbosity::Normal => {}
         Verbosity::Quiet => {
             cmd.arg("--quiet");
-            cmd.stdout(Stdio::null());
+            cmd.stdout(Stdio::null()); // Suppress the printed image ID.
         }
     }
     run(&mut cmd)?;
