@@ -167,6 +167,10 @@ enum RepoCommands {
         /// The current date
         #[clap(long)]
         date: String,
+
+        /// The Git commit SHA from the `main` branch
+        #[clap(long)]
+        commit: String,
     },
 }
 
@@ -715,6 +719,9 @@ struct Summary<'a> {
     /// The current date.
     date: String,
 
+    /// The Git commit SHA from the `main` branch.
+    commit: String,
+
     /// The table of summary data.
     table: Vec<Row<'a>>,
 }
@@ -820,7 +827,7 @@ fn cli_result() -> Result<(), ExitCode> {
                     github_output("slow", slow)?;
                     Ok(())
                 }
-                RepoCommands::Summarize { dir, date } => {
+                RepoCommands::Summarize { dir, date, commit } => {
                     let mut table = vec![];
                     let mut evals = ls("evals")?;
                     evals.sort();
@@ -835,7 +842,11 @@ fn cli_result() -> Result<(), ExitCode> {
                         }
                         table.push(Row { eval, tools: row });
                     }
-                    let summary = Summary { date, table };
+                    let summary = Summary {
+                        date,
+                        commit,
+                        table,
+                    };
                     let output = dir.join("summary.json");
                     let file = fs::File::create(&output).map_err(|err| {
                         eprintln!("error creating summary file {output:?}: {err}");
