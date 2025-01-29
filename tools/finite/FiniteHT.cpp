@@ -33,13 +33,13 @@ void FiniteHand::calculate_objective(int times)
     if (complicated)
     {
         for (int i = 0; i < times; ++i) {
-            hand_objective(input.theta.data(), input.us.data(), input.data, result.objective.data());
+            hand_objective(input.theta.data(), input.us.data(), &input.data, result.objective.data());
         }
     }
     else
     {
         for (int i = 0; i < times; ++i) {
-            hand_objective(input.theta.data(), input.data, result.objective.data());
+            hand_objective(input.theta.data(), &input.data, result.objective.data());
         }
     }
 }
@@ -50,13 +50,13 @@ void FiniteHand::calculate_jacobian(int times)
     {
         for (int i = 0; i < times; ++i) {
             engine.finite_differences([&](double* theta_in, double* err) {
-                hand_objective(theta_in, input.us.data(), input.data, err);
+                hand_objective(theta_in, input.us.data(), &input.data, err);
                 }, input.theta.data(), input.theta.size(), result.objective.size(), &result.jacobian.data()[6 * input.data.correspondences.size()]);
 
             for (unsigned int j = 0; j < input.us.size() / 2; ++j) {
                 engine.finite_differences([&](double* us_in, double* err) {
                     // us_in points into the middle of _input.us.data()
-                    hand_objective(input.theta.data(), input.us.data(), input.data, err);
+                    hand_objective(input.theta.data(), input.us.data(), &input.data, err);
                     }, &input.us.data()[j * 2], 2, result.objective.size(), jacobian_by_us.data());
 
                 for (int k = 0; k < 3; ++k) {
@@ -70,7 +70,7 @@ void FiniteHand::calculate_jacobian(int times)
     {
         for (int i = 0; i < times; ++i) {
             engine.finite_differences([&](double* theta_in, double* err) {
-                hand_objective(theta_in, input.data, err);
+                hand_objective(theta_in, &input.data, err);
                 }, input.theta.data(), input.theta.size(), result.objective.size(), result.jacobian.data());
         }
     }

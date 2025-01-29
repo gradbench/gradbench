@@ -16,7 +16,7 @@ void set_gradients(double val, vector<adouble> *aparams) {
 }
 
 void compute_hand_complicated_J(const vector<double>& theta, const vector<double>& us,
-                                const HandDataLightMatrix& data,
+                                const HandDataLightMatrix* data,
                                 vector<double> *perr, vector<double> *pJ) {
   auto &err = *perr;
   auto &J = *pJ;
@@ -61,7 +61,7 @@ void compute_hand_complicated_J(const vector<double>& theta, const vector<double
   }
 }
 
-void compute_hand_simple_J(const vector<double>& theta, const HandDataLightMatrix& data,
+void compute_hand_simple_J(const vector<double>& theta, const HandDataLightMatrix* data,
                              vector<double> *perr, vector<double> *pJ) {
   auto &err = *perr;
   auto &J = *pJ;
@@ -97,12 +97,12 @@ HandOutput AdeptHand::output()
 void AdeptHand::calculate_objective(int times) {
   if (_complicated) {
     for (int i = 0; i < times; ++i) {
-      hand_objective(_input.theta.data(), _input.us.data(), _input.data, _output.objective.data());
+      hand_objective(_input.theta.data(), _input.us.data(), &_input.data, _output.objective.data());
     }
   }
   else {
     for (int i = 0; i < times; ++i) {
-      hand_objective(_input.theta.data(), _input.data, _output.objective.data());
+      hand_objective(_input.theta.data(), &_input.data, _output.objective.data());
     }
   }
 }
@@ -111,13 +111,13 @@ void AdeptHand::calculate_jacobian(int times) {
   for (int i = 0; i < times; ++i) {
     if (_input.us.size() == 0) {
       compute_hand_simple_J(_input.theta,
-                            _input.data,
+                            &_input.data,
                             &_output.objective,
                             &_output.jacobian);
     } else {
       compute_hand_complicated_J(_input.theta,
                                  _input.us,
-                                 _input.data,
+                                 &_input.data,
                                  &_output.objective,
                                  &_output.jacobian);
     }

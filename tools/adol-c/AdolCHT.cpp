@@ -73,7 +73,7 @@ void compute_hand_complicated_J(const vector<double>& theta, const vector<double
   for (size_t i = 0; i < theta.size(); i++)
     atheta[i] <<= theta[i];
 
-  hand_objective(&atheta[0], &aus[0], data, &aerr[0]);
+  hand_objective(&atheta[0], &aus[0], &data, &aerr[0]);
 
   for (int i = 0; i < Jrows; i++)
     aerr[i] >>= err[i];
@@ -206,7 +206,7 @@ void compute_hand_simple_J(vector<double>& theta,
   for (size_t i = 0; i < theta.size(); i++)
     atheta[i] <<= theta[i];
 
-  hand_objective(&atheta[0], data, &aerr[0]);
+  hand_objective(&atheta[0], &data, &aerr[0]);
 
   for (int i = 0; i < Jrows; i++)
     aerr[i] >>= err[i];

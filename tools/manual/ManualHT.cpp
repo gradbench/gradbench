@@ -29,13 +29,13 @@ void ManualHand::calculate_objective(int times)
     if (_complicated)
     {
         for (int i = 0; i < times; ++i) {
-            hand_objective(_input.theta.data(), _input.us.data(), _input.data, _output.objective.data());
+            hand_objective(_input.theta.data(), _input.us.data(), &_input.data, _output.objective.data());
         }
     }
     else
     {
         for (int i = 0; i < times; ++i) {
-            hand_objective(_input.theta.data(), _input.data, _output.objective.data());
+            hand_objective(_input.theta.data(), &_input.data, _output.objective.data());
         }
     }
 }
@@ -54,9 +54,4 @@ void ManualHand::calculate_jacobian(int times)
             hand_objective_d(_input.theta.data(), _input.data, _output.objective.data(), _output.jacobian.data());
         }
     }
-}
-
-extern "C" DLL_PUBLIC ITest<HandInput, HandOutput>* get_hand_test()
-{
-    return new ManualHand();
 }
