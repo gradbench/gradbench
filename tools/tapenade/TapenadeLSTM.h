@@ -21,13 +21,9 @@ private:
     std::vector<double> state;
 
 public:
-    // This function must be called before any other function.
-    virtual void prepare(LSTMInput&& input) override;
+    TapenadeLSTM(LSTMInput&);
 
-    virtual void calculate_objective(int times) override;
-    virtual void calculate_jacobian(int times) override;
-    virtual LSTMOutput output() override;
-
-    ~TapenadeLSTM() {}
+    virtual void calculate_objective() override;
+    virtual void calculate_jacobian() override;
 };
 

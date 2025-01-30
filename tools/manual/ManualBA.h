@@ -13,17 +13,11 @@
 
 class ManualBA : public ITest<BAInput, BAOutput> {
 private:
-    BAInput _input;
-    BAOutput _output;
     std::vector<double> _reproj_err_d;
 
 public:
-    // This function must be called before any other function.
-    virtual void prepare(BAInput&& input) override;
+    ManualBA(BAInput&);
 
-    virtual void calculate_objective(int times) override;
-    virtual void calculate_jacobian(int times) override;
-    virtual BAOutput output() override;
-
-    ~ManualBA() {}
+    virtual void calculate_objective() override;
+    virtual void calculate_jacobian() override;
 };

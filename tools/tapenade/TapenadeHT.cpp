@@ -5,120 +5,84 @@
 
 #include "TapenadeHT.h"
 
-void TapenadeHand::prepare(HandInput&& input)
-{
-    this->input = input;
-    complicated = this->input.us.size() > 0;
+TapenadeHand::TapenadeHand(HandInput& input) : ITest(input) {
+  complicated = _input.us.size() > 0;
 
-    if (objective_input != nullptr)
+  if (objective_input != nullptr)
     {
-        free_objective_input();
+      free_objective_input();
     }
 
-    this->objective_input = convert_to_hand_objective_data(this->input);
+  this->objective_input = convert_to_hand_objective_data(_input);
 
-    int err_size = 3 * this->input.data.correspondences.size();
-    int ncols = this->input.theta.size();
-    if (complicated)
+  int err_size = 3 * _input.data.correspondences.size();
+  int ncols = _input.theta.size();
+  if (complicated)
     {
-        ncols += 2;
+      ncols += 2;
     }
 
-    result = {
-        std::vector<double>(err_size),
-        ncols,
-        err_size,
-        std::vector<double>(err_size * ncols)
-    };
+  _output = {
+    std::vector<double>(err_size),
+    ncols,
+    err_size,
+    std::vector<double>(err_size * ncols)
+  };
 
-    theta_d = std::vector<double>(this->input.theta.size());
-    us_d = std::vector<double>(this->input.us.size());
-    us_jacobian_column = std::vector<double>(err_size);
+  theta_d = std::vector<double>(_input.theta.size());
+  us_d = std::vector<double>(_input.us.size());
+  us_jacobian_column = std::vector<double>(err_size);
 }
 
-
-
-HandOutput TapenadeHand::output()
-{
-    return result;
+void TapenadeHand::calculate_objective() {
+  if (complicated) {
+    hand_objective_complicated(_input.theta.data(),
+                               _input.us.data(),
+                               objective_input->bone_count,
+                               objective_input->bone_names,
+                               objective_input->parents,
+                               objective_input->base_relatives,
+                               objective_input->inverse_base_absolutes,
+                               &objective_input->base_positions,
+                               &objective_input->weights,
+                               objective_input->triangles,
+                               objective_input->is_mirrored,
+                               objective_input->corresp_count,
+                               objective_input->correspondences,
+                               &objective_input->points,
+                               _output.objective.data()
+                               );
+  } else {
+    hand_objective(_input.theta.data(),
+                   objective_input->bone_count,
+                   objective_input->bone_names,
+                   objective_input->parents,
+                   objective_input->base_relatives,
+                   objective_input->inverse_base_absolutes,
+                   &objective_input->base_positions,
+                   &objective_input->weights,
+                   objective_input->triangles,
+                   objective_input->is_mirrored,
+                   objective_input->corresp_count,
+                   objective_input->correspondences,
+                   &objective_input->points,
+                   _output.objective.data()
+                   );
+  }
 }
 
-
-
-void TapenadeHand::calculate_objective(int times)
+void TapenadeHand::calculate_jacobian()
 {
-    if (complicated)
-    {
-        for (int i = 0; i < times; i++)
-        {
-            hand_objective_complicated(
-                input.theta.data(),
-                input.us.data(),
-                objective_input->bone_count,
-                objective_input->bone_names,
-                objective_input->parents,
-                objective_input->base_relatives,
-                objective_input->inverse_base_absolutes,
-                &objective_input->base_positions,
-                &objective_input->weights,
-                objective_input->triangles,
-                objective_input->is_mirrored,
-                objective_input->corresp_count,
-                objective_input->correspondences,
-                &objective_input->points,
-                result.objective.data()
-            );
-        }
-    }
-    else
-    {
-        for (int i = 0; i < times; i++)
-        {
-            hand_objective(
-                input.theta.data(),
-                objective_input->bone_count,
-                objective_input->bone_names,
-                objective_input->parents,
-                objective_input->base_relatives,
-                objective_input->inverse_base_absolutes,
-                &objective_input->base_positions,
-                &objective_input->weights,
-                objective_input->triangles,
-                objective_input->is_mirrored,
-                objective_input->corresp_count,
-                objective_input->correspondences,
-                &objective_input->points,
-                result.objective.data()
-            );
-        }
-    }
+  if (complicated) {
+    calculate_jacobian_complicated();
+  } else {
+    calculate_jacobian_simple();
+  }
 }
-
-
-
-void TapenadeHand::calculate_jacobian(int times)
-{
-    if (complicated)
-    {
-        for (int i = 0; i < times; i++)
-        {
-            calculate_jacobian_complicated();
-        }
-    }
-    else
-    {
-        for (int i = 0; i < times; i++)
-        {
-            calculate_jacobian_simple();
-        }
-    }
-}
-
-
 
 void TapenadeHand::calculate_jacobian_simple()
 {
-    for (int i = 0; i < theta_d.size(); i++)
+    for (size_t i = 0; i < theta_d.size(); i++)
     {
         if (i > 0)
         {
@@ -127,7 +91,7 @@ void TapenadeHand::calculate_jacobian_simple()
 
         theta_d[i] = 1.0;
         hand_objective_d(
-            input.theta.data(),
+            _input.theta.data(),
             theta_d.data(),
             objective_input->bone_count,
             objective_input->bone_names,
@@ -144,8 +108,8 @@ void TapenadeHand::calculate_jacobian_simple()
             objective_input->corresp_count,
             objective_input->correspondences,
             &objective_input->points,
-            result.objective.data(),
-            result.jacobian.data() + i * result.jacobian_nrows
+            _output.objective.data(),
+            _output.jacobian.data() + i * _output.jacobian_nrows
         );
     }
 
@@ -156,11 +120,11 @@ void TapenadeHand::calculate_jacobian_simple()
 
 void TapenadeHand::calculate_jacobian_complicated()
 {
-    int nrows = result.objective.size();
+    int nrows = _output.objective.size();
     int shift = 2 * nrows;
 
     // calculate theta jacobian part
-    for (int i = 0; i < theta_d.size(); i++)
+    for (size_t i = 0; i < theta_d.size(); i++)
     {
         if (i > 0)
         {
@@ -169,9 +133,9 @@ void TapenadeHand::calculate_jacobian_complicated()
 
         theta_d[i] = 1.0;
         hand_objective_complicated_d(
-            input.theta.data(),
+            _input.theta.data(),
             theta_d.data(),
-            input.us.data(),
+            _input.us.data(),
             us_d.data(),
             objective_input->bone_count,
             objective_input->bone_names,
@@ -188,15 +152,15 @@ void TapenadeHand::calculate_jacobian_complicated()
             objective_input->corresp_count,
             objective_input->correspondences,
             &objective_input->points,
-            result.objective.data(),
-            result.jacobian.data() + shift + i * nrows
+            _output.objective.data(),
+            _output.jacobian.data() + shift + i * nrows
         );
     }
 
     theta_d.back() = 0.0;
 
     // calculate us jacobian part
-    for (int i = 0; i < us_d.size(); i++)
+    for (size_t i = 0; i < us_d.size(); i++)
     {
         if (i > 0)
         {
@@ -205,9 +169,9 @@ void TapenadeHand::calculate_jacobian_complicated()
 
         us_d[i] = 1.0;
         hand_objective_complicated_d(
-            input.theta.data(),
+            _input.theta.data(),
             theta_d.data(),
-            input.us.data(),
+            _input.us.data(),
             us_d.data(),
             objective_input->bone_count,
             objective_input->bone_names,
@@ -224,7 +188,7 @@ void TapenadeHand::calculate_jacobian_complicated()
             objective_input->corresp_count,
             objective_input->correspondences,
             &objective_input->points,
-            result.objective.data(),
+            _output.objective.data(),
             us_jacobian_column.data()
         );
 
@@ -232,14 +196,14 @@ void TapenadeHand::calculate_jacobian_complicated()
         {
             for (int j = 0; j < 3; j++)
             {
-                result.jacobian[3 * (i / 2) + j] = us_jacobian_column[3 * (i / 2) + j];
+                _output.jacobian[3 * (i / 2) + j] = us_jacobian_column[3 * (i / 2) + j];
             }
         }
         else
         {
             for (int j = 0; j < 3; j++)
             {
-                result.jacobian[nrows + 3 * ((i - 1) / 2) + j] = us_jacobian_column[3 * ((i - 1) / 2) + j];
+                _output.jacobian[nrows + 3 * ((i - 1) / 2) + j] = us_jacobian_column[3 * ((i - 1) / 2) + j];
             }
         }
     }
@@ -249,39 +213,39 @@ void TapenadeHand::calculate_jacobian_complicated()
 
 
 
-HandObjectiveData* TapenadeHand::convert_to_hand_objective_data(const HandInput& input)
+HandObjectiveData* TapenadeHand::convert_to_hand_objective_data(const HandInput& _input)
 {
-    HandObjectiveData* result = new HandObjectiveData;
+    HandObjectiveData* _output = new HandObjectiveData;
 
-    result->correspondences = input.data.correspondences.data();
-    result->corresp_count = input.data.correspondences.size();
-    result->points = convert_to_matrix(input.data.points);
+    _output->correspondences = _input.data.correspondences.data();
+    _output->corresp_count = _input.data.correspondences.size();
+    _output->points = convert_to_matrix(_input.data.points);
 
-    const HandModelLightMatrix& imd = input.data.model;
-    result->bone_count = imd.bone_names.size();
-    result->parents = imd.parents.data();
-    result->base_positions = convert_to_matrix(imd.base_positions);
+    const HandModelLightMatrix& imd = _input.data.model;
+    _output->bone_count = imd.bone_names.size();
+    _output->parents = imd.parents.data();
+    _output->base_positions = convert_to_matrix(imd.base_positions);
     base_positionsd = buildMatrixDiff(imd.base_positions) ;
-    result->weights = convert_to_matrix(imd.weights);
-    result->triangles = imd.triangles.data();
-    result->is_mirrored = imd.is_mirrored ? 1 : 0;
+    _output->weights = convert_to_matrix(imd.weights);
+    _output->triangles = imd.triangles.data();
+    _output->is_mirrored = imd.is_mirrored ? 1 : 0;
 
-    result->bone_names = new const char* [result->bone_count];
-    result->base_relatives = new Matrix[result->bone_count];
-    base_relativesd = new Matrix_diff[result->bone_count];
-    result->inverse_base_absolutes = new Matrix[result->bone_count];
-    inverse_base_absolutesd = new Matrix_diff[result->bone_count];
+    _output->bone_names = new const char* [_output->bone_count];
+    _output->base_relatives = new Matrix[_output->bone_count];
+    base_relativesd = new Matrix_diff[_output->bone_count];
+    _output->inverse_base_absolutes = new Matrix[_output->bone_count];
+    inverse_base_absolutesd = new Matrix_diff[_output->bone_count];
 
-    for (int i = 0; i < result->bone_count; i++)
+    for (int i = 0; i < _output->bone_count; i++)
     {
-        result->bone_names[i] = imd.bone_names[i].data();
-        result->base_relatives[i] = convert_to_matrix(imd.base_relatives[i]);
+        _output->bone_names[i] = imd.bone_names[i].data();
+        _output->base_relatives[i] = convert_to_matrix(imd.base_relatives[i]);
         base_relativesd[i] = buildMatrixDiff(imd.base_relatives[i]);
-        result->inverse_base_absolutes[i] = convert_to_matrix(imd.inverse_base_absolutes[i]);
+        _output->inverse_base_absolutes[i] = convert_to_matrix(imd.inverse_base_absolutes[i]);
         inverse_base_absolutesd[i] = buildMatrixDiff(imd.inverse_base_absolutes[i]);
     }
 
-    return result;
+    return _output;
 }
 
 
@@ -321,11 +285,4 @@ void TapenadeHand::free_objective_input()
         delete objective_input;
         objective_input = nullptr;
     }
-}
-
-
-
-extern "C" DLL_PUBLIC ITest<HandInput, HandOutput>* get_hand_test()
-{
-    return new TapenadeHand();
 }

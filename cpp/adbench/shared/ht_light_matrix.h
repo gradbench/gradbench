@@ -234,43 +234,43 @@ void to_pose_params(const T* const theta,
 template<typename T>
 void hand_objective(
   const T* const theta,
-  const HandDataLightMatrix& data,
+  const HandDataLightMatrix* data,
   T *err)
 {
   LightMatrix<T> pose_params;
-  to_pose_params(theta, data.model.bone_names, &pose_params);
+  to_pose_params(theta, data->model.bone_names, &pose_params);
 
   LightMatrix<T> vertex_positions;
-  get_skinned_vertex_positions(data.model, pose_params, &vertex_positions, true);
+  get_skinned_vertex_positions(data->model, pose_params, &vertex_positions, true);
 
-  for (size_t i = 0; i < data.correspondences.size(); i++)
+  for (size_t i = 0; i < data->correspondences.size(); i++)
     for (int j = 0; j < 3; j++)
-      err[i * 3 + j] = data.points(j, i) - vertex_positions(j, data.correspondences[i]);  
+      err[i * 3 + j] = data->points(j, i) - vertex_positions(j, data->correspondences[i]);  
 }
 
 template<typename T>
 void hand_objective(
   const T* const theta,
   const T* const us,
-  const HandDataLightMatrix& data,
+  const HandDataLightMatrix* data,
   T *err)
 {
   LightMatrix<T> pose_params;
-  to_pose_params(theta, data.model.bone_names, &pose_params);
+  to_pose_params(theta, data->model.bone_names, &pose_params);
 
   LightMatrix<T> vertex_positions;
-  get_skinned_vertex_positions(data.model, pose_params, &vertex_positions, true);
+  get_skinned_vertex_positions(data->model, pose_params, &vertex_positions, true);
 
-  for (size_t i = 0; i < data.correspondences.size(); i++)
+  for (size_t i = 0; i < data->correspondences.size(); i++)
   {
-    const auto& verts = data.model.triangles[data.correspondences[i]].verts;
+    const auto& verts = data->model.triangles[data->correspondences[i]].verts;
     const T* const u = &us[2 * i];
     for (int j = 0; j < 3; j++)
     {
       T hand_point_coord = u[0] * vertex_positions(j, verts[0]) + u[1] * vertex_positions(j, verts[1])
         + (1. - u[0] - u[1])*vertex_positions(j, verts[2]);
 
-      err[i * 3 + j] = data.points(j, i) - hand_point_coord;
+      err[i * 3 + j] = data->points(j, i) - hand_point_coord;
     }
   }
 }

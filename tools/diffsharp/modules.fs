@@ -1,7 +1,5 @@
 module modules
 
-#load "hello.fsx"
-
 open DiffSharp
 open Newtonsoft.Json
 open Newtonsoft.Json.Linq

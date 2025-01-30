@@ -66,39 +66,27 @@ This script will always automatically rebuild the CLI if it is not already up to
 
 ## Docker
 
-Use the `repo build-eval` subcommand to build the Docker image for any evaluation script:
+Use the `run` subcommand to run a given evaluation on a given tool. You can use pass any commands for the evaluation and tool, but to use the Docker images, the easiest way is to use the `repo eval` and `repo tool` subcommands:
 
 ```sh
-./gradbench repo build-eval hello
-```
-
-Use the `repo build-tool` subcommand to build the Docker image for any tool:
-
-```sh
-./gradbench repo build-tool pytorch
-```
-
-Then use the `run` subcommand to run a given evaluation on a given tool. You can use pass any commands for the evaluation and tool, but to use the Docker images, the easiest way is to use the `eval` and `tool` subcommands:
-
-```sh
-./gradbench run --eval './gradbench eval hello' --tool './gradbench tool pytorch'
+./gradbench run --eval './gradbench repo eval hello' --tool './gradbench repo tool pytorch'
 ```
 
 Some evals support further configuration via their own CLI flags, which you can see by passing `--help` to the eval itself:
 
 ```sh
-./gradbench eval gmm -- --help
+./gradbench repo eval gmm -- --help
 ```
 
 So for instance, to increase `n` for the GMM eval:
 
 ```sh
-./gradbench run --eval './gradbench eval gmm -- -n10000' --tool './gradbench tool pytorch'
+./gradbench run --eval './gradbench repo eval gmm -- -n10000' --tool './gradbench repo tool pytorch'
 ```
 
 ### Multi-platform images
 
-The above do not build a multi-platform image. If you have followed the above instructions to configure Docker for building such images, you can do so using the `--cross` flag:
+The `repo eval` and `repo tool` subcommands are just for convenience when building and running the Docker images locally; they do not build multi-platform images. If you have followed the above instructions to configure Docker for building such images, you can do so using the `--cross` flag on the `repo build-eval` and `repo build-tool` subcommands:
 
 ```sh
 ./gradbench repo build-eval --cross hello
@@ -158,7 +146,7 @@ This will log a `localhost` URL to your terminal; open that URL in your browser.
 The Docker images should be considered canonical, but for local development, it can be more convenient to instead install and run tools directly. You can use `uv run` to do this:
 
 ```sh
-./gradbench run --eval './gradbench eval hello' --tool 'uv run python/gradbench/gradbench/pytorch/run.py'
+./gradbench run --eval './gradbench repo eval hello' --tool 'uv run python/gradbench/gradbench/pytorch/run.py'
 ```
 
 We autoformat Python code using [Black][] and [isort][]. If you're using [VS Code][], our configuration in this repository should automatically recommend that you install the corresponding extensions for those formatters, as well as automatically run them whenever you save a Python file. You can also run them manually via the command line:

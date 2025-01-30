@@ -17,8 +17,6 @@
 class TapenadeBA : public ITest<BAInput, BAOutput>
 {
 private:
-    BAInput input;
-    BAOutput result;
     std::vector<double> state;
 
     // buffer for reprojection error jacobian part holding (column-major)
@@ -28,14 +26,10 @@ private:
     std::vector<double> reproj_err_d_row;
 
 public:
-    // This function must be called before any other function.
-    virtual void prepare(BAInput&& input) override;
+    TapenadeBA(BAInput& input);
 
-    virtual void calculate_objective(int times) override;
-    virtual void calculate_jacobian(int times) override;
-    virtual BAOutput output() override;
-
-    ~TapenadeBA() {}
+    virtual void calculate_objective() override;
+    virtual void calculate_jacobian() override;
 
 private:
     void calculate_weight_error_jacobian_part();

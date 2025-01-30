@@ -10,17 +10,11 @@
 #include "finite.h"
 
 class FiniteGMM : public ITest<GMMInput, GMMOutput> {
-    GMMInput input;
-    GMMOutput result;
-    FiniteDifferencesEngine<double> engine;
+  FiniteDifferencesEngine<double> engine;
 
 public:
-    // This function must be called before any other function.
-    void prepare(GMMInput&& input) override;
+  FiniteGMM(GMMInput&);
 
-    void calculate_objective(int times) override;
-    void calculate_jacobian(int times) override;
-    GMMOutput output() override;
-
-    ~FiniteGMM() = default;
+  void calculate_objective() override;
+  void calculate_jacobian() override;
 };
