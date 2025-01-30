@@ -6,13 +6,9 @@
 #include <vector>
 
 class EnzymeHello : public ITest<HelloInput, HelloOutput> {
-private:
-    HelloInput _input;
-    HelloOutput _output;
-
 public:
-    EnzymeHello(HelloInput& input);
+  EnzymeHello(HelloInput& input);
 
-    virtual void calculate_objective() override;
-    virtual void calculate_jacobian() override;
+  virtual void calculate_objective() override;
+  virtual void calculate_jacobian() override;
 };
