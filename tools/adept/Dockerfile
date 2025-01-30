@@ -20,8 +20,11 @@ RUN curl -O http://www.met.reading.ac.uk/clouds/adept/adept-2.1.1.tar.gz
 RUN tar xvf adept-2.1.1.tar.gz
 RUN cd adept-2.1.1 && curl -O https://cvs.savannah.gnu.org/viewvc/*checkout*/config/config/config.guess
 RUN cd adept-2.1.1 && curl -O https://cvs.savannah.gnu.org/viewvc/*checkout*/config/config/config.sub
-RUN cd adept-2.1.1 && ./configure && make
-ENV ADEPT_DIR=/home/gradbench/adept-2.1.1
+RUN cd adept-2.1.1 && ./configure
+RUN make -C adept-2.1.1
+RUN make -C adept-2.1.1 install
+ENV LIBRARY_PATH=/usr/local/lib
+ENV LD_LIBRARY_PATH=/usr/local/lib
 
 COPY cpp /home/gradbench/cpp
 
