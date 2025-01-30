@@ -173,7 +173,8 @@ jobs:
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Build tool Docker image
-        run: gradbench repo build-tool --cross ${{ matrix.tool }}
+        # no cross-platform for slow-to-build tools since it's, y'know, too slow
+        run: gradbench repo build-tool ${{ matrix.tool }}
       - name: Serialize tool Docker image
         run: docker save --output tool-${{ matrix.tool }}.tar ghcr.io/gradbench/tool-${{ matrix.tool }}
       - name: Upload tool Docker image as artifact
