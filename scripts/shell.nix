@@ -37,6 +37,8 @@ let
     pydantic
   ];
   my-python = pkgs.python3.withPackages my-python-packages;
+  cppad = pkgs.callPackage ./cppad.nix {};
+  adept = pkgs.callPackage ./adept.nix {};
 in
 pkgs.stdenv.mkDerivation {
   name = "gradbench";
@@ -48,7 +50,10 @@ pkgs.stdenv.mkDerivation {
      pkgs.futhark
      pkgs.enzyme
      pkgs.adolc
+     pkgs.pkg-config
      pkgs.llvmPackages_19.lld
      pkgs.llvmPackages_19.clang
+     adept
+     cppad
     ];
 }
