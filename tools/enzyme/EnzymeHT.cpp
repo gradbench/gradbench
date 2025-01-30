@@ -2,33 +2,20 @@
 
 #include "adbench/shared/ht_light_matrix.h"
 
-void EnzymeHand::prepare(HandInput&& input)
-{
-  _input = input;
+EnzymeHand::EnzymeHand(HandInput& input) : ITest(input) {
   _complicated = _input.us.size() != 0;
   int err_size = 3 * _input.data.correspondences.size();
   int ncols = (_complicated ? 2 : 0) + _input.theta.size();
   _output = { std::vector<double>(err_size), ncols, err_size, std::vector<double>(err_size * ncols) };
 }
 
-HandOutput EnzymeHand::output()
-{
-  return _output;
-}
-
-void EnzymeHand::calculate_objective(int times) {
+void EnzymeHand::calculate_objective() {
   if (_complicated) {
-    for (int i = 0; i < times; ++i) {
-      hand_objective(_input.theta.data(), _input.us.data(), &_input.data, _output.objective.data());
-    }
-  }
-  else {
-    for (int i = 0; i < times; ++i) {
-      hand_objective(_input.theta.data(), &_input.data, _output.objective.data());
-    }
+    hand_objective(_input.theta.data(), _input.us.data(), &_input.data, _output.objective.data());
+  } else {
+    hand_objective(_input.theta.data(), &_input.data, _output.objective.data());
   }
 }
-
 
 extern int enzyme_dup;
 extern int enzyme_dupnoneed;
@@ -119,19 +106,17 @@ void compute_hand_simple_J(const vector<double>& theta, const HandDataLightMatri
   }
 }
 
-void EnzymeHand::calculate_jacobian(int times) {
-  for (int i = 0; i < times; ++i) {
-    if (_input.us.size() == 0) {
-      compute_hand_simple_J(_input.theta,
-                            _input.data,
-                            &_output.objective,
-                            &_output.jacobian);
-    } else {
-      compute_hand_complicated_J(_input.theta,
-                                 _input.us,
-                                 _input.data,
-                                 &_output.objective,
-                                 &_output.jacobian);
-    }
+void EnzymeHand::calculate_jacobian() {
+  if (_input.us.size() == 0) {
+    compute_hand_simple_J(_input.theta,
+                          _input.data,
+                          &_output.objective,
+                          &_output.jacobian);
+  } else {
+    compute_hand_complicated_J(_input.theta,
+                               _input.us,
+                               _input.data,
+                               &_output.objective,
+                               &_output.jacobian);
   }
 }

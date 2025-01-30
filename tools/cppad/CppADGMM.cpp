@@ -4,8 +4,7 @@
 
 typedef CppAD::AD<double> ADdouble;
 
-void CppADGMM::prepare(GMMInput&& input) {
-  _input = input;
+CppADGMM::CppADGMM(GMMInput& input) : ITest(input) {
   int Jcols = (_input.k * (_input.d + 1) * (_input.d + 2)) / 2;
   _output = { 0,  std::vector<double>(Jcols) };
 
@@ -34,20 +33,12 @@ void CppADGMM::prepare(GMMInput&& input) {
   _tape->optimize();
 }
 
-GMMOutput CppADGMM::output() {
-  return _output;
+void CppADGMM::calculate_objective() {
+  gmm_objective(_input.d, _input.k, _input.n,
+                _input.alphas.data(), _input.means.data(), _input.icf.data(),
+                _input.x.data(), _input.wishart, &_output.objective);
 }
 
-void CppADGMM::calculate_objective(int times) {
-  for (int i = 0; i < times; ++i) {
-    gmm_objective(_input.d, _input.k, _input.n,
-                  _input.alphas.data(), _input.means.data(), _input.icf.data(),
-                  _input.x.data(), _input.wishart, &_output.objective);
-  }
-}
-
-void CppADGMM::calculate_jacobian(int times) {
-  for (int i = 0; i < times; ++i) {
-    _output.gradient = _tape->Jacobian(_input_flat);
-  }
+void CppADGMM::calculate_jacobian() {
+  _output.gradient = _tape->Jacobian(_input_flat);
 }

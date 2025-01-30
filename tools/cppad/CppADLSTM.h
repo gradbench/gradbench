@@ -5,18 +5,12 @@
 #include <cppad/cppad.hpp>
 
 class CppADLSTM : public ITest<LSTMInput, LSTMOutput> {
-  LSTMInput _input;
-  LSTMOutput _output;
-
   std::vector<double> _input_flat;
   CppAD::ADFun<double> *_tape;
 
 public:
-  void prepare(LSTMInput&& input) override;
+  CppADLSTM(LSTMInput&);
 
-  void calculate_objective(int times) override;
-  void calculate_jacobian(int times) override;
-  LSTMOutput output() override;
-
-  ~CppADLSTM() = default;
+  void calculate_objective() override;
+  void calculate_jacobian() override;
 };

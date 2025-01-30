@@ -10,19 +10,13 @@
 #include "finite.h"
 
 class FiniteHand : public ITest<HandInput, HandOutput> {
-    HandInput input;
-    HandOutput result;
     bool complicated = false;
     std::vector<double> jacobian_by_us;
     FiniteDifferencesEngine<double> engine;
 
 public:
-    // This function must be called before any other function.
-    void prepare(HandInput&& input) override;
+    FiniteHand(HandInput& input);
 
-    void calculate_objective(int times) override;
-    void calculate_jacobian(int times) override;
-    HandOutput output() override;
-
-    ~FiniteHand() = default;
+    void calculate_objective() override;
+    void calculate_jacobian() override;
 };

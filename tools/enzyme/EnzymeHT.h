@@ -4,16 +4,11 @@
 #include "adbench/shared/HTData.h"
 
 class EnzymeHand : public ITest<HandInput, HandOutput> {
-  HandInput _input;
-  HandOutput _output;
   bool _complicated = false;
 
 public:
-  void prepare(HandInput&& input) override;
+  EnzymeHand(HandInput& input);
 
-  void calculate_objective(int times) override;
-  void calculate_jacobian(int times) override;
-  HandOutput output() override;
-
-  ~EnzymeHand() = default;
+  void calculate_objective() override;
+  void calculate_jacobian() override;
 };

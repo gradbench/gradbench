@@ -223,8 +223,7 @@ void compute_hand_simple_J(vector<double>& theta,
   delete[] J_tmp;
 }
 
-void AdolCHand::prepare(HandInput&& input) {
-  _input = input;
+AdolCHand::AdolCHand(HandInput& input) : ITest(input) {
   _complicated = _input.us.size() != 0;
   int err_size = 3 * _input.data.correspondences.size();
   int ncols = (_complicated ? 2 : 0) + _input.theta.size();
@@ -236,28 +235,18 @@ void AdolCHand::prepare(HandInput&& input) {
   };
 }
 
-HandOutput AdolCHand::output() {
-  return _output;
-}
-
-void AdolCHand::calculate_objective(int times) {
+void AdolCHand::calculate_objective() {
   if (_complicated) {
-    for (int i = 0; i < times; ++i) {
-      hand_objective(_input.theta.data(), _input.us.data(), _input.data, _output.objective.data());
-    }
+    hand_objective(_input.theta.data(), _input.us.data(), &_input.data, _output.objective.data());
   } else {
-    for (int i = 0; i < times; ++i) {
-      hand_objective(_input.theta.data(), _input.data, _output.objective.data());
-    }
+    hand_objective(_input.theta.data(), &_input.data, _output.objective.data());
   }
 }
 
-void AdolCHand::calculate_jacobian(int times) {
-  for (int i = 0; i < times; ++i) {
-    if (_complicated) {
-      compute_hand_complicated_J(_input.theta, _input.us, _input.data, &_output.objective, &_output.jacobian);
-    } else {
-      compute_hand_simple_J(_input.theta, _input.data, &_output.objective, &_output.jacobian);
-    }
+void AdolCHand::calculate_jacobian() {
+  if (_complicated) {
+    compute_hand_complicated_J(_input.theta, _input.us, _input.data, &_output.objective, &_output.jacobian);
+  } else {
+    compute_hand_simple_J(_input.theta, _input.data, &_output.objective, &_output.jacobian);
   }
 }

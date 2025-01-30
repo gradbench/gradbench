@@ -7,38 +7,24 @@
 #include "adbench/shared/lstm.h"
 #include "finite.h"
 
-// This function must be called before any other function.
-void FiniteLSTM::prepare(LSTMInput&& input)
-{
-    this->input = input;
-    int Jcols = 8 * this->input.l * this->input.b + 3 * this->input.b;
-    result = { 0, std::vector<double>(Jcols) };
-    engine.set_max_output_size(1);
+FiniteLSTM::FiniteLSTM(LSTMInput& input) : ITest(input) {
+  int Jcols = 8 * _input.l * _input.b + 3 * _input.b;
+  _output = { 0, std::vector<double>(Jcols) };
+  engine.set_max_output_size(1);
 }
 
-LSTMOutput FiniteLSTM::output()
-{
-    return result;
+void FiniteLSTM::calculate_objective() {
+  lstm_objective(_input.l, _input.c, _input.b, _input.main_params.data(), _input.extra_params.data(), _input.state.data(), _input.sequence.data(), &_output.objective);
 }
 
-void FiniteLSTM::calculate_objective(int times)
-{
-    for (int i = 0; i < times; ++i) {
-        lstm_objective(input.l, input.c, input.b, input.main_params.data(), input.extra_params.data(), input.state.data(), input.sequence.data(), &result.objective);
-    }
-}
+void FiniteLSTM::calculate_jacobian() {
+  engine.finite_differences([&](double* main_params_in, double* loss) {
+    lstm_objective(_input.l, _input.c, _input.b, main_params_in,
+                   _input.extra_params.data(), _input.state.data(), _input.sequence.data(), loss);
+  }, _input.main_params.data(), _input.main_params.size(), 1, _output.gradient.data());
 
-void FiniteLSTM::calculate_jacobian(int times)
-{
-    for (int i = 0; i < times; ++i) {
-        engine.finite_differences([&](double* main_params_in, double* loss) {
-            lstm_objective(input.l, input.c, input.b, main_params_in,
-                           input.extra_params.data(), input.state.data(), input.sequence.data(), loss);
-            }, input.main_params.data(), input.main_params.size(), 1, result.gradient.data());
-
-        engine.finite_differences([&](double* extra_params_in, double* loss) {
-            lstm_objective(input.l, input.c, input.b, input.main_params.data(),
-                           extra_params_in, input.state.data(), input.sequence.data(), loss);
-            }, input.extra_params.data(), input.extra_params.size(), 1, &result.gradient.data()[2 * input.l * 4 * input.b]);
-    }
+  engine.finite_differences([&](double* extra_params_in, double* loss) {
+    lstm_objective(_input.l, _input.c, _input.b, _input.main_params.data(),
+                   extra_params_in, _input.state.data(), _input.sequence.data(), loss);
+  }, _input.extra_params.data(), _input.extra_params.size(), 1, &_output.gradient.data()[2 * _input.l * 4 * _input.b]);
 }
