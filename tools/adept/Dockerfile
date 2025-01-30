@@ -24,7 +24,6 @@ RUN cd adept-2.1.1 && ./configure && make
 ENV ADEPT_DIR=/home/gradbench/adept-2.1.1
 
 COPY cpp /home/gradbench/cpp
-
 RUN make -C cpp
 
 COPY tools/adept/ /home/gradbench/tools/adept

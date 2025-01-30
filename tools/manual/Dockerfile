@@ -16,7 +16,5 @@ RUN make -C cpp
 
 COPY tools/manual/ /home/gradbench/tools/manual
 
-RUN make -j -B -C tools/manual
-
 ENTRYPOINT ["python3", "/home/gradbench/tools/manual/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
