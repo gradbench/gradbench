@@ -3,7 +3,7 @@ use std::{
     env, fs,
     io::{self, BufRead, Write},
     path::{Path, PathBuf},
-    process::{Child, Command, ExitCode, ExitStatus, Stdio},
+    process::{Child, Command, ExitCode, ExitStatus, Output, Stdio},
     time::Instant,
 };
 
@@ -89,6 +89,28 @@ enum Commands {
 
 #[derive(Debug, Subcommand)]
 enum RepoCommands {
+    /// Build and run an eval using Docker.
+    ///
+    /// The Docker image name is `ghcr.io/gradbench/eval-<EVAL>:latest`.
+    Eval {
+        /// The name of the eval to run
+        eval: String,
+
+        /// Arguments for the eval itself
+        args: Vec<String>,
+    },
+
+    /// Build and run a tool using Docker.
+    ///
+    /// The Docker image name is `ghcr.io/gradbench/tool-<TOOL>:latest`.
+    Tool {
+        /// The name of the tool to run
+        tool: String,
+
+        /// Arguments for the tool itself
+        args: Vec<String>,
+    },
+
     /// Build the Docker image for an eval.
     ///
     /// The Docker image name is `ghcr.io/gradbench/eval-<EVAL>:latest`.
@@ -145,6 +167,10 @@ enum RepoCommands {
         /// The current date
         #[clap(long)]
         date: String,
+
+        /// The Git commit SHA from the `main` branch
+        #[clap(long)]
+        commit: String,
     },
 }
 
@@ -164,12 +190,115 @@ fn status_code(status: ExitStatus) -> Result<(), ExitCode> {
 }
 
 /// Run a command and preserve its exit code whenever possible.
-fn run(command: &mut Command) -> Result<(), ExitCode> {
-    let status = command.status().map_err(|err| {
-        eprintln!("error running {:?}: {err}", command.get_program());
-        ExitCode::FAILURE
-    })?;
-    status_code(status)
+fn run(command: &mut Command) -> Result<Output, ExitCode> {
+    let output = command
+        .spawn()
+        .and_then(|child| child.wait_with_output())
+        .map_err(|err| {
+            eprintln!("error running {:?}: {err}", command.get_program());
+            ExitCode::FAILURE
+        })?;
+    status_code(output.status)?;
+    Ok(output)
+}
+
+/// Run an eval using Docker.
+fn run_eval(name: &str, tag: Option<&str>, args: &[String]) -> Result<(), ExitCode> {
+    let t = tag.unwrap_or("latest");
+    run(Command::new("docker")
+        .args(["run", "--rm", "--interactive"])
+        .arg(format!("ghcr.io/gradbench/eval-{name}:{t}"))
+        .args(args))?;
+    Ok(())
+}
+
+/// Run a tool using Docker.
+fn run_tool(name: &str, tag: Option<&str>, args: &[String]) -> Result<(), ExitCode> {
+    let t = tag.unwrap_or("latest");
+    run(Command::new("docker")
+        .args(["run", "--rm", "--interactive"])
+        .arg(format!("ghcr.io/gradbench/tool-{name}:{t}"))
+        .args(args))?;
+    Ok(())
+}
+
+/// A set of platforms to build a Docker image for.
+enum Platforms {
+    /// Build only for the current platform.
+    Native,
+
+    /// Build for both x86 and ARM.
+    Cross,
+}
+
+impl Platforms {
+    /// Return a configuration which is cross-platform only if `cross` is `true``.
+    fn cross(cross: bool) -> Self {
+        if cross {
+            Platforms::Cross
+        } else {
+            Platforms::Native
+        }
+    }
+}
+
+/// A level of verbosity for building a Docker image.
+enum Verbosity {
+    /// Normal output.
+    Normal,
+
+    /// No output except for errors.
+    Quiet,
+}
+
+/// Build the Docker image for an eval.
+fn build_eval(name: &str, platforms: Platforms, verbosity: Verbosity) -> Result<(), ExitCode> {
+    let mut cmd = Command::new("docker");
+    cmd.arg("build");
+    match platforms {
+        Platforms::Native => {}
+        Platforms::Cross => {
+            cmd.args(["--platform", "linux/amd64,linux/arm64"]);
+        }
+    }
+    cmd.args([".", "--file"])
+        .arg(format!("evals/{name}/Dockerfile"))
+        .arg("--tag")
+        .arg(format!("ghcr.io/gradbench/eval-{name}"));
+    match verbosity {
+        Verbosity::Normal => {}
+        Verbosity::Quiet => {
+            cmd.arg("--quiet");
+            cmd.stdout(Stdio::null()); // Suppress the printed image ID.
+        }
+    }
+    run(&mut cmd)?;
+    Ok(())
+}
+
+/// Build the Docker image for a tool.
+fn build_tool(name: &str, platforms: Platforms, verbosity: Verbosity) -> Result<(), ExitCode> {
+    let mut cmd = Command::new("docker");
+    cmd.arg("build");
+    match platforms {
+        Platforms::Native => {}
+        Platforms::Cross => {
+            cmd.args(["--platform", "linux/amd64,linux/arm64"]);
+        }
+    }
+    cmd.args([".", "--file"])
+        .arg(format!("tools/{name}/Dockerfile"))
+        .arg("--tag")
+        .arg(format!("ghcr.io/gradbench/tool-{name}"));
+    match verbosity {
+        Verbosity::Normal => {}
+        Verbosity::Quiet => {
+            cmd.arg("--quiet");
+            cmd.stdout(Stdio::null()); // Suppress the printed image ID.
+        }
+    }
+    run(&mut cmd)?;
+    Ok(())
 }
 
 /// A message ID.
@@ -467,11 +596,7 @@ fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyho
 
 /// Return a command's stdout as a string, preserving its exit code whenever possible.
 fn stdout(command: &mut Command) -> Result<String, ExitCode> {
-    let output = command.output().map_err(|err| {
-        eprintln!("error running {:?}: {err}", command.get_program());
-        ExitCode::FAILURE
-    })?;
-    status_code(output.status)?;
+    let output = run(command.stdout(Stdio::piped()))?;
     String::from_utf8(output.stdout).map_err(|err| {
         let program = command.get_program();
         eprintln!("error processing output from {program:?}: {err}");
@@ -594,6 +719,9 @@ struct Summary<'a> {
     /// The current date.
     date: String,
 
+    /// The Git commit SHA from the `main` branch.
+    commit: String,
+
     /// The table of summary data.
     table: Vec<Row<'a>>,
 }
@@ -601,20 +729,8 @@ struct Summary<'a> {
 /// Run the GradBench CLI, returning a `Result`.
 fn cli_result() -> Result<(), ExitCode> {
     match Cli::parse().command {
-        Commands::Eval { eval, tag, args } => {
-            let t = tag.as_deref().unwrap_or("latest");
-            run(Command::new("docker")
-                .args(["run", "--rm", "--interactive"])
-                .arg(format!("ghcr.io/gradbench/eval-{eval}:{t}"))
-                .args(args))
-        }
-        Commands::Tool { tool, tag, args } => {
-            let t = tag.as_deref().unwrap_or("latest");
-            run(Command::new("docker")
-                .args(["run", "--rm", "--interactive"])
-                .arg(format!("ghcr.io/gradbench/tool-{tool}:{t}"))
-                .args(args))
-        }
+        Commands::Eval { eval, tag, args } => run_eval(&eval, tag.as_deref(), &args),
+        Commands::Tool { tool, tag, args } => run_tool(&tool, tag.as_deref(), &args),
         Commands::Run { eval, tool, output } => {
             let (Ok(mut client), Ok(mut server)) = (
                 Command::new("sh")
@@ -661,29 +777,21 @@ fn cli_result() -> Result<(), ExitCode> {
         Commands::Repo { command } => {
             check_git()?;
             match command {
+                RepoCommands::Eval { eval, args } => {
+                    build_eval(&eval, Platforms::Native, Verbosity::Quiet)?;
+                    run_eval(&eval, None, &args)?;
+                    Ok(())
+                }
+                RepoCommands::Tool { tool, args } => {
+                    build_tool(&tool, Platforms::Native, Verbosity::Quiet)?;
+                    run_tool(&tool, None, &args)?;
+                    Ok(())
+                }
                 RepoCommands::BuildEval { eval, cross } => {
-                    let mut cmd = Command::new("docker");
-                    cmd.arg("build");
-                    if cross {
-                        cmd.args(["--platform", "linux/amd64,linux/arm64"]);
-                    }
-                    cmd.args([".", "--file"])
-                        .arg(format!("evals/{eval}/Dockerfile"))
-                        .arg("--tag")
-                        .arg(format!("ghcr.io/gradbench/eval-{eval}"));
-                    run(&mut cmd)
+                    build_eval(&eval, Platforms::cross(cross), Verbosity::Normal)
                 }
                 RepoCommands::BuildTool { tool, cross } => {
-                    let mut cmd = Command::new("docker");
-                    cmd.arg("build");
-                    if cross {
-                        cmd.args(["--platform", "linux/amd64,linux/arm64"]);
-                    }
-                    cmd.args([".", "--file"])
-                        .arg(format!("tools/{tool}/Dockerfile"))
-                        .arg("--tag")
-                        .arg(format!("ghcr.io/gradbench/tool-{tool}"));
-                    run(&mut cmd)
+                    build_tool(&tool, Platforms::cross(cross), Verbosity::Normal)
                 }
                 RepoCommands::Manual { image } => {
                     let name = format!("ghcr.io/gradbench/{image}");
@@ -719,7 +827,7 @@ fn cli_result() -> Result<(), ExitCode> {
                     github_output("slow", slow)?;
                     Ok(())
                 }
-                RepoCommands::Summarize { dir, date } => {
+                RepoCommands::Summarize { dir, date, commit } => {
                     let mut table = vec![];
                     let mut evals = ls("evals")?;
                     evals.sort();
@@ -734,7 +842,11 @@ fn cli_result() -> Result<(), ExitCode> {
                         }
                         table.push(Row { eval, tools: row });
                     }
-                    let summary = Summary { date, table };
+                    let summary = Summary {
+                        date,
+                        commit,
+                        table,
+                    };
                     let output = dir.join("summary.json");
                     let file = fs::File::create(&output).map_err(|err| {
                         eprintln!("error creating summary file {output:?}: {err}");

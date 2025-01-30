@@ -4,16 +4,11 @@
 #include "adbench/shared/HTData.h"
 
 class AdeptHand : public ITest<HandInput, HandOutput> {
-  HandInput _input;
-  HandOutput _output;
   bool _complicated = false;
 
 public:
-  void prepare(HandInput&& input) override;
+  AdeptHand(HandInput&);
 
-  void calculate_objective(int times) override;
-  void calculate_jacobian(int times) override;
-  HandOutput output() override;
-
-  ~AdeptHand() = default;
+  void calculate_objective() override;
+  void calculate_jacobian() override;
 };

@@ -189,7 +189,7 @@ jobs:
       - name: Create summary of logs in nightly outputs branch dir
         env:
           DATE: ${{ fromJSON(needs.matrix.outputs.date) }}
-        run: gradbench repo summarize --date "$DATE" run
+        run: gradbench repo summarize --date "$DATE" --commit ${{ github.sha }} run
       - name: Commit and push nightly outputs branch
         working-directory: run
         env:

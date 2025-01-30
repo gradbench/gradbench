@@ -8,7 +8,8 @@ HELLO_OBJECTS=AdolCHello.o run_hello.o
 GMM_OBJECTS=AdolCGMM.o run_gmm.o
 BA_OBJECTS=AdolCBA.o run_ba.o
 HT_OBJECTS=AdolCHT.o run_ht.o
-EXECUTABLES=run_hello run_gmm run_ba run_ht
+LSTM_OBJECTS=AdolCLSTM.o run_lstm.o
+EXECUTABLES=run_hello run_gmm run_ba run_ht run_lstm
 
 all: $(EXECUTABLES)
 
@@ -22,6 +23,9 @@ run_gmm: $(GMM_OBJECTS) $(UTIL_OBJECTS)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 run_ht: $(HT_OBJECTS) $(UTIL_OBJECTS)
+	$(CXX) -o $@ $^ $(LDFLAGS)
+
+run_lstm: $(LSTM_OBJECTS) $(UTIL_OBJECTS)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 %.o: %.c

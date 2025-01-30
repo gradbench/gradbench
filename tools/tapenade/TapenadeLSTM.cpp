@@ -5,77 +5,48 @@
 
 #include "TapenadeLSTM.h"
 
-void TapenadeLSTM::prepare(LSTMInput&& input)
-{
-    this->input = input;
-    state = std::vector<double>(this->input.state.size());
+TapenadeLSTM::TapenadeLSTM(LSTMInput& input) : ITest(input) {
+  state = std::vector<double>(_input.state.size());
 
-    int Jcols = 8 * this->input.l * this->input.b + 3 * this->input.b;
-    result = { 0, std::vector<double>(Jcols) };
+  int Jcols = 8 * _input.l * _input.b + 3 * _input.b;
+  _output = { 0, std::vector<double>(Jcols) };
 }
 
-
-
-LSTMOutput TapenadeLSTM::output()
-{
-    return result;
+void TapenadeLSTM::calculate_objective() {
+  state = _input.state;
+  lstm_objective(_input.l,
+                 _input.c,
+                 _input.b,
+                 _input.main_params.data(),
+                 _input.extra_params.data(),
+                 state.data(),
+                 _input.sequence.data(),
+                 &_output.objective
+                 );
 }
 
+void TapenadeLSTM::calculate_jacobian() {
+  double* main_params_gradient_part = _output.gradient.data();
+  double* extra_params_gradient_part = _output.gradient.data() + _input.main_params.size();
 
+  double loss = 0.0;      // stores fictive _output
+  // (Tapenade doesn't calculate an original function in reverse mode)
 
-void TapenadeLSTM::calculate_objective(int times)
-{
-    for (int i = 0; i < times; i++)
-    {
-        state = input.state;
-        lstm_objective(
-            input.l,
-            input.c,
-            input.b,
-            input.main_params.data(),
-            input.extra_params.data(),
-            state.data(),
-            input.sequence.data(),
-            &result.objective
-        );
-    }
-}
+  double lossb = 1.0;     // stores dY
+  // (equals to 1.0 for gradient calculation)
 
-
-
-void TapenadeLSTM::calculate_jacobian(int times)
-{
-    double* main_params_gradient_part = result.gradient.data();
-    double* extra_params_gradient_part = result.gradient.data() + input.main_params.size();
-
-    for (int i = 0; i < times; i++)
-    {
-        double loss = 0.0;      // stores fictive result
-                                // (Tapenade doesn't calculate an original function in reverse mode)
-
-        double lossb = 1.0;     // stores dY
-                                // (equals to 1.0 for gradient calculation)
-
-        state = input.state;
-        lstm_objective_b(
-            input.l,
-            input.c,
-            input.b,
-            input.main_params.data(),
-            main_params_gradient_part,
-            input.extra_params.data(),
-            extra_params_gradient_part,
-            state.data(),
-            input.sequence.data(),
-            &loss,
-            &lossb
-        );
-    }
-}
-
-
-
-extern "C" DLL_PUBLIC ITest<LSTMInput, LSTMOutput>* get_lstm_test()
-{
-    return new TapenadeLSTM();
+  state = _input.state;
+  lstm_objective_b(
+                   _input.l,
+                   _input.c,
+                   _input.b,
+                   _input.main_params.data(),
+                   main_params_gradient_part,
+                   _input.extra_params.data(),
+                   extra_params_gradient_part,
+                   state.data(),
+                   _input.sequence.data(),
+                   &loss,
+                   &lossb
+                   );
 }

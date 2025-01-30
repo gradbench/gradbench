@@ -6,8 +6,8 @@ import numpy as np
 
 import gradbench.pytorch.gmm as golden
 from gradbench.comparison import compare_json_objects
+from gradbench.eval import SingleModuleValidatedEval, mismatch
 from gradbench.evals.gmm import data_gen
-from gradbench.evaluation import SingleModuleValidatedEvaluation, mismatch
 from gradbench.wrap import Wrapped
 
 
@@ -29,7 +29,7 @@ def main():
     parser.add_argument("--runs", type=int, default=1)
     args = parser.parse_args()
 
-    e = SingleModuleValidatedEvaluation(module="gmm", validator=mismatch(check))
+    e = SingleModuleValidatedEval(module="gmm", validator=mismatch(check))
     e.start()
     if e.define().success:
         n = args.n

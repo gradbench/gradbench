@@ -12,16 +12,9 @@
 #include <vector>
 
 class ManualGMM : public ITest<GMMInput, GMMOutput> {
-    GMMInput _input;
-    GMMOutput _output;
-
 public:
-    // This function must be called before any other function.
-    void prepare(GMMInput&& input) override;
+    ManualGMM(GMMInput& input);
 
-    void calculate_objective(int times) override;
-    void calculate_jacobian(int times) override;
-    GMMOutput output() override; 
-
-    ~ManualGMM() = default;
+    void calculate_objective() override;
+    void calculate_jacobian() override;
 };
