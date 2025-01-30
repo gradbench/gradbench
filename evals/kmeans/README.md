@@ -15,7 +15,7 @@ Given $n$ points $P$ and $k$ clusters $C$, the objective function is
 f(P, C) = \sum_{i<n} \text{min}_{j<k} ||C_j-P_i||
 ```
 
-and we must find the $C$ that minimise it.
+and we must find the $C$ that minimises it.
 
 First we find the derivative with respect to $C$, which produces a
 $k$-element gradient (where each element is a $d$-dimensional point),
@@ -26,8 +26,8 @@ compute a Hessian $H$, which has nonzero elements only along the
 diagonal.
 
 We finally compute $J * H^{-1}$, which is the result that must be
-reported by the tool. Note that since $H$ is sparse, $H^{-1}$ is
-simply the inverse of each element of $H$.
+reported by the tool for the `"direction"` function. Note that since
+$H$ is sparse, $H^{-1}$ is simply the inverse of each element of $H$.
 
 ## Protocol
 
@@ -40,7 +40,7 @@ description](https://github.com/gradbench/gradbench?tab=readme-ov-file#types).
 The eval sends a leading `DefineMessage` followed by
 `EvaluateMessages`. The `input` field of any `EvaluateMessage` will be
 an instance of the `KMeansInput` type defined below. The `function`
-field will be the string `"direction"`.
+field will one of the strings `"cost"` or `"dir"`.
 
 ```typescript
 type KMeansInput (number, double[][]);
@@ -53,8 +53,9 @@ the last $k$ elements of $P$.
 
 A tool must respond to an `EvaluateMessage` with an
 `EvaluateResponse`. The type of the `output` field in the
-`EvaluateResponse` must be `KMeansOutput`:
+`EvaluateResponse` depends on the `function`:
 
 ```typescript
-type KMeansOutput = double[][];
+type CostOutput = number;
+type DirOutput = double[][];
 ```

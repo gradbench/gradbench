@@ -33,6 +33,11 @@ def main():
                 for d in args.d:
                     input = {"k": k, "points": np.random.rand(n, d).tolist()}
                     e.evaluate(
+                        function="cost",
+                        input=input | {"runs": args.runs},
+                        description=f"k={k},n={n},d={d}",
+                    )
+                    e.evaluate(
                         function="direction",
                         input=input | {"runs": args.runs},
                         description=f"k={k},n={n},d={d}",

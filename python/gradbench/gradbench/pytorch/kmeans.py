@@ -14,7 +14,7 @@ def all_pairs_norm(a, b):
     return a_sqr + b_sqr - 2 * diff
 
 
-def cost(points, centers):
+def costfun(points, centers):
     dists = all_pairs_norm(points, centers)
     (min_dist, _) = torch.min(dists, dim=0)
     return min_dist.sum()
@@ -27,12 +27,21 @@ def prepare_input(input):
 
 
 @wrap.multiple_runs(
+    runs=lambda x: x["runs"], pre=prepare_input, post=lambda x: float(x)
+)
+def cost(input):
+    k, features = input
+    clusters = torch.flip(features[-int(k) :], (0,))
+    return costfun(features, clusters)
+
+
+@wrap.multiple_runs(
     runs=lambda x: x["runs"], pre=prepare_input, post=lambda x: x.tolist()
 )
 def direction(input):
     k, features = input
     clusters = torch.flip(features[-int(k) :], (0,))
-    _, jac = vjp(partial(cost, features), clusters, v=torch.tensor(1.0))
-    _, hes = vhp(partial(cost, features), clusters, v=torch.ones_like(clusters))
+    _, jac = vjp(partial(costfun, features), clusters, v=torch.tensor(1.0))
+    _, hes = vhp(partial(costfun, features), clusters, v=torch.ones_like(clusters))
 
     return jac / hes

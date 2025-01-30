@@ -6,7 +6,7 @@ from jax import grad, jit, jvp
 from gradbench import wrap
 
 
-def cost(points, centers):
+def costfun(points, centers):
     def all_pairs_norm(a, b):
         a_sqr = jnp.sum(a**2, 1)[None, :]
         b_sqr = jnp.sum(b**2, 1)[:, None]
@@ -26,11 +26,20 @@ def prepare_input(input):
 
 
 @wrap.multiple_runs(
+    runs=lambda x: x["runs"], pre=prepare_input, post=lambda x: float(x)
+)
+@jit
+def cost(input):
+    k, clusters, features = input
+    return costfun(features, clusters)
+
+
+@wrap.multiple_runs(
     runs=lambda x: x["runs"], pre=prepare_input, post=lambda x: x.tolist()
 )
 @jit
 def direction(input):
     k, clusters, features = input
-    f_diff = grad(lambda cs: cost(features, cs))
+    f_diff = grad(lambda cs: costfun(features, cs))
     d, hes = jvp(f_diff, [clusters], [jnp.ones(shape=clusters.shape)])
     return d / hes
