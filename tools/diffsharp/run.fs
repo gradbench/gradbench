@@ -1,6 +1,4 @@
-#r "nuget: Newtonsoft.Json"
-#r "nuget: DiffSharp-lite"
-#load "modules.fsx"
+module run
 
 open Newtonsoft.Json.Linq
 open System

@@ -16,7 +16,7 @@ void set_gradients(double val, vector<adouble> *aparams) {
 }
 
 void compute_hand_complicated_J(const vector<double>& theta, const vector<double>& us,
-                                const HandDataLightMatrix& data,
+                                const HandDataLightMatrix* data,
                                 vector<double> *perr, vector<double> *pJ) {
   auto &err = *perr;
   auto &J = *pJ;
@@ -61,8 +61,8 @@ void compute_hand_complicated_J(const vector<double>& theta, const vector<double
   }
 }
 
-void compute_hand_simple_J(const vector<double>& theta, const HandDataLightMatrix& data,
-                             vector<double> *perr, vector<double> *pJ) {
+void compute_hand_simple_J(const vector<double>& theta, const HandDataLightMatrix* data,
+                           vector<double> *perr, vector<double> *pJ) {
   auto &err = *perr;
   auto &J = *pJ;
   adept::Stack stack;
@@ -79,47 +79,32 @@ void compute_hand_simple_J(const vector<double>& theta, const HandDataLightMatri
   adept::get_values(aerr.data(), err.size(), err.data());
 }
 
-// This function must be called before any other function.
-void AdeptHand::prepare(HandInput&& input)
-{
-  _input = input;
+AdeptHand::AdeptHand(HandInput& input) : ITest(input) {
   _complicated = _input.us.size() != 0;
   int err_size = 3 * _input.data.correspondences.size();
   int ncols = (_complicated ? 2 : 0) + _input.theta.size();
   _output = { std::vector<double>(err_size), ncols, err_size, std::vector<double>(err_size * ncols) };
 }
 
-HandOutput AdeptHand::output()
-{
-  return _output;
-}
-
-void AdeptHand::calculate_objective(int times) {
+void AdeptHand::calculate_objective() {
   if (_complicated) {
-    for (int i = 0; i < times; ++i) {
-      hand_objective(_input.theta.data(), _input.us.data(), _input.data, _output.objective.data());
-    }
-  }
-  else {
-    for (int i = 0; i < times; ++i) {
-      hand_objective(_input.theta.data(), _input.data, _output.objective.data());
-    }
+    hand_objective(_input.theta.data(), _input.us.data(), &_input.data, _output.objective.data());
+  } else {
+    hand_objective(_input.theta.data(), &_input.data, _output.objective.data());
   }
 }
 
-void AdeptHand::calculate_jacobian(int times) {
-  for (int i = 0; i < times; ++i) {
-    if (_input.us.size() == 0) {
-      compute_hand_simple_J(_input.theta,
-                            _input.data,
-                            &_output.objective,
-                            &_output.jacobian);
-    } else {
-      compute_hand_complicated_J(_input.theta,
-                                 _input.us,
-                                 _input.data,
-                                 &_output.objective,
-                                 &_output.jacobian);
-    }
+void AdeptHand::calculate_jacobian() {
+  if (_input.us.size() == 0) {
+    compute_hand_simple_J(_input.theta,
+                          &_input.data,
+                          &_output.objective,
+                          &_output.jacobian);
+  } else {
+    compute_hand_complicated_J(_input.theta,
+                               _input.us,
+                               &_input.data,
+                               &_output.objective,
+                               &_output.jacobian);
   }
 }

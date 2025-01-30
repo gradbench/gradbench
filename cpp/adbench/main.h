@@ -24,41 +24,43 @@ int generic_main(int argc, char* argv[]) {
 
   ReadInput(input_file, input, &runs);
 
-  Benchmark b;
-
-  double prepare_time_taken;
-  {
-    struct timespec start, finish;
-    clock_gettime( CLOCK_REALTIME, &start);
-    b.prepare(std::move(input));
-    clock_gettime( CLOCK_REALTIME, &finish);
-    prepare_time_taken = (finish.tv_sec*1e9 + finish.tv_nsec) - (start.tv_sec*1e9 + start.tv_nsec);
-  }
+  Benchmark b(input);
 
   std::vector<struct timespec> start(runs), finish(runs);
 
   if (std::string(argv[2]) == "F") {
     for (int i = 0; i < runs; i++) {
       clock_gettime( CLOCK_REALTIME, &start[i] );
-      b.calculate_objective(1);
+      b.calculate_objective();
       clock_gettime( CLOCK_REALTIME, &finish[i] );
     }
 
     auto output = b.output();
     WriteObjective(std::cout, output);
+    std::cout << std::endl;
   } else {
+    double prepare_time_taken;
+    {
+      struct timespec start, finish;
+      clock_gettime( CLOCK_REALTIME, &start);
+      b.prepare_jacobian();
+      clock_gettime( CLOCK_REALTIME, &finish);
+      prepare_time_taken = (finish.tv_sec*1e9 + finish.tv_nsec) - (start.tv_sec*1e9 + start.tv_nsec);
+    }
+
     for (int i = 0; i < runs; i++) {
       clock_gettime( CLOCK_REALTIME, &start[i] );
-      b.calculate_jacobian(1);
+      b.calculate_jacobian();
       clock_gettime( CLOCK_REALTIME, &finish[i] );
     }
 
     auto output = b.output();
     WriteJacobian(std::cout, output);
-  }
-  std::cout << std::endl;
+    std::cout << std::endl;
 
-  std::cout << "{\"name\": \"prepare\", \"nanoseconds\": " << (long)prepare_time_taken << "}" << std::endl;
+    std::cout << "{\"name\": \"prepare\", \"nanoseconds\": " << (long)prepare_time_taken << "}" << std::endl;
+  }
+
   for (int i = 0; i < runs; i++) {
     long time_taken = ((finish[i].tv_sec*1e9 + finish[i].tv_nsec) -
                        (start[i].tv_sec*1e9 + start[i].tv_nsec));

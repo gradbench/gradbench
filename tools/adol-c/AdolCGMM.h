@@ -6,15 +6,10 @@
 #include <vector>
 
 class AdolCGMM : public ITest<GMMInput, GMMOutput> {
-  GMMInput _input;
-  GMMOutput _output;
-
 public:
-  void prepare(GMMInput&& input) override;
+  AdolCGMM(GMMInput&);
 
-  void calculate_objective(int times) override;
-  void calculate_jacobian(int times) override;
-  GMMOutput output() override;
-
-  ~AdolCGMM() = default;
+  void prepare_jacobian() override;
+  void calculate_objective() override;
+  void calculate_jacobian() override;
 };
