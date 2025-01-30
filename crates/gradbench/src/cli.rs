@@ -2,6 +2,7 @@ use std::{
     collections::BTreeMap,
     env, fs,
     io::{self, BufRead, Write},
+    os::unix::process::CommandExt,
     path::{Path, PathBuf},
     process::{Child, Command, ExitCode, ExitStatus, Output, Stdio},
     time::{Duration, Instant},
@@ -10,6 +11,7 @@ use std::{
 use anyhow::anyhow;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
+use nix::{sys::signal, unistd::Pid};
 use serde::{Deserialize, Serialize};
 use timeout_readwrite::TimeoutReader;
 
@@ -579,7 +581,7 @@ fn intermediary(
                     message.id(),
                 )?;
                 println!(" {} {}", nanostring(ns).dimmed(), "⧖".red());
-                tool.kill()?;
+                signal::killpg(Pid::from_raw(tool.id() as i32), signal::Signal::SIGKILL)?;
                 return Ok((0, true));
             };
             return Err(anyhow!(err));
@@ -789,12 +791,14 @@ fn cli_result() -> Result<(), ExitCode> {
                     .arg(eval)
                     .stdin(Stdio::piped())
                     .stdout(Stdio::piped())
+                    .process_group(0)
                     .spawn(),
                 Command::new("sh")
                     .arg("-c")
                     .arg(tool)
                     .stdin(Stdio::piped())
                     .stdout(Stdio::piped())
+                    .process_group(0)
                     .spawn(),
             ) else {
                 eprintln!("error starting eval and tool commands");
