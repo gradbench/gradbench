@@ -470,6 +470,20 @@ fn print_status(success: bool) {
 
 /// Run an eval and a tool together, returning the number of validation failures.
 fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyhow::Result<usize> {
+    #[cfg(unix)]
+    {
+        use nix::{sys::signal, unistd};
+        let eval_pid = unistd::Pid::from_raw(eval.id().try_into()?);
+        let tool_pid = unistd::Pid::from_raw(tool.id().try_into()?);
+        ctrlc::set_handler(move || {
+            if let Ok(pgid) = unistd::getpgid(Some(eval_pid)) {
+                let _ = signal::killpg(pgid, signal::Signal::SIGKILL);
+            }
+            if let Ok(pgid) = unistd::getpgid(Some(tool_pid)) {
+                let _ = signal::killpg(pgid, signal::Signal::SIGKILL);
+            }
+        })?;
+    }
     let mut invalid = 0;
     let mut eval_in = eval.stdin.take().unwrap();
     let mut tool_in = tool.stdin.take().unwrap();
@@ -746,14 +760,18 @@ fn cli_result() -> Result<(), ExitCode> {
         Commands::Tool { tool, tag, args } => run_tool(&tool, tag.as_deref(), &args),
         Commands::Run { eval, tool, output } => {
             let (Ok(mut client), Ok(mut server)) = (
-                shell(&eval)
-                    .stdin(Stdio::piped())
-                    .stdout(Stdio::piped())
-                    .spawn(),
-                shell(&tool)
-                    .stdin(Stdio::piped())
-                    .stdout(Stdio::piped())
-                    .spawn(),
+                {
+                    let mut cmd = shell(&eval);
+                    #[cfg(unix)]
+                    std::os::unix::process::CommandExt::process_group(&mut cmd, 0);
+                    cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn()
+                },
+                {
+                    let mut cmd = shell(&tool);
+                    #[cfg(unix)]
+                    std::os::unix::process::CommandExt::process_group(&mut cmd, 0);
+                    cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn()
+                },
             ) else {
                 eprintln!("error starting eval and tool commands");
                 return Err(ExitCode::FAILURE);
