@@ -35,6 +35,7 @@ let
     autograd
     dataclasses-json
     pydantic
+    matplotlib
   ];
   my-python = pkgs.python3.withPackages my-python-packages;
   cppad = pkgs.callPackage ./cppad.nix {};
