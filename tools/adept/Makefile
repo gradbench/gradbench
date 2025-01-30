@@ -1,14 +1,7 @@
-# The ADEPT_DIR default is set such that you can download adept into
-# this directory for easy testing, but is overridden by an environment
-# variable in the Dockerfile.
-ADEPT_DIR?=adept-2.1.1
-ADEPT_INCLUDE_DIR=$(ADEPT_DIR)/include
-ADEPT_LIB_DIR=$(ADEPT_DIR)/adept/.libs/
-
 CXX?=c++
 CC?=cc
-CFLAGS=-std=c++17 -O2 -Wall -I$(ADEPT_INCLUDE_DIR) -fopenmp
-LDFLAGS=-lm $(ADEPT_LIB_DIR)/libadept.a -fopenmp
+CFLAGS=-std=c++17 -O2 -Wall -fopenmp
+LDFLAGS=-lm -ladept -fopenmp
 
 UTIL_OBJECTS=../../cpp/adbench/shared/utils.o ../../cpp/adbench/io.o
 HELLO_OBJECTS=AdeptHello.o run_hello.o
