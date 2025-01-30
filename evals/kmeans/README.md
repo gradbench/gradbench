@@ -12,7 +12,7 @@ be sparse - it only has nonzero elements along the diagonal.
 Given $n$ points $P$ and $k$ clusters $C$, the objective function is
 
 ```math
-f(P, C) = \sum_{i<n} \text{min}_{j<k} ||C_j-P_i||
+f(P, C) = \sum_i \text{min}_j(|C_j-P_i|)
 ```
 
 and we must find the $C$ that minimises it.
