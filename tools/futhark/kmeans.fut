@@ -7,9 +7,9 @@ def cost [n] [k] [d] (points: [n][d]f64) (centres: [k][d]f64) =
   |> map f64.minimum
   |> f64.sum
 
-entry kmeans [n] [d]
-             (k: i64)
-             (points: [n][d]f64) =
+entry direction [n] [d]
+                (k: i64)
+                (points: [n][d]f64) =
   let cluster_centres = take k (reverse points)
   let (cost', cost'') =
     jvp2 (\x -> vjp (cost points) x 1)

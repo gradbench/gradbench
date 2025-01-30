@@ -29,7 +29,7 @@ def prepare_input(input):
 @wrap.multiple_runs(
     runs=lambda x: x["runs"], pre=prepare_input, post=lambda x: x.tolist()
 )
-def kmeans(input):
+def direction(input):
     k, features = input
     clusters = torch.flip(features[-int(k) :], (0,))
     _, jac = vjp(partial(cost, features), clusters, v=torch.tensor(1.0))

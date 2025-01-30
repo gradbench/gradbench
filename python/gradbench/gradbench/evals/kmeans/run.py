@@ -7,8 +7,7 @@ import numpy as np
 
 import gradbench.pytorch.kmeans as golden
 from gradbench.comparison import compare_json_objects
-from gradbench.evals.lstm import io
-from gradbench.evaluation import SingleModuleValidatedEvaluation, mismatch
+from gradbench.eval import SingleModuleValidatedEval, mismatch
 from gradbench.wrap import Wrapped
 
 
@@ -26,7 +25,7 @@ def main():
     parser.add_argument("--runs", type=int, default=1)
     args = parser.parse_args()
 
-    e = SingleModuleValidatedEvaluation(module="kmeans", validator=mismatch(check))
+    e = SingleModuleValidatedEval(module="kmeans", validator=mismatch(check))
     e.start()
     if e.define().success:
         for k in args.k:
@@ -34,7 +33,7 @@ def main():
                 for d in args.d:
                     input = {"k": k, "points": np.random.rand(n, d).tolist()}
                     e.evaluate(
-                        function="kmeans",
+                        function="direction",
                         input=input | {"runs": args.runs},
                         description=f"k={k},n={n},d={d}",
                     )

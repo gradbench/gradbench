@@ -29,7 +29,7 @@ def prepare_input(input):
     runs=lambda x: x["runs"], pre=prepare_input, post=lambda x: x.tolist()
 )
 @jit
-def kmeans(input):
+def direction(input):
     k, clusters, features = input
     f_diff = grad(lambda cs: cost(features, cs))
     d, hes = jvp(f_diff, [clusters], [jnp.ones(shape=clusters.shape)])

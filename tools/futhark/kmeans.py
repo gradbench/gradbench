@@ -11,11 +11,11 @@ def prepare(server, input):
     server.put_value("points", np.array(input["points"], dtype=np.float64))
 
 
-def kmeans(server, input):
+def direction(server, input):
     runs = input["runs"]
     (o,), times = futhark_utils.run(
         server,
-        "kmeans",
+        "direction",
         ("output",),
         ("k", "points"),
         runs,
