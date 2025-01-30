@@ -3,7 +3,7 @@ from typing import Any
 
 import numpy as np
 
-from gradbench.evaluation import SingleModuleValidatedEvaluation, assertion
+from gradbench.eval import SingleModuleValidatedEval, assertion
 
 
 def check(function: str, input: Any, output: Any) -> None:
@@ -15,7 +15,7 @@ def check(function: str, input: Any, output: Any) -> None:
 
 
 def main():
-    e = SingleModuleValidatedEvaluation(module="hello", validator=assertion(check))
+    e = SingleModuleValidatedEval(module="hello", validator=assertion(check))
     e.start()
     if e.define().success:
         x = 1.0
