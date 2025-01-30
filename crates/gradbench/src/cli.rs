@@ -611,7 +611,7 @@ fn check_git() -> Result<(), ExitCode> {
         ExitCode::FAILURE
     })?;
     if let Ok(dir) = stdout(Command::new("git").args(["rev-parse", "--show-toplevel"])) {
-        if dir.strip_suffix('\n') == cwd.to_str() {
+        if dir.strip_suffix('\n').map(PathBuf::from) == Some(cwd) {
             return Ok(());
         }
     }
@@ -619,6 +619,19 @@ fn check_git() -> Result<(), ExitCode> {
         "error running a repo subcommand: current working directory is not a Git repository root"
     );
     Err(ExitCode::FAILURE)
+}
+
+/// Return a command that runs its argument as a shell command.
+fn shell(command: &str) -> Command {
+    if cfg!(windows) {
+        let mut cmd = Command::new("powershell");
+        cmd.arg("-Command").arg(command);
+        cmd
+    } else {
+        let mut cmd = Command::new("sh");
+        cmd.arg("-c").arg(command);
+        cmd
+    }
 }
 
 /// List the entries in a directory.
@@ -733,15 +746,11 @@ fn cli_result() -> Result<(), ExitCode> {
         Commands::Tool { tool, tag, args } => run_tool(&tool, tag.as_deref(), &args),
         Commands::Run { eval, tool, output } => {
             let (Ok(mut client), Ok(mut server)) = (
-                Command::new("sh")
-                    .arg("-c")
-                    .arg(eval)
+                shell(&eval)
                     .stdin(Stdio::piped())
                     .stdout(Stdio::piped())
                     .spawn(),
-                Command::new("sh")
-                    .arg("-c")
-                    .arg(tool)
+                shell(&tool)
                     .stdin(Stdio::piped())
                     .stdout(Stdio::piped())
                     .spawn(),
