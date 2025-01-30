@@ -2,6 +2,7 @@ use std::{
     collections::BTreeMap,
     env, fs,
     io::{self, BufRead, Write},
+    os::unix::process::CommandExt,
     path::{Path, PathBuf},
     process::{Child, Command, ExitCode, ExitStatus, Output, Stdio},
     time::Instant,
@@ -10,6 +11,7 @@ use std::{
 use anyhow::anyhow;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
+use nix::{sys::signal, unistd};
 use serde::{Deserialize, Serialize};
 
 /// CLI utilities for GradBench, a benchmark suite for differentiable programming across languages
@@ -470,6 +472,16 @@ fn print_status(success: bool) {
 
 /// Run an eval and a tool together, returning the number of validation failures.
 fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyhow::Result<usize> {
+    let eval_pid = unistd::Pid::from_raw(eval.id().try_into()?);
+    let tool_pid = unistd::Pid::from_raw(tool.id().try_into()?);
+    ctrlc::set_handler(move || {
+        if let Ok(pgid) = unistd::getpgid(Some(eval_pid)) {
+            let _ = signal::killpg(pgid, signal::Signal::SIGKILL);
+        }
+        if let Ok(pgid) = unistd::getpgid(Some(tool_pid)) {
+            let _ = signal::killpg(pgid, signal::Signal::SIGKILL);
+        }
+    })?;
     let mut invalid = 0;
     let mut eval_in = eval.stdin.take().unwrap();
     let mut tool_in = tool.stdin.take().unwrap();
@@ -749,10 +761,12 @@ fn cli_result() -> Result<(), ExitCode> {
                 shell(&eval)
                     .stdin(Stdio::piped())
                     .stdout(Stdio::piped())
+                    .process_group(0) // Put the eval in its own process group.
                     .spawn(),
                 shell(&tool)
                     .stdin(Stdio::piped())
                     .stdout(Stdio::piped())
+                    .process_group(0) // Put the tool in its own process group.
                     .spawn(),
             ) else {
                 eprintln!("error starting eval and tool commands");
