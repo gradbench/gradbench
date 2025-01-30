@@ -22,7 +22,7 @@ void lstm_objective_J(int l, int c, int b,
   adouble aloss;
   lstm_objective(l, c, b,
                  amain_params.data(), aextra_params.data(),
-                 astate, asequence.data(),
+                 astate.data(), asequence.data(),
                  &aloss);
   aloss.set_gradient(1.); // only one J row here
   stack.reverse();
@@ -37,28 +37,15 @@ void lstm_objective_J(int l, int c, int b,
 }
 
 
-void AdeptLSTM::prepare(LSTMInput&& input) {
-  this->input = input;
-  int Jcols = 8 * this->input.l * this->input.b + 3 * this->input.b;
-  state = std::vector<double>(this->input.state.size());
-  result = { 0, std::vector<double>(Jcols) };
+AdeptLSTM::AdeptLSTM(LSTMInput& input) : ITest(input) {
+  int Jcols = 8 * _input.l * _input.b + 3 * _input.b;
+  _output = { 0, std::vector<double>(Jcols) };
 }
 
-LSTMOutput AdeptLSTM::output()
-{
-  return result;
+void AdeptLSTM::calculate_objective() {
+  lstm_objective(_input.l, _input.c, _input.b, _input.main_params.data(), _input.extra_params.data(), _input.state.data(), _input.sequence.data(), &_output.objective);
 }
 
-void AdeptLSTM::calculate_objective(int times) {
-  for (int i = 0; i < times; ++i) {
-    state = input.state;
-    lstm_objective(input.l, input.c, input.b, input.main_params.data(), input.extra_params.data(), state, input.sequence.data(), &result.objective);
-  }
-}
-
-void AdeptLSTM::calculate_jacobian(int times) {
-  for (int i = 0; i < times; ++i) {
-    state = input.state;
-    lstm_objective_J(input.l, input.c, input.b, input, &result.objective, result.gradient.data());
-  }
+void AdeptLSTM::calculate_jacobian() {
+  lstm_objective_J(_input.l, _input.c, _input.b, _input, &_output.objective, _output.gradient.data());
 }

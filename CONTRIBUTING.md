@@ -9,7 +9,7 @@
   - [Multi-platform images](#multi-platform-images)
   - [Manual images](#manual-images)
 - [Tools](#tools)
-- [Node](#node)
+- [JavaScript](#javascript)
   - [Markdown](#markdown)
   - [Website](#website)
 - [Python](#python)
@@ -24,15 +24,14 @@ Make sure to have these tools installed:
 - [Git][]
 - [Rust][]
 - [Docker][]
-- [Python][]
-- [Node][]
 
 We build [multi-platform images][] to support both x86 and ARM chips, so to build those, you need to enable [containerd][] in Docker. If you're running Docker Engine on Linux, without Docker Desktop, you also need to install [QEMU][].
 
 Other tools that are optional but useful:
 
 - [GitHub CLI][]
-- [Poetry][]
+- [Bun][]
+- [uv][]
 - [Make][]
 
 ## Setup
@@ -67,39 +66,27 @@ This script will always automatically rebuild the CLI if it is not already up to
 
 ## Docker
 
-Use the `repo build-eval` subcommand to build the Docker image for any evaluation script:
+Use the `run` subcommand to run a given evaluation on a given tool. You can use pass any commands for the evaluation and tool, but to use the Docker images, the easiest way is to use the `repo eval` and `repo tool` subcommands:
 
 ```sh
-./gradbench repo build-eval hello
-```
-
-Use the `repo build-tool` subcommand to build the Docker image for any tool:
-
-```sh
-./gradbench repo build-tool pytorch
-```
-
-Then use the `run` subcommand to run a given evaluation on a given tool. You can use pass any commands for the evaluation and tool, but to use the Docker images, the easiest way is to use the `eval` and `tool` subcommands:
-
-```sh
-./gradbench run --eval './gradbench eval hello' --tool './gradbench tool pytorch'
+./gradbench run --eval './gradbench repo eval hello' --tool './gradbench repo tool pytorch'
 ```
 
 Some evals support further configuration via their own CLI flags, which you can see by passing `--help` to the eval itself:
 
 ```sh
-./gradbench eval gmm -- --help
+./gradbench repo eval gmm -- --help
 ```
 
 So for instance, to increase `n` for the GMM eval:
 
 ```sh
-./gradbench run --eval './gradbench eval gmm -- -n10000' --tool './gradbench tool pytorch'
+./gradbench run --eval './gradbench repo eval gmm -- -n10000' --tool './gradbench repo tool pytorch'
 ```
 
 ### Multi-platform images
 
-The above do not build a multi-platform image. If you have followed the above instructions to configure Docker for building such images, you can do so using the `--cross` flag:
+The `repo eval` and `repo tool` subcommands are just for convenience when building and running the Docker images locally; they do not build multi-platform images. If you have followed the above instructions to configure Docker for building such images, you can do so using the `--cross` flag on the `repo build-eval` and `repo build-tool` subcommands:
 
 ```sh
 ./gradbench repo build-eval --cross hello
@@ -128,12 +115,12 @@ We'd really appreciate it if you also write a short `README.md` file next to you
 
 Before taking a look at any of the other evals, you should implement the [`hello` eval](evals/hello) for the tool you're adding! This will help you get all the structure for the GradBench protocol working correctly first, after which you can implement other evals for that tool over time.
 
-## Node
+## JavaScript
 
-We use Node.js for our website. To work with the Node packages in this repository, first install all dependencies from npm:
+We use Bun for JavaScript code in this repository. First install all dependencies from npm:
 
 ```sh
-npm install
+bun install
 ```
 
 ### Markdown
@@ -141,7 +128,7 @@ npm install
 This file and [`README.md`](README.md) use [markdown-toc][] to generate the table of contents at the top. If you add/modify/delete any Markdown section headers, run this command to regenerate those tables of contents:
 
 ```sh
-npm run toc
+bun run toc
 ```
 
 ### Website
@@ -149,30 +136,24 @@ npm run toc
 We use [Vite][] for the website. To develop the website locally, run this command:
 
 ```sh
-npm run --workspace=gradbench dev
+bun run --filter=gradbench dev
 ```
 
 This will log a `localhost` URL to your terminal; open that URL in your browser. Any changes you make to files in `packages/gradbench/src` should automatically appear.
 
 ## Python
 
-The Docker images should be considered canonical, but for local development, it can be more convenient to instead install and run tools directly. Using Poetry, you can create a virtual environment with all the Python tools via this command:
+The Docker images should be considered canonical, but for local development, it can be more convenient to instead install and run tools directly. You can use `uv run` to do this:
 
 ```sh
-poetry install
-```
-
-Then you can use `poetry run` to run a command in this virtual environment:
-
-```sh
-./gradbench run --eval './gradbench eval hello' --tool 'poetry run python3 python/gradbench/pytorch/run.py'
+./gradbench run --eval './gradbench repo eval hello' --tool 'uv run python/gradbench/gradbench/pytorch/run.py'
 ```
 
 We autoformat Python code using [Black][] and [isort][]. If you're using [VS Code][], our configuration in this repository should automatically recommend that you install the corresponding extensions for those formatters, as well as automatically run them whenever you save a Python file. You can also run them manually via the command line:
 
 ```sh
-poetry run black .
-poetry run isort .
+uv run black .
+uv run isort .
 ```
 
 ## C++
@@ -184,6 +165,7 @@ make -C cpp
 ```
 
 [black]: https://black.readthedocs.io/en/stable/
+[bun]: https://bun.sh/
 [containerd]: https://docs.docker.com/storage/containerd/
 [docker]: https://docs.docker.com/engine/install/
 [git]: https://git-scm.com/downloads
@@ -193,10 +175,8 @@ make -C cpp
 [make]: https://en.wikipedia.org/wiki/Make_(software)
 [markdown-toc]: https://www.npmjs.com/package/markdown-toc
 [multi-platform images]: https://docs.docker.com/build/building/multi-platform/
-[node]: https://nodejs.org/en/download
-[poetry]: https://python-poetry.org/docs/
-[python]: https://www.python.org/downloads/
 [qemu]: https://docs.docker.com/build/building/multi-platform/#qemu-without-docker-desktop
 [rust]: https://www.rust-lang.org/tools/install
+[uv]: https://docs.astral.sh/uv
 [vite]: https://vitejs.dev/
 [vs code]: https://code.visualstudio.com/

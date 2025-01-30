@@ -4,11 +4,34 @@ from typing import Any
 
 import numpy as np
 
-import gradbench.pytorch.ht as golden
+import gradbench.pytorch.ba as golden
 from gradbench.comparison import compare_json_objects
-from gradbench.evals.ht import io
 from gradbench.evaluation import SingleModuleValidatedEvaluation, mismatch
 from gradbench.wrap import Wrapped
+
+
+def parse(file):
+    lines = iter(Path(file).read_text().splitlines())
+
+    n, m, p = [int(v) for v in next(lines).split()]
+
+    one_cam = [float(x) for x in next(lines).split()]
+
+    one_X = [float(x) for x in next(lines).split()]
+
+    one_w = float(next(lines))
+
+    one_feat = [float(x) for x in next(lines).split()]
+
+    return {
+        "n": n,
+        "m": m,
+        "p": p,
+        "cam": one_cam,
+        "x": one_X,
+        "w": one_w,
+        "feat": one_feat,
+    }
 
 
 def check(function: str, input: Any, output: Any) -> None:
@@ -24,38 +47,25 @@ def main():
     parser.add_argument("--runs", type=int, default=1)
     args = parser.parse_args()
 
-    e = SingleModuleValidatedEvaluation(module="ht", validator=mismatch(check))
+    e = SingleModuleValidatedEvaluation(module="ba", validator=mismatch(check))
     e.start()
     if e.define().success:
-        data_root = Path("evals/ht/data")  # assumes cwd is set correctly
-        # NOTE: data files are taken directly from ADBench.
-        simple_small = data_root / "simple_small"
-        simple_big = data_root / "simple_big"
-        complicated_small = data_root / "complicated_small"
-        complicated_big = data_root / "complicated_big"
-
-        def evals(data_dir, complicated):
-            # Shrink the range because some of the larger datasets take an
-            # excessive amount of time with PyTorch.
-            for i in range(args.min, args.max + 1):
-                fn = next(data_dir.glob(f"hand{i}_*.txt"), None)
-                model_dir = data_dir / "model"
-                input = io.read_hand_instance(model_dir, fn, complicated).to_dict()
+        # NOTE: data files are taken directly from ADBench. See README for more information.
+        # Currently set to run on the smallest two data files. To run on all 20 set loop range to be: range(1,21)
+        for i in range(args.min, args.max + 1):
+            datafile = next(Path("evals/ba/data").glob(f"ba{i}_*.txt"), None)
+            if datafile:
+                input = parse(datafile)
                 e.evaluate(
                     function="objective",
                     input=input | {"runs": args.runs},
-                    description=fn.stem,
+                    description=datafile.stem,
                 )
                 e.evaluate(
                     function="jacobian",
                     input=input | {"runs": args.runs},
-                    description=fn.stem,
+                    description=datafile.stem,
                 )
-
-        evals(simple_small, False)
-        evals(simple_big, False)
-        evals(complicated_small, True)
-        evals(complicated_big, True)
 
 
 if __name__ == "__main__":

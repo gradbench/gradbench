@@ -56,10 +56,7 @@ void compute_ba_J(int n, int m, int p,
   }
 }
 
-// This function must be called before any other function.
-void AdeptBA::prepare(BAInput&& input)
-{
-  _input = input;
+AdeptBA::AdeptBA(BAInput& input) : ITest(input) {
   _output = {
     std::vector<double>(2 * _input.p),
     std::vector<double>(_input.p),
@@ -69,26 +66,15 @@ void AdeptBA::prepare(BAInput&& input)
   _reproj_err_d = std::vector<double>(2 * n_new_cols);
 }
 
-BAOutput AdeptBA::output()
-{
-  return _output;
+void AdeptBA::calculate_objective() {
+  ba_objective(_input.n, _input.m, _input.p, _input.cams.data(), _input.X.data(), _input.w.data(),
+               _input.obs.data(), _input.feats.data(), _output.reproj_err.data(), _output.w_err.data());
 }
 
-void AdeptBA::calculate_objective(int times)
-{
-  for (int i = 0; i < times; ++i) {
-    ba_objective(_input.n, _input.m, _input.p, _input.cams.data(), _input.X.data(), _input.w.data(),
-                 _input.obs.data(), _input.feats.data(), _output.reproj_err.data(), _output.w_err.data());
-  }
-}
-
-void AdeptBA::calculate_jacobian(int times)
-{
-  for (int i = 0; i < times; ++i) {
-    _output.J.clear();
-    compute_ba_J(_input.n, _input.m, _input.p,
-                 _input.cams.data(), _input.X.data(), _input.w.data(),
-                 _input.obs.data(), _input.feats.data(), _output.reproj_err.data(), _output.w_err.data(),
-                 &_output.J);
-  }
+void AdeptBA::calculate_jacobian() {
+  _output.J.clear();
+  compute_ba_J(_input.n, _input.m, _input.p,
+               _input.cams.data(), _input.X.data(), _input.w.data(),
+               _input.obs.data(), _input.feats.data(), _output.reproj_err.data(), _output.w_err.data(),
+               &_output.J);
 }

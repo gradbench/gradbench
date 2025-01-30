@@ -14,11 +14,14 @@
 
 static const int tapeTag = 1;
 
-void AdolCGMM::prepare(GMMInput&& input) {
-  int d = input.d, n = input.n, k = input.k;
-  _input = input;
+AdolCGMM::AdolCGMM(GMMInput& input) : ITest(input) {
+  int d = _input.d, k = _input.k;
   int Jcols = (k * (d + 1) * (d + 2)) / 2;
   _output = { 0,  std::vector<double>(Jcols) };
+}
+
+void AdolCGMM::prepare_jacobian() {
+  int d = _input.d, n = _input.n, k = _input.k;
 
   // Construct tape.
   int icf_sz = d*(d + 1) / 2;
@@ -28,19 +31,19 @@ void AdolCGMM::prepare(GMMInput&& input) {
 
   aalphas = new adouble[k];
   for (int i = 0; i < k; i++) {
-    aalphas[i] <<= input.alphas[i];
+    aalphas[i] <<= _input.alphas[i];
   }
   ameans = new adouble[d*k];
   for (int i = 0; i < d*k; i++) {
-    ameans[i] <<= input.means[i];
+    ameans[i] <<= _input.means[i];
   }
   aicf = new adouble[icf_sz*k];
   for (int i = 0; i < icf_sz*k; i++) {
-    aicf[i] <<= input.icf[i];
+    aicf[i] <<= _input.icf[i];
   }
 
   gmm_objective(d, k, n, aalphas, ameans,
-		aicf, input.x.data(), input.wishart, &aerr);
+		aicf, _input.x.data(), _input.wishart, &aerr);
 
   aerr >>= _output.objective;
 
@@ -49,33 +52,24 @@ void AdolCGMM::prepare(GMMInput&& input) {
   delete[] aalphas;
   delete[] ameans;
   delete[] aicf;
-
 }
 
-GMMOutput AdolCGMM::output() {
-  return _output;
+void AdolCGMM::calculate_objective() {
+  gmm_objective(_input.d, _input.k, _input.n, _input.alphas.data(), _input.means.data(),
+                _input.icf.data(), _input.x.data(), _input.wishart, &_output.objective);
 }
 
-void AdolCGMM::calculate_objective(int times) {
-  for (int i = 0; i < times; ++i) {
-    gmm_objective(_input.d, _input.k, _input.n, _input.alphas.data(), _input.means.data(),
-                  _input.icf.data(), _input.x.data(), _input.wishart, &_output.objective);
-  }
-}
-
-void AdolCGMM::calculate_jacobian(int times) {
+void AdolCGMM::calculate_jacobian() {
   int d = _input.d, k = _input.k;
   int icf_sz = d*(d + 1) / 2;
   int Jcols = (k * (d + 1) * (d + 2)) / 2;
 
-  for (int i = 0; i < times; ++i) {
-    double *in = new double[Jcols];
-    memcpy(in, _input.alphas.data(), k * sizeof(double));
-    int off = k;
-    memcpy(in + off, _input.means.data(), d*k * sizeof(double));
-    off += d * k;
-    memcpy(in + off, _input.icf.data(), icf_sz*k * sizeof(double));
-    gradient(tapeTag, Jcols, in, _output.gradient.data());
-    delete[] in;
-  }
+  double *in = new double[Jcols];
+  memcpy(in, _input.alphas.data(), k * sizeof(double));
+  int off = k;
+  memcpy(in + off, _input.means.data(), d*k * sizeof(double));
+  off += d * k;
+  memcpy(in + off, _input.icf.data(), icf_sz*k * sizeof(double));
+  gradient(tapeTag, Jcols, in, _output.gradient.data());
+  delete[] in;
 }

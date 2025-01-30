@@ -6,15 +6,9 @@
 #include <vector>
 
 class AdeptGMM : public ITest<GMMInput, GMMOutput> {
-  GMMInput _input;
-  GMMOutput _output;
-
 public:
-  void prepare(GMMInput&& input) override;
+  AdeptGMM(GMMInput&);
 
-  void calculate_objective(int times) override;
-  void calculate_jacobian(int times) override;
-  GMMOutput output() override;
-
-  ~AdeptGMM() = default;
+  void calculate_objective() override;
+  void calculate_jacobian() override;
 };

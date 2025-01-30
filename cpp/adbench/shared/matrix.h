@@ -84,12 +84,7 @@ T arr_max(int n, const T* const x)
     T m = x[0];
     for (int i = 1; i < n; i++)
     {
-#ifdef TOOL_ADEPT
-        if (m < x[i])
-            m = x[i];
-#else
-        m = fmax(m, x[i]);
-#endif
+        m = std::max(m, x[i]);
     }
     return m;
 }

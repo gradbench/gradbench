@@ -33,8 +33,6 @@ struct HandObjectiveData
 
 class TapenadeHand : public ITest<HandInput, HandOutput> {
     HandObjectiveData* objective_input = nullptr;
-    HandInput input;
-    HandOutput result;
     bool complicated = false;
 
     std::vector<double> theta_d;                // buffer for theta differentiation directions
@@ -46,14 +44,12 @@ class TapenadeHand : public ITest<HandInput, HandOutput> {
     std::vector<double> us_jacobian_column;     // buffer for holding jacobian column while differentiating by us
 
 public:
-    // This function must be called before any other function.
-    void prepare(HandInput&& input) override;
+    TapenadeHand(HandInput& input);
 
-    void calculate_objective(int times) override;
-    void calculate_jacobian(int times) override;
-    HandOutput output() override;
+    void calculate_objective() override;
+    void calculate_jacobian() override;
 
-    ~TapenadeHand() { free_objective_input(); }
+    virtual ~TapenadeHand() { free_objective_input(); }
 
 private:
     HandObjectiveData* convert_to_hand_objective_data(const HandInput& input);

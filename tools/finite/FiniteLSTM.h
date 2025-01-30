@@ -13,18 +13,11 @@
 
 class FiniteLSTM : public ITest<LSTMInput, LSTMOutput> {
 private:
-    LSTMInput input;
-    LSTMOutput result;
-    std::vector<double> state;
     FiniteDifferencesEngine<double> engine;
 
 public:
-    // This function must be called before any other function.
-    virtual void prepare(LSTMInput&& input) override;
+    FiniteLSTM(LSTMInput&);
 
-    virtual void calculate_objective(int times) override;
-    virtual void calculate_jacobian(int times) override;
-    virtual LSTMOutput output() override;
-
-    ~FiniteLSTM() {}
+    virtual void calculate_objective() override;
+    virtual void calculate_jacobian() override;
 };
