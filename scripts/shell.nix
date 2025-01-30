@@ -45,6 +45,7 @@ pkgs.stdenv.mkDerivation {
   name = "gradbench";
   buildInputs =
     [my-python
+     pkgs.gh
      pkgs.cargo
      pkgs.rustc
      pkgs.rustfmt
