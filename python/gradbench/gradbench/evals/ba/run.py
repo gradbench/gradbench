@@ -6,7 +6,7 @@ import numpy as np
 
 import gradbench.pytorch.ba as golden
 from gradbench.comparison import compare_json_objects
-from gradbench.evaluation import SingleModuleValidatedEvaluation, mismatch
+from gradbench.eval import SingleModuleValidatedEval, mismatch
 from gradbench.wrap import Wrapped
 
 
@@ -47,7 +47,7 @@ def main():
     parser.add_argument("--runs", type=int, default=1)
     args = parser.parse_args()
 
-    e = SingleModuleValidatedEvaluation(module="ba", validator=mismatch(check))
+    e = SingleModuleValidatedEval(module="ba", validator=mismatch(check))
     e.start()
     if e.define().success:
         # NOTE: data files are taken directly from ADBench. See README for more information.

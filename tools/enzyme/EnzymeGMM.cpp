@@ -28,11 +28,6 @@ extern int enzyme_const;
 void __enzyme_autodiff(... ) noexcept;
 
 void EnzymeGMM::calculate_jacobian() {
-  _output.gradient.resize(_input.alphas.size()+
-                          _input.means.size()+
-                          _input.icf.size());
-
-
   double* d_alphas = _output.gradient.data();
   double* d_means = d_alphas + _input.alphas.size();
   double* d_icf = d_means + _input.means.size();

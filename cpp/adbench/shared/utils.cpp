@@ -25,6 +25,9 @@
 
 #include "defs.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
+
 using std::cin;
 using std::cout;
 using std::endl;
@@ -664,3 +667,5 @@ double timer(int nruns, double limit, std::function<void()> func) {
     else
         return 0;
 }
+
+#pragma GCC diagnostic pop

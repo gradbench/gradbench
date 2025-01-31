@@ -162,12 +162,12 @@ void Qtimesx(int d,
 
 template<typename T>
 void gmm_objective(int d, int k, int n,
-    const T* const alphas,
-    const T* const means,
-    const T* const icf,
-    const double* const x,
-    Wishart wishart,
-    T* err)
+                   const T* __restrict__ const alphas,
+                   const T* __restrict__ const means,
+                   const T* __restrict__ const icf,
+                   const double* __restrict__ const x,
+                   Wishart wishart,
+                   T* __restrict__ err)
 {
     const double CONSTANT = -n * d * 0.5 * log(2 * PI);
     int icf_sz = d * (d + 1) / 2;

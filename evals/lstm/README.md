@@ -13,7 +13,7 @@ maintained the name.
 
 ## Protocol
 
-The evaluation protocol is specified in terms of [TypeScript][] types
+The protocol is specified in terms of [TypeScript][] types
 and references [types defined in the GradBench protocol
 description](https://github.com/gradbench/gradbench?tab=readme-ov-file#types).
 

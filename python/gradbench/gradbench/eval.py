@@ -68,7 +68,7 @@ def mismatch(check: Callable[[str, Any, Any], None], max_mismatches=10) -> Valid
     return validator
 
 
-class SingleModuleValidatedEvaluation:
+class SingleModuleValidatedEval:
     module: str
     validator: Validator
     id: int
