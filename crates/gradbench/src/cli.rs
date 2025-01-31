@@ -363,6 +363,9 @@ struct StartResponse {}
 struct DefineResponse {
     /// Whether the module was successfully defined.
     success: bool,
+    /// An error message if the definition failed. Will be None if
+    /// the eval is simply not implemented.
+    error: Option<String>,
 }
 
 /// Nanosecond timings from the tool.
@@ -380,6 +383,9 @@ struct Timing {
 struct EvaluateResponse {
     /// More granular timings.
     timings: Option<Vec<Timing>>,
+    /// An error message if evaluation failed. If this is Some, then
+    /// any other fields are not meaningful.
+    error: Option<String>,
 }
 
 /// A response from the tool to an `"analysis"` message.
@@ -575,29 +581,42 @@ fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyho
                 print!(" {}", nanostring(nanos).dimmed());
                 let response: DefineResponse = serde_json::from_str(&tool_line)?;
                 print_status(response.success);
+                if let Some(error) = response.error {
+                    print!("\n{}", error.red());
+                    invalid += 1;
+                }
                 line.end();
             }
             Message::Evaluate { .. } => {
                 print!(" {}", nanostring(nanos).dimmed());
                 let response: EvaluateResponse = serde_json::from_str(&tool_line)?;
-                let mut timings = BTreeMap::new();
-                for Timing { name, nanoseconds } in response.timings.unwrap_or_default() {
-                    let (num, ns) = timings.entry(name).or_insert((0, 0));
-                    *num += 1;
-                    *ns += nanoseconds;
-                }
-                let mut first = true;
-                for (name, (num, ns)) in timings {
-                    if first {
-                        print!(" {}", "~".dimmed());
-                    } else {
-                        print!(",");
+                match response.error {
+                    Some(error) => {
+                        print_status(false);
+                        print!("\n{}", error.red());
+                        invalid += 1;
                     }
-                    first = false;
-                    print!(" {}", nanostring(ns));
-                    print!(" {name}");
-                    if num > 1 {
-                        print!("×{num}");
+                    None => {
+                        let mut timings = BTreeMap::new();
+                        for Timing { name, nanoseconds } in response.timings.unwrap_or_default() {
+                            let (num, ns) = timings.entry(name).or_insert((0, 0));
+                            *num += 1;
+                            *ns += nanoseconds;
+                        }
+                        let mut first = true;
+                        for (name, (num, ns)) in timings {
+                            if first {
+                                print!(" {}", "~".dimmed());
+                            } else {
+                                print!(",");
+                            }
+                            first = false;
+                            print!(" {}", nanostring(ns));
+                            print!(" {name}");
+                            if num > 1 {
+                                print!("×{num}");
+                            }
+                        }
                     }
                 }
             }

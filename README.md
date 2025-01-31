@@ -145,11 +145,13 @@ type Message = StartMessage | DefineMessage | EvaluateMessage | AnalysisMessage;
 
 interface DefineResponse extends Base {
   success: boolean;
+  error?: string;
 }
 
 interface EvaluateResponse extends Base {
   output: any;
   timings?: Timing[];
+  error?: string;
 }
 
 type Response = Base | DefineResponse | EvaluateResponse;

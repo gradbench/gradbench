@@ -13,6 +13,7 @@ class StartResponse(BaseModel):
 class DefineResponse(BaseModel):
     id: int
     success: bool
+    error: Optional[str] = None
 
 
 class Timing(BaseModel):
@@ -24,6 +25,7 @@ class EvaluateResponse(BaseModel):
     id: int
     output: Any
     timings: list[Timing]
+    error: Optional[str] = None
 
 
 class AnalysisResponse(BaseModel):
@@ -116,8 +118,9 @@ class SingleModuleValidatedEval:
             message["description"] = description
         id = self.id
         response = EvaluateResponse.model_validate(self.send(message))
-        analysis = self.validator(function, input, response.output)
-        self.analysis(of=id, valid=analysis.valid, message=analysis.message)
+        if response.error is None:
+            analysis = self.validator(function, input, response.output)
+            self.analysis(of=id, valid=analysis.valid, message=analysis.message)
         return response
 
     def analysis(self, *, of: int, valid: bool, message: Optional[str]) -> Any:
