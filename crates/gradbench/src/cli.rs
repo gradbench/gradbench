@@ -2,7 +2,6 @@ use std::{
     collections::BTreeMap,
     env, fs,
     io::{self, BufRead, Write},
-    os::unix::process::CommandExt,
     path::{Path, PathBuf},
     process::{Child, Command, ExitCode, ExitStatus, Output, Stdio},
     time::{Duration, Instant},
