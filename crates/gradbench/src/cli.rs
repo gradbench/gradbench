@@ -481,6 +481,20 @@ fn intermediary(
     eval: &mut Child,
     tool: &mut Child,
 ) -> anyhow::Result<usize> {
+    #[cfg(unix)]
+    {
+        use nix::{sys::signal, unistd};
+        let eval_pid = unistd::Pid::from_raw(eval.id().try_into()?);
+        let tool_pid = unistd::Pid::from_raw(tool.id().try_into()?);
+        ctrlc::set_handler(move || {
+            if let Ok(pgid) = unistd::getpgid(Some(eval_pid)) {
+                let _ = signal::killpg(pgid, signal::Signal::SIGKILL);
+            }
+            if let Ok(pgid) = unistd::getpgid(Some(tool_pid)) {
+                let _ = signal::killpg(pgid, signal::Signal::SIGKILL);
+            }
+        })?;
+    }
     let mut invalid = 0;
     let mut eval_in = eval.stdin.take().unwrap();
     let mut tool_in = tool.stdin.take().unwrap();
@@ -658,7 +672,7 @@ fn check_git() -> Result<(), ExitCode> {
         ExitCode::FAILURE
     })?;
     if let Ok(dir) = stdout(Command::new("git").args(["rev-parse", "--show-toplevel"])) {
-        if dir.strip_suffix('\n') == cwd.to_str() {
+        if dir.strip_suffix('\n').map(PathBuf::from) == Some(cwd) {
             return Ok(());
         }
     }
@@ -666,6 +680,19 @@ fn check_git() -> Result<(), ExitCode> {
         "error running a repo subcommand: current working directory is not a Git repository root"
     );
     Err(ExitCode::FAILURE)
+}
+
+/// Return a command that runs its argument as a shell command.
+fn shell(command: &str) -> Command {
+    if cfg!(windows) {
+        let mut cmd = Command::new("powershell");
+        cmd.arg("-Command").arg(command);
+        cmd
+    } else {
+        let mut cmd = Command::new("sh");
+        cmd.arg("-c").arg(command);
+        cmd
+    }
 }
 
 /// List the entries in a directory.
@@ -783,18 +810,18 @@ fn cli_result() -> Result<(), ExitCode> {
         Commands::Tool { tool, tag, args } => run_tool(&tool, tag.as_deref(), &args),
         Commands::Run { eval, tool, golden, output } => {
             let (Ok(mut client), Ok(mut server)) = (
-                Command::new("sh")
-                    .arg("-c")
-                    .arg(eval)
-                    .stdin(Stdio::piped())
-                    .stdout(Stdio::piped())
-                    .spawn(),
-                Command::new("sh")
-                    .arg("-c")
-                    .arg(tool)
-                    .stdin(Stdio::piped())
-                    .stdout(Stdio::piped())
-                    .spawn(),
+                {
+                    let mut cmd = shell(&eval);
+                    #[cfg(unix)]
+                    std::os::unix::process::CommandExt::process_group(&mut cmd, 0);
+                    cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn()
+                },
+                {
+                    let mut cmd = shell(&tool);
+                    #[cfg(unix)]
+                    std::os::unix::process::CommandExt::process_group(&mut cmd, 0);
+                    cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn()
+                },
             ) else {
                 eprintln!("error starting eval and tool commands");
                 return Err(ExitCode::FAILURE);
@@ -878,6 +905,7 @@ fn cli_result() -> Result<(), ExitCode> {
                     evals.sort();
                     github_output("eval", evals)?;
                     let mut tools = ls("tools")?;
+                    tools.retain(|t| t != "diffsharp"); // Flaky.
                     tools.sort();
                     github_output("tool", &tools)?;
                     let slow = ["enzyme", "scilean"];

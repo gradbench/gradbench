@@ -1,7 +1,7 @@
 CXX=clang++-19
 LLD=lld-19
-CXXFLAGS=-std=c++17 -O3 -Wall -flto
-LDFLAGS=-fuse-ld=$(LLD) -O3 -flto -Wl,--load-pass-plugin=$(LLDENZYME) -lm
+CXXFLAGS=-std=c++17 -O3 -fno-math-errno -Wall -flto
+LDFLAGS=-fuse-ld=$(LLD) -O3 -fno-math-errno -flto -Wl,--load-pass-plugin=$(LLDENZYME) -lm
 
 LLDENZYME=/home/gradbench/enzyme-build/Enzyme/LLDEnzyme-19.so
 

@@ -6,8 +6,8 @@ from typing import Any, Optional
 import numpy as np
 
 from gradbench.comparison import compare_json_objects
+from gradbench.eval import SingleModuleValidatedEval, mismatch
 from gradbench.evals.ht import io
-from gradbench.evaluation import SingleModuleValidatedEvaluation, mismatch
 
 
 def check(function: str, input: Any, output: Any, golden: Optional[Any]) -> None:
@@ -24,7 +24,7 @@ def main():
     parser.add_argument("--runs", type=int, default=1)
     args = parser.parse_args()
 
-    e = SingleModuleValidatedEvaluation(module="ht", validator=mismatch(check))
+    e = SingleModuleValidatedEval(module="ht", validator=mismatch(check))
     e.start()
     if e.define().success:
         data_root = Path("evals/ht/data")  # assumes cwd is set correctly

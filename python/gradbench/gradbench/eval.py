@@ -77,7 +77,7 @@ def mismatch(
     return validator
 
 
-class SingleModuleValidatedEvaluation:
+class SingleModuleValidatedEval:
     module: str
     validator: Validator
     id: int
