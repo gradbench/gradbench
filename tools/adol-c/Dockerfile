@@ -23,6 +23,7 @@ ENV LIBRARY_PATH=/usr/local/lib64
 ENV LD_LIBRARY_PATH=/usr/local/lib64
 
 COPY cpp /home/gradbench/cpp
+RUN make -C cpp
 
 COPY tools/adol-c/ /home/gradbench/tools/adol-c
 
