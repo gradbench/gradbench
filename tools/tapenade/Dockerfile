@@ -19,12 +19,9 @@ RUN tar -xvzf tapenade_3.16.tar
 RUN ln -s /home/gradbench/tapenade_3.16/bin/tapenade /usr/local/bin/tapenade
 
 COPY cpp /home/gradbench/cpp
-
 RUN make -C cpp
 
 COPY tools/tapenade/ /home/gradbench/tools/tapenade
-
-RUN make -j -B -C tools/tapenade
 
 ENTRYPOINT ["python3", "/home/gradbench/tools/tapenade/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
