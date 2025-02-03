@@ -42,8 +42,10 @@ def main():
                 try:
                     functions = import_module(message["module"])
                     func = getattr(functions, "compile")
-                    func()  # compiles C code
-                    response["success"] = True
+                    success, error = func()
+                    response["success"] = success
+                    if not success:
+                        response["error"] = error
                 except ModuleNotFoundError:
                     response["success"] = False
                 except Exception as e:

@@ -3,12 +3,21 @@ import subprocess
 import tempfile
 from os import listdir
 
+TOOL = os.path.split(os.path.dirname(__file__))[-1]
+EVAL = __name__
+
 
 def compile():
-    c = subprocess.run(
-        ["make", "-C", "tools/enzyme", "-B", "-j", "run_hello"], stdout=2
-    )
-    return c.returncode == 0
+    try:
+        subprocess.check_output(
+            ["make", "-C", f"tools/{TOOL}", f"run_{EVAL}", "-B"],
+            text=True,
+            stderr=subprocess.STDOUT,
+        )
+    except subprocess.CalledProcessError as e:
+        return (False, e.output)
+    else:
+        return (True, None)
 
 
 def square(input):
