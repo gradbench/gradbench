@@ -41,7 +41,7 @@ A tool must respond to an `EvaluateMessage` with an
 `EvaluateMessage`:
 
 * `"objective"`: `LSTMObjectiveOutput`.
-* `"jacobian"`: `LSTMObjectiveOutput`.
+* `"jacobian"`: `LSTMJacobianOutput`.
 
 ```typescript
 type LSTMObjectiveOutput = double;

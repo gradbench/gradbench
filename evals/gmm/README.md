@@ -2,13 +2,13 @@
 
 Information on the GMM equation from Microsoft's [ADBench](https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87) based on their python implementation
 
-## Gaussian Mixture Model Fitting (GMM)
-
 Link to [I/O file](https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/shared/GMMData.py), [data folder](https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87/data/gmm), and [GMM Data Generator](https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/data/gmm/gmm-data-gen.py)
 
-### Generation
+## Generation
 
 To generate files with the below inputs, 3 values are used: D, K, and N. D ranges from $2^1$ to $2^7$ and represents the dimension of the data points and means. K is the number of mixture components (clusters) where K $\in [5,10,25,50,100,200]$. Additionally, GMM can be run with $1000$ or $10000$ data points, where N represents this value. These values/ranges are iterated over to create various datasets.
+
+## Description
 
 ### Inputs
 
@@ -41,3 +41,52 @@ The data generator returns a dictionary with the following inputs
 > **Example**
 >
 > If $D = 2$ and $K = 5$, $G \in \mathbb{R}^{30}$ meaning the function will return an array of length 30.
+
+## Protocol
+
+The protocol is specified in terms of [TypeScript][] types
+and references [types defined in the GradBench protocol
+description](https://github.com/gradbench/gradbench?tab=readme-ov-file#types).
+
+[typescript]: https://www.typescriptlang.org/
+
+### Inputs
+
+The eval sends a leading `DefineMessage` followed by
+`EvaluateMessages`. The `input` field of any `EvaluateMessage` will be
+an instance of the `GMMInput` interface defined below. The `function` field
+will be either the string `"objective"` or `"jacobian"`.
+
+```typescript
+interface GMMInput {
+  d: int;
+  k: int;
+  n: int;
+  alpha: double[];
+  means: double[][];
+  icf: double[][];
+  x: double[][];
+  gamma: number;
+  m: number;
+}
+```
+
+The `double[][]` types encode matrices as arrays-of-rows.
+
+### Outputs
+
+A tool must respond to an `EvaluateMessage` with an
+`EvaluateResponse`. The type of the `output` field in the
+`EvaluateResponse` depends on the `function` field in the
+`EvaluateMessage`:
+
+* `"objective"`: `GMMObjectiveOutput`.
+* `"jacobian"`: `GMMJacobianOutput`.
+
+```typescript
+type GMMObjectiveOutput = double;
+type GMMJacobianOutput = double[];
+```
+
+The `GMMJacobianOutput` value contains the concatenated gradients for
+the `alphas`, `means`, and `icf` parameters, in that order.
