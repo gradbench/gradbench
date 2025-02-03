@@ -1,7 +1,7 @@
 import json
+import os
 import subprocess
 import tempfile
-from os import listdir
 
 TOOL = os.path.split(os.path.dirname(__file__))[-1]
 EVAL = __name__
@@ -25,7 +25,7 @@ def square(input):
         json.dump(input, tmp)
         tmp.flush()
         return subprocess.run(
-            ["tools/finite/run_hello", tmp.name, "F"], text=True, capture_output=True
+            ["tools/manual/run_hello", tmp.name, "F"], text=True, capture_output=True
         )
 
 
@@ -34,5 +34,5 @@ def double(input):
         json.dump(input, tmp)
         tmp.flush()
         return subprocess.run(
-            ["tools/finite/run_hello", tmp.name, "J"], text=True, capture_output=True
+            ["tools/manual/run_hello", tmp.name, "J"], text=True, capture_output=True
         )
