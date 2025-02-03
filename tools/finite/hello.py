@@ -5,8 +5,14 @@ from os import listdir
 
 
 def compile():
-    # Nothing to do here. We assume everything is precompiled.
-    return True
+    return (
+        subprocess.run(
+            ["make", "-C", f"tools/finite", f"run_hello", "-B"],
+            text=True,
+            capture_output=True,
+        ).returncode
+        == 0
+    )
 
 
 def square(input):
