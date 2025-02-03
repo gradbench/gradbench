@@ -892,7 +892,7 @@ fn cli_result() -> Result<(), ExitCode> {
 }
 
 /// Run the GradBench CLI.
-pub fn cli() -> ExitCode {
+pub fn main() -> ExitCode {
     match cli_result() {
         Ok(()) => ExitCode::SUCCESS,
         Err(code) => code,
