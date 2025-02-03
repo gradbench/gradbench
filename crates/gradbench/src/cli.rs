@@ -506,8 +506,6 @@ fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyho
             (message_time - start).as_nanos(),
             eval_line.trim(),
         )?;
-        tool_in.write_all(eval_line.as_bytes())?;
-        tool_in.flush()?;
         let message: Message = serde_json::from_str(&eval_line)?;
         match &message {
             Message::Start { id: _ } => {
@@ -550,6 +548,9 @@ fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyho
             }
         }
         io::stdout().flush()?;
+        // Send the eval's response to the tool only after we've checked that it's valid JSON.
+        tool_in.write_all(eval_line.as_bytes())?;
+        tool_in.flush()?;
         let mut tool_line = String::new();
         tool_out.read_line(&mut tool_line)?;
         let response_time = Instant::now();
@@ -560,8 +561,6 @@ fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyho
             (response_time - start).as_nanos(),
             tool_line.trim(),
         )?;
-        eval_in.write_all(tool_line.as_bytes())?;
-        eval_in.flush()?;
         match message {
             Message::Start { id } => {
                 let _: StartResponse = serde_json::from_str(&tool_line)?;
@@ -604,6 +603,9 @@ fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyho
             Message::Analysis { .. } => {}
         }
         io::stdout().flush()?;
+        // Send the tool's response to the eval only after we've checked that it's valid JSON.
+        eval_in.write_all(tool_line.as_bytes())?;
+        eval_in.flush()?;
     }
     Ok(invalid)
 }
