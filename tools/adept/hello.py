@@ -1,7 +1,7 @@
 import json
+import os
 import subprocess
 import tempfile
-from os import listdir
 
 TOOL = os.path.split(os.path.dirname(__file__))[-1]
 EVAL = __name__

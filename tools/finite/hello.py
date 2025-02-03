@@ -25,7 +25,7 @@ def square(input):
         json.dump(input, tmp)
         tmp.flush()
         return subprocess.run(
-            ["tools/manual/run_hello", tmp.name, "F"], text=True, capture_output=True
+            [f"tools/{TOOL}/run_{EVAL}", tmp.name, "F"], text=True, capture_output=True
         )
 
 
@@ -34,5 +34,5 @@ def double(input):
         json.dump(input, tmp)
         tmp.flush()
         return subprocess.run(
-            ["tools/manual/run_hello", tmp.name, "J"], text=True, capture_output=True
+            [f"tools/{TOOL}/run_{EVAL}", tmp.name, "J"], text=True, capture_output=True
         )
