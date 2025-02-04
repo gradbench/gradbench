@@ -8,6 +8,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use anyhow::Context;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
@@ -516,6 +517,24 @@ impl<I: Write, O: BufRead, C: FnMut() -> Duration, T: Write, L: Write> Intermedi
         Ok(())
     }
 
+    /// Parse an eval message from a line of JSON.
+    fn parse_message(&mut self, line: &str) -> anyhow::Result<Message> {
+        serde_json::from_str(line)
+            .inspect_err(|_| {
+                let _ = writeln!(self.out, "{line}");
+            })
+            .context("invalid JSON from eval")
+    }
+
+    /// Parse a tool response from a line of JSON.
+    fn parse_response<'a, R: Deserialize<'a>>(&mut self, line: &'a str) -> anyhow::Result<R> {
+        serde_json::from_str(line)
+            .inspect_err(|_| {
+                let _ = writeln!(self.out, "{line}");
+            })
+            .context("invalid JSON from tool")
+    }
+
     /// Run the intermediary, collecting miscellaneous errors via `anyhow`.
     fn run_inner(&mut self) -> anyhow::Result<usize> {
         let mut invalid = 0;
@@ -535,9 +554,7 @@ impl<I: Write, O: BufRead, C: FnMut() -> Duration, T: Write, L: Write> Intermedi
                 message_time.as_nanos(),
                 eval_line.trim(),
             )?;
-            self.tool_in.write_all(eval_line.as_bytes())?;
-            self.tool_in.flush()?;
-            let message: Message = serde_json::from_str(&eval_line)?;
+            let message: Message = self.parse_message(&eval_line)?;
             match &message {
                 Message::Start { id: _ } => {
                     // Don't print message ID because we're still waiting for the tool to say it's
@@ -584,6 +601,9 @@ impl<I: Write, O: BufRead, C: FnMut() -> Duration, T: Write, L: Write> Intermedi
                 }
             }
             self.out.flush()?;
+            // Send the eval's response to the tool only after we've checked that it's valid JSON.
+            self.tool_in.write_all(eval_line.as_bytes())?;
+            self.tool_in.flush()?;
             let mut tool_line = String::new();
             self.tool_out.read_line(&mut tool_line)?;
             let response_time = (self.clock)();
@@ -594,11 +614,9 @@ impl<I: Write, O: BufRead, C: FnMut() -> Duration, T: Write, L: Write> Intermedi
                 response_time.as_nanos(),
                 tool_line.trim(),
             )?;
-            self.eval_in.write_all(tool_line.as_bytes())?;
-            self.eval_in.flush()?;
             match message {
                 Message::Start { id } => {
-                    let _: StartResponse = serde_json::from_str(&tool_line)?;
+                    let _: StartResponse = self.parse_response(&tool_line)?;
                     // OK now that we know the tool won't do anything weird with the terminal.
                     line.start(&mut self.out, id)?;
                     self.print_left(WIDTH_KIND, "start")?;
@@ -607,13 +625,13 @@ impl<I: Write, O: BufRead, C: FnMut() -> Duration, T: Write, L: Write> Intermedi
                 Message::Define { .. } => {
                     self.print_left(WIDTH_DESCRIPTION, "")?;
                     write!(self.out, " {}", nanostring(nanos).dimmed())?;
-                    let response: DefineResponse = serde_json::from_str(&tool_line)?;
+                    let response: DefineResponse = self.parse_response(&tool_line)?;
                     self.print_status(response.success)?;
                     line.end(&mut self.out)?;
                 }
                 Message::Evaluate { .. } => {
                     write!(self.out, " {}", nanostring(nanos).dimmed())?;
-                    let response: EvaluateResponse = serde_json::from_str(&tool_line)?;
+                    let response: EvaluateResponse = self.parse_response(&tool_line)?;
                     let mut timings = BTreeMap::new();
                     for Timing { name, nanoseconds } in response.timings.unwrap_or_default() {
                         let (num, ns) = timings.entry(name).or_insert((0, 0));
@@ -635,9 +653,14 @@ impl<I: Write, O: BufRead, C: FnMut() -> Duration, T: Write, L: Write> Intermedi
                         }
                     }
                 }
-                Message::Analysis { .. } => {}
+                Message::Analysis { .. } => {
+                    let _: AnalysisResponse = self.parse_response(&tool_line)?;
+                }
             }
             self.out.flush()?;
+            // Send the tool's response to the eval only after we've checked that it's valid JSON.
+            self.eval_in.write_all(tool_line.as_bytes())?;
+            self.eval_in.flush()?;
         }
         Ok(invalid)
     }
@@ -657,7 +680,7 @@ impl<I: Write, O: BufRead, C: FnMut() -> Duration, T: Write, L: Write> Intermedi
                 }
             }
             Err(err) => {
-                println!("{err:#}");
+                let _ = writeln!(self.out, "{err:#}");
                 Err(BadOutcome::Error)
             }
         }
@@ -1210,9 +1233,53 @@ mod tests {
         };
         colored::control::set_override(false);
         let result = intermediary.run();
-        let mut mint = Mint::new("src/outputs");
-        let mut file = mint.new_goldenfile("readme_example.txt").unwrap();
-        file.write_all(&intermediary.out).unwrap();
+        {
+            let mut mint = Mint::new("src/outputs");
+            let mut file = mint.new_goldenfile("readme_example.txt").unwrap();
+            file.write_all(&intermediary.out).unwrap();
+        }
         assert_eq!(result, Err(BadOutcome::Invalid));
+    }
+
+    #[test]
+    fn test_intermediary_invalid_json_eval() {
+        let mut intermediary = Intermediary {
+            interrupted: Arc::new(atomic::AtomicBool::new(false)),
+            eval_in: io::sink(),
+            tool_in: io::sink(),
+            eval_out: "{ \"id\": 0,".as_bytes(),
+            tool_out: "".as_bytes(),
+            clock: || Duration::ZERO,
+            out: Vec::new(),
+            log: io::sink(),
+        };
+        let result = intermediary.run();
+        {
+            let mut mint = Mint::new("src/outputs");
+            let mut file = mint.new_goldenfile("invalid_json_eval.txt").unwrap();
+            file.write_all(&intermediary.out).unwrap();
+        }
+        assert_eq!(result, Err(BadOutcome::Error));
+    }
+
+    #[test]
+    fn test_intermediary_invalid_json_tool() {
+        let mut intermediary = Intermediary {
+            interrupted: Arc::new(atomic::AtomicBool::new(false)),
+            eval_in: io::sink(),
+            tool_in: io::sink(),
+            eval_out: "{ \"id\": 0, \"kind\": \"start\" }".as_bytes(),
+            tool_out: "{ \"id\": 0,".as_bytes(),
+            clock: || Duration::ZERO,
+            out: Vec::new(),
+            log: io::sink(),
+        };
+        let result = intermediary.run();
+        {
+            let mut mint = Mint::new("src/outputs");
+            let mut file = mint.new_goldenfile("invalid_json_tool.txt").unwrap();
+            file.write_all(&intermediary.out).unwrap();
+        }
+        assert_eq!(result, Err(BadOutcome::Error));
     }
 }
