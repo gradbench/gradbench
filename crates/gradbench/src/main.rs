@@ -4,7 +4,7 @@ use std::{
     io::{self, BufRead, Write},
     path::{Path, PathBuf},
     process::{Child, Command, ExitCode, ExitStatus, Output, Stdio},
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 use anyhow::anyhow;
@@ -305,7 +305,7 @@ fn build_tool(name: &str, platforms: Platforms, verbosity: Verbosity) -> Result<
 type Id = i64;
 
 /// A message from the eval.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 enum Message {
     /// The first message.
@@ -343,6 +343,9 @@ enum Message {
 
     /// Analysis results from evaluating a function.
     Analysis {
+        /// The message ID.
+        id: Id,
+
         /// The ID of the original message being analyzed.
         of: Id,
 
@@ -355,18 +358,24 @@ enum Message {
 }
 
 /// A response from the tool to a `"start"` message.
-#[derive(Debug, Deserialize)]
-struct StartResponse {}
+#[derive(Debug, Deserialize, Serialize)]
+struct StartResponse {
+    /// The message ID.
+    id: Id,
+}
 
 /// A response from the tool to a `"define"` message.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct DefineResponse {
+    /// The message ID.
+    id: Id,
+
     /// Whether the module was successfully defined.
     success: bool,
 }
 
 /// Nanosecond timings from the tool.
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 struct Timing {
     /// The name of this timing.
     name: String,
@@ -376,15 +385,24 @@ struct Timing {
 }
 
 /// A response from the tool to an `"evaluate"` message.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct EvaluateResponse {
+    /// The message ID.
+    id: Id,
+
+    /// The output of the function.
+    output: serde_json::Value,
+
     /// More granular timings.
     timings: Option<Vec<Timing>>,
 }
 
 /// A response from the tool to an `"analysis"` message.
-#[derive(Debug, Deserialize)]
-struct AnalysisResponse {}
+#[derive(Debug, Deserialize, Serialize)]
+struct AnalysisResponse {
+    /// The message ID.
+    id: Id,
+}
 
 /// A line of printed output.
 struct Line {
@@ -399,12 +417,13 @@ impl Line {
     }
 
     /// Begin a new line for a given message ID.
-    fn start(&mut self, id: Id) {
+    fn start(&mut self, o: &mut impl Write, id: Id) -> anyhow::Result<()> {
         if self.id.is_some() {
-            self.end();
+            self.end(o)?;
         }
-        print!("{:>WIDTH_ID$}", format!("[{id}]").cyan().bold());
+        write!(o, "{:>WIDTH_ID$}", format!("[{id}]").cyan().bold())?;
         self.id = Some(id);
+        Ok(())
     }
 
     /// Get the current message ID.
@@ -413,9 +432,10 @@ impl Line {
     }
 
     /// End a line.
-    fn end(&mut self) {
-        println!();
+    fn end(&mut self, o: &mut impl Write) -> anyhow::Result<()> {
+        writeln!(o)?;
         self.id = None;
+        Ok(())
     }
 }
 
@@ -431,19 +451,7 @@ const WIDTH_NAME: usize = 15;
 /// Width to print the description of an input.
 const WIDTH_DESCRIPTION: usize = 15;
 
-/// Print left-aligned text with a fixed width, preceded by a space.
-fn print_left(width: usize, text: &str) {
-    if text.len() > width {
-        let mut truncated = text.to_string();
-        truncated.truncate(width - 3);
-        truncated.push_str("...");
-        print!(" {truncated:width$}");
-    } else {
-        print!(" {text:width$}");
-    }
-}
-
-/// Return a human-readable string for the given number of nanoseconds.
+/// Return an 11-character human-readable string for the given number of nanoseconds.
 fn nanostring(nanoseconds: u128) -> String {
     let ms = nanoseconds / 1_000_000;
     let sec = ms / 1000;
@@ -459,17 +467,168 @@ fn nanostring(nanoseconds: u128) -> String {
     }
 }
 
-/// Print a space, followed by either a green check mark or a red X mark.
-fn print_status(success: bool) {
-    if success {
-        print!(" {}", "✓".green());
-    } else {
-        print!(" {}", "✗".red());
+struct Intermediary<I, O, C, T, L> {
+    eval_in: I,
+    tool_in: I,
+    eval_out: O,
+    tool_out: O,
+    clock: C,
+    out: T,
+    log: L,
+}
+
+impl<I: Write, O: BufRead, C: FnMut() -> Duration, T: Write, L: Write> Intermediary<I, O, C, T, L> {
+    /// Print left-aligned text with a fixed width, preceded by a space.
+    fn print_left(&mut self, width: usize, text: &str) -> anyhow::Result<()> {
+        if text.len() > width {
+            let mut truncated = text.to_string();
+            truncated.truncate(width - 3);
+            truncated.push_str("...");
+            write!(self.out, " {truncated:width$}")?;
+        } else {
+            write!(self.out, " {text:width$}")?;
+        }
+        Ok(())
+    }
+
+    /// Print a space, followed by either a green check mark or a red X mark.
+    fn print_status(&mut self, success: bool) -> anyhow::Result<()> {
+        if success {
+            write!(self.out, " {}", "✓".green())?;
+        } else {
+            write!(self.out, " {}", "✗".red())?;
+        }
+        Ok(())
+    }
+
+    fn run(&mut self) -> anyhow::Result<usize> {
+        let mut invalid = 0;
+        let mut line = Line::new();
+        while let Some(eval_line) = {
+            let mut s = String::new();
+            if self.eval_out.read_line(&mut s)? == 0 {
+                None
+            } else {
+                Some(s)
+            }
+        } {
+            let message_time = (self.clock)();
+            writeln!(
+                self.log,
+                r#"{{ "elapsed": {{ "nanoseconds": {} }}, "message": {} }}"#,
+                message_time.as_nanos(),
+                eval_line.trim(),
+            )?;
+            self.tool_in.write_all(eval_line.as_bytes())?;
+            self.tool_in.flush()?;
+            let message: Message = serde_json::from_str(&eval_line)?;
+            match &message {
+                Message::Start { id: _ } => {
+                    // Don't print message ID because we're still waiting for the tool to say it's
+                    // ready, and e.g. if the tool is using `docker run` then it may mess with the
+                    // terminal output until it actually starts.
+                }
+                Message::Define { id, module } => {
+                    line.start(&mut self.out, *id)?;
+                    self.print_left(WIDTH_KIND, "def")?;
+                    self.print_left(WIDTH_NAME, module)?;
+                }
+                Message::Evaluate {
+                    id,
+                    module,
+                    function,
+                    input,
+                    description,
+                } => {
+                    line.start(&mut self.out, *id)?;
+                    self.print_left(WIDTH_KIND, "eval")?;
+                    let workload = match description {
+                        Some(s) => s.clone(),
+                        None => serde_json::to_string(input)?,
+                    };
+                    self.print_left(WIDTH_NAME, &format!("{module}::{function}"))?;
+                    self.print_left(WIDTH_DESCRIPTION, &workload)?;
+                }
+                Message::Analysis {
+                    id: _,
+                    of,
+                    valid,
+                    message,
+                } => {
+                    if !*valid {
+                        invalid += 1;
+                    }
+                    if line.id() == Some(*of) {
+                        self.print_status(*valid)?;
+                        line.end(&mut self.out)?;
+                        if let Some(error) = message {
+                            writeln!(self.out, "{}", error.red())?;
+                        }
+                    }
+                }
+            }
+            self.out.flush()?;
+            let mut tool_line = String::new();
+            self.tool_out.read_line(&mut tool_line)?;
+            let response_time = (self.clock)();
+            let nanos = (response_time - message_time).as_nanos();
+            writeln!(
+                self.log,
+                r#"{{ "elapsed": {{ "nanoseconds": {} }}, "response": {} }}"#,
+                response_time.as_nanos(),
+                tool_line.trim(),
+            )?;
+            self.eval_in.write_all(tool_line.as_bytes())?;
+            self.eval_in.flush()?;
+            match message {
+                Message::Start { id } => {
+                    let _: StartResponse = serde_json::from_str(&tool_line)?;
+                    // OK now that we know the tool won't do anything weird with the terminal.
+                    line.start(&mut self.out, id)?;
+                    self.print_left(WIDTH_KIND, "start")?;
+                    line.end(&mut self.out)?;
+                }
+                Message::Define { .. } => {
+                    self.print_left(WIDTH_DESCRIPTION, "")?;
+                    write!(self.out, " {}", nanostring(nanos).dimmed())?;
+                    let response: DefineResponse = serde_json::from_str(&tool_line)?;
+                    self.print_status(response.success)?;
+                    line.end(&mut self.out)?;
+                }
+                Message::Evaluate { .. } => {
+                    write!(self.out, " {}", nanostring(nanos).dimmed())?;
+                    let response: EvaluateResponse = serde_json::from_str(&tool_line)?;
+                    let mut timings = BTreeMap::new();
+                    for Timing { name, nanoseconds } in response.timings.unwrap_or_default() {
+                        let (num, ns) = timings.entry(name).or_insert((0, 0));
+                        *num += 1;
+                        *ns += nanoseconds;
+                    }
+                    let mut first = true;
+                    for (name, (num, ns)) in timings {
+                        if first {
+                            write!(self.out, " {}", "~".dimmed())?;
+                        } else {
+                            write!(self.out, ",")?;
+                        }
+                        first = false;
+                        write!(self.out, " {}", nanostring(ns))?;
+                        write!(self.out, " {name}")?;
+                        if num > 1 {
+                            write!(self.out, "×{num}")?;
+                        }
+                    }
+                }
+                Message::Analysis { .. } => {}
+            }
+            self.out.flush()?;
+        }
+        Ok(invalid)
     }
 }
 
 /// Run an eval and a tool together, returning the number of validation failures.
-fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyhow::Result<usize> {
+fn intermediary(log: impl Write, eval: &mut Child, tool: &mut Child) -> anyhow::Result<usize> {
     #[cfg(unix)]
     {
         use nix::{sys::signal, unistd};
@@ -484,128 +643,17 @@ fn intermediary(o: &mut impl Write, eval: &mut Child, tool: &mut Child) -> anyho
             }
         })?;
     }
-    let mut invalid = 0;
-    let mut eval_in = eval.stdin.take().unwrap();
-    let mut tool_in = tool.stdin.take().unwrap();
-    let mut eval_out = io::BufReader::new(eval.stdout.take().unwrap());
-    let mut tool_out = io::BufReader::new(tool.stdout.take().unwrap());
     let start = Instant::now();
-    let mut line = Line::new();
-    while let Some(eval_line) = {
-        let mut s = String::new();
-        if eval_out.read_line(&mut s)? == 0 {
-            None
-        } else {
-            Some(s)
-        }
-    } {
-        let message_time = Instant::now();
-        writeln!(
-            o,
-            r#"{{ "elapsed": {{ "nanoseconds": {} }}, "message": {} }}"#,
-            (message_time - start).as_nanos(),
-            eval_line.trim(),
-        )?;
-        tool_in.write_all(eval_line.as_bytes())?;
-        tool_in.flush()?;
-        let message: Message = serde_json::from_str(&eval_line)?;
-        match &message {
-            Message::Start { id: _ } => {
-                // Don't print message ID because we're still waiting for the tool to say it's
-                // ready, and e.g. if the tool is using `docker run` then it may mess with the
-                // terminal output until it actually starts.
-            }
-            Message::Define { id, module } => {
-                line.start(*id);
-                print_left(WIDTH_KIND, "def");
-                print_left(WIDTH_NAME, module);
-            }
-            Message::Evaluate {
-                id,
-                module,
-                function,
-                input,
-                description,
-            } => {
-                line.start(*id);
-                print_left(WIDTH_KIND, "eval");
-                let workload = match description {
-                    Some(s) => s.clone(),
-                    None => serde_json::to_string(input)?,
-                };
-                print_left(WIDTH_NAME, &format!("{module}::{function}"));
-                print_left(WIDTH_DESCRIPTION, &workload);
-            }
-            Message::Analysis { of, valid, message } => {
-                if !*valid {
-                    invalid += 1;
-                }
-                if line.id() == Some(*of) {
-                    print_status(*valid);
-                    line.end();
-                    if let Some(error) = message {
-                        println!("{}", error.red());
-                    }
-                }
-            }
-        }
-        io::stdout().flush()?;
-        let mut tool_line = String::new();
-        tool_out.read_line(&mut tool_line)?;
-        let response_time = Instant::now();
-        let nanos = (response_time - message_time).as_nanos();
-        writeln!(
-            o,
-            r#"{{ "elapsed": {{ "nanoseconds": {} }}, "response": {} }}"#,
-            (response_time - start).as_nanos(),
-            tool_line.trim(),
-        )?;
-        eval_in.write_all(tool_line.as_bytes())?;
-        eval_in.flush()?;
-        match message {
-            Message::Start { id } => {
-                let _: StartResponse = serde_json::from_str(&tool_line)?;
-                // OK now that we know the tool won't do anything weird with the terminal.
-                line.start(id);
-                print_left(WIDTH_KIND, "start");
-                line.end();
-            }
-            Message::Define { .. } => {
-                print_left(WIDTH_DESCRIPTION, "");
-                print!(" {}", nanostring(nanos).dimmed());
-                let response: DefineResponse = serde_json::from_str(&tool_line)?;
-                print_status(response.success);
-                line.end();
-            }
-            Message::Evaluate { .. } => {
-                print!(" {}", nanostring(nanos).dimmed());
-                let response: EvaluateResponse = serde_json::from_str(&tool_line)?;
-                let mut timings = BTreeMap::new();
-                for Timing { name, nanoseconds } in response.timings.unwrap_or_default() {
-                    let (num, ns) = timings.entry(name).or_insert((0, 0));
-                    *num += 1;
-                    *ns += nanoseconds;
-                }
-                let mut first = true;
-                for (name, (num, ns)) in timings {
-                    if first {
-                        print!(" {}", "~".dimmed());
-                    } else {
-                        print!(",");
-                    }
-                    first = false;
-                    print!(" {}", nanostring(ns));
-                    print!(" {name}");
-                    if num > 1 {
-                        print!("×{num}");
-                    }
-                }
-            }
-            Message::Analysis { .. } => {}
-        }
-        io::stdout().flush()?;
+    Intermediary {
+        eval_in: eval.stdin.take().unwrap(),
+        tool_in: tool.stdin.take().unwrap(),
+        eval_out: io::BufReader::new(eval.stdout.take().unwrap()),
+        tool_out: io::BufReader::new(tool.stdout.take().unwrap()),
+        clock: || start.elapsed(),
+        out: io::stdout(),
+        log,
     }
-    Ok(invalid)
+    .run()
 }
 
 /// Return a command's stdout as a string, preserving its exit code whenever possible.
@@ -759,7 +807,7 @@ fn cli_result() -> Result<(), ExitCode> {
         Commands::Eval { eval, tag, args } => run_eval(&eval, tag.as_deref(), &args),
         Commands::Tool { tool, tag, args } => run_tool(&tool, tag.as_deref(), &args),
         Commands::Run { eval, tool, output } => {
-            let (Ok(mut client), Ok(mut server)) = (
+            let (Ok(mut eval_child), Ok(mut tool_child)) = (
                 {
                     let mut cmd = shell(&eval);
                     #[cfg(unix)]
@@ -778,12 +826,12 @@ fn cli_result() -> Result<(), ExitCode> {
             };
             let result = match output {
                 Some(path) => match fs::File::create(&path) {
-                    Ok(mut file) => intermediary(&mut file, &mut client, &mut server),
+                    Ok(mut file) => intermediary(&mut file, &mut eval_child, &mut tool_child),
                     Err(err) => Err(anyhow!(err)),
                 },
-                None => intermediary(&mut io::sink(), &mut client, &mut server),
+                None => intermediary(&mut io::sink(), &mut eval_child, &mut tool_child),
             };
-            match (&result, client.wait(), server.wait()) {
+            match (&result, eval_child.wait(), tool_child.wait()) {
                 (&Ok(invalid), Ok(e), Ok(s)) => {
                     status_code(e)?;
                     status_code(s)?;
@@ -896,5 +944,221 @@ pub fn main() -> ExitCode {
     match cli_result() {
         Ok(()) => ExitCode::SUCCESS,
         Err(code) => code,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        f64::consts::{E, PI},
+        io::{self, Write},
+        time::Duration,
+    };
+
+    use goldenfile::Mint;
+    use serde::{Serialize, Serializer};
+    use serde_json::json;
+
+    use crate::{
+        nanostring, AnalysisResponse, DefineResponse, EvaluateResponse, Id, Intermediary, Message,
+        StartResponse, Timing,
+    };
+
+    fn nanostring_test(expected: &str, duration: Duration) {
+        assert_eq!(expected.len(), 11);
+        assert_eq!(nanostring(duration.as_nanos()), expected);
+    }
+
+    #[test]
+    fn test_nanostring_0() {
+        nanostring_test("        0ms", Duration::ZERO);
+    }
+
+    #[test]
+    fn test_nanostring_999_microseconds() {
+        nanostring_test("        0ms", Duration::from_micros(999));
+    }
+
+    #[test]
+    fn test_nanostring_1_millisecond() {
+        nanostring_test("        1ms", Duration::from_millis(1));
+    }
+
+    #[test]
+    fn test_nanostring_999_milliseconds() {
+        nanostring_test("      999ms", Duration::from_millis(999));
+    }
+
+    #[test]
+    fn test_nanostring_1_second() {
+        nanostring_test("    1.000 s", Duration::from_secs(1));
+    }
+
+    #[test]
+    fn test_nanostring_59_seconds() {
+        nanostring_test("   59.000 s", Duration::from_secs(59));
+    }
+
+    #[test]
+    fn test_nanostring_1_minute() {
+        nanostring_test(" 1:00.000  ", Duration::from_secs(60));
+    }
+
+    #[test]
+    fn test_nanostring_59_minutes() {
+        nanostring_test("59:00.000  ", Duration::from_secs(59 * 60));
+    }
+
+    #[test]
+    fn test_nanostring_1_hour() {
+        nanostring_test("     > 1 hr", Duration::from_secs(3600));
+    }
+
+    enum Response {
+        Start {
+            id: Id,
+        },
+        Define {
+            id: Id,
+            success: bool,
+        },
+        Evaluate {
+            id: Id,
+            output: serde_json::Value,
+            timings: Option<Vec<Timing>>,
+        },
+        Analysis {
+            id: Id,
+        },
+    }
+
+    impl Serialize for Response {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            match self {
+                &Response::Start { id } => StartResponse { id }.serialize(serializer),
+                &Response::Define { id, success } => {
+                    DefineResponse { id, success }.serialize(serializer)
+                }
+                Response::Evaluate {
+                    id,
+                    output,
+                    timings,
+                } => EvaluateResponse {
+                    id: *id,
+                    output: output.clone(),
+                    timings: timings.clone(),
+                }
+                .serialize(serializer),
+                &Response::Analysis { id } => AnalysisResponse { id }.serialize(serializer),
+            }
+        }
+    }
+
+    fn session(pairs: &[(Message, Response)]) -> (String, String) {
+        let mut eval_out = Vec::new();
+        let mut tool_out = Vec::new();
+        for (message, response) in pairs {
+            serde_json::to_writer(&mut eval_out, message).unwrap();
+            eval_out.extend_from_slice(b"\n");
+            serde_json::to_writer(&mut tool_out, response).unwrap();
+            tool_out.extend_from_slice(b"\n");
+        }
+        (
+            String::from_utf8(eval_out).unwrap(),
+            String::from_utf8(tool_out).unwrap(),
+        )
+    }
+
+    #[test]
+    fn test_intermediary_readme_example() {
+        let (eval_out, tool_out) = session(&[
+            (Message::Start { id: 0 }, Response::Start { id: 0 }),
+            (
+                Message::Define {
+                    id: 1,
+                    module: "foo".to_string(),
+                },
+                Response::Define {
+                    id: 1,
+                    success: true,
+                },
+            ),
+            (
+                Message::Evaluate {
+                    id: 2,
+                    module: "foo".to_string(),
+                    function: "bar".to_string(),
+                    input: json!(PI),
+                    description: None,
+                },
+                Response::Evaluate {
+                    id: 2,
+                    output: json!(E),
+                    timings: Some(vec![Timing {
+                        name: "evaluate".to_string(),
+                        nanoseconds: Duration::from_millis(5).as_nanos(),
+                    }]),
+                },
+            ),
+            (
+                Message::Analysis {
+                    id: 3,
+                    of: 2,
+                    valid: false,
+                    message: Some("Expected tau, got e.".to_string()),
+                },
+                Response::Analysis { id: 3 },
+            ),
+            (
+                Message::Evaluate {
+                    id: 4,
+                    module: "foo".to_string(),
+                    function: "baz".to_string(),
+                    input: json!({"mynumber": 121}),
+                    description: None,
+                },
+                Response::Evaluate {
+                    id: 4,
+                    output: json!({"yournumber": 342}),
+                    timings: Some(vec![Timing {
+                        name: "evaluate".to_string(),
+                        nanoseconds: Duration::from_millis(7).as_nanos(),
+                    }]),
+                },
+            ),
+            (
+                Message::Analysis {
+                    id: 5,
+                    of: 4,
+                    valid: true,
+                    message: None,
+                },
+                Response::Analysis { id: 5 },
+            ),
+        ]);
+        let mut duration = Duration::ZERO;
+        let mut increment = Duration::ZERO;
+        let mut intermediary = Intermediary {
+            eval_in: io::sink(),
+            tool_in: io::sink(),
+            eval_out: eval_out.as_bytes(),
+            tool_out: tool_out.as_bytes(),
+            clock: || {
+                increment += Duration::from_millis(1);
+                duration += increment;
+                duration
+            },
+            out: Vec::new(),
+            log: io::sink(),
+        };
+        colored::control::set_override(false);
+        let invalid = intermediary.run().unwrap();
+        let mut mint = Mint::new("src/outputs");
+        let mut file = mint.new_goldenfile("readme_example.txt").unwrap();
+        file.write_all(&intermediary.out).unwrap();
+        assert_eq!(invalid, 1);
     }
 }
