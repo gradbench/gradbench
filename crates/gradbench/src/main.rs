@@ -358,7 +358,7 @@ enum Message {
         valid: bool,
 
         /// An error message if the tool's response was invalid.
-        message: Option<String>,
+        error: Option<String>,
     },
 }
 
@@ -377,6 +377,10 @@ struct DefineResponse {
 
     /// Whether the module was successfully defined.
     success: bool,
+
+    /// An error message if the definition failed. Will be None if
+    /// the eval is simply not implemented.
+    error: Option<String>,
 }
 
 /// Nanosecond timings from the tool.
@@ -396,10 +400,14 @@ struct EvaluateResponse {
     id: Id,
 
     /// The output of the function.
-    output: serde_json::Value,
+    output: Option<serde_json::Value>,
 
     /// More granular timings.
     timings: Option<Vec<Timing>>,
+
+    /// An error message if evaluation failed. If this is Some, then
+    /// any other fields are not meaningful.
+    error: Option<String>,
 }
 
 /// A response from the tool to an `"analysis"` message.
@@ -602,7 +610,7 @@ impl<
                     id: _,
                     of,
                     valid,
-                    message,
+                    error,
                 } => {
                     if !*valid {
                         invalid += 1;
@@ -610,7 +618,7 @@ impl<
                     if line.id() == Some(*of) {
                         self.print_status(*valid)?;
                         line.end(&mut self.out)?;
-                        if let Some(error) = message {
+                        if let Some(error) = error {
                             writeln!(self.out, "{}", error.red())?;
                         }
                     }
@@ -655,29 +663,43 @@ impl<
                     write!(self.out, " {}", nanostring(nanos).dimmed())?;
                     let response: DefineResponse = self.parse_response(&tool_line)?;
                     self.print_status(response.success)?;
+                    if let Some(error) = response.error {
+                        write!(self.out, "\n{}", error.red())?;
+                        invalid += 1;
+                    }
                     line.end(&mut self.out)?;
                 }
                 Message::Evaluate { .. } => {
                     write!(self.out, " {}", nanostring(nanos).dimmed())?;
                     let response: EvaluateResponse = self.parse_response(&tool_line)?;
-                    let mut timings = BTreeMap::new();
-                    for Timing { name, nanoseconds } in response.timings.unwrap_or_default() {
-                        let (num, ns) = timings.entry(name).or_insert((0, 0));
-                        *num += 1;
-                        *ns += nanoseconds;
-                    }
-                    let mut first = true;
-                    for (name, (num, ns)) in timings {
-                        if first {
-                            write!(self.out, " {}", "~".dimmed())?;
-                        } else {
-                            write!(self.out, ",")?;
+                    match response.error {
+                        Some(error) => {
+                            self.print_status(false)?;
+                            write!(self.out, "\n{}", error.red())?;
+                            invalid += 1;
                         }
-                        first = false;
-                        write!(self.out, " {}", nanostring(ns))?;
-                        write!(self.out, " {name}")?;
-                        if num > 1 {
-                            write!(self.out, "×{num}")?;
+                        None => {
+                            let mut timings = BTreeMap::new();
+                            for Timing { name, nanoseconds } in response.timings.unwrap_or_default()
+                            {
+                                let (num, ns) = timings.entry(name).or_insert((0, 0));
+                                *num += 1;
+                                *ns += nanoseconds;
+                            }
+                            let mut first = true;
+                            for (name, (num, ns)) in timings {
+                                if first {
+                                    write!(self.out, " {}", "~".dimmed())?;
+                                } else {
+                                    write!(self.out, ",")?;
+                                }
+                                first = false;
+                                write!(self.out, " {}", nanostring(ns))?;
+                                write!(self.out, " {name}")?;
+                                if num > 1 {
+                                    write!(self.out, "×{num}")?;
+                                }
+                            }
                         }
                     }
                 }
@@ -1153,11 +1175,13 @@ mod tests {
         Define {
             id: Id,
             success: bool,
+            error: Option<String>,
         },
         Evaluate {
             id: Id,
-            output: serde_json::Value,
+            output: Option<serde_json::Value>,
             timings: Option<Vec<Timing>>,
+            error: Option<String>,
         },
         Analysis {
             id: Id,
@@ -1171,17 +1195,22 @@ mod tests {
         {
             match self {
                 &Response::Start { id } => StartResponse { id }.serialize(serializer),
-                &Response::Define { id, success } => {
-                    DefineResponse { id, success }.serialize(serializer)
+                Response::Define { id, success, error } => DefineResponse {
+                    id: *id,
+                    success: *success,
+                    error: error.clone(),
                 }
+                .serialize(serializer),
                 Response::Evaluate {
                     id,
                     output,
                     timings,
+                    error,
                 } => EvaluateResponse {
                     id: *id,
                     output: output.clone(),
                     timings: timings.clone(),
+                    error: error.clone(),
                 }
                 .serialize(serializer),
                 &Response::Analysis { id } => AnalysisResponse { id }.serialize(serializer),
@@ -1222,6 +1251,7 @@ mod tests {
                 Response::Define {
                     id: 1,
                     success: true,
+                    error: None,
                 },
             ),
             (
@@ -1234,11 +1264,12 @@ mod tests {
                 },
                 Response::Evaluate {
                     id: 2,
-                    output: json!(E),
+                    output: Some(json!(E)),
                     timings: Some(vec![Timing {
                         name: "evaluate".to_string(),
                         nanoseconds: Duration::from_millis(5).as_nanos(),
                     }]),
+                    error: None,
                 },
             ),
             (
@@ -1246,7 +1277,7 @@ mod tests {
                     id: 3,
                     of: 2,
                     valid: false,
-                    message: Some("Expected tau, got e.".to_string()),
+                    error: Some("Expected tau, got e.".to_string()),
                 },
                 Response::Analysis { id: 3 },
             ),
@@ -1260,11 +1291,12 @@ mod tests {
                 },
                 Response::Evaluate {
                     id: 4,
-                    output: json!({"yournumber": 342}),
+                    output: Some(json!({"yournumber": 342})),
                     timings: Some(vec![Timing {
                         name: "evaluate".to_string(),
                         nanoseconds: Duration::from_millis(7).as_nanos(),
                     }]),
+                    error: None,
                 },
             ),
             (
@@ -1272,7 +1304,7 @@ mod tests {
                     id: 5,
                     of: 4,
                     valid: true,
-                    message: None,
+                    error: None,
                 },
                 Response::Analysis { id: 5 },
             ),
@@ -1369,6 +1401,7 @@ mod tests {
                 Response::Define {
                     id: 1,
                     success: true,
+                    error: None,
                 },
             ),
         ]);

@@ -42,10 +42,15 @@ def main():
                 try:
                     functions = import_module(message["module"])
                     func = getattr(functions, "compile")
-                    success = func()  # compiles C code
+                    success, error = func()
                     response["success"] = success
-                except:
+                    if not success:
+                        response["error"] = error
+                except ModuleNotFoundError:
                     response["success"] = False
+                except Exception as e:
+                    response["success"] = False
+                    response["error"] = str(e)
             print(json.dumps({"id": message["id"]} | response), flush=True)
     except (EOFError, BrokenPipeError):
         pass

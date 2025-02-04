@@ -1,21 +1,23 @@
 import json
+import os
 import subprocess
 import tempfile
-from os import listdir
 
-TOOL = "adept"
+TOOL = os.path.split(os.path.dirname(__file__))[-1]
 EVAL = __name__
 
 
 def compile():
-    return (
-        subprocess.run(
+    try:
+        subprocess.check_output(
             ["make", "-C", f"tools/{TOOL}", f"run_{EVAL}", "-B"],
             text=True,
-            capture_output=True,
-        ).returncode
-        == 0
-    )
+            stderr=subprocess.STDOUT,
+        )
+    except subprocess.CalledProcessError as e:
+        return (False, e.output)
+    else:
+        return (True, None)
 
 
 def square(input):
