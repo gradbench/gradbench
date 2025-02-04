@@ -477,7 +477,7 @@ fn nanostring(nanoseconds: u128) -> String {
 #[derive(Debug, Eq, PartialEq)]
 enum BadOutcome {
     /// The user sent an interrupt signal.
-    Interrupted,
+    Interrupt,
 
     /// The tool timed out.
     Timeout,
@@ -733,7 +733,7 @@ fn handle_ctrlc(
             if let Ok(pgid) = unistd::getpgid(Some(tool_pid)) {
                 let _ = signal::killpg(pgid, signal::Signal::SIGKILL);
             }
-            *outcome.lock().unwrap() = Some(BadOutcome::Interrupted);
+            *outcome.lock().unwrap() = Some(BadOutcome::Interrupt);
         })?;
     }
     Ok(())
