@@ -91,6 +91,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Test CLI
+        run: cargo test
       - name: Build CLI
         run: cargo build --release
       - name: Run CLI
