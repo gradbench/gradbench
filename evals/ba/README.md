@@ -4,9 +4,11 @@ Information on the BA equation from Microsoft's [ADBench](https://github.com/mic
 
 Link to [I/O file](https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/shared/BAData.py) and [data folder](https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87/data/ba).
 
-### Generation
+## Generation
 
 Files are provided with information to generate the below inputs. 3 values, N, M, and P are used alongside one camera's paremters $c \in \mathbb{R}^{11}$, one point $x \in \mathbb{R}^{3}$, one weight $w \in \mathbb{R}$, and one feature $f \in \mathbb{R}^{2}$. N is the number of cameras, M is the numer of points, and P is the number of observations.
+
+## Description
 
 ### Inputs
 
@@ -49,3 +51,46 @@ $$BASparseMat \in \mathbb{R}^{(2P + P) \times (11N +3M + P)}$$
 > **Example**
 >
 > If $N = 21$, $M = 11315$, and $P = 36455$, $J$ is a BASparseMat with 109365 rows and 70631 columns
+
+## Protocol
+
+The eval sends a leading `DefineMessage` followed by
+`EvaluateMessages`. The `input` field of any `EvaluateMessage` will be
+an instance of the `BAInput` interface defined below. The `function` field
+will be either the string `"objective"` or `"jacobian"`.
+
+[typescript]: https://www.typescriptlang.org/
+
+### Inputs
+
+```typescript
+interface BAInput {
+  n: int;
+  m: int;
+  p: int;
+  cam: double[];
+  x: double[];
+  w: number;
+  feat: double[];
+}
+```
+
+### Outputs
+
+A tool must respond to an `EvaluateMessage` with an
+`EvaluateResponse`. The type of the `output` field in the
+`EvaluateResponse` depends on the `function` field in the
+`EvaluateMessage`:
+
+* `"objective"`: `BAObjectiveOutput`.
+* `"jacobian"`: `BAObjectiveOutput`.
+
+```typescript
+interface BAOutput {
+  BASparseMat: {
+    "cols": int[];
+    "rows": int[];
+    "vals": double[];
+  };
+}
+```
