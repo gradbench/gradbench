@@ -60,7 +60,7 @@ A tool must respond to an `EvaluateMessage` with an
 `EvaluateMessage`:
 
 * `"objective"`: `HTObjectiveOutput`.
-* `"jacobian"`: `HTObjectiveOutput`.
+* `"jacobian"`: `HTJacobianOutput`.
 
 ```typescript
 type HTObjectiveOutput = double[];
