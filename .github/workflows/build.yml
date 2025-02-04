@@ -3,7 +3,7 @@ on:
   pull_request:
   push:
     branches:
-      - scilean_update
+      - main
 
 concurrency:
   group: ${{ github.event.pull_request.number || github.sha }}
