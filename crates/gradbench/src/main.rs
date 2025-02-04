@@ -1119,11 +1119,13 @@ mod tests {
         Define {
             id: Id,
             success: bool,
+            error: Option<String>,
         },
         Evaluate {
             id: Id,
             output: serde_json::Value,
             timings: Option<Vec<Timing>>,
+            error: Option<String>,
         },
         Analysis {
             id: Id,
@@ -1137,17 +1139,22 @@ mod tests {
         {
             match self {
                 &Response::Start { id } => StartResponse { id }.serialize(serializer),
-                &Response::Define { id, success } => {
-                    DefineResponse { id, success }.serialize(serializer)
+                Response::Define { id, success, error } => DefineResponse {
+                    id: *id,
+                    success: *success,
+                    error: error.clone(),
                 }
+                .serialize(serializer),
                 Response::Evaluate {
                     id,
                     output,
                     timings,
+                    error,
                 } => EvaluateResponse {
                     id: *id,
                     output: output.clone(),
                     timings: timings.clone(),
+                    error: error.clone(),
                 }
                 .serialize(serializer),
                 &Response::Analysis { id } => AnalysisResponse { id }.serialize(serializer),
@@ -1182,6 +1189,7 @@ mod tests {
                 Response::Define {
                     id: 1,
                     success: true,
+                    error: None,
                 },
             ),
             (
@@ -1199,6 +1207,7 @@ mod tests {
                         name: "evaluate".to_string(),
                         nanoseconds: Duration::from_millis(5).as_nanos(),
                     }]),
+                    error: None,
                 },
             ),
             (
@@ -1225,6 +1234,7 @@ mod tests {
                         name: "evaluate".to_string(),
                         nanoseconds: Duration::from_millis(7).as_nanos(),
                     }]),
+                    error: None,
                 },
             ),
             (
