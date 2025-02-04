@@ -647,7 +647,7 @@ impl<I: Write, O: BufRead, C: FnMut() -> Duration, T: Write, L: Write> Intermedi
                     match response.error {
                         Some(error) => {
                             self.print_status(false)?;
-                            print!("\n{}", error.red());
+                            write!(self.out, "\n{}", error.red());
                             invalid += 1;
                         }
                         None => {
