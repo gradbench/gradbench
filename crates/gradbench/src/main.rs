@@ -468,7 +468,7 @@ fn nanostring(nanoseconds: u128) -> String {
 }
 
 /// An imperfect outcome from running the intermediary.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 enum BadOutcome {
     /// The user sent an interrupt signal.
     Interrupted,
@@ -1013,8 +1013,8 @@ mod tests {
     use serde_json::json;
 
     use crate::{
-        nanostring, AnalysisResponse, DefineResponse, EvaluateResponse, Id, Intermediary, Message,
-        StartResponse, Timing,
+        nanostring, AnalysisResponse, BadOutcome, DefineResponse, EvaluateResponse, Id,
+        Intermediary, Message, StartResponse, Timing,
     };
 
     fn nanostring_test(expected: &str, duration: Duration) {
@@ -1209,9 +1209,10 @@ mod tests {
             log: io::sink(),
         };
         colored::control::set_override(false);
-        intermediary.run().unwrap();
+        let result = intermediary.run();
         let mut mint = Mint::new("src/outputs");
         let mut file = mint.new_goldenfile("readme_example.txt").unwrap();
         file.write_all(&intermediary.out).unwrap();
+        assert_eq!(result, Err(BadOutcome::Invalid));
     }
 }
