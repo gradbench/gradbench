@@ -4,10 +4,10 @@ use std::{
     io::{self, BufRead, Write},
     path::{Path, PathBuf},
     process::{Child, Command, ExitCode, ExitStatus, Output, Stdio},
+    sync::{atomic, Arc},
     time::{Duration, Instant},
 };
 
-use anyhow::anyhow;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
@@ -467,7 +467,21 @@ fn nanostring(nanoseconds: u128) -> String {
     }
 }
 
+/// An imperfect outcome from running the intermediary.
+enum BadOutcome {
+    /// The user sent an interrupt signal.
+    Interrupted,
+
+    /// The tool returned some number of invalid results for the eval.
+    Invalid,
+
+    /// Some other error occurred. Any relevant information has already been printed.
+    Error,
+}
+
+/// An intermediary that runs an eval and a tool, logging their output and timing their execution.
 struct Intermediary<I, O, C, T, L> {
+    interrupted: Arc<atomic::AtomicBool>,
     eval_in: I,
     tool_in: I,
     eval_out: O,
@@ -501,7 +515,8 @@ impl<I: Write, O: BufRead, C: FnMut() -> Duration, T: Write, L: Write> Intermedi
         Ok(())
     }
 
-    fn run(&mut self) -> anyhow::Result<usize> {
+    /// Run the intermediary, collecting miscellaneous errors via `anyhow`.
+    fn run_inner(&mut self) -> anyhow::Result<usize> {
         let mut invalid = 0;
         let mut line = Line::new();
         while let Some(eval_line) = {
@@ -625,10 +640,35 @@ impl<I: Write, O: BufRead, C: FnMut() -> Duration, T: Write, L: Write> Intermedi
         }
         Ok(invalid)
     }
+
+    /// Run the intermediary.
+    fn run(&mut self) -> Result<(), BadOutcome> {
+        let result = self.run_inner();
+        if self.interrupted.load(atomic::Ordering::Relaxed) {
+            return Err(BadOutcome::Interrupted);
+        }
+        match result {
+            Ok(invalid) => {
+                if invalid > 0 {
+                    Err(BadOutcome::Invalid)
+                } else {
+                    Ok(())
+                }
+            }
+            Err(err) => {
+                println!("{err:#}");
+                Err(BadOutcome::Error)
+            }
+        }
+    }
 }
 
-/// Run an eval and a tool together, returning the number of validation failures.
-fn intermediary(log: impl Write, eval: &mut Child, tool: &mut Child) -> anyhow::Result<usize> {
+/// Handle Ctrl-C by killing the eval and tool and setting a status flag.
+fn handle_ctrlc(
+    eval: &mut Child,
+    tool: &mut Child,
+    status: Arc<atomic::AtomicBool>,
+) -> anyhow::Result<()> {
     #[cfg(unix)]
     {
         use nix::{sys::signal, unistd};
@@ -641,10 +681,25 @@ fn intermediary(log: impl Write, eval: &mut Child, tool: &mut Child) -> anyhow::
             if let Ok(pgid) = unistd::getpgid(Some(tool_pid)) {
                 let _ = signal::killpg(pgid, signal::Signal::SIGKILL);
             }
+            status.store(true, atomic::Ordering::Relaxed);
         })?;
+    }
+    Ok(())
+}
+
+/// Run an eval and a tool together, returning the outcome.
+fn intermediary(log: impl Write, eval: &mut Child, tool: &mut Child) -> Result<(), BadOutcome> {
+    let interrupted = Arc::new(atomic::AtomicBool::new(false));
+    match handle_ctrlc(eval, tool, Arc::clone(&interrupted)) {
+        Ok(()) => {}
+        Err(err) => {
+            println!("{err:#}");
+            return Err(BadOutcome::Error);
+        }
     }
     let start = Instant::now();
     Intermediary {
+        interrupted,
         eval_in: eval.stdin.take().unwrap(),
         tool_in: tool.stdin.take().unwrap(),
         eval_out: io::BufReader::new(eval.stdout.take().unwrap()),
@@ -824,29 +879,25 @@ fn cli_result() -> Result<(), ExitCode> {
                 eprintln!("error starting eval and tool commands");
                 return Err(ExitCode::FAILURE);
             };
-            let result = match output {
+            let outcome = match output {
                 Some(path) => match fs::File::create(&path) {
                     Ok(mut file) => intermediary(&mut file, &mut eval_child, &mut tool_child),
-                    Err(err) => Err(anyhow!(err)),
+                    Err(err) => {
+                        println!("{err:#}");
+                        return Err(ExitCode::FAILURE);
+                    }
                 },
                 None => intermediary(&mut io::sink(), &mut eval_child, &mut tool_child),
             };
-            match (&result, eval_child.wait(), tool_child.wait()) {
-                (&Ok(invalid), Ok(e), Ok(s)) => {
-                    status_code(e)?;
-                    status_code(s)?;
-                    if invalid == 0 {
-                        Ok(())
-                    } else {
-                        Err(ExitCode::FAILURE)
-                    }
+            let eval_wait = eval_child.wait();
+            let tool_wait = tool_child.wait();
+            match outcome {
+                Ok(()) => {
+                    status_code(eval_wait.map_err(|_| ExitCode::FAILURE)?)?;
+                    status_code(tool_wait.map_err(|_| ExitCode::FAILURE)?)?;
+                    Ok(())
                 }
-                (_, _, _) => {
-                    if let Err(err) = result {
-                        eprintln!("{err}");
-                    }
-                    Err(ExitCode::FAILURE)
-                }
+                Err(_) => Err(ExitCode::FAILURE),
             }
         }
         Commands::Repo { command } => {
@@ -952,6 +1003,7 @@ mod tests {
     use std::{
         f64::consts::{E, PI},
         io::{self, Write},
+        sync::{atomic, Arc},
         time::Duration,
     };
 
@@ -1142,6 +1194,7 @@ mod tests {
         let mut duration = Duration::ZERO;
         let mut increment = Duration::ZERO;
         let mut intermediary = Intermediary {
+            interrupted: Arc::new(atomic::AtomicBool::new(false)),
             eval_in: io::sink(),
             tool_in: io::sink(),
             eval_out: eval_out.as_bytes(),
@@ -1155,7 +1208,7 @@ mod tests {
             log: io::sink(),
         };
         colored::control::set_override(false);
-        let invalid = intermediary.run().unwrap();
+        let invalid = intermediary.run_inner().unwrap();
         let mut mint = Mint::new("src/outputs");
         let mut file = mint.new_goldenfile("readme_example.txt").unwrap();
         file.write_all(&intermediary.out).unwrap();
