@@ -400,7 +400,7 @@ struct EvaluateResponse {
     id: Id,
 
     /// The output of the function.
-    output: serde_json::Value,
+    output: Option<serde_json::Value>,
 
     /// More granular timings.
     timings: Option<Vec<Timing>>,
@@ -1179,7 +1179,7 @@ mod tests {
         },
         Evaluate {
             id: Id,
-            output: serde_json::Value,
+            output: Option<serde_json::Value>,
             timings: Option<Vec<Timing>>,
             error: Option<String>,
         },
@@ -1264,7 +1264,7 @@ mod tests {
                 },
                 Response::Evaluate {
                     id: 2,
-                    output: json!(E),
+                    output: Some(json!(E)),
                     timings: Some(vec![Timing {
                         name: "evaluate".to_string(),
                         nanoseconds: Duration::from_millis(5).as_nanos(),
@@ -1291,7 +1291,7 @@ mod tests {
                 },
                 Response::Evaluate {
                     id: 4,
-                    output: json!({"yournumber": 342}),
+                    output: Some(json!({"yournumber": 342})),
                     timings: Some(vec![Timing {
                         name: "evaluate".to_string(),
                         nanoseconds: Duration::from_millis(7).as_nanos(),

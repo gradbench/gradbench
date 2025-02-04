@@ -35,7 +35,7 @@ def run(params):
             timings = [{"name": "evaluate", "nanoseconds": ns} for ns in times]
             return {"output": ret, "timings": timings}
         except Exception as e:
-            return {"output": None, "timings": [], "error": str(e)}
+            return {"timings": [], "error": str(e)}
 
 
 def main():
