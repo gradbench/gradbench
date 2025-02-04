@@ -652,7 +652,8 @@ impl<I: Write, O: BufRead, C: FnMut() -> Duration, T: Write, L: Write> Intermedi
                         }
                         None => {
                             let mut timings = BTreeMap::new();
-                            for Timing { name, nanoseconds } in response.timings.unwrap_or_default() {
+                            for Timing { name, nanoseconds } in response.timings.unwrap_or_default()
+                            {
                                 let (num, ns) = timings.entry(name).or_insert((0, 0));
                                 *num += 1;
                                 *ns += nanoseconds;
