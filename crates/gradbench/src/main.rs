@@ -354,7 +354,7 @@ enum Message {
         valid: bool,
 
         /// An error message if the tool's response was invalid.
-        message: Option<String>,
+        error: Option<String>,
     },
 }
 
@@ -594,7 +594,7 @@ impl<I: Write, O: BufRead, C: FnMut() -> Duration, T: Write, L: Write> Intermedi
                     id: _,
                     of,
                     valid,
-                    message,
+                    error,
                 } => {
                     if !*valid {
                         invalid += 1;
@@ -602,7 +602,7 @@ impl<I: Write, O: BufRead, C: FnMut() -> Duration, T: Write, L: Write> Intermedi
                     if line.id() == Some(*of) {
                         self.print_status(*valid)?;
                         line.end(&mut self.out)?;
-                        if let Some(error) = message {
+                        if let Some(error) = error {
                             writeln!(self.out, "{}", error.red())?;
                         }
                     }
@@ -636,7 +636,7 @@ impl<I: Write, O: BufRead, C: FnMut() -> Duration, T: Write, L: Write> Intermedi
                     let response: DefineResponse = self.parse_response(&tool_line)?;
                     self.print_status(response.success)?;
                     if let Some(error) = response.error {
-                        write!(self.out, "\n{}", error.red());
+                        write!(self.out, "\n{}", error.red())?;
                         invalid += 1;
                     }
                     line.end(&mut self.out)?;
@@ -647,7 +647,7 @@ impl<I: Write, O: BufRead, C: FnMut() -> Duration, T: Write, L: Write> Intermedi
                     match response.error {
                         Some(error) => {
                             self.print_status(false)?;
-                            write!(self.out, "\n{}", error.red());
+                            write!(self.out, "\n{}", error.red())?;
                             invalid += 1;
                         }
                         None => {
@@ -1215,7 +1215,7 @@ mod tests {
                     id: 3,
                     of: 2,
                     valid: false,
-                    message: Some("Expected tau, got e.".to_string()),
+                    error: Some("Expected tau, got e.".to_string()),
                 },
                 Response::Analysis { id: 3 },
             ),
@@ -1242,7 +1242,7 @@ mod tests {
                     id: 5,
                     of: 4,
                     valid: true,
-                    message: None,
+                    error: None,
                 },
                 Response::Analysis { id: 5 },
             ),
