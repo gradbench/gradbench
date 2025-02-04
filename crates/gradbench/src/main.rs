@@ -3,8 +3,8 @@ use std::{
     env, fs,
     io::{self, BufRead, Write},
     path::{Path, PathBuf},
-    process::{Child, Command, ExitCode, ExitStatus, Output, Stdio},
-    sync::{atomic, Arc},
+    process::{Child, ChildStdout, Command, ExitCode, ExitStatus, Output, Stdio},
+    sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
 
@@ -76,6 +76,10 @@ enum Commands {
         /// A path to save the full log. For example: `log.jsonl`
         #[clap(short, long)]
         output: Option<PathBuf>,
+
+        /// The timeout, in seconds, for tool responses (not implemented on Windows)
+        #[clap(long)]
+        timeout: Option<u64>,
     },
 
     /// Perform a task in a clone of the https://github.com/gradbench/gradbench repository.
@@ -480,7 +484,10 @@ fn nanostring(nanoseconds: u128) -> String {
 #[derive(Debug, Eq, PartialEq)]
 enum BadOutcome {
     /// The user sent an interrupt signal.
-    Interrupted,
+    Interrupt,
+
+    /// The tool timed out.
+    Timeout,
 
     /// The tool returned some number of invalid results for the eval.
     Invalid,
@@ -490,18 +497,27 @@ enum BadOutcome {
 }
 
 /// An intermediary that runs an eval and a tool, logging their output and timing their execution.
-struct Intermediary<I, O, C, T, L> {
-    interrupted: Arc<atomic::AtomicBool>,
-    eval_in: I,
-    tool_in: I,
-    eval_out: O,
-    tool_out: O,
+struct Intermediary<IE, IT, OE, OT, C, T, L> {
+    outcome: Arc<Mutex<Option<BadOutcome>>>,
+    eval_in: IE,
+    tool_in: IT,
+    eval_out: OE,
+    tool_out: OT,
     clock: C,
     out: T,
     log: L,
 }
 
-impl<I: Write, O: BufRead, C: FnMut() -> Duration, T: Write, L: Write> Intermediary<I, O, C, T, L> {
+impl<
+        IE: Write,
+        IT: Write,
+        OE: BufRead,
+        OT: BufRead,
+        C: FnMut() -> Duration,
+        T: Write,
+        L: Write,
+    > Intermediary<IE, IT, OE, OT, C, T, L>
+{
     /// Print left-aligned text with a fixed width, preceded by a space.
     fn print_left(&mut self, width: usize, text: &str) -> anyhow::Result<()> {
         if text.len() > width {
@@ -544,7 +560,7 @@ impl<I: Write, O: BufRead, C: FnMut() -> Duration, T: Write, L: Write> Intermedi
     }
 
     /// Run the intermediary, collecting miscellaneous errors via `anyhow`.
-    fn run_inner(&mut self) -> anyhow::Result<usize> {
+    fn run_inner(&mut self) -> anyhow::Result<Option<BadOutcome>> {
         let mut invalid = 0;
         let mut line = Line::new();
         while let Some(eval_line) = {
@@ -613,7 +629,19 @@ impl<I: Write, O: BufRead, C: FnMut() -> Duration, T: Write, L: Write> Intermedi
             self.tool_in.write_all(eval_line.as_bytes())?;
             self.tool_in.flush()?;
             let mut tool_line = String::new();
-            self.tool_out.read_line(&mut tool_line)?;
+            match self.tool_out.read_line(&mut tool_line) {
+                Ok(_) => {}
+                Err(err) => {
+                    if err.kind() == io::ErrorKind::TimedOut {
+                        let timeout_time = (self.clock)();
+                        let nanos = (timeout_time - message_time).as_nanos();
+                        writeln!(self.out, " {} {}", nanostring(nanos).dimmed(), "⧖".yellow())?;
+                        return Ok(Some(BadOutcome::Timeout));
+                    } else {
+                        return Err(err.into());
+                    }
+                }
+            }
             let response_time = (self.clock)();
             let nanos = (response_time - message_time).as_nanos();
             writeln!(
@@ -684,23 +712,22 @@ impl<I: Write, O: BufRead, C: FnMut() -> Duration, T: Write, L: Write> Intermedi
             self.eval_in.write_all(tool_line.as_bytes())?;
             self.eval_in.flush()?;
         }
-        Ok(invalid)
+        if invalid > 0 {
+            Ok(Some(BadOutcome::Invalid))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Run the intermediary.
     fn run(&mut self) -> Result<(), BadOutcome> {
         let result = self.run_inner();
-        if self.interrupted.load(atomic::Ordering::Relaxed) {
-            return Err(BadOutcome::Interrupted);
+        if let Some(outcome) = self.outcome.lock().unwrap().take() {
+            return Err(outcome);
         }
         match result {
-            Ok(invalid) => {
-                if invalid > 0 {
-                    Err(BadOutcome::Invalid)
-                } else {
-                    Ok(())
-                }
-            }
+            Ok(None) => Ok(()),
+            Ok(Some(outcome)) => Err(outcome),
             Err(err) => {
                 let _ = writeln!(self.out, "{err:#}");
                 Err(BadOutcome::Error)
@@ -713,7 +740,7 @@ impl<I: Write, O: BufRead, C: FnMut() -> Duration, T: Write, L: Write> Intermedi
 fn handle_ctrlc(
     eval: &mut Child,
     tool: &mut Child,
-    status: Arc<atomic::AtomicBool>,
+    outcome: Arc<Mutex<Option<BadOutcome>>>,
 ) -> anyhow::Result<()> {
     #[cfg(unix)]
     {
@@ -727,16 +754,33 @@ fn handle_ctrlc(
             if let Ok(pgid) = unistd::getpgid(Some(tool_pid)) {
                 let _ = signal::killpg(pgid, signal::Signal::SIGKILL);
             }
-            status.store(true, atomic::Ordering::Relaxed);
+            *outcome.lock().unwrap() = Some(BadOutcome::Interrupt);
         })?;
     }
     Ok(())
 }
 
+/// Return a reader that times out after a given duration, if possible.
+fn timeout_reader(reader: ChildStdout, timeout: Option<Duration>) -> impl io::Read {
+    #[cfg(unix)]
+    {
+        timeout_readwrite::TimeoutReader::new(reader, timeout)
+    }
+    #[cfg(windows)]
+    {
+        reader
+    }
+}
+
 /// Run an eval and a tool together, returning the outcome.
-fn intermediary(log: impl Write, eval: &mut Child, tool: &mut Child) -> Result<(), BadOutcome> {
-    let interrupted = Arc::new(atomic::AtomicBool::new(false));
-    match handle_ctrlc(eval, tool, Arc::clone(&interrupted)) {
+fn intermediary(
+    log: impl Write,
+    eval: &mut Child,
+    tool: &mut Child,
+    timeout: Option<Duration>,
+) -> Result<(), BadOutcome> {
+    let outcome = Arc::new(Mutex::new(None));
+    match handle_ctrlc(eval, tool, Arc::clone(&outcome)) {
         Ok(()) => {}
         Err(err) => {
             println!("{err:#}");
@@ -745,11 +789,11 @@ fn intermediary(log: impl Write, eval: &mut Child, tool: &mut Child) -> Result<(
     }
     let start = Instant::now();
     Intermediary {
-        interrupted,
+        outcome,
         eval_in: eval.stdin.take().unwrap(),
         tool_in: tool.stdin.take().unwrap(),
         eval_out: io::BufReader::new(eval.stdout.take().unwrap()),
-        tool_out: io::BufReader::new(tool.stdout.take().unwrap()),
+        tool_out: io::BufReader::new(timeout_reader(tool.stdout.take().unwrap(), timeout)),
         clock: || start.elapsed(),
         out: io::stdout(),
         log,
@@ -907,7 +951,12 @@ fn cli_result() -> Result<(), ExitCode> {
     match Cli::parse().command {
         Commands::Eval { eval, tag, args } => run_eval(&eval, tag.as_deref(), &args),
         Commands::Tool { tool, tag, args } => run_tool(&tool, tag.as_deref(), &args),
-        Commands::Run { eval, tool, output } => {
+        Commands::Run {
+            eval,
+            tool,
+            output,
+            timeout,
+        } => {
             let (Ok(mut eval_child), Ok(mut tool_child)) = (
                 {
                     let mut cmd = shell(&eval);
@@ -925,22 +974,29 @@ fn cli_result() -> Result<(), ExitCode> {
                 eprintln!("error starting eval and tool commands");
                 return Err(ExitCode::FAILURE);
             };
+            let timeout = timeout.map(Duration::from_secs);
             let outcome = match output {
                 Some(path) => match fs::File::create(&path) {
-                    Ok(mut file) => intermediary(&mut file, &mut eval_child, &mut tool_child),
+                    Ok(mut file) => {
+                        intermediary(&mut file, &mut eval_child, &mut tool_child, timeout)
+                    }
                     Err(err) => {
                         println!("{err:#}");
                         return Err(ExitCode::FAILURE);
                     }
                 },
-                None => intermediary(&mut io::sink(), &mut eval_child, &mut tool_child),
+                None => intermediary(&mut io::sink(), &mut eval_child, &mut tool_child, timeout),
             };
-            let eval_wait = eval_child.wait();
-            let tool_wait = tool_child.wait();
+            let eval_wait = eval_child.wait().map_err(|_| ExitCode::FAILURE);
+            let tool_wait = tool_child.wait().map_err(|_| ExitCode::FAILURE);
             match outcome {
                 Ok(()) => {
-                    status_code(eval_wait.map_err(|_| ExitCode::FAILURE)?)?;
-                    status_code(tool_wait.map_err(|_| ExitCode::FAILURE)?)?;
+                    status_code(eval_wait?)?;
+                    status_code(tool_wait?)?;
+                    Ok(())
+                }
+                Err(BadOutcome::Timeout) => {
+                    status_code(eval_wait?)?;
                     Ok(())
                 }
                 Err(_) => Err(ExitCode::FAILURE),
@@ -1049,7 +1105,7 @@ mod tests {
     use std::{
         f64::consts::{E, PI},
         io::{self, Write},
-        sync::{atomic, Arc},
+        sync::{Arc, Mutex},
         time::Duration,
     };
 
@@ -1177,6 +1233,12 @@ mod tests {
         )
     }
 
+    fn write_goldenfile(name: &str, bytes: &[u8]) {
+        let mut mint = Mint::new("src/outputs");
+        let mut file = mint.new_goldenfile(name).unwrap();
+        file.write_all(bytes).unwrap();
+    }
+
     #[test]
     fn test_intermediary_readme_example() {
         let (eval_out, tool_out) = session(&[
@@ -1250,7 +1312,7 @@ mod tests {
         let mut duration = Duration::ZERO;
         let mut increment = Duration::ZERO;
         let mut intermediary = Intermediary {
-            interrupted: Arc::new(atomic::AtomicBool::new(false)),
+            outcome: Arc::new(Mutex::new(None)),
             eval_in: io::sink(),
             tool_in: io::sink(),
             eval_out: eval_out.as_bytes(),
@@ -1265,53 +1327,100 @@ mod tests {
         };
         colored::control::set_override(false);
         let result = intermediary.run();
-        {
-            let mut mint = Mint::new("src/outputs");
-            let mut file = mint.new_goldenfile("readme_example.txt").unwrap();
-            file.write_all(&intermediary.out).unwrap();
-        }
+        write_goldenfile("readme_example.txt", &intermediary.out);
         assert_eq!(result, Err(BadOutcome::Invalid));
     }
 
     #[test]
     fn test_intermediary_invalid_json_eval() {
         let mut intermediary = Intermediary {
-            interrupted: Arc::new(atomic::AtomicBool::new(false)),
+            outcome: Arc::new(Mutex::new(None)),
             eval_in: io::sink(),
             tool_in: io::sink(),
-            eval_out: "{ \"id\": 0,".as_bytes(),
+            eval_out: r#"{ "id": 0,"#.as_bytes(),
             tool_out: "".as_bytes(),
             clock: || Duration::ZERO,
             out: Vec::new(),
             log: io::sink(),
         };
         let result = intermediary.run();
-        {
-            let mut mint = Mint::new("src/outputs");
-            let mut file = mint.new_goldenfile("invalid_json_eval.txt").unwrap();
-            file.write_all(&intermediary.out).unwrap();
-        }
+        write_goldenfile("invalid_json_eval.txt", &intermediary.out);
         assert_eq!(result, Err(BadOutcome::Error));
     }
 
     #[test]
     fn test_intermediary_invalid_json_tool() {
         let mut intermediary = Intermediary {
-            interrupted: Arc::new(atomic::AtomicBool::new(false)),
+            outcome: Arc::new(Mutex::new(None)),
             eval_in: io::sink(),
             tool_in: io::sink(),
-            eval_out: "{ \"id\": 0, \"kind\": \"start\" }".as_bytes(),
-            tool_out: "{ \"id\": 0,".as_bytes(),
+            eval_out: r#"{ "id": 0, "kind": "start" }"#.as_bytes(),
+            tool_out: r#"{ "id": 0,"#.as_bytes(),
             clock: || Duration::ZERO,
             out: Vec::new(),
             log: io::sink(),
         };
         let result = intermediary.run();
-        {
-            let mut mint = Mint::new("src/outputs");
-            let mut file = mint.new_goldenfile("invalid_json_tool.txt").unwrap();
-            file.write_all(&intermediary.out).unwrap();
-        }
+        write_goldenfile("invalid_json_tool.txt", &intermediary.out);
         assert_eq!(result, Err(BadOutcome::Error));
+    }
+
+    struct ReadTimeout<T>(T);
+
+    impl<T: io::Read> io::Read for ReadTimeout<T> {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            self.0.read(buf)
+        }
+    }
+
+    impl<T: io::BufRead> io::BufRead for ReadTimeout<T> {
+        fn fill_buf(&mut self) -> io::Result<&[u8]> {
+            let result = self.0.fill_buf();
+            if let Ok(buf) = &result {
+                if buf.is_empty() {
+                    return Err(io::Error::new(io::ErrorKind::TimedOut, ""));
+                }
+            }
+            result
+        }
+
+        fn consume(&mut self, amt: usize) {
+            self.0.consume(amt);
+        }
+    }
+
+    #[test]
+    fn test_intermediary_timeout() {
+        let (mut eval_out, tool_out) = session(&[
+            (Message::Start { id: 0 }, Response::Start { id: 0 }),
+            (
+                Message::Define {
+                    id: 1,
+                    module: "foo".to_string(),
+                },
+                Response::Define {
+                    id: 1,
+                    success: true,
+                    error: None,
+                },
+            ),
+        ]);
+        eval_out.push_str(
+            r#"{ "id": 2, "kind": "evaluate", "module": "foo", "function": "bar", "input": null }"#,
+        );
+        let mut intermediary = Intermediary {
+            outcome: Arc::new(Mutex::new(None)),
+            eval_in: io::sink(),
+            tool_in: io::sink(),
+            eval_out: eval_out.as_bytes(),
+            tool_out: ReadTimeout(tool_out.as_bytes()),
+            clock: || Duration::ZERO,
+            out: Vec::new(),
+            log: io::sink(),
+        };
+        colored::control::set_override(false);
+        let result = intermediary.run();
+        write_goldenfile("timeout.txt", &intermediary.out);
+        assert_eq!(result, Err(BadOutcome::Timeout));
     }
 }

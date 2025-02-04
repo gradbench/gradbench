@@ -107,8 +107,10 @@ If the tool receives any message whose `"kind"` is neither `"define"` nor `"eval
 Here is a somewhat more formal description of the protocol using [TypeScript][] types.
 
 ```typescript
+type Id = number;
+
 interface Base {
-  id: string;
+  id: Id;
 }
 
 interface Duration {
@@ -137,6 +139,8 @@ interface EvaluateMessage extends Base {
 }
 
 interface AnalysisMessage extends Base {
+  kind: "analysis";
+  of: Id;
   valid: boolean;
   message?: string;
 }
