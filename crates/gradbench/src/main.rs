@@ -468,6 +468,7 @@ fn nanostring(nanoseconds: u128) -> String {
 }
 
 /// An imperfect outcome from running the intermediary.
+#[derive(Debug)]
 enum BadOutcome {
     /// The user sent an interrupt signal.
     Interrupted,
@@ -1208,10 +1209,9 @@ mod tests {
             log: io::sink(),
         };
         colored::control::set_override(false);
-        let invalid = intermediary.run_inner().unwrap();
+        intermediary.run().unwrap();
         let mut mint = Mint::new("src/outputs");
         let mut file = mint.new_goldenfile("readme_example.txt").unwrap();
         file.write_all(&intermediary.out).unwrap();
-        assert_eq!(invalid, 1);
     }
 }
