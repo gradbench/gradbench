@@ -1,20 +1,29 @@
 import Lake
 open System Lake DSL
 
-package «gradbench»
+def  moreLinkArgs := #["-lm", "-lblas"]
+def  moreLeancArgs : Array String := #[]
+
+package «gradbench» {
+  moreLinkArgs := moreLinkArgs
+  moreLeancArgs := moreLeancArgs
+}
 
 @[default_target]
 lean_exe «gradbench» where
   root := `Main
-  moreLinkArgs := #["-lm", "-lblas"]
+  moreLinkArgs := moreLinkArgs
+  moreLeancArgs := moreLeancArgs
 
 lean_lib Gradbench where
   roots := #[`Gradbench]
-  moreLinkArgs := #["-lm", "-lblas"]
+  moreLinkArgs := moreLinkArgs
+  moreLeancArgs := moreLeancArgs
 
 @[default_target]
 lean_exe buildscilean where
   root := `BuildSciLean
-  moreLinkArgs := #["-lm", "-lblas"]
+  moreLinkArgs := moreLinkArgs
+  moreLeancArgs := moreLeancArgs
 
 require scilean from git "https://github.com/lecopivo/SciLean" @ "blas"

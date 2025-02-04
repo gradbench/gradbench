@@ -8,6 +8,7 @@ open Except FromJson ToJson
 
 open Gradbench
 
+
 def resolve (module : String)
     : Option (String -> Option (Json -> Except String (IO Output))) :=
   match module with
@@ -51,10 +52,13 @@ partial def loop (stdin : IO.FS.Stream) (stdout : IO.FS.Stream) :
     | error err => return error err
     | ok action => do
       let response <- action
-      IO.println (Json.render response)
+      -- IO.eprintln (Json.compress response)
+      IO.println (Json.compress response)
       stdout.flush
       loop stdin stdout
 
+
+open SciLean.VectorType in
 def main : IO UInt32 := do
   let stdin <- IO.getStdin
   let stdout <- IO.getStdout
