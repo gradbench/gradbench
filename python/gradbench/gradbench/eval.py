@@ -120,7 +120,11 @@ class SingleModuleValidatedEval:
         response = EvaluateResponse.model_validate(self.send(message))
         if response.error is None:
             if response.output is None:
-                self.analysis(of=id, valid=False, error="evaluation produced no output but also no error")
+                self.analysis(
+                    of=id,
+                    valid=False,
+                    error="evaluation produced no output but also no error",
+                )
             else:
                 analysis = self.validator(function, input, response.output)
                 self.analysis(of=id, valid=analysis.valid, error=analysis.error)
