@@ -3,7 +3,7 @@ use std::{
     env, fs,
     io::{self, BufRead, Write},
     path::{Path, PathBuf},
-    process::{Child, Command, ExitCode, ExitStatus, Output, Stdio},
+    process::{Child, ChildStdout, Command, ExitCode, ExitStatus, Output, Stdio},
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
@@ -12,7 +12,6 @@ use anyhow::Context;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
-use timeout_readwrite::TimeoutReader;
 
 /// CLI utilities for GradBench, a benchmark suite for differentiable programming across languages
 /// and domains.
@@ -78,7 +77,7 @@ enum Commands {
         #[clap(short, long)]
         output: Option<PathBuf>,
 
-        /// The timeout, in seconds, for tool responses.
+        /// The timeout, in seconds, for tool responses (not implemented on Windows)
         #[clap(long)]
         timeout: Option<u64>,
     },
@@ -739,6 +738,18 @@ fn handle_ctrlc(
     Ok(())
 }
 
+/// Return a reader that times out after a given duration, if possible.
+fn timeout_reader(reader: ChildStdout, timeout: Option<Duration>) -> impl io::Read {
+    #[cfg(unix)]
+    {
+        timeout_readwrite::TimeoutReader::new(reader, timeout)
+    }
+    #[cfg(windows)]
+    {
+        reader
+    }
+}
+
 /// Run an eval and a tool together, returning the outcome.
 fn intermediary(
     log: impl Write,
@@ -760,7 +771,7 @@ fn intermediary(
         eval_in: eval.stdin.take().unwrap(),
         tool_in: tool.stdin.take().unwrap(),
         eval_out: io::BufReader::new(eval.stdout.take().unwrap()),
-        tool_out: io::BufReader::new(TimeoutReader::new(tool.stdout.take().unwrap(), timeout)),
+        tool_out: io::BufReader::new(timeout_reader(tool.stdout.take().unwrap(), timeout)),
         clock: || start.elapsed(),
         out: io::stdout(),
         log,
