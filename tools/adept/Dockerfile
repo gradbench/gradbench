@@ -27,7 +27,6 @@ ENV LIBRARY_PATH=/usr/local/lib
 ENV LD_LIBRARY_PATH=/usr/local/lib
 
 COPY cpp /home/gradbench/cpp
-
 RUN make -C cpp
 
 COPY tools/adept/ /home/gradbench/tools/adept
