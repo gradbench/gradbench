@@ -26,6 +26,12 @@ def compare_json_objects(expected, actual, tolerance=1e-4, path=""):
     """
     mismatches = []
 
+    # Fudge the types a bit.
+    if type(expected) is int and type(actual) is float:
+        expected = float(expected)
+    if type(expected) is float and type(actual) is int:
+        actual = float(actual)
+
     if type(expected) != type(actual):
         mismatches.append(
             f"{path}: expected value of type {type(expected)}, got value of type {type(actual)}"
