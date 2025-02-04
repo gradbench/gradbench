@@ -636,7 +636,7 @@ impl<I: Write, O: BufRead, C: FnMut() -> Duration, T: Write, L: Write> Intermedi
                     let response: DefineResponse = self.parse_response(&tool_line)?;
                     self.print_status(response.success)?;
                     if let Some(error) = response.error {
-                        print!("\n{}", error.red());
+                        write!(self.out, "\n{}", error.red());
                         invalid += 1;
                     }
                     line.end(&mut self.out)?;
