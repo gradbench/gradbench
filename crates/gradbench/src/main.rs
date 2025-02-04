@@ -951,7 +951,7 @@ pub fn main() -> ExitCode {
 mod tests {
     use std::{
         f64::consts::{E, PI},
-        io::Write,
+        io::{self, Write},
         time::Duration,
     };
 
@@ -1142,8 +1142,8 @@ mod tests {
         let mut duration = Duration::ZERO;
         let mut increment = Duration::ZERO;
         let mut intermediary = Intermediary {
-            eval_in: Vec::new(),
-            tool_in: Vec::new(),
+            eval_in: io::sink(),
+            tool_in: io::sink(),
             eval_out: eval_out.as_bytes(),
             tool_out: tool_out.as_bytes(),
             clock: || {
@@ -1152,12 +1152,13 @@ mod tests {
                 duration
             },
             out: Vec::new(),
-            log: Vec::new(),
+            log: io::sink(),
         };
         colored::control::set_override(false);
-        intermediary.run().unwrap();
+        let invalid = intermediary.run().unwrap();
         let mut mint = Mint::new("src/outputs");
         let mut file = mint.new_goldenfile("readme_example.txt").unwrap();
         file.write_all(&intermediary.out).unwrap();
+        assert_eq!(invalid, 1);
     }
 }
