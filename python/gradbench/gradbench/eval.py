@@ -87,7 +87,7 @@ class SingleModuleValidatedEval:
         l = sys.stdin.readline()
         if l == "":
             raise EOFError
-        response = json.loads(l)
+        response = json.loads(l, parse_int=float)
         if response["id"] != self.id:
             raise ValueError(f"expected message ID {self.id}, got {response['id']}")
         self.id += 1
