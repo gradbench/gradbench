@@ -279,6 +279,7 @@ dependencies = [
  "nix",
  "serde",
  "serde_json",
+ "timeout-readwrite",
 ]
 
 [[package]]
@@ -525,6 +526,15 @@ dependencies = [
  "once_cell",
  "rustix",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "timeout-readwrite"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f99014ef5f7ad8fb986e0885b612ac6bd74a87c8df9816c27de5dcc49029646"
+dependencies = [
+ "nix",
 ]
 
 [[package]]
