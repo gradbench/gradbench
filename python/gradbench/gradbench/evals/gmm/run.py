@@ -27,9 +27,11 @@ def main():
         "-d", nargs="+", type=int, default=[2, 10, 20, 32]
     )  # misses 64 128
     parser.add_argument("--runs", type=int, default=1)
+    parser.add_argument("--no-validation", action="store_true", default=False)
     args = parser.parse_args()
-
-    e = SingleModuleValidatedEval(module="gmm", validator=mismatch(check))
+    e = SingleModuleValidatedEval(
+        module="gmm", validator=None if args.no_validation else mismatch(check)
+    )
     e.start()
     if e.define().success:
         n = args.n

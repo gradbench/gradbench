@@ -23,9 +23,12 @@ def main():
     parser.add_argument("--min", type=int, default=1)
     parser.add_argument("--max", type=int, default=2)
     parser.add_argument("--runs", type=int, default=1)
+    parser.add_argument("--no-validation", action="store_true", default=False)
     args = parser.parse_args()
 
-    e = SingleModuleValidatedEval(module="ht", validator=mismatch(check))
+    e = SingleModuleValidatedEval(
+        module="ht", validator=None if args.no_validation else mismatch(check)
+    )
     e.start()
     if e.define().success:
         data_root = Path("evals/ht/data")  # assumes cwd is set correctly
