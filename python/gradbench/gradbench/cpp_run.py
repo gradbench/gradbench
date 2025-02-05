@@ -5,6 +5,7 @@ import json
 import sys
 import time
 from importlib import import_module
+from pathlib import Path
 
 
 def resolve(module, name):
@@ -30,13 +31,15 @@ def run(params):
             "stdout": proc.stdout,
         }
 
-
-def main():
+def main(pathname: str):
+    tool = Path(pathname).parent.name
     try:
         for line in sys.stdin:
             message = json.loads(line)
             response = {}
-            if message["kind"] == "evaluate":
+            if message["kind"] == "start":
+                response["tool"] = tool
+            elif message["kind"] == "evaluate":
                 response = run(message)
             elif message["kind"] == "define":
                 try:

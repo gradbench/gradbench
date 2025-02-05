@@ -8,6 +8,8 @@ from pydantic import BaseModel
 
 class StartResponse(BaseModel):
     id: int
+    tool: str
+    config: Any = {}
 
 
 class DefineResponse(BaseModel):
@@ -73,11 +75,12 @@ class SingleModuleValidatedEval:
     validator: Validator
     id: int
 
-    def __init__(self, *, module: str, validator: Validator):
+    def __init__(self, *, module: str, validator: Validator, config={}):
         self.module = module
         self.validator = validator
         self.id = 0
         self.validations = {}
+        self.config = config
 
     def send(self, message: Any) -> Any:
         json.dump({"id": self.id} | message, sys.stdout)
@@ -94,7 +97,7 @@ class SingleModuleValidatedEval:
         return response
 
     def start(self) -> StartResponse:
-        message = {"kind": "start"}
+        message = {"kind": "start", "eval": self.module, "config": self.config}
         response = StartResponse.model_validate(self.send(message))
         return response
 

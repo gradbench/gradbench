@@ -317,6 +317,8 @@ enum Message {
     Start {
         /// The message ID.
         id: Id,
+        /// The eval name.
+        eval: String,
     },
 
     /// A request to define a module.
@@ -367,6 +369,8 @@ enum Message {
 struct StartResponse {
     /// The message ID.
     id: Id,
+    /// The tool name.
+    tool: String,
 }
 
 /// A response from the tool to a `"define"` message.
@@ -572,7 +576,7 @@ impl<
             )?;
             let message: Message = self.parse_message(&eval_line)?;
             match &message {
-                Message::Start { id: _ } => {
+                Message::Start { .. } => {
                     // Don't print message ID because we're still waiting for the tool to say it's
                     // ready, and e.g. if the tool is using `docker run` then it may mess with the
                     // terminal output until it actually starts.
@@ -642,12 +646,14 @@ impl<
                 response_time.as_nanos(),
                 tool_line.trim(),
             )?;
-            match message {
-                Message::Start { id } => {
-                    let _: StartResponse = self.parse_response(&tool_line)?;
+            match &message {
+                Message::Start { id, eval } => {
+                    let response: StartResponse = self.parse_response(&tool_line)?;
                     // OK now that we know the tool won't do anything weird with the terminal.
-                    line.start(&mut self.out, id)?;
+                    line.start(&mut self.out, *id)?;
                     self.print_left(WIDTH_KIND, "start")?;
+                    self.print_left(WIDTH_DESCRIPTION, eval)?;
+                    write!(self.out, " {}", response.tool)?;
                     line.end(&mut self.out)?;
                 }
                 Message::Define { .. } => {
