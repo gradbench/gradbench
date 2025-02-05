@@ -1155,6 +1155,7 @@ mod tests {
     enum Response {
         Start {
             id: Id,
+            tool: String,
         },
         Define {
             id: Id,
@@ -1176,7 +1177,11 @@ mod tests {
             S: Serializer,
         {
             match self {
-                &Response::Start { id } => StartResponse { id }.serialize(serializer),
+                Response::Start { id, tool } => StartResponse {
+                    id: *id,
+                    tool: tool.clone(),
+                }
+                .serialize(serializer),
                 &Response::Define { id, success } => {
                     DefineResponse { id, success }.serialize(serializer)
                 }
@@ -1219,7 +1224,16 @@ mod tests {
     #[test]
     fn test_intermediary_readme_example() {
         let (eval_out, tool_out) = session(&[
-            (Message::Start { id: 0 }, Response::Start { id: 0 }),
+            (
+                Message::Start {
+                    id: 0,
+                    eval: "quux".to_string(),
+                },
+                Response::Start {
+                    id: 0,
+                    tool: "xyzzy".to_string(),
+                },
+            ),
             (
                 Message::Define {
                     id: 1,
@@ -1328,7 +1342,7 @@ mod tests {
             outcome: Arc::new(Mutex::new(None)),
             eval_in: io::sink(),
             tool_in: io::sink(),
-            eval_out: r#"{ "id": 0, "kind": "start" }"#.as_bytes(),
+            eval_out: r#"{ "id": 0, "kind": "start", "eval": "e" }"#.as_bytes(),
             tool_out: r#"{ "id": 0,"#.as_bytes(),
             clock: || Duration::ZERO,
             out: Vec::new(),
@@ -1366,7 +1380,16 @@ mod tests {
     #[test]
     fn test_intermediary_timeout() {
         let (mut eval_out, tool_out) = session(&[
-            (Message::Start { id: 0 }, Response::Start { id: 0 }),
+            (
+                Message::Start {
+                    id: 0,
+                    eval: "e".to_string(),
+                },
+                Response::Start {
+                    id: 0,
+                    tool: "t".to_string(),
+                },
+            ),
             (
                 Message::Define {
                     id: 1,
