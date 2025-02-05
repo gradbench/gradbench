@@ -73,7 +73,7 @@ class SingleModuleValidatedEval:
     validator: Validator
     id: int
 
-    def __init__(self, *, module: str, validator: Validator):
+    def __init__(self, *, module: str, validator: Optional[Validator]):
         self.module = module
         self.validator = validator
         self.id = 0
@@ -116,8 +116,11 @@ class SingleModuleValidatedEval:
             message["description"] = description
         id = self.id
         response = EvaluateResponse.model_validate(self.send(message))
-        analysis = self.validator(function, input, response.output)
-        self.analysis(of=id, valid=analysis.valid, message=analysis.message)
+        if self.validator is not None:
+            analysis = self.validator(function, input, response.output)
+            self.analysis(of=id, valid=analysis.valid, message=analysis.message)
+        else:
+            self.analysis(of=id, valid=True, message=None)
         return response
 
     def analysis(self, *, of: int, valid: bool, message: Optional[str]) -> Any:
