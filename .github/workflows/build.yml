@@ -76,6 +76,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Test CLI
+        run: cargo test
       - name: Build CLI
         run: cargo build --release
       - name: Upload CLI as artifact
@@ -87,8 +89,14 @@ jobs:
   windows:
     runs-on: windows-2022
     steps:
+      - name: Configure line endings
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Test CLI
+        run: cargo test
       - name: Build CLI
         run: cargo build --release
       - name: Run CLI
