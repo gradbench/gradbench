@@ -29,7 +29,6 @@ RUN cd enzyme-build && cmake -G Ninja /home/gradbench/Enzyme-${ENZYME_VER}/enzym
 RUN ninja -C enzyme-build
 
 COPY cpp /home/gradbench/cpp
-
 RUN make -C cpp
 
 COPY tools/enzyme/ /home/gradbench/tools/enzyme

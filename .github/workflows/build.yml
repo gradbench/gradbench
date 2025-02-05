@@ -76,6 +76,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Test CLI
+        run: cargo test
       - name: Build CLI
         run: cargo build --release
       - name: Upload CLI as artifact
@@ -83,6 +85,22 @@ jobs:
         with:
           name: cli
           path: target/release/gradbench
+
+  windows:
+    runs-on: windows-2022
+    steps:
+      - name: Configure line endings
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Test CLI
+        run: cargo test
+      - name: Build CLI
+        run: cargo build --release
+      - name: Run CLI
+        run: ./gradbench.ps1 help
 
   matrix:
     needs: cli
@@ -173,7 +191,8 @@ jobs:
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Build tool Docker image
-        run: gradbench repo build-tool --cross ${{ matrix.tool }}
+        # no cross-platform for slow-to-build tools since it's, y'know, too slow
+        run: gradbench repo build-tool ${{ matrix.tool }}
       - name: Serialize tool Docker image
         run: docker save --output tool-${{ matrix.tool }}.tar ghcr.io/gradbench/tool-${{ matrix.tool }}
       - name: Upload tool Docker image as artifact

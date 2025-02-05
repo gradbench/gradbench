@@ -20,7 +20,6 @@ COPY python /home/gradbench/python
 ENV PYTHONPATH=/home/gradbench/python/gradbench
 
 COPY cpp /home/gradbench/cpp
-
 RUN make -C cpp
 
 COPY tools/cppad/ /home/gradbench/tools/cppad
