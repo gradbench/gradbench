@@ -24,7 +24,9 @@ def main():
     parser.add_argument("--runs", type=int, default=1)
     args = parser.parse_args()
 
-    e = SingleModuleValidatedEval(module="lstm", validator=mismatch(check), config=vars(args))
+    e = SingleModuleValidatedEval(
+        module="lstm", validator=mismatch(check), config=vars(args)
+    )
     e.start()
     if e.define().success:
         data_root = Path("evals/lstm/data")  # assumes cwd is set correctly

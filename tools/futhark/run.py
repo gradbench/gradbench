@@ -44,7 +44,7 @@ def main():
         message = json.loads(line)
         response = {}
         if message["kind"] == "start":
-            response["tool"] = 'futhark'
+            response["tool"] = "futhark"
             response["config"] = vars(args)
         elif message["kind"] == "evaluate":
             response = run(message)

@@ -20,7 +20,7 @@ def main():
         message = json.loads(line)
         response = {}
         if message["kind"] == "start":
-            response["tool"] = 'tensorflow'
+            response["tool"] = "tensorflow"
         elif message["kind"] == "evaluate":
             response = run(message)
         elif message["kind"] == "define":

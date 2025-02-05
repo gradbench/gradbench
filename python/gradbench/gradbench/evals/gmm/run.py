@@ -29,7 +29,9 @@ def main():
     parser.add_argument("--runs", type=int, default=1)
     args = parser.parse_args()
 
-    e = SingleModuleValidatedEval(module="gmm", validator=mismatch(check), config=vars(args))
+    e = SingleModuleValidatedEval(
+        module="gmm", validator=mismatch(check), config=vars(args)
+    )
     e.start()
     if e.define().success:
         n = args.n

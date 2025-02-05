@@ -31,6 +31,7 @@ def run(params):
             "stdout": proc.stdout,
         }
 
+
 def main(pathname: str):
     tool = Path(pathname).parent.name
     try:
