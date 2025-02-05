@@ -1,8 +1,8 @@
 import json
 import subprocess
 import tempfile
-from pathlib import Path
 from os import listdir
+from pathlib import Path
 
 path = Path(__file__)
 TOOL = path.parent.name
