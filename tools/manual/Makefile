@@ -9,7 +9,8 @@ GMM_OBJECTS=ManualGMM.o run_gmm.o gmm_d.o
 BA_OBJECTS=ManualBA.o run_ba.o ba_d.o
 LSTM_OBJECTS=ManualLSTM.o run_lstm.o lstm_d.o
 HT_OBJECTS=ManualHT.o run_ht.o ht_d.o
-EXECUTABLES=run_hello run_gmm run_ba run_lstm run_ht
+KMEANS_OBJECTS=ManualKMeans.o run_kmeans.o kmeans_d.o
+EXECUTABLES=run_hello run_gmm run_ba run_lstm run_ht run_kmeans
 
 all: $(EXECUTABLES)
 
@@ -28,11 +29,11 @@ run_lstm: $(LSTM_OBJECTS) $(UTIL_OBJECTS)
 run_ht: $(HT_OBJECTS) $(UTIL_OBJECTS)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-%.o: %.c
-	$(CC) $< -c -o $@ $(CFLAGS) -I../../cpp
+run_kmeans: $(KMEANS_OBJECTS) $(UTIL_OBJECTS)
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
 %.o: %.cpp
 	$(CXX) $< -c -o $@ $(CFLAGS) -I../../cpp
 
 clean:
-	rm -f $(UTIL_OBJECTS) $(GMM_OBJECTS) $(BA_OBJECTS) $(LSTM_OBJECTS) $(HT_OBJECTS) $(EXECUTABLES)
+	rm -f $(UTIL_OBJECTS) $(GMM_OBJECTS) $(BA_OBJECTS) $(LSTM_OBJECTS) $(HT_OBJECTS) $(KMEANS_OBJECTS) $(EXECUTABLES)

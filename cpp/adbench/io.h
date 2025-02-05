@@ -6,6 +6,7 @@
 #include "adbench/shared/BAData.h"
 #include "adbench/shared/LSTMData.h"
 #include "adbench/shared/HTData.h"
+#include "adbench/shared/KMeansData.h"
 
 void read_HelloInput_json(const char* fname, HelloInput &input, int *runs);
 void write_HelloOutput_objective_json(std::ostream& f, HelloOutput &output);
@@ -26,3 +27,7 @@ void write_LSTMOutput_jacobian_json(std::ostream& f, LSTMOutput &output);
 void read_HandInput_json(const char* fname, HandInput &input, int *runs);
 void write_HandOutput_objective_json(std::ostream& f, HandOutput &output);
 void write_HandOutput_jacobian_json(std::ostream& f, HandOutput &output);
+
+void read_KMeansInput_json(const char* fname, KMeansInput &input, int *runs);
+void write_KMeansOutput_objective_json(std::ostream& f, KMeansOutput &output);
+void write_KMeansOutput_jacobian_json(std::ostream& f, KMeansOutput &output);
