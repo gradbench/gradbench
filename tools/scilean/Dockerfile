@@ -4,7 +4,7 @@ RUN         curl https://raw.githubusercontent.com/leanprover/elan/master/elan-i
 ENV PATH="/root/.elan/bin:$PATH"
 WORKDIR /home/gradbench
 
-RUN elan default leanprover/lean4:v4.15.0-rc1  # download specific lean version
+RUN elan default leanprover/lean4:v4.16.0  # download specific lean version
 
 COPY tools/scilean/lakefile.lean .
 COPY tools/scilean/lake-manifest.json .

@@ -1,8 +1,20 @@
 import Lake
 open System Lake DSL
 
-def  moreLinkArgs := #["-lm", "-lblas"]
-def  moreLeancArgs : Array String := #[]
+def moreLinkArgs :=
+  if System.Platform.isWindows then
+    #[]
+  else if System.Platform.isOSX then
+    #["-L/opt/homebrew/opt/openblas/lib", "-lblas"]
+  else -- assuming linux
+    #["-L/usr/lib/x86_64-linux-gnu/", "-lblas", "-lm"]
+def moreLeancArgs :=
+  if System.Platform.isWindows then
+    #[]
+  else if System.Platform.isOSX then
+    #["-I/opt/homebrew/opt/openblas/include"]
+  else -- assuming linux
+    #[]
 
 package «gradbench» {
   moreLinkArgs := moreLinkArgs
