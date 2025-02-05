@@ -7,8 +7,8 @@ import numpy as np
 
 
 def prepare(server, input):
-    server.put_value("k", np.int64(input["k"]))
     server.put_value("points", np.array(input["points"], dtype=np.float64))
+    server.put_value("centroids", np.array(input["centroids"], dtype=np.float64))
 
 
 def cost(server, input):
@@ -17,19 +17,19 @@ def cost(server, input):
         server,
         "cost",
         ("output",),
-        ("k", "points"),
+        ("points", "centroids"),
         runs,
     )
     return (o.tolist(), times)
 
 
-def direction(server, input):
+def dir(server, input):
     runs = input["runs"]
     (o,), times = futhark_utils.run(
         server,
-        "direction",
+        "dir",
         ("output",),
-        ("k", "points"),
+        ("points", "centroids"),
         runs,
     )
     return (o.tolist(), times)

@@ -9,7 +9,7 @@ be sparse - it only has nonzero elements along the diagonal.
 
 ## Idea
 
-Given $n$ points $P$ and $k$ clusters $C$, the objective function is
+Given $n$ points $P$ and $k$ centroids $C$, the objective function is
 
 ```math
 f(P, C) = \sum_i \text{min}_j(|C_j-P_i|)
@@ -26,7 +26,7 @@ compute a Hessian $H$, which has nonzero elements only along the
 diagonal.
 
 We finally compute $J * H^{-1}$, which is the result that must be
-reported by the tool for the `"direction"` function. Note that since
+reported by the tool for the `"dir"` function. Note that since
 $H$ is sparse, $H^{-1}$ is simply the inverse of each element of $H$.
 
 ## Protocol
@@ -43,11 +43,16 @@ an instance of the `KMeansInput` type defined below. The `function`
 field will one of the strings `"cost"` or `"dir"`.
 
 ```typescript
-type KMeansInput (number, double[][]);
+interface KMeansInput {
+  points: double[][];
+  centroids: double[][];
+}
 ```
 
-The number is $k$, and the array is $P$. The clusters $C$ are simply
-the last $k$ elements of $P$.
+Here `points` is $P$ and `centroids` is $C$. Each element `points[i]`
+or `centroids[i]` denotes a $d$-dimensional point (i.e., "row major
+order"). To ensure an invertible Hessian, it is guaranteed that each
+centroid has at least one point for which it is the closest centroid.
 
 ### Outputs
 

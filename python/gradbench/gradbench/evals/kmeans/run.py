@@ -31,14 +31,17 @@ def main():
         for k in args.k:
             for n in args.n:
                 for d in args.d:
-                    input = {"k": k, "points": np.random.rand(n, d).tolist()}
+                    points = np.random.rand(n, d).tolist()
+                    # This guarantees each cluster is nonempty.
+                    centroids = points[-k:]
+                    input = {"points": points, "centroids": centroids}
                     e.evaluate(
                         function="cost",
                         input=input | {"runs": args.runs},
                         description=f"k={k},n={n},d={d}",
                     )
                     e.evaluate(
-                        function="direction",
+                        function="dir",
                         input=input | {"runs": args.runs},
                         description=f"k={k},n={n},d={d}",
                     )

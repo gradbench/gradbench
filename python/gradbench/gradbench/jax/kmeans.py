@@ -1,4 +1,5 @@
 import jax
+
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import numpy as np
@@ -20,10 +21,9 @@ def costfun(points, centers):
 
 
 def prepare_input(input):
-    k = input["k"]
-    features = np.array(input["points"], dtype=np.float64)
-    clusters = np.flip(features[-int(k) :], (0,))
-    return k, clusters, features
+    centroids = np.array(input["centroids"], dtype=np.float64)
+    points = np.array(input["points"], dtype=np.float64)
+    return points, centroids
 
 
 @wrap.multiple_runs(
@@ -31,16 +31,16 @@ def prepare_input(input):
 )
 @jit
 def cost(input):
-    k, clusters, features = input
-    return costfun(features, clusters)
+    points, centroids = input
+    return costfun(points, centroids)
 
 
 @wrap.multiple_runs(
     runs=lambda x: x["runs"], pre=prepare_input, post=lambda x: x.tolist()
 )
 @jit
-def direction(input):
-    k, clusters, features = input
-    f_diff = grad(lambda cs: costfun(features, cs))
-    d, hes = jvp(f_diff, [clusters], [jnp.ones(shape=clusters.shape)])
+def dir(input):
+    points, centroids = input
+    f_diff = grad(lambda cs: costfun(points, cs))
+    d, hes = jvp(f_diff, [centroids], [jnp.ones(shape=centroids.shape)])
     return d / hes

@@ -21,27 +21,25 @@ def costfun(points, centers):
 
 
 def prepare_input(input):
-    k = np.int64(input["k"])
-    features = torch.tensor(np.array(input["points"], dtype=np.float64))
-    return k, features
+    points = torch.tensor(np.array(input["points"], dtype=np.float64))
+    centroids = torch.tensor(np.array(input["centroids"], dtype=np.float64))
+    return points, centroids
 
 
 @wrap.multiple_runs(
     runs=lambda x: x["runs"], pre=prepare_input, post=lambda x: float(x)
 )
 def cost(input):
-    k, features = input
-    clusters = torch.flip(features[-int(k) :], (0,))
-    return costfun(features, clusters)
+    points, centroids = input
+    return costfun(points, centroids)
 
 
 @wrap.multiple_runs(
     runs=lambda x: x["runs"], pre=prepare_input, post=lambda x: x.tolist()
 )
-def direction(input):
-    k, features = input
-    clusters = torch.flip(features[-int(k) :], (0,))
-    _, jac = vjp(partial(costfun, features), clusters, v=torch.tensor(1.0))
-    _, hes = vhp(partial(costfun, features), clusters, v=torch.ones_like(clusters))
+def dir(input):
+    points, centroids = input
+    _, jac = vjp(partial(costfun, points), centroids, v=torch.tensor(1.0))
+    _, hes = vhp(partial(costfun, points), centroids, v=torch.ones_like(centroids))
 
     return jac / hes
