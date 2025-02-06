@@ -1,6 +1,8 @@
 #include "kmeans_d.h"
 
+#include <gradbench/kmeans.h>
 #include <vector>
+#include <cmath>
 
 void kmeans_objective_d(int n, int k, int d, double const *points,
                         double const *centroids,

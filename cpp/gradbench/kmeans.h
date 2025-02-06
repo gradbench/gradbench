@@ -1,3 +1,5 @@
+// Templated implementation of the kmeans cost function.
+
 #pragma once
 
 #include <iostream>

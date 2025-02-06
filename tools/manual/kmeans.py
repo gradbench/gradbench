@@ -25,7 +25,9 @@ def cost(input):
         json.dump(input, tmp)
         tmp.flush()
         return subprocess.run(
-            ["tools/manual/run_kmeans", tmp.name, "F"], text=True, capture_output=True
+            ["tools/manual/run_kmeans", tmp.name, "cost"],
+            text=True,
+            capture_output=True,
         )
 
 
@@ -34,5 +36,5 @@ def dir(input):
         json.dump(input, tmp)
         tmp.flush()
         return subprocess.run(
-            ["tools/manual/run_kmeans", tmp.name, "J"], text=True, capture_output=True
+            ["tools/manual/run_kmeans", tmp.name, "dir"], text=True, capture_output=True
         )
