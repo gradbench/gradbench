@@ -7,6 +7,11 @@ This can be done using Newton's Method, which requires computing the
 Hessian of an appropriate cost function. The Hessian also happens to
 be sparse - it only has nonzero elements along the diagonal.
 
+A discussion of this approach can be found in [Convergence Properties
+of the K-Means
+Algorithms](https://proceedings.neurips.cc/paper/1994/hash/a1140a3d0df1c81e24ae954d935e8926-Abstract.html)
+by Léon Bottou and Yoshua Bengio (NIPS 1994).
+
 ## Idea
 
 Given $n$ points $P$ and $k$ centroids $C$, the objective function is
