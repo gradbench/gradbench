@@ -1025,16 +1025,6 @@ fn cli_result() -> Result<(), ExitCode> {
                     tools.retain(|t| t != "diffsharp"); // Flaky.
                     tools.sort();
                     github_output("tool", &tools)?;
-                    // Specifically, this is the list of tools for which the ARM Docker image is
-                    // slow to build on x86 via QEMU. It doesn't mean that the tool itself is slow
-                    // to run, or even that the Docker image is slow to build natively.
-                    let slow = ["enzyme", "floretta", "scilean"];
-                    let fast: Vec<_> = tools
-                        .iter()
-                        .filter(|t| !slow.contains(&t.as_str()))
-                        .collect();
-                    github_output("fast", fast)?;
-                    github_output("slow", slow)?;
                     Ok(())
                 }
                 RepoCommands::Summarize { dir, date, commit } => {
