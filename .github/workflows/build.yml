@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  lint:
+  test:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
@@ -37,6 +37,8 @@ jobs:
         run: uv run isort --check .
       - name: Lint Rust code
         run: cargo clippy
+      - name: Test Rust code
+        run: cargo test
 
   site:
     runs-on: ubuntu-22.04
@@ -76,10 +78,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Test CLI
-        run: cargo test
       - name: Build CLI
-        run: cargo build --release
+        run: cargo build --package gradbench --release
       - name: Upload CLI as artifact
         uses: actions/upload-artifact@v4
         with:
@@ -95,9 +95,9 @@ jobs:
           git config --global core.eol lf
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Test CLI
+      - name: Test Rust code
         run: cargo test
-      - name: Build CLI
+      - name: Build Rust code
         run: cargo build --release
       - name: Run CLI
         run: ./gradbench.ps1 help
