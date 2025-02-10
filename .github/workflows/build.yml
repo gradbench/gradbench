@@ -107,8 +107,7 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       eval: ${{ steps.matrix.outputs.eval }}
-      fast: ${{ steps.matrix.outputs.fast }}
-      slow: ${{ steps.matrix.outputs.slow }}
+      tool: ${{ steps.matrix.outputs.tool }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -144,14 +143,82 @@ jobs:
           name: eval-${{ matrix.eval }}
           path: eval-${{ matrix.eval }}.tar
 
-  tool-fast:
+  x86-tool:
     needs:
       - cli
       - matrix
     strategy:
       fail-fast: false
       matrix:
-        tool: ${{ fromJSON(needs.matrix.outputs.fast) }}
+        tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Increase disk space
+        uses: ./.github/actions/space
+      - name: Install CLI from artifact
+        uses: ./.github/actions/cli
+      - name: Build tool Docker image
+        run: gradbench repo build-tool ${{ matrix.tool }}
+      - name: Serialize tool Docker image
+        run: docker save --output x86-tool-${{ matrix.tool }}.tar ghcr.io/gradbench/tool-${{ matrix.tool }}
+      - name: Upload tool Docker image as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86-tool-${{ matrix.tool }}
+          path: x86-tool-${{ matrix.tool }}.tar
+
+  run:
+    needs:
+      - cli
+      - matrix
+      - eval
+      - x86-tool
+    strategy:
+      fail-fast: false
+      matrix:
+        eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
+        tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Increase disk space
+        uses: ./.github/actions/space
+      - name: Install CLI from artifact
+        uses: ./.github/actions/cli
+      - name: Download eval Docker image from artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: eval-${{ matrix.eval }}
+      - name: Download tool Docker image from artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: x86-tool-${{ matrix.tool }}
+      - name: Load eval Docker image
+        run: docker load --input eval-${{ matrix.eval }}.tar
+      - name: Load tool Docker image
+        run: docker load --input x86-tool-${{ matrix.tool }}.tar
+      - name: Run tool on eval
+        id: run
+        run: gradbench run --eval 'gradbench eval ${{ matrix.eval }}' --tool 'gradbench tool ${{ matrix.tool }}' --output log.jsonl
+      - name: Upload log as artifact
+        if: success() || steps.run.conclusion == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: run-${{ matrix.eval }}-${{ matrix.tool }}
+          path: log.jsonl
+
+  tool:
+    needs:
+      - cli
+      - matrix
+      - run # Not strictly necessary, but GitHub Actions has concurrency limits.
+    strategy:
+      fail-fast: false
+      matrix:
+        tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
@@ -171,110 +238,3 @@ jobs:
         with:
           name: tool-${{ matrix.tool }}
           path: tool-${{ matrix.tool }}.tar
-
-  tool-slow:
-    needs:
-      - cli
-      - matrix
-    strategy:
-      fail-fast: false
-      matrix:
-        tool: ${{ fromJSON(needs.matrix.outputs.slow) }}
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Increase disk space
-        uses: ./.github/actions/space
-      - name: Setup multi-platform Docker
-        uses: ./.github/actions/docker
-      - name: Install CLI from artifact
-        uses: ./.github/actions/cli
-      - name: Build tool Docker image
-        # no cross-platform for slow-to-build tools since it's, y'know, too slow
-        run: gradbench repo build-tool ${{ matrix.tool }}
-      - name: Serialize tool Docker image
-        run: docker save --output tool-${{ matrix.tool }}.tar ghcr.io/gradbench/tool-${{ matrix.tool }}
-      - name: Upload tool Docker image as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: tool-${{ matrix.tool }}
-          path: tool-${{ matrix.tool }}.tar
-
-  run-fast:
-    needs:
-      - cli
-      - matrix
-      - eval
-      - tool-fast
-    strategy:
-      fail-fast: false
-      matrix:
-        eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
-        tool: ${{ fromJSON(needs.matrix.outputs.fast) }}
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Install CLI from artifact
-        uses: ./.github/actions/cli
-      - name: Download eval Docker image from artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: eval-${{ matrix.eval }}
-      - name: Download tool Docker image from artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: tool-${{ matrix.tool }}
-      - name: Load eval Docker image
-        run: docker load --input eval-${{ matrix.eval }}.tar
-      - name: Load tool Docker image
-        run: docker load --input tool-${{ matrix.tool }}.tar
-      - name: Run tool on eval
-        id: run
-        run: gradbench run --eval 'gradbench eval ${{ matrix.eval }}' --tool 'gradbench tool ${{ matrix.tool }}' --output log.jsonl
-      - name: Upload log as artifact
-        if: success() || steps.run.conclusion == 'failure'
-        uses: actions/upload-artifact@v4
-        with:
-          name: run-${{ matrix.eval }}-${{ matrix.tool }}
-          path: log.jsonl
-
-  run-slow:
-    needs:
-      - cli
-      - matrix
-      - eval
-      - tool-slow
-    strategy:
-      fail-fast: false
-      matrix:
-        eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
-        tool: ${{ fromJSON(needs.matrix.outputs.slow) }}
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Install CLI from artifact
-        uses: ./.github/actions/cli
-      - name: Download eval Docker image from artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: eval-${{ matrix.eval }}
-      - name: Download tool Docker image from artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: tool-${{ matrix.tool }}
-      - name: Load eval Docker image
-        run: docker load --input eval-${{ matrix.eval }}.tar
-      - name: Load tool Docker image
-        run: docker load --input tool-${{ matrix.tool }}.tar
-      - name: Run tool on eval
-        id: run
-        run: gradbench run --eval 'gradbench eval ${{ matrix.eval }}' --tool 'gradbench tool ${{ matrix.tool }}' --output log.jsonl
-      - name: Upload log as artifact
-        if: success() || steps.run.conclusion == 'failure'
-        uses: actions/upload-artifact@v4
-        with:
-          name: run-${{ matrix.eval }}-${{ matrix.tool }}
-          path: log.jsonl
