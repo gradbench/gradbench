@@ -23,7 +23,7 @@ class Timing(BaseModel):
 class EvaluateResponse(BaseModel):
     id: int
     output: Any
-    timings: list[Timing]
+    timings: Optional[list[Timing]] = None
 
 
 class AnalysisResponse(BaseModel):
