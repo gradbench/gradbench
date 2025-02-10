@@ -212,6 +212,12 @@ jobs:
     needs:
       - cli
       - matrix
+      # We don't want this job to take up runners before the other jobs get a
+      # chance, so we give it the same dependencies as the `run` job; those jobs
+      # should then start first because their name comes lexicographically
+      # before this one.
+      - eval
+      - x86-tool
     strategy:
       fail-fast: false
       matrix:
