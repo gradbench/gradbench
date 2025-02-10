@@ -143,7 +143,7 @@ jobs:
           name: eval-${{ matrix.eval }}
           path: eval-${{ matrix.eval }}.tar
 
-  x86-tool:
+  tool:
     needs:
       - cli
       - matrix
@@ -174,7 +174,7 @@ jobs:
       - cli
       - matrix
       - eval
-      - x86-tool
+      - tool
     strategy:
       fail-fast: false
       matrix:
@@ -208,7 +208,8 @@ jobs:
           name: run-${{ matrix.eval }}-${{ matrix.tool }}
           path: log.jsonl
 
-  tool:
+  # This job's name must lexicographically come after `tool` so it runs later.
+  tool-cross:
     needs:
       - cli
       - matrix
