@@ -1,12 +1,13 @@
-# Use java to install
-FROM openjdk:11-jdk
+FROM python:3.11-slim
 
 WORKDIR /home/gradbench
 
 RUN apt-get update && apt-get install -y \
     bash \
     build-essential \
-    python3
+    python3 \
+    wget \
+    openjdk-17-jre-headless
 
 COPY python /home/gradbench/python
 ENV PYTHONPATH=/home/gradbench/python/gradbench
