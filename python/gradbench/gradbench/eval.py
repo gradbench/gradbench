@@ -23,6 +23,7 @@ class Timing(BaseModel):
 
 class EvaluateResponse(BaseModel):
     id: int
+    success: bool
     output: Optional[Any] = None
     timings: Optional[list[Timing]] = None
     error: Optional[str] = None
@@ -118,16 +119,10 @@ class SingleModuleValidatedEval:
             message["description"] = description
         id = self.id
         response = EvaluateResponse.model_validate(self.send(message))
-        if response.error is None:
-            if response.output is None:
-                self.analysis(
-                    of=id,
-                    valid=False,
-                    error="evaluation produced no output but also no error",
-                )
-            else:
-                analysis = self.validator(function, input, response.output)
-                self.analysis(of=id, valid=analysis.valid, error=analysis.error)
+        output = response.output
+        if output is not None:
+            analysis = self.validator(function, input, output)
+            self.analysis(of=id, valid=analysis.valid, error=analysis.error)
         return response
 
     def analysis(self, *, of: int, valid: bool, error: Optional[str]) -> Any:
