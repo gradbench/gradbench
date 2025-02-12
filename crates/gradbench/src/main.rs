@@ -552,7 +552,7 @@ impl<
     fn parse_message(&mut self, line: &str) -> anyhow::Result<Message> {
         serde_json::from_str(line)
             .inspect_err(|_| {
-                let _ = writeln!(self.out, "{line}");
+                let _ = writeln!(self.out, "\n{}", line.red());
             })
             .context("invalid JSON from eval")
     }
@@ -561,7 +561,7 @@ impl<
     fn parse_response<'a, R: Deserialize<'a>>(&mut self, line: &'a str) -> anyhow::Result<R> {
         serde_json::from_str(line)
             .inspect_err(|_| {
-                let _ = writeln!(self.out, "{line}");
+                let _ = writeln!(self.out, "\n{}", line.red());
             })
             .context("invalid JSON from tool")
     }
@@ -751,7 +751,7 @@ impl<
             Ok(None) => Ok(()),
             Ok(Some(outcome)) => Err(outcome),
             Err(err) => {
-                let _ = writeln!(self.out, "{err:#}");
+                let _ = writeln!(self.out, "{}", format!("{err:#}").red());
                 Err(BadOutcome::Error)
             }
         }
