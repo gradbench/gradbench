@@ -654,8 +654,11 @@ impl<
                     // OK now that we know the tool won't do anything weird with the terminal.
                     line.start(&mut self.out, id)?;
                     self.print_left(WIDTH_KIND, "start")?;
-                    if let (Some(eval), Some(tool)) = (eval, response.tool) {
-                        write!(self.out, " {eval} ({tool})")?;
+                    if let Some(name) = eval {
+                        write!(self.out, " {name}")?;
+                        if let Some(name) = response.tool {
+                            write!(self.out, " ({name})")?;
+                        }
                     }
                     line.end(&mut self.out)?;
                 }

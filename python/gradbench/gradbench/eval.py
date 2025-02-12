@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 class StartResponse(BaseModel):
     id: int
-    tool: str
+    tool: Optional[str] = None
     config: Optional[Any] = None
 
 
