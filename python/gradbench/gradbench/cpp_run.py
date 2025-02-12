@@ -24,7 +24,6 @@ def run(params):
     else:
         return {
             "success": False,
-            "timings": [],
             "status": proc.returncode,
             "stderr": proc.stderr,
             "stdout": proc.stdout,

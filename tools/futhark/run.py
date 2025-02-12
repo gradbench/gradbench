@@ -33,9 +33,9 @@ def run(params):
         try:
             ret, times = run(server, params["input"])
             timings = [{"name": "evaluate", "nanoseconds": ns} for ns in times]
-            return {"output": ret, "timings": timings}
+            return {"success": True, "output": ret, "timings": timings}
         except Exception as e:
-            return {"timings": [], "error": str(e)}
+            return {"success": False, "error": str(e)}
 
 
 def main():
