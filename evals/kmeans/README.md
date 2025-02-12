@@ -8,9 +8,8 @@ Hessian of an appropriate cost function. The Hessian also happens to
 be sparse - it only has nonzero elements along the diagonal.
 
 A discussion of this approach can be found in [Convergence Properties
-of the K-Means
-Algorithms](https://proceedings.neurips.cc/paper/1994/hash/a1140a3d0df1c81e24ae954d935e8926-Abstract.html)
-by Léon Bottou and Yoshua Bengio (NIPS 1994).
+of the K-Means Algorithms][paper] by Léon Bottou and Yoshua Bengio
+(NIPS 1994).
 
 ## Idea
 
@@ -38,7 +37,7 @@ $H$ is sparse, $H^{-1}$ is simply the inverse of each element of $H$.
 
 The evaluation protocol is specified in terms of [TypeScript][] types
 and references [types defined in the GradBench protocol
-description](https://github.com/gradbench/gradbench?tab=readme-ov-file#types).
+description][protocol].
 
 ### Inputs
 
@@ -69,3 +68,7 @@ A tool must respond to an `EvaluateMessage` with an
 type CostOutput = number;
 type DirOutput = double[][];
 ```
+
+[paper]: https://proceedings.neurips.cc/paper/1994/hash/a1140a3d0df1c81e24ae954d935e8926-Abstract.html
+[protocol]: https://github.com/gradbench/gradbench?tab=readme-ov-file#types
+[typescript]: https://www.typescriptlang.org/
