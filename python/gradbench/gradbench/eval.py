@@ -24,7 +24,7 @@ class Timing(BaseModel):
 class EvaluateResponse(BaseModel):
     id: int
     output: Optional[Any] = None
-    timings: list[Timing]
+    timings: Optional[list[Timing]] = None
     error: Optional[str] = None
 
 

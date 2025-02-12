@@ -1047,13 +1047,6 @@ fn cli_result() -> Result<(), ExitCode> {
                     tools.retain(|t| t != "diffsharp"); // Flaky.
                     tools.sort();
                     github_output("tool", &tools)?;
-                    let slow = ["enzyme", "scilean"];
-                    let fast: Vec<_> = tools
-                        .iter()
-                        .filter(|t| !slow.contains(&t.as_str()))
-                        .collect();
-                    github_output("fast", fast)?;
-                    github_output("slow", slow)?;
                     Ok(())
                 }
                 RepoCommands::Summarize { dir, date, commit } => {
