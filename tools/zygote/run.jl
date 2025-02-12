@@ -30,7 +30,7 @@ function run(params)
   ret = func(arg)
   done = time_ns()
   timings = [Dict("name" => "evaluate", "nanoseconds" => done - start)]
-  return Dict("output" => ret, "timings" => timings)
+  return Dict("success" => true, "output" => ret, "timings" => timings)
 end
 
 function main()

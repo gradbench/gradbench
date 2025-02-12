@@ -30,9 +30,12 @@ def run(params):
         prepare = resolve(params["module"], "prepare")
         run = resolve(params["module"], params["function"])
         prepare(server, params["input"])
-        ret, times = run(server, params["input"])
-        timings = [{"name": "evaluate", "nanoseconds": ns} for ns in times]
-        return {"output": ret, "timings": timings}
+        try:
+            ret, times = run(server, params["input"])
+            timings = [{"name": "evaluate", "nanoseconds": ns} for ns in times]
+            return {"success": True, "output": ret, "timings": timings}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
 
 def main():
@@ -46,15 +49,22 @@ def main():
         if message["kind"] == "evaluate":
             response = run(message)
         elif message["kind"] == "define":
-            c = subprocess.run(
-                [
-                    "futhark",
-                    args.backend,
-                    "--server",
-                    server_prog_source(message["module"]),
-                ]
-            )
-            response["success"] = c.returncode == 0
+            try:
+                c = subprocess.check_output(
+                    [
+                        "futhark",
+                        args.backend,
+                        "--server",
+                        server_prog_source(message["module"]),
+                    ],
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                )
+            except subprocess.CalledProcessError as e:
+                response["success"] = False
+                response["error"] = e.output
+            else:
+                response["success"] = True
         print(json.dumps({"id": message["id"]} | response), flush=True)
 
 

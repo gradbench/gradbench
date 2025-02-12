@@ -9,6 +9,7 @@ class Timing(TypedDict):
 
 
 class OutputAndTimings(TypedDict):
+    success: bool
     output: Any
     timings: list[Timing]
 
@@ -31,7 +32,7 @@ def function(*, pre: Callable[[Any], Any], post: Callable[[Any], Any]):
             end = time.perf_counter_ns()
             output_raw = post(output)
             timing = Timing(name="evaluate", nanoseconds=end - start)
-            return OutputAndTimings(output=output_raw, timings=[timing])
+            return OutputAndTimings(success=True, output=output_raw, timings=[timing])
 
         return Wrapped(function=function, wrapped=wrapped)
 
@@ -51,7 +52,7 @@ def multiple_runs(
                 end = time.perf_counter_ns()
                 timings.append(Timing(name="evaluate", nanoseconds=end - start))
             output_raw = post(output)
-            return OutputAndTimings(output=output_raw, timings=timings)
+            return OutputAndTimings(success=True, output=output_raw, timings=timings)
 
         return Wrapped(function=function, wrapped=wrapped)
 

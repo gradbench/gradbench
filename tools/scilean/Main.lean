@@ -98,6 +98,7 @@ structure Output where
 
 structure Response where
   id: Int
+  success: Bool
   output: Json
   timings: List Timing
 deriving ToJson
@@ -146,8 +147,10 @@ partial def loop (stdin : IO.FS.Stream) (stdout : IO.FS.Stream) :
           | none => error "function not found"
         let action <- function params.input
         return do
+          let id := params.id
           let { output, timings } <- action
-          let response : Response := { id := params.id, output, timings }
+          let success := true
+          let response : Response := { id, success, output, timings }
           return toJson response
       else
         let id <- Json.getObjVal? message "id"

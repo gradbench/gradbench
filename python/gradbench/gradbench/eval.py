@@ -13,6 +13,7 @@ class StartResponse(BaseModel):
 class DefineResponse(BaseModel):
     id: int
     success: bool
+    error: Optional[str] = None
 
 
 class Timing(BaseModel):
@@ -22,8 +23,10 @@ class Timing(BaseModel):
 
 class EvaluateResponse(BaseModel):
     id: int
-    output: Any
+    success: bool
+    output: Optional[Any] = None
     timings: Optional[list[Timing]] = None
+    error: Optional[str] = None
 
 
 class AnalysisResponse(BaseModel):
@@ -32,7 +35,7 @@ class AnalysisResponse(BaseModel):
 
 class Analysis(BaseModel):
     valid: bool
-    message: Optional[str]
+    error: Optional[str]
 
 
 Validator = Callable[[str, Any, Any], Analysis]
@@ -46,10 +49,10 @@ def assertion(check: Callable[[str, Any, Any], None]) -> Validator:
     def validator(function: str, input: Any, output: Any) -> Analysis:
         try:
             check(function, input, output)
-            return Analysis(valid=True, message=None)
+            return Analysis(valid=True, error=None)
         except Exception as e:
-            message = "".join(traceback.format_exception(e))
-            return Analysis(valid=False, message=message)
+            error = "".join(traceback.format_exception(e))
+            return Analysis(valid=False, error=error)
 
     return validator
 
@@ -58,12 +61,12 @@ def mismatch(check: Callable[[str, Any, Any], None], max_mismatches=10) -> Valid
     def validator(function: str, input: Any, output: Any) -> Analysis:
         mismatches = check(function, input, output)
         if len(mismatches) == 0:
-            return Analysis(valid=True, message=None)
+            return Analysis(valid=True, error=None)
         else:
             shown_mismatches = mismatches[0:max_mismatches]
             mismatches_str = "\n".join(shown_mismatches)
-            message = f"Found {len(mismatches)} mismatches, showing {len(shown_mismatches)}:\n{mismatches_str}"
-            return Analysis(valid=False, message=message)
+            error = f"Found {len(mismatches)} mismatches, showing {len(shown_mismatches)}:\n{mismatches_str}"
+            return Analysis(valid=False, error=error)
 
     return validator
 
@@ -116,13 +119,15 @@ class SingleModuleValidatedEval:
             message["description"] = description
         id = self.id
         response = EvaluateResponse.model_validate(self.send(message))
-        analysis = self.validator(function, input, response.output)
-        self.analysis(of=id, valid=analysis.valid, message=analysis.message)
+        output = response.output
+        if output is not None:
+            analysis = self.validator(function, input, output)
+            self.analysis(of=id, valid=analysis.valid, error=analysis.error)
         return response
 
-    def analysis(self, *, of: int, valid: bool, message: Optional[str]) -> Any:
+    def analysis(self, *, of: int, valid: bool, error: Optional[str]) -> Any:
         request = {"kind": "analysis", "of": of, "valid": valid}
-        if message is not None:
-            request["message"] = message
+        if error is not None:
+            request["error"] = error
         response = AnalysisResponse.model_validate(self.send(request))
         return response
