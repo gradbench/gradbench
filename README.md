@@ -96,9 +96,9 @@ The session proceeds over a series of _rounds_, driven by the eval. In each roun
 
 3. `"kind": "evaluate"` - the eval again provides a `"module"` name, as well as the name of a `"function"` in that module. Currently there is no formal process for registering module names or specifying the functions available in those modules; those are specified informally via documentation in the evals themselves. An `"input"` to that function is also provided; the tool will be expected to evaluate that function at that input, and return the result. Optionally, the eval may also provide a short human-readable `"description"` of the input.
 
-   - The tool responds with the `"id"` and its `"output"` from evaluating the requested function with the given input. Optionally, the tool may also provide a list of `"timings"` for subtasks of the computation it performed. Each timing must include a `"name"` that does not need to be unique, and a number of `"nanoseconds"`. Currently, most tools only provide one entry in `"timings"`: an `"evaluate"` entry, which by convention means the amount of time that tool spent evaluating the function itself, not including other time such as JSON encoding/decoding.
+   - The tool responds with the `"id"` and whether or not it had `"success"` evaluating the function on the given input. If `"success": true` then the response must also include the resulting `"output"`; otherwise, the response may optionally include an `"error"` string. Optionally, the tool may also provide a list of `"timings"` for subtasks of the computation it performed. Each timing must include a `"name"` that does not need to be unique, and a number of `"nanoseconds"`. Currently, most tools only provide one entry in `"timings"`: an `"evaluate"` entry, which by convention means the amount of time that tool spent evaluating the function itself, not including other time such as JSON encoding/decoding.
 
-4. `"kind": "analysis"` - the eval provides the ID of a prior `"evaluate"` message it performed analysis `"of"`, along with a boolean saying whether the tool's output was `"valid"`. If the output was invalid, the eval can also provide a string `"message"` explaining why.
+4. `"kind": "analysis"` - the eval provides the ID of a prior `"evaluate"` message it performed analysis `"of"`, along with a boolean saying whether the tool's output was `"valid"`. If the output was invalid, the eval can also provide an `"error"` string explaining why.
 
 If the tool receives any message whose `"kind"` is neither `"define"` nor `"evaluate"`, it must always respond, but does not need to include anything other than the `"id"`.
 
@@ -153,7 +153,8 @@ interface DefineResponse extends Base {
 }
 
 interface EvaluateResponse extends Base {
-  output: any;
+  success: boolean;
+  output?: any;
   timings?: Timing[];
   error?: string;
 }
