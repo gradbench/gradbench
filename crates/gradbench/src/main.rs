@@ -655,7 +655,7 @@ impl<
                     line.start(&mut self.out, id)?;
                     self.print_left(WIDTH_KIND, "start")?;
                     if let (Some(eval), Some(tool)) = (eval, response.tool) {
-                        writeln!(self.out, " {eval} ({tool})")?;
+                        write!(self.out, " {eval} ({tool})")?;
                     }
                     line.end(&mut self.out)?;
                 }
