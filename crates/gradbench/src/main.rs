@@ -643,13 +643,11 @@ impl<
                 tool_line.trim(),
             )?;
             match &message {
-                Message::Start { id, eval } => {
-                    let response: StartResponse = self.parse_response(&tool_line)?;
+                Message::Start { id } => {
+                    let _response: StartResponse = self.parse_response(&tool_line)?;
                     // OK now that we know the tool won't do anything weird with the terminal.
                     line.start(&mut self.out, *id)?;
                     self.print_left(WIDTH_KIND, "start")?;
-                    self.print_left(WIDTH_DESCRIPTION, eval)?;
-                    write!(self.out, " {}", response.tool)?;
                     line.end(&mut self.out)?;
                 }
                 Message::Define { .. } => {
