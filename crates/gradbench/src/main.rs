@@ -369,8 +369,6 @@ enum Message {
 struct StartResponse {
     /// The message ID.
     id: Id,
-    /// The tool name.
-    tool: String,
 }
 
 /// A response from the tool to a `"define"` message.
