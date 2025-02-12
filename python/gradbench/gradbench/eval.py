@@ -35,11 +35,11 @@ class Analysis(BaseModel):
     message: Optional[str]
 
 
-def dump_analysis(analysis: Analysis) -> dict[str, Any]:
-    return analysis.model_dump(exclude_none=True)
-
-
 Validator = Callable[[str, Any, Any], Analysis]
+
+
+def approve(function: str, input: Any, output: Any) -> Analysis:
+    return Analysis(valid=True, message=None)
 
 
 def assertion(check: Callable[[str, Any, Any], None]) -> Validator:
