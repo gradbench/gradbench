@@ -142,7 +142,7 @@ interface AnalysisMessage extends Base {
   kind: "analysis";
   of: Id;
   valid: boolean;
-  message?: string;
+  error?: string;
 }
 
 type Message = StartMessage | DefineMessage | EvaluateMessage | AnalysisMessage;
