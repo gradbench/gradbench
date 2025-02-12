@@ -27,7 +27,8 @@ which is our (single-row) Jacobian $J$.
 
 Then we take the derivative of (the function that computes) $J$, to
 compute a Hessian $H$, which has nonzero elements only along the
-diagonal.
+diagonal, meaning $H$ can be represented as a $k$-element vector of
+$d$-dimensional points.
 
 We finally compute $J * H^{-1}$, which is the result that must be
 reported by the tool for the `"dir"` function. Note that since
