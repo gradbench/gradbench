@@ -150,7 +150,7 @@ interface AnalysisMessage extends Base {
 type Message = StartMessage | DefineMessage | EvaluateMessage | AnalysisMessage;
 
 interface StartResponse extends Base {
-  tool: string;
+  tool?: string;
   config?: any;
 }
 
