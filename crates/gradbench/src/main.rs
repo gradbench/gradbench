@@ -1022,7 +1022,6 @@ fn cli_result() -> Result<(), ExitCode> {
                     evals.sort();
                     github_output("eval", evals)?;
                     let mut tools = ls("tools")?;
-                    tools.retain(|t| t != "diffsharp"); // Flaky.
                     tools.sort();
                     github_output("tool", &tools)?;
                     Ok(())
