@@ -123,7 +123,7 @@ interface Timing extends Duration {
 
 interface StartMessage extends Base {
   kind: "start";
-  eval: string;
+  eval?: string;
   config?: any;
 }
 
