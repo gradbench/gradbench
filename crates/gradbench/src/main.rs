@@ -317,8 +317,6 @@ enum Message {
     Start {
         /// The message ID.
         id: Id,
-        /// The eval name.
-        eval: String,
     },
 
     /// A request to define a module.
