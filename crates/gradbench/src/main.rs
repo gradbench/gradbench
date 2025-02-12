@@ -317,6 +317,9 @@ enum Message {
     Start {
         /// The message ID.
         id: Id,
+
+        /// The eval name.
+        eval: Option<String>,
     },
 
     /// A request to define a module.
@@ -367,6 +370,9 @@ enum Message {
 struct StartResponse {
     /// The message ID.
     id: Id,
+
+    /// The tool name.
+    tool: Option<String>,
 }
 
 /// A response from the tool to a `"define"` message.
@@ -572,7 +578,7 @@ impl<
             )?;
             let message: Message = self.parse_message(&eval_line)?;
             match &message {
-                Message::Start { id: _ } => {
+                Message::Start { .. } => {
                     // Don't print message ID because we're still waiting for the tool to say it's
                     // ready, and e.g. if the tool is using `docker run` then it may mess with the
                     // terminal output until it actually starts.
@@ -643,11 +649,14 @@ impl<
                 tool_line.trim(),
             )?;
             match message {
-                Message::Start { id } => {
-                    let _: StartResponse = self.parse_response(&tool_line)?;
+                Message::Start { id, eval } => {
+                    let response: StartResponse = self.parse_response(&tool_line)?;
                     // OK now that we know the tool won't do anything weird with the terminal.
                     line.start(&mut self.out, id)?;
                     self.print_left(WIDTH_KIND, "start")?;
+                    if let (Some(eval), Some(tool)) = (eval, response.tool) {
+                        writeln!(self.out, " {eval} ({tool})")?;
+                    }
                     line.end(&mut self.out)?;
                 }
                 Message::Define { .. } => {
@@ -1141,6 +1150,7 @@ mod tests {
     enum Response {
         Start {
             id: Id,
+            tool: Option<String>,
         },
         Define {
             id: Id,
@@ -1162,7 +1172,11 @@ mod tests {
             S: Serializer,
         {
             match self {
-                &Response::Start { id } => StartResponse { id }.serialize(serializer),
+                Response::Start { id, tool } => StartResponse {
+                    id: *id,
+                    tool: tool.clone(),
+                }
+                .serialize(serializer),
                 &Response::Define { id, success } => {
                     DefineResponse { id, success }.serialize(serializer)
                 }
@@ -1205,7 +1219,10 @@ mod tests {
     #[test]
     fn test_intermediary_readme_example() {
         let (eval_out, tool_out) = session(&[
-            (Message::Start { id: 0 }, Response::Start { id: 0 }),
+            (
+                Message::Start { id: 0, eval: None },
+                Response::Start { id: 0, tool: None },
+            ),
             (
                 Message::Define {
                     id: 1,
@@ -1292,6 +1309,33 @@ mod tests {
     }
 
     #[test]
+    fn test_intermediary_start_names() {
+        let (eval_out, tool_out) = session(&[(
+            Message::Start {
+                id: 0,
+                eval: Some("foo".to_string()),
+            },
+            Response::Start {
+                id: 0,
+                tool: Some("bar".to_string()),
+            },
+        )]);
+        let mut intermediary = Intermediary {
+            outcome: Arc::new(Mutex::new(None)),
+            eval_in: io::sink(),
+            tool_in: io::sink(),
+            eval_out: eval_out.as_bytes(),
+            tool_out: tool_out.as_bytes(),
+            clock: || Duration::ZERO,
+            out: Vec::new(),
+            log: io::sink(),
+        };
+        let result = intermediary.run();
+        write_goldenfile("start_names.txt", &intermediary.out);
+        assert_eq!(result, Ok(()));
+    }
+
+    #[test]
     fn test_intermediary_invalid_json_eval() {
         let mut intermediary = Intermediary {
             outcome: Arc::new(Mutex::new(None)),
@@ -1352,7 +1396,10 @@ mod tests {
     #[test]
     fn test_intermediary_timeout() {
         let (mut eval_out, tool_out) = session(&[
-            (Message::Start { id: 0 }, Response::Start { id: 0 }),
+            (
+                Message::Start { id: 0, eval: None },
+                Response::Start { id: 0, tool: None },
+            ),
             (
                 Message::Define {
                     id: 1,

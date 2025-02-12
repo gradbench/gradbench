@@ -47,8 +47,8 @@ GradBench decouples benchmarks from tools via a [JSON][]-based protocol. In this
 To illustrate, here is a hypothetical example of a complete session of the protocol, as captured and reported by the intermediary:
 
 ```jsonl
-{ "elapsed": { "nanoseconds": 100000 }, "message": { "id": 0, "kind": "start", "eval": "quux" } }
-{ "elapsed": { "nanoseconds": 150000 }, "response": { "id": 0, "tool": "xyzzy" } }
+{ "elapsed": { "nanoseconds": 100000 }, "message": { "id": 0, "kind": "start" } }
+{ "elapsed": { "nanoseconds": 150000 }, "response": { "id": 0 } }
 { "elapsed": { "nanoseconds": 200000 }, "message": { "id": 1, "kind": "define", "module": "foo" } }
 { "elapsed": { "nanoseconds": 250000 }, "response": { "id": 1, "success": true } }
 { "elapsed": { "nanoseconds": 300000 }, "message": { "id": 2, "kind": "evaluate", "module": "foo", "function": "bar", "input": 3.14159 } }
@@ -65,7 +65,7 @@ Here is that example from the perspectives of the eval and the tool.
 
 - Output from the eval, or equivalently, input to the tool:
   ```jsonl
-  { "id": 0, "kind": "start", "eval": "quux" }
+  { "id": 0, "kind": "start" }
   { "id": 1, "kind": "define", "module": "foo" }
   { "id": 2, "kind": "evaluate", "module": "foo", "function": "bar", "input": 3.14159 }
   { "id": 3, "kind": "analysis", "of": 2, "valid": false, "message": "Expected tau, got e." }
@@ -74,7 +74,7 @@ Here is that example from the perspectives of the eval and the tool.
   ```
 - Output from the tool, or equivalently, input to the eval:
   ```jsonl
-  { "id": 0, "tool": "xyzzy" }
+  { "id": 0 }
   { "id": 1, "success": true }
   { "id": 2, "output": 2.71828, "timings": [{ "name": "evaluate", "nanoseconds": 45678 }] }
   { "id": 3 }
