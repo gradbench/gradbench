@@ -11,7 +11,7 @@ use std::{
 use anyhow::{anyhow, Context};
 use clap::{Parser, Subcommand};
 use colored::Colorize;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 /// CLI utilities for GradBench, a benchmark suite for differentiable programming across languages
 /// and domains.
@@ -306,6 +306,14 @@ fn build_tool(name: &str, platforms: Platforms, verbosity: Verbosity) -> Result<
     Ok(())
 }
 
+/// Deserialize an optional JSON value as `Some`, so only missing values become `None`.
+fn deserialize_optional_json<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<serde_json::Value>, D::Error> {
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(Some(value))
+}
+
 /// A message ID.
 type Id = i64;
 
@@ -402,6 +410,11 @@ struct EvaluateResponse {
     success: bool,
 
     /// The output of the function, if evaluation was successful.
+    #[serde(
+        default, // Deserialize as `None` if missing.
+        deserialize_with = "deserialize_optional_json", // Deserialize as `Some` if present.
+        skip_serializing_if = "Option::is_none" // Serialize as missing if `None`.
+    )]
     output: Option<serde_json::Value>,
 
     /// More granular timings.
@@ -1591,6 +1604,63 @@ mod tests {
         let result = intermediary.run();
         write_goldenfile("evaluate_success_no_output.txt", &intermediary.out);
         assert_eq!(result, Err(BadOutcome::Error));
+    }
+
+    #[test]
+    fn test_intermediary_evaluate_null_output() {
+        let (eval_out, tool_out) = session(&[
+            (Message::Start { id: 0 }, Response::Start { id: 0 }),
+            (
+                Message::Define {
+                    id: 1,
+                    module: "foo".to_string(),
+                },
+                Response::Define {
+                    id: 1,
+                    success: true,
+                    error: None,
+                },
+            ),
+            (
+                Message::Evaluate {
+                    id: 2,
+                    module: "foo".to_string(),
+                    function: "null".to_string(),
+                    input: json!(null),
+                    description: None,
+                },
+                Response::Evaluate {
+                    id: 2,
+                    success: true,
+                    output: Some(json!(null)),
+                    timings: None,
+                    error: None,
+                },
+            ),
+            (
+                Message::Analysis {
+                    id: 3,
+                    of: 2,
+                    valid: true,
+                    error: None,
+                },
+                Response::Analysis { id: 3 },
+            ),
+        ]);
+        let mut intermediary = Intermediary {
+            outcome: Arc::new(Mutex::new(None)),
+            eval_in: io::sink(),
+            tool_in: io::sink(),
+            eval_out: eval_out.as_bytes(),
+            tool_out: tool_out.as_bytes(),
+            clock: || Duration::ZERO,
+            out: Vec::new(),
+            log: io::sink(),
+        };
+        colored::control::set_override(false);
+        let result = intermediary.run();
+        write_goldenfile("evaluate_success_null_output.txt", &intermediary.out);
+        assert_eq!(result, Ok(()));
     }
 
     struct ReadTimeout<T>(T);
