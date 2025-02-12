@@ -6,7 +6,7 @@ import numpy as np
 
 import gradbench.pytorch.lstm as golden
 from gradbench.comparison import compare_json_objects
-from gradbench.eval import SingleModuleValidatedEval, mismatch
+from gradbench.eval import SingleModuleValidatedEval, approve, mismatch
 from gradbench.evals.lstm import io
 from gradbench.wrap import Wrapped
 
@@ -22,12 +22,13 @@ def main():
     parser.add_argument("-l", nargs="+", type=int, default=[2, 4])
     parser.add_argument("-c", nargs="+", type=int, default=[1024, 4096])
     parser.add_argument("--runs", type=int, default=1)
+    parser.add_argument("--no-validation", action="store_true", default=False)
     args = parser.parse_args()
 
     e = SingleModuleValidatedEval(
-        module="lstm", validator=mismatch(check), config=vars(args)
+        module="lstm", validator=approve if args.no_validation else mismatch(check)
     )
-    e.start()
+    e.start(config=vars(args))
     if e.define().success:
         data_root = Path("evals/lstm/data")  # assumes cwd is set correctly
 

@@ -9,7 +9,7 @@ from pydantic import BaseModel
 class StartResponse(BaseModel):
     id: int
     tool: str
-    config: Any = {}
+    config: Optional[Any] = None
 
 
 class DefineResponse(BaseModel):
@@ -25,7 +25,7 @@ class Timing(BaseModel):
 class EvaluateResponse(BaseModel):
     id: int
     output: Any
-    timings: list[Timing]
+    timings: Optional[list[Timing]] = None
 
 
 class AnalysisResponse(BaseModel):
@@ -37,11 +37,11 @@ class Analysis(BaseModel):
     message: Optional[str]
 
 
-def dump_analysis(analysis: Analysis) -> dict[str, Any]:
-    return analysis.model_dump(exclude_none=True)
-
-
 Validator = Callable[[str, Any, Any], Analysis]
+
+
+def approve(function: str, input: Any, output: Any) -> Analysis:
+    return Analysis(valid=True, message=None)
 
 
 def assertion(check: Callable[[str, Any, Any], None]) -> Validator:
@@ -74,13 +74,13 @@ class SingleModuleValidatedEval:
     module: str
     validator: Validator
     id: int
+    validations: dict[int, Analysis]
 
-    def __init__(self, *, module: str, validator: Validator, config={}):
+    def __init__(self, *, module: str, validator: Validator):
         self.module = module
         self.validator = validator
         self.id = 0
         self.validations = {}
-        self.config = config
 
     def send(self, message: Any) -> Any:
         json.dump({"id": self.id} | message, sys.stdout)
@@ -96,8 +96,10 @@ class SingleModuleValidatedEval:
         self.id += 1
         return response
 
-    def start(self) -> StartResponse:
-        message = {"kind": "start", "eval": self.module, "config": self.config}
+    def start(self, *, config: Optional[Any] = None) -> StartResponse:
+        message = {"kind": "start", "eval": self.module}
+        if config is not None:
+            message["config"] = config
         response = StartResponse.model_validate(self.send(message))
         return response
 

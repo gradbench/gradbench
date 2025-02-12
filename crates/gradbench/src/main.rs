@@ -572,7 +572,7 @@ impl<
             )?;
             let message: Message = self.parse_message(&eval_line)?;
             match &message {
-                Message::Start { .. } => {
+                Message::Start { id: _ } => {
                     // Don't print message ID because we're still waiting for the tool to say it's
                     // ready, and e.g. if the tool is using `docker run` then it may mess with the
                     // terminal output until it actually starts.
@@ -642,11 +642,11 @@ impl<
                 response_time.as_nanos(),
                 tool_line.trim(),
             )?;
-            match &message {
+            match message {
                 Message::Start { id } => {
-                    let _response: StartResponse = self.parse_response(&tool_line)?;
+                    let _: StartResponse = self.parse_response(&tool_line)?;
                     // OK now that we know the tool won't do anything weird with the terminal.
-                    line.start(&mut self.out, *id)?;
+                    line.start(&mut self.out, id)?;
                     self.print_left(WIDTH_KIND, "start")?;
                     line.end(&mut self.out)?;
                 }
@@ -1022,16 +1022,8 @@ fn cli_result() -> Result<(), ExitCode> {
                     evals.sort();
                     github_output("eval", evals)?;
                     let mut tools = ls("tools")?;
-                    tools.retain(|t| t != "diffsharp"); // Flaky.
                     tools.sort();
                     github_output("tool", &tools)?;
-                    let slow = ["enzyme", "scilean"];
-                    let fast: Vec<_> = tools
-                        .iter()
-                        .filter(|t| !slow.contains(&t.as_str()))
-                        .collect();
-                    github_output("fast", fast)?;
-                    github_output("slow", slow)?;
                     Ok(())
                 }
                 RepoCommands::Summarize { dir, date, commit } => {
@@ -1149,7 +1141,6 @@ mod tests {
     enum Response {
         Start {
             id: Id,
-            tool: String,
         },
         Define {
             id: Id,
@@ -1171,11 +1162,7 @@ mod tests {
             S: Serializer,
         {
             match self {
-                Response::Start { id, tool } => StartResponse {
-                    id: *id,
-                    tool: tool.clone(),
-                }
-                .serialize(serializer),
+                &Response::Start { id } => StartResponse { id }.serialize(serializer),
                 &Response::Define { id, success } => {
                     DefineResponse { id, success }.serialize(serializer)
                 }
@@ -1218,16 +1205,7 @@ mod tests {
     #[test]
     fn test_intermediary_readme_example() {
         let (eval_out, tool_out) = session(&[
-            (
-                Message::Start {
-                    id: 0,
-                    eval: "quux".to_string(),
-                },
-                Response::Start {
-                    id: 0,
-                    tool: "xyzzy".to_string(),
-                },
-            ),
+            (Message::Start { id: 0 }, Response::Start { id: 0 }),
             (
                 Message::Define {
                     id: 1,
@@ -1336,7 +1314,7 @@ mod tests {
             outcome: Arc::new(Mutex::new(None)),
             eval_in: io::sink(),
             tool_in: io::sink(),
-            eval_out: r#"{ "id": 0, "kind": "start", "eval": "e" }"#.as_bytes(),
+            eval_out: r#"{ "id": 0, "kind": "start" }"#.as_bytes(),
             tool_out: r#"{ "id": 0,"#.as_bytes(),
             clock: || Duration::ZERO,
             out: Vec::new(),
@@ -1374,16 +1352,7 @@ mod tests {
     #[test]
     fn test_intermediary_timeout() {
         let (mut eval_out, tool_out) = session(&[
-            (
-                Message::Start {
-                    id: 0,
-                    eval: "e".to_string(),
-                },
-                Response::Start {
-                    id: 0,
-                    tool: "t".to_string(),
-                },
-            ),
+            (Message::Start { id: 0 }, Response::Start { id: 0 }),
             (
                 Message::Define {
                     id: 1,

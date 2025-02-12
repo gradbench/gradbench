@@ -48,4 +48,8 @@ type LSTMObjectiveOutput = double;
 type LSTMJacobianOutput = double[];
 ```
 
+The `LSTMJacobianOutput` is the gradient of `main_params` and
+`extra_params`, flattened such that rows are adjacent ("column major
+order"), and concatenated.
+
 [typescript]: https://www.typescriptlang.org/
