@@ -36,5 +36,7 @@ def dir(input):
         json.dump(input, tmp)
         tmp.flush()
         return subprocess.run(
-            [f"tools/{TOOL}/run_{EVAL}", tmp.name, "dir"], text=True, capture_output=True
+            [f"tools/{TOOL}/run_{EVAL}", tmp.name, "dir"],
+            text=True,
+            capture_output=True,
         )
