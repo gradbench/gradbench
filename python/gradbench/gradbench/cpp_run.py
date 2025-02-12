@@ -20,10 +20,10 @@ def run(params):
         ls = proc.stdout.splitlines()
         output = json.loads(ls[0])
         timings = list(map(json.loads, ls[1:]))
-        return {"output": output, "timings": timings}
+        return {"success": True, "output": output, "timings": timings}
     else:
         return {
-            "output": None,
+            "success": False,
             "timings": [],
             "status": proc.returncode,
             "stderr": proc.stderr,
