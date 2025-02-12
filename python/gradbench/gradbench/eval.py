@@ -35,11 +35,11 @@ class Analysis(BaseModel):
     message: Optional[str]
 
 
-def dump_analysis(analysis: Analysis) -> dict[str, Any]:
-    return analysis.model_dump(exclude_none=True)
-
-
 Validator = Callable[[str, Any, Any], Analysis]
+
+
+def approve(function: str, input: Any, output: Any) -> Analysis:
+    return Analysis(valid=True, message=None)
 
 
 def assertion(check: Callable[[str, Any, Any], None]) -> Validator:
@@ -73,7 +73,7 @@ class SingleModuleValidatedEval:
     validator: Validator
     id: int
 
-    def __init__(self, *, module: str, validator: Optional[Validator]):
+    def __init__(self, *, module: str, validator: Validator):
         self.module = module
         self.validator = validator
         self.id = 0
@@ -116,11 +116,8 @@ class SingleModuleValidatedEval:
             message["description"] = description
         id = self.id
         response = EvaluateResponse.model_validate(self.send(message))
-        if self.validator is not None:
-            analysis = self.validator(function, input, response.output)
-            self.analysis(of=id, valid=analysis.valid, message=analysis.message)
-        else:
-            self.analysis(of=id, valid=True, message=None)
+        analysis = self.validator(function, input, response.output)
+        self.analysis(of=id, valid=analysis.valid, message=analysis.message)
         return response
 
     def analysis(self, *, of: int, valid: bool, message: Optional[str]) -> Any:

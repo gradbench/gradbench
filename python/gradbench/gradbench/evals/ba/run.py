@@ -6,7 +6,7 @@ import numpy as np
 
 import gradbench.pytorch.ba as golden
 from gradbench.comparison import compare_json_objects
-from gradbench.eval import SingleModuleValidatedEval, mismatch
+from gradbench.eval import SingleModuleValidatedEval, approve, mismatch
 from gradbench.wrap import Wrapped
 
 
@@ -49,7 +49,7 @@ def main():
     args = parser.parse_args()
 
     e = SingleModuleValidatedEval(
-        module="ba", validator=None if args.no_validation else mismatch(check)
+        module="ba", validator=approve if args.no_validation else mismatch(check)
     )
     e.start()
     if e.define().success:
