@@ -4,16 +4,17 @@
 # matplotlib. Three kinds of plots are produced, each with a line per
 # provided JSON file:
 #
-# * Absolute runtime of objective function.
+# * Absolute runtime of primal function.
 #
-# * Absolute runtime of Jacobian.
+# * Absolute runtime of differentiated function (specifics depend on
+#   the eval; typically computing the full Jacobian).
 #
-# * Relative runtime of the Jacobian compared to the objective, i.e.,
-# * the overhead of AD.
+# * Relative runtime of the differentiated function compared to the
+#   primal, i.e., the overhead of AD.
 #
 # Used like:
 #
-# $ scripts/plot --eval GMM futhark.json pytorch.json finite.json manual.json tapenade.json
+# $ scripts/plot futhark.json pytorch.json finite.json manual.json tapenade.json
 
 import argparse
 import json
@@ -50,30 +51,44 @@ def read_msgs(fname):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--eval", type=str, required=True)
 parser.add_argument("jsons", nargs="+")
 args = parser.parse_args()
 
+eval = None
 jsons = {}
 for fname in args.jsons:
     print(f"Reading {fname}...")
     jsons[fname] = read_msgs(fname)
+    this_eval = jsons[fname][0][0]["message"]["eval"]
+    if eval is None:
+        eval = this_eval
+        print(f'Detected eval: "{eval}".')
+    elif this_eval != eval:
+        print(f'{fname}: is a log for eval "{this_eval}", which differs from "{eval}".')
+        sys.exit(1)
 
 workloads = set()
-obj_runtimes = {}
-jac_runtimes = {}
+primal_runtimes = {}
+diff_runtimes = {}
+
+primal = "objective"
+diff = "jacobian"
+if eval == "kmeans":
+    primal = "cost"
+    diff = "dir"
+
 for json in jsons:
     print(f"Extrating measurements from {json}...")
-    obj_runtimes[json] = {}
-    jac_runtimes[json] = {}
+    primal_runtimes[json] = {}
+    diff_runtimes[json] = {}
     for e in jsons[json]:
         message = e[0]["message"]
         response = e[1]["response"]
         if message["kind"] == "evaluate":
             workload = message["description"]
             workloads.add(workload)
-            if message["function"] == "objective":
-                obj_runtimes[json][workload] = (
+            if message["function"] == primal:
+                primal_runtimes[json][workload] = (
                     mean(
                         [
                             x["nanoseconds"]
@@ -83,8 +98,8 @@ for json in jsons:
                     )
                     / 1e9
                 )
-            if message["function"] == "jacobian":
-                jac_runtimes[json][workload] = (
+            if message["function"] == diff:
+                diff_runtimes[json][workload] = (
                     mean(
                         [
                             x["nanoseconds"]
@@ -95,43 +110,43 @@ for json in jsons:
                     / 1e9
                 )
 
-fname_objective = f"{args.eval}-objective.png"
-print(f"Generating {fname_objective}...")
-for tool in obj_runtimes:
-    plt.plot(obj_runtimes[tool].keys(), obj_runtimes[tool].values(), label=tool)
+fname_primal = f"{eval}-primal.png"
+print(f"Generating {fname_primal}...")
+for tool in primal_runtimes:
+    plt.plot(primal_runtimes[tool].keys(), primal_runtimes[tool].values(), label=tool)
 plt.tick_params(labelrotation=45)
 plt.legend()
 plt.yscale("log")
-plt.title(f"{args.eval} Objective runtimes")
+plt.title(f"{eval} - {primal} runtimes")
 plt.ylabel("Runtime (s)")
 plt.xlabel("Workload")
-plt.savefig(fname_objective, bbox_inches="tight")
+plt.savefig(fname_primal, bbox_inches="tight")
 plt.clf()
 
-fname_jacobian = f"{args.eval}-jacobian.png"
-print(f"Generating {fname_jacobian}...")
-for tool in jac_runtimes:
-    plt.plot(jac_runtimes[tool].keys(), jac_runtimes[tool].values(), label=tool)
+fname_diff = f"{eval}-diff.png"
+print(f"Generating {fname_diff}...")
+for tool in diff_runtimes:
+    plt.plot(diff_runtimes[tool].keys(), diff_runtimes[tool].values(), label=tool)
 plt.tick_params(labelrotation=45)
 plt.yscale("log")
 plt.legend()
-plt.title(f"{args.eval} Jacobian runtimes")
+plt.title(f"{eval} - {diff} runtimes")
 plt.ylabel("Runtime (s)")
 plt.xlabel("Workload")
-plt.savefig(fname_jacobian, bbox_inches="tight")
+plt.savefig(fname_diff, bbox_inches="tight")
 plt.clf()
 
-fname_jacobian_vs_objective = f"{args.eval}-jacobian-vs-objective.png"
-print(f"Generating {fname_jacobian_vs_objective}...")
-for tool in jac_runtimes:
-    jac = np.array(list(jac_runtimes[tool].values()))
-    obj = np.array(list(obj_runtimes[tool].values()))
-    plt.plot(jac_runtimes[tool].keys(), jac / obj, label=tool)
+fname_diff_vs_primal = f"{eval}-diff-vs-primal.png"
+print(f"Generating {fname_diff_vs_primal}...")
+for tool in diff_runtimes:
+    dif = np.array(list(diff_runtimes[tool].values()))
+    obj = np.array(list(primal_runtimes[tool].values()))
+    plt.plot(diff_runtimes[tool].keys(), dif / obj, label=tool)
 plt.tick_params(labelrotation=45)
 plt.yscale("log")
 plt.legend()
-plt.title(f"{args.eval} Jacobian Runtimes Relative to Objective Runtimes")
+plt.title(f"{eval} - {diff} ÷ {primal}")
 plt.ylabel("Relative overhead")
 plt.xlabel("Workload")
-plt.savefig(fname_jacobian_vs_objective, bbox_inches="tight")
+plt.savefig(fname_diff_vs_primal, bbox_inches="tight")
 plt.clf()
