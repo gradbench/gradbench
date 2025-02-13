@@ -1037,7 +1037,7 @@ fn cli_result() -> Result<(), ExitCode> {
             let eval_wait = eval_child.wait().map_err(|_| ExitCode::FAILURE);
             let tool_wait = tool_child.wait().map_err(|_| ExitCode::FAILURE);
             match outcome {
-                Ok(()) | Err(BadOutcome::Undefined) => {
+                Ok(()) => {
                     status_code(eval_wait?)?;
                     status_code(tool_wait?)?;
                     Ok(())
