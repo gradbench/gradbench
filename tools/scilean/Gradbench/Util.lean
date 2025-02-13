@@ -31,6 +31,7 @@ deriving Inhabited
 
 structure Response where
   id: Int
+  success : Bool
   output: Json
   timings: List Timing
 deriving ToJson
