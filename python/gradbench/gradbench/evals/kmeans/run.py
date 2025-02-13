@@ -28,23 +28,25 @@ def main():
     e = SingleModuleValidatedEval(module="kmeans", validator=mismatch(check))
     e.start()
     if e.define().success:
-        for k in args.k:
-            for n in args.n:
-                for d in args.d:
-                    points = np.random.rand(n, d).tolist()
-                    # This guarantees each cluster is nonempty.
-                    centroids = points[-k:]
-                    input = {"points": points, "centroids": centroids}
-                    e.evaluate(
-                        function="cost",
-                        input=input | {"runs": args.runs},
-                        description=f"k={k},n={n},d={d}",
-                    )
-                    e.evaluate(
-                        function="dir",
-                        input=input | {"runs": args.runs},
-                        description=f"k={k},n={n},d={d}",
-                    )
+        combinations = sorted(
+            [(k, n, d) for k in args.k for n in args.n for d in args.d],
+            key=lambda v: v[0] * v[1] * v[2],
+        )
+        for k, n, d in combinations:
+            points = np.random.rand(n, d).tolist()
+            # This guarantees each cluster is nonempty.
+            centroids = points[-k:]
+            input = {"points": points, "centroids": centroids}
+            e.evaluate(
+                function="cost",
+                input=input | {"runs": args.runs},
+                description=f"k={k},n={n},d={d}",
+            )
+            e.evaluate(
+                function="dir",
+                input=input | {"runs": args.runs},
+                description=f"k={k},n={n},d={d}",
+            )
 
 
 if __name__ == "__main__":
