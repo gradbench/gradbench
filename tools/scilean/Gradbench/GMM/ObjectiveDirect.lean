@@ -65,7 +65,7 @@ def gmmObjective {d k n : Nat}
 
     -- qsAndSums
     let Qs := ⊞ i => unpackQ (MatrixType.row logdiag i) (MatrixType.row lt i)
-    let qsums := VectorType.fromVec (X:=FloatVector _) fun i => VectorType.sum (MatrixType.row logdiag i)
+    let qsums : Float^[_] := VectorType.fromVec fun i => VectorType.sum (MatrixType.row logdiag i)
 
     let slse : Float :=
       ∑ (i : Fin n), logsumexp (VectorType.fromVec (X:=FloatVector _)

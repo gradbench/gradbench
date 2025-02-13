@@ -14,6 +14,7 @@ def resolve (module : String)
   match module with
   | "hello" => some hello
   | "gmm" => some gmm
+  | "lstm" => some lstm
   | _ => none
 
 
