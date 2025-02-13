@@ -175,7 +175,7 @@ make -C cpp
 [make]: https://en.wikipedia.org/wiki/Make_(software)
 [markdown-toc]: https://www.npmjs.com/package/markdown-toc
 [multi-platform images]: https://docs.docker.com/build/building/multi-platform/
-[qemu]: https://docs.docker.com/build/building/multi-platform/#qemu-without-docker-desktop
+[qemu]: https://docs.docker.com/build/building/multi-platform/#install-qemu-manually
 [rust]: https://www.rust-lang.org/tools/install
 [uv]: https://docs.astral.sh/uv
 [vite]: https://vitejs.dev/
