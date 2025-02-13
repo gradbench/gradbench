@@ -46,7 +46,10 @@ def main():
     for line in sys.stdin:
         message = json.loads(line)
         response = {}
-        if message["kind"] == "evaluate":
+        if message["kind"] == "start":
+            response["tool"] = "futhark"
+            response["config"] = vars(args)
+        elif message["kind"] == "evaluate":
             response = run(message)
         elif message["kind"] == "define":
             try:

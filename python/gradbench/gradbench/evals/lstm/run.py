@@ -28,7 +28,7 @@ def main():
     e = SingleModuleValidatedEval(
         module="lstm", validator=approve if args.no_validation else mismatch(check)
     )
-    e.start()
+    e.start(config=vars(args))
     if e.define().success:
         data_root = Path("evals/lstm/data")  # assumes cwd is set correctly
 

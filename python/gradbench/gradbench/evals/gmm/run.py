@@ -32,7 +32,7 @@ def main():
     e = SingleModuleValidatedEval(
         module="gmm", validator=approve if args.no_validation else mismatch(check)
     )
-    e.start()
+    e.start(config=vars(args))
     if e.define().success:
         n = args.n
         for d in args.d:

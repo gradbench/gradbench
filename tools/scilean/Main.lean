@@ -132,6 +132,10 @@ partial def loop (stdin : IO.FS.Stream) (stdout : IO.FS.Stream) :
     let result := do
       let message <- Json.parse line
       let kind <- Json.getObjVal? message "kind"
+      if kind == "start" then
+        let id <- Json.getObjVal? message "id"
+        return do
+          return Json.mkObj [("id", id), ("tool", "scilean")]
       if kind == "define" then
         let definition : Definition <- fromJson? message
         let success := (resolve definition.module).isSome

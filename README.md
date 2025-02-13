@@ -88,7 +88,7 @@ As shown by this example, the intermediary forwards every message from the eval 
 
 The session proceeds over a series of _rounds_, driven by the eval. In each round, the eval sends a _message_ with a unique `"id"`, and the tool sends a _response_ with that same `"id"`. The message also includes a `"kind"`, which has four possibilities:
 
-1. `"kind": "start"` - the eval always sends this message first, waiting for the tool's response to ensure that it is ready to receive further messages.
+1. `"kind": "start"` - the eval always sends this message first, waiting for the tool's response to ensure that it is ready to receive further messages. This message may optionally contain the `"eval"` name, and the response may optionally contain the `"tool"` name and/or a `"config"` field that contains arbitrary information about how the tool or eval has been configured. This information can be used by programs that do offline processing of log files, but is not otherwise significant to the protocol.
 
 2. `"kind": "define"` - the eval provides the name of a `"module"` which the tool will need in order to proceed further with this particular benchmark. This will allow the tool to respond saying whether or not it knows of and has an implementation for the module of that name.
 
@@ -123,6 +123,8 @@ interface Timing extends Duration {
 
 interface StartMessage extends Base {
   kind: "start";
+  eval?: string;
+  config?: any;
 }
 
 interface DefineMessage extends Base {
@@ -147,6 +149,11 @@ interface AnalysisMessage extends Base {
 
 type Message = StartMessage | DefineMessage | EvaluateMessage | AnalysisMessage;
 
+interface StartResponse extends Base {
+  tool?: string;
+  config?: any;
+}
+
 interface DefineResponse extends Base {
   success: boolean;
   error?: string;
@@ -159,7 +166,7 @@ interface EvaluateResponse extends Base {
   error?: string;
 }
 
-type Response = Base | DefineResponse | EvaluateResponse;
+type Response = Base | StartResponse | DefineResponse | EvaluateResponse;
 
 interface Line {
   elapsed: Duration;
