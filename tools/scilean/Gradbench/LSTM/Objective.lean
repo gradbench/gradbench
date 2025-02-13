@@ -54,7 +54,7 @@ def lstmModel {d : ℕ}
   let t1s := mul cell forget
   let t2s := mul ingate change
   let cell2 := t1s + t2s
-  let hidden2 := mul outgate (cell2 /- |> (map · tanh) -/)
+  let hidden2 := mul outgate (map tanh cell2)
   (hidden2, cell2)
 
 set_option maxRecDepth 1000000
@@ -121,8 +121,8 @@ def lstmObjective {slen lenSeq d : ℕ}
       let newTotal := oldTotal + (⟪sequence[⟨i.1 + 1,sorry_proof⟩], ynorm⟫)
       (newState, newTotal)
 
-  -- let count := d * (lenSeq - 1) |>.toFloat
-  total -- (-(total / (count)))
+  let count := d * (lenSeq - 1) |>.toFloat
+  (-total * count⁻¹)
 
 open VectorType in
 abbrev_data_synth scalAdd in beta x [Lawful X] : HasRevFDeriv K by
@@ -159,10 +159,3 @@ def jacobian (input : LSTMInput) : LSTMOutput :=
      (deriv := by data_synth)
      (simp := by lsimp; rfl)
   ⟨x,y⟩
-
-
-open IndexType
-#eval show IO Unit from do
-
-  for i in fullRange (Fin 3 × Fin 3) do
-    IO.println s!"{i}  {toFin i}"

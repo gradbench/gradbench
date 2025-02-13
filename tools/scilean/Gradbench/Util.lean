@@ -6,33 +6,34 @@ open Except FromJson ToJson
 namespace Gradbench
 
 structure Definition where
-  id: Int
-  kind: String
-  module: String
+  id : Int
+  kind : String
+  module : String
 deriving FromJson
 
 structure Params where
-  id: Int
-  kind: String
-  module: String
-  function: String
-  input: Json
+  id : Int
+  kind : String
+  module : String
+  function : String
+  input : Json
 deriving FromJson
 
 structure Timing where
-  name: String
-  nanoseconds: Nat
+  name : String
+  nanoseconds : Nat
 deriving ToJson
 
 structure Output where
-  output: Json
-  timings: List Timing
+  output : Json
+  timings : List Timing
 deriving Inhabited
 
 structure Response where
-  id: Int
-  output: Json
-  timings: List Timing
+  id : Int
+  success : Bool
+  output : Json
+  timings : List Timing
 deriving ToJson
 
 def wrap [FromJson a] [ToJson b] (f : a -> b) (x' : Json)
