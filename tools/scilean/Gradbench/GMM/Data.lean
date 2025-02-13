@@ -73,8 +73,7 @@ def GMMGradientData.toArray (data : GMMGradientData) : Array Float :=
     let (j,i) : Fin d × Fin k := fromFin idx
     toVec data.means (i,j))
   let icfData := Array.ofFn (fun idx =>
-    -- we swap `i` and `j` as we expect matrix to be serialized to json in row-major format
-    let (j,i) : (Fin d ⊕ Fin (((d-1)*d)/2)) × Fin k := fromFin idx
+    let (i,j) : Fin k × (Fin d ⊕ Fin (((d-1)*d)/2)) := fromFin idx
     match j with
     | .inl j => toVec data.logdiag (i,j)
     | .inr j => toVec data.lt (i,j))
