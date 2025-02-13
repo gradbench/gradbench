@@ -707,7 +707,6 @@ impl<
                     } else if !response.success {
                         undefined += 1;
                     }
-
                 }
                 Message::Evaluate { .. } => {
                     write!(self.out, " {}", nanostring(nanos).dimmed())?;
