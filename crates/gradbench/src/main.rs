@@ -696,17 +696,18 @@ impl<
                     self.print_left(WIDTH_DESCRIPTION, "")?;
                     write!(self.out, " {}", nanostring(nanos).dimmed())?;
                     let response: DefineResponse = self.parse_response(&tool_line)?;
-                    if !response.success {
-                        undefined += 1;
-                    }
                     self.print_status(response.success)?;
                     line.end(&mut self.out)?;
                     if let Some(error) = response.error {
+                        failure += 1;
                         writeln!(self.out, "{}", error.red())?;
                         if response.success {
                             return Err(anyhow!("tool reported success but gave an error"));
                         }
+                    } else if !response.success {
+                        undefined += 1;
                     }
+
                 }
                 Message::Evaluate { .. } => {
                     write!(self.out, " {}", nanostring(nanos).dimmed())?;
