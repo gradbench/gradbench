@@ -26,6 +26,10 @@ partial def loop (stdin : IO.FS.Stream) (stdout : IO.FS.Stream) :
     let result := do
       let message <- Json.parse line
       let kind <- Json.getObjVal? message "kind"
+      if kind == "start" then
+        let id <- Json.getObjVal? message "id"
+        return do
+          return Json.mkObj [("id", id), ("tool", "scilean")]
       if kind == "define" then
         let definition : Definition <- fromJson? message
         let success := (resolve definition.module).isSome
@@ -41,8 +45,10 @@ partial def loop (stdin : IO.FS.Stream) (stdout : IO.FS.Stream) :
           | none => error "function not found"
         let action <- function params.input
         return do
+          let id := params.id
           let { output, timings } <- action
-          let response : Response := { id := params.id, output, timings }
+          let success := true
+          let response : Response := { id, success, output, timings }
           return toJson response
       else
         let id <- Json.getObjVal? message "id"
