@@ -21,11 +21,10 @@ def run(params):
         ls = proc.stdout.splitlines()
         output = json.loads(ls[0])
         timings = list(map(json.loads, ls[1:]))
-        return {"output": output, "timings": timings}
+        return {"success": True, "output": output, "timings": timings}
     else:
         return {
-            "output": None,
-            "timings": [],
+            "success": False,
             "status": proc.returncode,
             "stderr": proc.stderr,
             "stdout": proc.stdout,
@@ -46,10 +45,15 @@ def main(pathname: str):
                 try:
                     functions = import_module(message["module"])
                     func = getattr(functions, "compile")
-                    success = func()  # compiles C code
+                    success, error = func()
                     response["success"] = success
-                except:
+                    if not success:
+                        response["error"] = error
+                except ModuleNotFoundError:
                     response["success"] = False
+                except Exception as e:
+                    response["success"] = False
+                    response["error"] = str(e)
             print(json.dumps({"id": message["id"]} | response), flush=True)
     except (EOFError, BrokenPipeError):
         pass

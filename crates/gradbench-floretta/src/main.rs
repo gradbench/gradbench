@@ -26,6 +26,7 @@ struct DefineResponse {
 #[derive(Serialize)]
 struct EvaluateResponse<T> {
     id: Id,
+    success: bool,
     output: T,
 }
 
@@ -38,6 +39,14 @@ fn start(line: &str) {
     let Message { kind, id, .. } = serde_json::from_str(line).unwrap();
     assert_eq!(kind, "start");
     print_jsonl(&Response { id });
+}
+
+fn respond<T: Serialize>(id: Id, output: T) {
+    print_jsonl(&EvaluateResponse {
+        id,
+        success: true,
+        output,
+    });
 }
 
 struct Context {
@@ -113,12 +122,12 @@ impl GradBenchModule for Hello {
         match serde_json::from_str::<HelloMessage>(line).unwrap() {
             HelloMessage::Square { input } => {
                 let output = self.square.call(&mut context.store, input).unwrap();
-                print_jsonl(&EvaluateResponse { id, output });
+                respond(id, output);
             }
             HelloMessage::Double { input } => {
                 self.square.call(&mut context.store, input).unwrap();
                 let output = self.backprop.call(&mut context.store, 1.).unwrap();
-                print_jsonl(&EvaluateResponse { id, output });
+                respond(id, output);
             }
         }
     }

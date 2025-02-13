@@ -8,10 +8,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use clap::{Parser, Subcommand};
 use colored::Colorize;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 /// CLI utilities for GradBench, a benchmark suite for differentiable programming across languages
 /// and domains.
@@ -306,6 +306,14 @@ fn build_tool(name: &str, platforms: Platforms, verbosity: Verbosity) -> Result<
     Ok(())
 }
 
+/// Deserialize an optional JSON value as `Some`, so only missing values become `None`.
+fn deserialize_optional_json<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<serde_json::Value>, D::Error> {
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(Some(value))
+}
+
 /// A message ID.
 type Id = i64;
 
@@ -360,8 +368,8 @@ enum Message {
         /// Whether the tool's response was valid.
         valid: bool,
 
-        /// An error message if the tool's response was invalid.
-        message: Option<String>,
+        /// An optional error message if the tool's response was invalid.
+        error: Option<String>,
     },
 }
 
@@ -383,6 +391,9 @@ struct DefineResponse {
 
     /// Whether the module was successfully defined.
     success: bool,
+
+    /// An optional error message, if definition failed.
+    error: Option<String>,
 }
 
 /// Nanosecond timings from the tool.
@@ -401,11 +412,22 @@ struct EvaluateResponse {
     /// The message ID.
     id: Id,
 
-    /// The output of the function.
-    output: serde_json::Value,
+    /// Whether evaluation was successful.
+    success: bool,
+
+    /// The output of the function, if evaluation was successful.
+    #[serde(
+        default, // Deserialize as `None` if missing.
+        deserialize_with = "deserialize_optional_json", // Deserialize as `Some` if present.
+        skip_serializing_if = "Option::is_none" // Serialize as missing if `None`.
+    )]
+    output: Option<serde_json::Value>,
 
     /// More granular timings.
     timings: Option<Vec<Timing>>,
+
+    /// An optional error message, if evaluation failed.
+    error: Option<String>,
 }
 
 /// A response from the tool to an `"analysis"` message.
@@ -487,6 +509,12 @@ enum BadOutcome {
     /// The tool timed out.
     Timeout,
 
+    /// The tool failed to define a module.
+    Undefined,
+
+    /// The tool failed to evaluate a function.
+    Failure,
+
     /// The tool returned some number of invalid results for the eval.
     Invalid,
 
@@ -543,7 +571,7 @@ impl<
     fn parse_message(&mut self, line: &str) -> anyhow::Result<Message> {
         serde_json::from_str(line)
             .inspect_err(|_| {
-                let _ = writeln!(self.out, "{line}");
+                let _ = writeln!(self.out, "\n{}", line.red());
             })
             .context("invalid JSON from eval")
     }
@@ -552,13 +580,15 @@ impl<
     fn parse_response<'a, R: Deserialize<'a>>(&mut self, line: &'a str) -> anyhow::Result<R> {
         serde_json::from_str(line)
             .inspect_err(|_| {
-                let _ = writeln!(self.out, "{line}");
+                let _ = writeln!(self.out, "\n{}", line.red());
             })
             .context("invalid JSON from tool")
     }
 
     /// Run the intermediary, collecting miscellaneous errors via `anyhow`.
     fn run_inner(&mut self) -> anyhow::Result<Option<BadOutcome>> {
+        let mut undefined = 0;
+        let mut failure = 0;
         let mut invalid = 0;
         let mut line = Line::new();
         while let Some(eval_line) = {
@@ -608,7 +638,7 @@ impl<
                     id: _,
                     of,
                     valid,
-                    message,
+                    error,
                 } => {
                     if !*valid {
                         invalid += 1;
@@ -616,7 +646,7 @@ impl<
                     if line.id() == Some(*of) {
                         self.print_status(*valid)?;
                         line.end(&mut self.out)?;
-                        if let Some(error) = message {
+                        if let Some(error) = error {
                             writeln!(self.out, "{}", error.red())?;
                         }
                     }
@@ -666,12 +696,24 @@ impl<
                     self.print_left(WIDTH_DESCRIPTION, "")?;
                     write!(self.out, " {}", nanostring(nanos).dimmed())?;
                     let response: DefineResponse = self.parse_response(&tool_line)?;
+                    if !response.success {
+                        undefined += 1;
+                    }
                     self.print_status(response.success)?;
                     line.end(&mut self.out)?;
+                    if let Some(error) = response.error {
+                        writeln!(self.out, "{}", error.red())?;
+                        if response.success {
+                            return Err(anyhow!("tool reported success but gave an error"));
+                        }
+                    }
                 }
                 Message::Evaluate { .. } => {
                     write!(self.out, " {}", nanostring(nanos).dimmed())?;
                     let response: EvaluateResponse = self.parse_response(&tool_line)?;
+                    if !response.success {
+                        failure += 1;
+                    }
                     let mut timings = BTreeMap::new();
                     for Timing { name, nanoseconds } in response.timings.unwrap_or_default() {
                         let (num, ns) = timings.entry(name).or_insert((0, 0));
@@ -692,6 +734,17 @@ impl<
                             write!(self.out, "×{num}")?;
                         }
                     }
+                    if let Some(error) = response.error {
+                        self.print_status(false)?;
+                        line.end(&mut self.out)?;
+                        writeln!(self.out, "{}", error.red())?;
+                        if response.success {
+                            return Err(anyhow!("tool reported success but gave an error"));
+                        }
+                    } else if response.output.is_none() {
+                        writeln!(self.out)?;
+                        return Err(anyhow!("tool reported success but gave no output"));
+                    }
                 }
                 Message::Analysis { .. } => {
                     let _: AnalysisResponse = self.parse_response(&tool_line)?;
@@ -702,7 +755,11 @@ impl<
             self.eval_in.write_all(tool_line.as_bytes())?;
             self.eval_in.flush()?;
         }
-        if invalid > 0 {
+        if undefined > 0 {
+            Ok(Some(BadOutcome::Undefined))
+        } else if failure > 0 {
+            Ok(Some(BadOutcome::Failure))
+        } else if invalid > 0 {
             Ok(Some(BadOutcome::Invalid))
         } else {
             Ok(None)
@@ -719,7 +776,7 @@ impl<
             Ok(None) => Ok(()),
             Ok(Some(outcome)) => Err(outcome),
             Err(err) => {
-                let _ = writeln!(self.out, "{err:#}");
+                let _ = writeln!(self.out, "{}", format!("{err:#}").red());
                 Err(BadOutcome::Error)
             }
         }
@@ -980,7 +1037,7 @@ fn cli_result() -> Result<(), ExitCode> {
             let eval_wait = eval_child.wait().map_err(|_| ExitCode::FAILURE);
             let tool_wait = tool_child.wait().map_err(|_| ExitCode::FAILURE);
             match outcome {
-                Ok(()) => {
+                Ok(()) | Err(BadOutcome::Undefined) => {
                     status_code(eval_wait?)?;
                     status_code(tool_wait?)?;
                     Ok(())
@@ -1158,11 +1215,14 @@ mod tests {
         Define {
             id: Id,
             success: bool,
+            error: Option<String>,
         },
         Evaluate {
             id: Id,
-            output: serde_json::Value,
+            success: bool,
+            output: Option<serde_json::Value>,
             timings: Option<Vec<Timing>>,
+            error: Option<String>,
         },
         Analysis {
             id: Id,
@@ -1180,17 +1240,24 @@ mod tests {
                     tool: tool.clone(),
                 }
                 .serialize(serializer),
-                &Response::Define { id, success } => {
-                    DefineResponse { id, success }.serialize(serializer)
+                Response::Define { id, success, error } => DefineResponse {
+                    id: *id,
+                    success: *success,
+                    error: error.clone(),
                 }
+                .serialize(serializer),
                 Response::Evaluate {
                     id,
+                    success,
                     output,
                     timings,
+                    error,
                 } => EvaluateResponse {
                     id: *id,
+                    success: *success,
                     output: output.clone(),
                     timings: timings.clone(),
+                    error: error.clone(),
                 }
                 .serialize(serializer),
                 &Response::Analysis { id } => AnalysisResponse { id }.serialize(serializer),
@@ -1234,6 +1301,7 @@ mod tests {
                 Response::Define {
                     id: 1,
                     success: true,
+                    error: None,
                 },
             ),
             (
@@ -1246,11 +1314,13 @@ mod tests {
                 },
                 Response::Evaluate {
                     id: 2,
-                    output: json!(E),
+                    success: true,
+                    output: Some(json!(E)),
                     timings: Some(vec![Timing {
                         name: "evaluate".to_string(),
                         nanoseconds: Duration::from_millis(5).as_nanos(),
                     }]),
+                    error: None,
                 },
             ),
             (
@@ -1258,7 +1328,7 @@ mod tests {
                     id: 3,
                     of: 2,
                     valid: false,
-                    message: Some("Expected tau, got e.".to_string()),
+                    error: Some("Expected tau, got e.".to_string()),
                 },
                 Response::Analysis { id: 3 },
             ),
@@ -1272,11 +1342,13 @@ mod tests {
                 },
                 Response::Evaluate {
                     id: 4,
-                    output: json!({"yournumber": 342}),
+                    success: true,
+                    output: Some(json!({"yournumber": 342})),
                     timings: Some(vec![Timing {
                         name: "evaluate".to_string(),
                         nanoseconds: Duration::from_millis(7).as_nanos(),
                     }]),
+                    error: None,
                 },
             ),
             (
@@ -1284,7 +1356,7 @@ mod tests {
                     id: 5,
                     of: 4,
                     valid: true,
-                    message: None,
+                    error: None,
                 },
                 Response::Analysis { id: 5 },
             ),
@@ -1372,6 +1444,289 @@ mod tests {
         assert_eq!(result, Err(BadOutcome::Error));
     }
 
+    #[test]
+    fn test_intermediary_define_error() {
+        let (eval_out, tool_out) = session(&[
+            (
+                Message::Start { id: 0, eval: None },
+                Response::Start { id: 0, tool: None },
+            ),
+            (
+                Message::Define {
+                    id: 1,
+                    module: "foo".to_string(),
+                },
+                Response::Define {
+                    id: 1,
+                    success: false,
+                    error: Some("never heard of foo".to_string()),
+                },
+            ),
+        ]);
+        let mut intermediary = Intermediary {
+            outcome: Arc::new(Mutex::new(None)),
+            eval_in: io::sink(),
+            tool_in: io::sink(),
+            eval_out: eval_out.as_bytes(),
+            tool_out: tool_out.as_bytes(),
+            clock: || Duration::ZERO,
+            out: Vec::new(),
+            log: io::sink(),
+        };
+        colored::control::set_override(false);
+        let result = intermediary.run();
+        write_goldenfile("define_error.txt", &intermediary.out);
+        assert_eq!(result, Err(BadOutcome::Undefined));
+    }
+
+    #[test]
+    fn test_intermediary_define_success_error() {
+        let (eval_out, tool_out) = session(&[
+            (
+                Message::Start { id: 0, eval: None },
+                Response::Start { id: 0, tool: None },
+            ),
+            (
+                Message::Define {
+                    id: 1,
+                    module: "foo".to_string(),
+                },
+                Response::Define {
+                    id: 1,
+                    success: true,
+                    error: Some("all good!".to_string()),
+                },
+            ),
+        ]);
+        let mut intermediary = Intermediary {
+            outcome: Arc::new(Mutex::new(None)),
+            eval_in: io::sink(),
+            tool_in: io::sink(),
+            eval_out: eval_out.as_bytes(),
+            tool_out: tool_out.as_bytes(),
+            clock: || Duration::ZERO,
+            out: Vec::new(),
+            log: io::sink(),
+        };
+        colored::control::set_override(false);
+        let result = intermediary.run();
+        write_goldenfile("define_success_error.txt", &intermediary.out);
+        assert_eq!(result, Err(BadOutcome::Error));
+    }
+
+    #[test]
+    fn test_intermediary_evaluate_error() {
+        let (eval_out, tool_out) = session(&[
+            (
+                Message::Start { id: 0, eval: None },
+                Response::Start { id: 0, tool: None },
+            ),
+            (
+                Message::Define {
+                    id: 1,
+                    module: "foo".to_string(),
+                },
+                Response::Define {
+                    id: 1,
+                    success: true,
+                    error: None,
+                },
+            ),
+            (
+                Message::Evaluate {
+                    id: 2,
+                    module: "foo".to_string(),
+                    function: "bar".to_string(),
+                    input: json!(42),
+                    description: None,
+                },
+                Response::Evaluate {
+                    id: 2,
+                    success: false,
+                    output: None,
+                    timings: None,
+                    error: Some("foobar failure".to_string()),
+                },
+            ),
+        ]);
+        let mut intermediary = Intermediary {
+            outcome: Arc::new(Mutex::new(None)),
+            eval_in: io::sink(),
+            tool_in: io::sink(),
+            eval_out: eval_out.as_bytes(),
+            tool_out: tool_out.as_bytes(),
+            clock: || Duration::ZERO,
+            out: Vec::new(),
+            log: io::sink(),
+        };
+        colored::control::set_override(false);
+        let result = intermediary.run();
+        write_goldenfile("evaluate_error.txt", &intermediary.out);
+        assert_eq!(result, Err(BadOutcome::Failure));
+    }
+
+    #[test]
+    fn test_intermediary_evaluate_success_error() {
+        let (eval_out, tool_out) = session(&[
+            (
+                Message::Start { id: 0, eval: None },
+                Response::Start { id: 0, tool: None },
+            ),
+            (
+                Message::Define {
+                    id: 1,
+                    module: "foo".to_string(),
+                },
+                Response::Define {
+                    id: 1,
+                    success: true,
+                    error: None,
+                },
+            ),
+            (
+                Message::Evaluate {
+                    id: 2,
+                    module: "foo".to_string(),
+                    function: "bar".to_string(),
+                    input: json!(42),
+                    description: None,
+                },
+                Response::Evaluate {
+                    id: 2,
+                    success: true,
+                    output: Some(json!("done")),
+                    timings: None,
+                    error: Some("foobar all good".to_string()),
+                },
+            ),
+        ]);
+        let mut intermediary = Intermediary {
+            outcome: Arc::new(Mutex::new(None)),
+            eval_in: io::sink(),
+            tool_in: io::sink(),
+            eval_out: eval_out.as_bytes(),
+            tool_out: tool_out.as_bytes(),
+            clock: || Duration::ZERO,
+            out: Vec::new(),
+            log: io::sink(),
+        };
+        colored::control::set_override(false);
+        let result = intermediary.run();
+        write_goldenfile("evaluate_success_error.txt", &intermediary.out);
+        assert_eq!(result, Err(BadOutcome::Error));
+    }
+
+    #[test]
+    fn test_intermediary_evaluate_success_no_output() {
+        let (eval_out, tool_out) = session(&[
+            (
+                Message::Start { id: 0, eval: None },
+                Response::Start { id: 0, tool: None },
+            ),
+            (
+                Message::Define {
+                    id: 1,
+                    module: "foo".to_string(),
+                },
+                Response::Define {
+                    id: 1,
+                    success: true,
+                    error: None,
+                },
+            ),
+            (
+                Message::Evaluate {
+                    id: 2,
+                    module: "foo".to_string(),
+                    function: "bar".to_string(),
+                    input: json!(42),
+                    description: None,
+                },
+                Response::Evaluate {
+                    id: 2,
+                    success: true,
+                    output: None,
+                    timings: None,
+                    error: None,
+                },
+            ),
+        ]);
+        let mut intermediary = Intermediary {
+            outcome: Arc::new(Mutex::new(None)),
+            eval_in: io::sink(),
+            tool_in: io::sink(),
+            eval_out: eval_out.as_bytes(),
+            tool_out: tool_out.as_bytes(),
+            clock: || Duration::ZERO,
+            out: Vec::new(),
+            log: io::sink(),
+        };
+        colored::control::set_override(false);
+        let result = intermediary.run();
+        write_goldenfile("evaluate_success_no_output.txt", &intermediary.out);
+        assert_eq!(result, Err(BadOutcome::Error));
+    }
+
+    #[test]
+    fn test_intermediary_evaluate_null_output() {
+        let (eval_out, tool_out) = session(&[
+            (
+                Message::Start { id: 0, eval: None },
+                Response::Start { id: 0, tool: None },
+            ),
+            (
+                Message::Define {
+                    id: 1,
+                    module: "foo".to_string(),
+                },
+                Response::Define {
+                    id: 1,
+                    success: true,
+                    error: None,
+                },
+            ),
+            (
+                Message::Evaluate {
+                    id: 2,
+                    module: "foo".to_string(),
+                    function: "null".to_string(),
+                    input: json!(null),
+                    description: None,
+                },
+                Response::Evaluate {
+                    id: 2,
+                    success: true,
+                    output: Some(json!(null)),
+                    timings: None,
+                    error: None,
+                },
+            ),
+            (
+                Message::Analysis {
+                    id: 3,
+                    of: 2,
+                    valid: true,
+                    error: None,
+                },
+                Response::Analysis { id: 3 },
+            ),
+        ]);
+        let mut intermediary = Intermediary {
+            outcome: Arc::new(Mutex::new(None)),
+            eval_in: io::sink(),
+            tool_in: io::sink(),
+            eval_out: eval_out.as_bytes(),
+            tool_out: tool_out.as_bytes(),
+            clock: || Duration::ZERO,
+            out: Vec::new(),
+            log: io::sink(),
+        };
+        colored::control::set_override(false);
+        let result = intermediary.run();
+        write_goldenfile("evaluate_success_null_output.txt", &intermediary.out);
+        assert_eq!(result, Ok(()));
+    }
+
     struct ReadTimeout<T>(T);
 
     impl<T: io::Read> io::Read for ReadTimeout<T> {
@@ -1411,6 +1766,7 @@ mod tests {
                 Response::Define {
                     id: 1,
                     success: true,
+                    error: None,
                 },
             ),
         ]);
