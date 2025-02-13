@@ -88,7 +88,7 @@ As shown by this example, the intermediary forwards every message from the eval 
 
 The session proceeds over a series of _rounds_, driven by the eval. In each round, the eval sends a _message_ with a unique `"id"`, and the tool sends a _response_ with that same `"id"`. The message also includes a `"kind"`, which has four possibilities:
 
-1. `"kind": "start"` - the eval always sends this message first, waiting for the tool's response to ensure that it is ready to receive further messages.
+1. `"kind": "start"` - the eval always sends this message first, waiting for the tool's response to ensure that it is ready to receive further messages. This message may optionally contain the `"eval"` name, and the response may optionally contain the `"tool"` name and/or a `"config"` field that contains arbitrary information about how the tool or eval has been configured. This information can be used by programs that do offline processing of log files, but is not otherwise significant to the protocol.
 
 2. `"kind": "define"` - the eval provides the name of a `"module"` which the tool will need in order to proceed further with this particular benchmark. This will allow the tool to respond saying whether or not it knows of and has an implementation for the module of that name.
 
@@ -96,9 +96,9 @@ The session proceeds over a series of _rounds_, driven by the eval. In each roun
 
 3. `"kind": "evaluate"` - the eval again provides a `"module"` name, as well as the name of a `"function"` in that module. Currently there is no formal process for registering module names or specifying the functions available in those modules; those are specified informally via documentation in the evals themselves. An `"input"` to that function is also provided; the tool will be expected to evaluate that function at that input, and return the result. Optionally, the eval may also provide a short human-readable `"description"` of the input.
 
-   - The tool responds with the `"id"` and its `"output"` from evaluating the requested function with the given input. Optionally, the tool may also provide a list of `"timings"` for subtasks of the computation it performed. Each timing must include a `"name"` that does not need to be unique, and a number of `"nanoseconds"`. Currently, most tools only provide one entry in `"timings"`: an `"evaluate"` entry, which by convention means the amount of time that tool spent evaluating the function itself, not including other time such as JSON encoding/decoding.
+   - The tool responds with the `"id"` and whether or not it had `"success"` evaluating the function on the given input. If `"success": true` then the response must also include the resulting `"output"`; otherwise, the response may optionally include an `"error"` string. Optionally, the tool may also provide a list of `"timings"` for subtasks of the computation it performed. Each timing must include a `"name"` that does not need to be unique, and a number of `"nanoseconds"`. Currently, most tools only provide one entry in `"timings"`: an `"evaluate"` entry, which by convention means the amount of time that tool spent evaluating the function itself, not including other time such as JSON encoding/decoding.
 
-4. `"kind": "analysis"` - the eval provides the ID of a prior `"evaluate"` message it performed analysis `"of"`, along with a boolean saying whether the tool's output was `"valid"`. If the output was invalid, the eval can also provide a string `"message"` explaining why.
+4. `"kind": "analysis"` - the eval provides the ID of a prior `"evaluate"` message it performed analysis `"of"`, along with a boolean saying whether the tool's output was `"valid"`. If the output was invalid, the eval can also provide an `"error"` string explaining why.
 
 If the tool receives any message whose `"kind"` is neither `"define"` nor `"evaluate"`, it must always respond, but does not need to include anything other than the `"id"`.
 
@@ -107,8 +107,10 @@ If the tool receives any message whose `"kind"` is neither `"define"` nor `"eval
 Here is a somewhat more formal description of the protocol using [TypeScript][] types.
 
 ```typescript
+type Id = number;
+
 interface Base {
-  id: string;
+  id: Id;
 }
 
 interface Duration {
@@ -121,6 +123,8 @@ interface Timing extends Duration {
 
 interface StartMessage extends Base {
   kind: "start";
+  eval?: string;
+  config?: any;
 }
 
 interface DefineMessage extends Base {
@@ -137,22 +141,32 @@ interface EvaluateMessage extends Base {
 }
 
 interface AnalysisMessage extends Base {
+  kind: "analysis";
+  of: Id;
   valid: boolean;
-  message?: string;
+  error?: string;
 }
 
 type Message = StartMessage | DefineMessage | EvaluateMessage | AnalysisMessage;
 
+interface StartResponse extends Base {
+  tool?: string;
+  config?: any;
+}
+
 interface DefineResponse extends Base {
   success: boolean;
+  error?: string;
 }
 
 interface EvaluateResponse extends Base {
-  output: any;
+  success: boolean;
+  output?: any;
   timings?: Timing[];
+  error?: string;
 }
 
-type Response = Base | DefineResponse | EvaluateResponse;
+type Response = Base | StartResponse | DefineResponse | EvaluateResponse;
 
 interface Line {
   elapsed: Duration;

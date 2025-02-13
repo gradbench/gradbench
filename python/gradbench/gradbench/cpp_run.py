@@ -5,6 +5,7 @@ import json
 import sys
 import time
 from importlib import import_module
+from pathlib import Path
 
 
 def resolve(module, name):
@@ -20,32 +21,39 @@ def run(params):
         ls = proc.stdout.splitlines()
         output = json.loads(ls[0])
         timings = list(map(json.loads, ls[1:]))
-        return {"output": output, "timings": timings}
+        return {"success": True, "output": output, "timings": timings}
     else:
         return {
-            "output": None,
-            "timings": [],
+            "success": False,
             "status": proc.returncode,
             "stderr": proc.stderr,
             "stdout": proc.stdout,
         }
 
 
-def main():
+def main(pathname: str):
+    tool = Path(pathname).parent.name
     try:
         for line in sys.stdin:
             message = json.loads(line)
             response = {}
-            if message["kind"] == "evaluate":
+            if message["kind"] == "start":
+                response["tool"] = tool
+            elif message["kind"] == "evaluate":
                 response = run(message)
             elif message["kind"] == "define":
                 try:
                     functions = import_module(message["module"])
                     func = getattr(functions, "compile")
-                    success = func()  # compiles C code
+                    success, error = func()
                     response["success"] = success
-                except:
+                    if not success:
+                        response["error"] = error
+                except ModuleNotFoundError:
                     response["success"] = False
+                except Exception as e:
+                    response["success"] = False
+                    response["error"] = str(e)
             print(json.dumps({"id": message["id"]} | response), flush=True)
     except (EOFError, BrokenPipeError):
         pass
