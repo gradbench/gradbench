@@ -20,7 +20,7 @@ def check(function: str, input: Any, output: Any) -> None:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-k", nargs="+", type=int, default=[10, 100, 1000])
-    parser.add_argument("-n", nargs="+", type=int, default=[1000, 10000, 100000])
+    parser.add_argument("-n", nargs="+", type=int, default=[1000, 10000])
     parser.add_argument("-d", nargs="+", type=int, default=[8, 16])
     parser.add_argument("--runs", type=int, default=1)
     args = parser.parse_args()
