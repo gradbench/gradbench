@@ -1476,7 +1476,7 @@ mod tests {
         colored::control::set_override(false);
         let result = intermediary.run();
         write_goldenfile("define_error.txt", &intermediary.out);
-        assert_eq!(result, Err(BadOutcome::Undefined));
+        assert_eq!(result, Err(BadOutcome::Failure));
     }
 
     #[test]
