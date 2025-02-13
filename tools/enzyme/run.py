@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import gradbench.cpp_run
 
 if __name__ == "__main__":
