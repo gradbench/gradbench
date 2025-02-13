@@ -1,9 +1,10 @@
-CXX=clang++-19
-LLD=lld-19
+CXX=clang++
+LLD=lld
 CXXFLAGS=-std=c++17 -O3 -fno-math-errno -Wall -flto
 LDFLAGS=-fuse-ld=$(LLD) -O3 -fno-math-errno -flto -Wl,--load-pass-plugin=$(LLDENZYME) -lm
 
-LLDENZYME=/home/gradbench/enzyme-build/Enzyme/LLDEnzyme-19.so
+ENZYME_LIB?=/home/gradbench/enzyme-build/Enzyme/
+LLDENZYME=$(ENZYME_LIB)/LLDEnzyme-19.so
 
 UTIL_OBJECTS=../../cpp/adbench/shared/utils.o ../../cpp/adbench/io.o
 HELLO_OBJECTS=EnzymeHello.o run_hello.o
