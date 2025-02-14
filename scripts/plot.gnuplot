@@ -31,15 +31,15 @@ stats DATA_PRIMAL u 2
 
 set term pdfcairo font "Monospace,8" color
 
-set output sprintf("%s-primal.pdf", EVAL)
-set title TITLE_PRIMAL
+set output TITLE_PRIMAL
+set title PLOT_PRIMAL
 plot for [i=2:STATS_columns] DATA_PRIMAL u (column(0)):i:xtic(1)
 
-set title sprintf("%s - diff", EVAL)
-set output TITLE_DIFF
+set title TITLE_DIFF
+set output PLOT_DIFF
 plot for [i=2:STATS_columns] DATA_DIFF u (column(0)):i:xtic(1)
 
-set title sprintf("%s - ratio", EVAL)
-set output TITLE_RATIO
+set title TITLE_RATIO
+set output PLOT_RATIO
 set ylabel "Overhead"
 plot for [i=2:STATS_columns] DATA_RATIO u (column(0)):i:xtic(1)
