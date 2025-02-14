@@ -45,12 +45,12 @@ shutil.copy(source, destination)
 print(f"Copied lean-toolchain to {destination}")
 
 
-# # Run `lake update`
-# try:
-#     result = subprocess.run(['lake', 'update'], check=True, text=True, capture_output=True)
-#     print("lake update completed successfully:")
-#     print(result.stdout)
-# except subprocess.CalledProcessError as e:
-#     print("Error running lake update:")
-#     print(e.stderr)
-#     raise
+# Run `lake update`
+try:
+    result = subprocess.run(['lake', 'update'], check=True, text=True, capture_output=True)
+    print("lake update completed successfully:")
+    print(result.stdout)
+except subprocess.CalledProcessError as e:
+    print("Error running lake update:")
+    print(e.stderr)
+    raise
