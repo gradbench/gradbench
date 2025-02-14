@@ -27,7 +27,7 @@ set grid ytics lt -1
 set style data linespoints
 set pointsize 0.5
 
-stats DATA_PRIMAL u 2
+stats DATA_PRIMAL u (0)
 
 set term pdfcairo font "Monospace,8" color
 
