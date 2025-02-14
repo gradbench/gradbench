@@ -1,0 +1,4 @@
+{ "elapsed": { "nanoseconds": 1643221563 }, "message": {"id": 0, "kind": "start", "eval": "kmeans"} }
+{ "elapsed": { "nanoseconds": 1643653460 }, "response": {"id": 0, "tool": "cppad"} }
+{ "elapsed": { "nanoseconds": 1644032097 }, "message": {"id": 1, "kind": "define", "module": "kmeans"} }
+{ "elapsed": { "nanoseconds": 1644471152 }, "response": {"id": 1, "success": false} }
