@@ -31,8 +31,8 @@ stats DATA_PRIMAL u (0)
 
 set term pdfcairo font "Monospace,8" color
 
-set output TITLE_PRIMAL
-set title PLOT_PRIMAL
+set title TITLE_PRIMAL
+set output PLOT_PRIMAL
 plot for [i=2:STATS_columns] DATA_PRIMAL u (column(0)):i:xtic(1)
 
 set title TITLE_DIFF
