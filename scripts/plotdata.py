@@ -57,6 +57,9 @@ for fname in args.jsons:
     print(f"Reading {fname}... ", end='', file=sys.stderr)
     msgs = read_msgs(fname)
     this_eval = msgs[0][0]["message"]["eval"]
+    if "tool" not in msgs[0][1]["response"]:
+        print('invalid, skipping.', file=sys.stderr)
+        continue
     this_tool = msgs[0][1]["response"]["tool"]
     print(f'tool={this_tool} eval={this_eval}.', file=sys.stderr)
     if eval is None:

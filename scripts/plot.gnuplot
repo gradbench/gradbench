@@ -12,6 +12,9 @@ DATA_RATIO = sprintf('%s-ratio.data', EVAL)
 PLOT_PRIMAL = sprintf('%s-primal.pdf', EVAL)
 PLOT_DIFF = sprintf('%s-diff.pdf', EVAL)
 PLOT_RATIO = sprintf('%s-ratio.pdf', EVAL)
+TITLE_PRIMAL = sprintf('%s - primal', EVAL)
+TITLE_DIFF = sprintf('%s - diff', EVAL)
+TITLE_RATIO = sprintf('%s - primal ÷ diff', EVAL)
 
 set key autotitle columnheader
 set datafile missing "?"
@@ -29,14 +32,14 @@ stats DATA_PRIMAL u 2
 set term pdfcairo font "Monospace,8" color
 
 set output sprintf("%s-primal.pdf", EVAL)
-set title PLOT_PRIMAL
+set title TITLE_PRIMAL
 plot for [i=2:STATS_columns] DATA_PRIMAL u (column(0)):i:xtic(1)
 
 set title sprintf("%s - diff", EVAL)
-set output PLOT_DIFF
+set output TITLE_DIFF
 plot for [i=2:STATS_columns] DATA_DIFF u (column(0)):i:xtic(1)
 
 set title sprintf("%s - ratio", EVAL)
-set output PLOT_RATIO
+set output TITLE_RATIO
 set ylabel "Overhead"
 plot for [i=2:STATS_columns] DATA_RATIO u (column(0)):i:xtic(1)
