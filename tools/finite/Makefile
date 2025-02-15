@@ -4,16 +4,12 @@ CFLAGS=-std=c++17 -O3 -Wall -I../../cpp
 LDFLAGS=-lm
 
 UTIL_OBJECTS=../../cpp/adbench/shared/utils.o ../../cpp/adbench/io.o
-HELLO_OBJECTS=FiniteHello.o run_hello.o
 GMM_OBJECTS=FiniteGMM.o run_gmm.o
 LSTM_OBJECTS=FiniteLSTM.o run_lstm.o
 HT_OBJECTS=FiniteHT.o run_ht.o
 EXECUTABLES=run_hello run_gmm run_ba run_lstm run_ht
 
 all: $(EXECUTABLES)
-
-run_hello: $(HELLO_OBJECTS) $(UTIL_OBJECTS)
-	$(CXX) -o $@ $^ $(LDFLAGS)
 
 run_gmm: $(GMM_OBJECTS) $(UTIL_OBJECTS)
 	$(CXX) -o $@ $^ $(LDFLAGS)

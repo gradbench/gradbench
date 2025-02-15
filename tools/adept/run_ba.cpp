@@ -5,7 +5,7 @@
 
 #include <algorithm>
 #include "gradbench/main.hpp"
-#include "gradbench/ba.hpp"
+#include "gradbench/evals/ba.hpp"
 #include "adept.h"
 
 using adept::adouble;

@@ -29,7 +29,8 @@ int function_main(const std::string& input_file) {
   std::ifstream f(input_file);
   json j = json::parse(f);
   typename Benchmark::Input input = j.template get<typename Benchmark::Input>();
-  int runs = j["runs"];
+
+  int runs = j.is_object() ? int(j["runs"]) : 1;
   assert(runs > 0);
 
   double prepare_time_taken;

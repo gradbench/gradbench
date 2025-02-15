@@ -2,24 +2,6 @@
 #include "adbench/io.h"
 #include "adbench/shared/GMMData.h"
 
-void read_HelloInput_json(const char* fname, HelloInput &input, int *runs) {
-  using json = nlohmann::json;
-  std::ifstream f(fname);
-  json data = json::parse(f);
-  input.x = data.get<double>();
-  *runs = 1;
-}
-
-void write_HelloOutput_objective_json(std::ostream& f, HelloOutput &output) {
-  using json = nlohmann::json;
-  f << json(output.objective);
-}
-
-void write_HelloOutput_jacobian_json(std::ostream& f, HelloOutput &output) {
-  using json = nlohmann::json;
-  f << json(output.gradient);
-}
-
 void read_GMMInput_json(const char* fname, GMMInput &input, int *runs) {
   // Based on read_lstm_instance from ADBench.
   using json = nlohmann::json;

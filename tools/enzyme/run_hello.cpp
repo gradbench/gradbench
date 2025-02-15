@@ -1,11 +1,20 @@
-#include "EnzymeHello.h"
-#include "adbench/main.h"
-#include "adbench/shared/HelloData.h"
+#include "gradbench/main.hpp"
+#include "gradbench/evals/hello.hpp"
+
+extern double __enzyme_autodiff(void*, double);
+
+class Double : public Function<hello::Input, hello::DoubleOutput> {
+public:
+  Double(hello::Input& input) : Function(input) {}
+
+  void compute(hello::DoubleOutput& output) {
+    output = __enzyme_autodiff((void*)hello::square<double>, _input);
+  }
+};
 
 int main(int argc, char* argv[]) {
-  return generic_main<HelloInput,
-                      EnzymeHello,
-                      read_HelloInput_json,
-                      write_HelloOutput_objective_json,
-                      write_HelloOutput_jacobian_json>(argc, argv);
+  return generic_main(argc, argv, {
+      {"square", function_main<hello::Square>},
+      {"double", function_main<Double>}
+    });;
 }

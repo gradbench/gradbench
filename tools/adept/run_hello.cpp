@@ -1,39 +1,31 @@
 #include <iostream>
+#include "gradbench/main.hpp"
+#include "gradbench/evals/hello.hpp"
+#include "adept.h"
 
-#include "AdeptHello.h"
-#include "adbench/main.h"
-#include "adbench/shared/HelloData.h"
+class Double : public Function<hello::Input, hello::DoubleOutput> {
+public:
+  Double(hello::Input& input) : Function(input) {}
+
+  void compute(hello::DoubleOutput& output) {
+    using adept::adouble;
+    using adept::Real;
+    adept::Stack s;
+    adouble x = _input;
+
+    s.new_recording();
+    adouble y = hello::square<adouble>(x);
+    y.set_gradient(1.0);
+    s.reverse();
+    s.independent(&x, 1);
+    s.dependent(y);
+    s.jacobian(&output);
+  }
+};
 
 int main(int argc, char* argv[]) {
-  return generic_main<HelloInput,
-                      AdeptHello,
-                      read_HelloInput_json,
-                      write_HelloOutput_objective_json,
-                      write_HelloOutput_jacobian_json>(argc, argv);
+  return generic_main(argc, argv, {
+      {"square", function_main<hello::Square>},
+      {"double", function_main<Double>}
+    });;
 }
-
-/*
-#include "adept.h"
-#include "adbench/shared/hello.h"
-
-
-int main(int argc, char** argv) {
-  using adept::adouble;
-  using adept::Real;
-
-  adept::Stack s;
-
-  adouble x = 5, y;
-
-  s.new_recording();
-  y = hello_objective(x);
-  y.set_gradient(1.0);
-  s.reverse();
-  s.independent(&x, 1);
-  s.dependent(y);
-  Real J[1];
-  s.jacobian(J);
-  std::cout << J[0] << std::endl;
-}
-
-*/

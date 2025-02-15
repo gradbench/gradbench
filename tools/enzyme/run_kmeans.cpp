@@ -1,4 +1,4 @@
-#include "gradbench/kmeans.hpp"
+#include "gradbench/evals/kmeans.hpp"
 #include "gradbench/main.hpp"
 #include "enzyme.h"
 
