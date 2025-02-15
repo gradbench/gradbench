@@ -4,6 +4,7 @@ use std::{
     io::{self, BufRead, Write},
     path::{Path, PathBuf},
     process::{Child, ChildStdout, Command, ExitCode, ExitStatus, Output, Stdio},
+    str::FromStr,
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
@@ -12,6 +13,7 @@ use anyhow::{anyhow, Context};
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use serde::{Deserialize, Deserializer, Serialize};
+use strum::{EnumIter, EnumString};
 
 /// CLI utilities for GradBench, a benchmark suite for differentiable programming across languages
 /// and domains.
@@ -80,6 +82,12 @@ enum Commands {
         /// The timeout, in seconds, for tool responses (not implemented on Windows)
         #[clap(long)]
         timeout: Option<u64>,
+    },
+
+    /// Return a `gradbench run` exit code corresponding to a specific outcome.
+    ExitCode {
+        /// One of `success`, `interrupt`, `timeout`, `undefined`, `failure`, `invalid`, or `error`
+        outcome: String,
     },
 
     /// Perform a task in a clone of the https://github.com/gradbench/gradbench repository.
@@ -501,7 +509,8 @@ fn nanostring(nanoseconds: u128) -> String {
 }
 
 /// An imperfect outcome from running the intermediary.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, EnumIter, EnumString, Eq, PartialEq)]
+#[strum(serialize_all = "snake_case")]
 enum BadOutcome {
     /// The user sent an interrupt signal.
     Interrupt,
@@ -520,6 +529,19 @@ enum BadOutcome {
 
     /// Some other error occurred. Any relevant information has already been printed.
     Error,
+}
+
+impl From<BadOutcome> for ExitCode {
+    fn from(outcome: BadOutcome) -> Self {
+        match outcome {
+            BadOutcome::Interrupt => ExitCode::from(2),
+            BadOutcome::Timeout => ExitCode::from(3),
+            BadOutcome::Undefined => ExitCode::from(4),
+            BadOutcome::Failure => ExitCode::from(5),
+            BadOutcome::Invalid => ExitCode::from(6),
+            BadOutcome::Error => ExitCode::from(7),
+        }
+    }
 }
 
 /// An intermediary that runs an eval and a tool, logging their output and timing their execution.
@@ -1049,6 +1071,17 @@ fn cli_result() -> Result<(), ExitCode> {
                 Err(_) => Err(ExitCode::FAILURE),
             }
         }
+        Commands::ExitCode { outcome } => match BadOutcome::from_str(&outcome) {
+            Ok(bad_outcome) => Err(bad_outcome.into()),
+            Err(_) => {
+                if outcome == "success" {
+                    Ok(())
+                } else {
+                    eprintln!("unknown outcome name {outcome:?}");
+                    Err(ExitCode::FAILURE)
+                }
+            }
+        },
         Commands::Repo { command } => {
             check_git()?;
             match command {
@@ -1143,7 +1176,10 @@ pub fn main() -> ExitCode {
 mod tests {
     use std::{
         f64::consts::{E, PI},
+        fs,
         io::{self, Write},
+        path::Path,
+        process::ExitCode,
         sync::{Arc, Mutex},
         time::Duration,
     };
@@ -1151,6 +1187,7 @@ mod tests {
     use goldenfile::Mint;
     use serde::{Serialize, Serializer};
     use serde_json::json;
+    use strum::IntoEnumIterator;
 
     use crate::{
         nanostring, AnalysisResponse, BadOutcome, DefineResponse, EvaluateResponse, Id,
@@ -1205,6 +1242,55 @@ mod tests {
     #[test]
     fn test_nanostring_1_hour() {
         nanostring_test("     > 1 hr", Duration::from_secs(3600));
+    }
+
+    #[test]
+    fn test_outcome_exit_code_not_generic_failure() {
+        for outcome in BadOutcome::iter() {
+            assert_ne!(ExitCode::from(outcome), ExitCode::FAILURE);
+        }
+    }
+
+    #[test]
+    fn test_outcome_exit_code_unique() {
+        for outcome1 in BadOutcome::iter() {
+            for outcome2 in BadOutcome::iter() {
+                if outcome1 == outcome2 {
+                    continue;
+                }
+                assert_ne!(
+                    ExitCode::from(outcome1),
+                    ExitCode::from(outcome2),
+                    "outcomes {outcome1:?} and {outcome2:?} have the same exit code",
+                );
+            }
+        }
+    }
+
+    fn join_lines(lines: &[&str]) -> String {
+        let mut out = String::new();
+        for line in lines {
+            out.push_str(line);
+            out.push('\n');
+        }
+        out
+    }
+
+    #[test]
+    fn test_eval_tools_sorted() {
+        let dir = Path::new("../../evals");
+        let mut mint = Mint::new(dir);
+        for entry in fs::read_dir(dir).unwrap() {
+            let name = entry.unwrap().file_name();
+            let subpath = Path::new(&name).join("tools.txt");
+            let Ok(contents) = fs::read_to_string(dir.join(&subpath)) else {
+                continue;
+            };
+            let mut tools: Vec<&str> = contents.lines().collect();
+            tools.sort();
+            let mut file = mint.new_goldenfile(subpath).unwrap();
+            file.write_all(join_lines(&tools).as_bytes()).unwrap();
+        }
     }
 
     enum Response {
