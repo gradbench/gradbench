@@ -42,30 +42,6 @@ public:
     LightMatrix<double> points;
 };
 
-// rows is nrows+1 vector containing
-// indices to cols and vals. 
-// rows[i] ... rows[i+1]-1 are elements of i-th row
-// i.e. cols[row[i]] is the column of the first
-// element in the row. Similarly for values.
-class BASparseMat
-{
-public:
-    int n, m, p; // number of cams, points and observations
-    int nrows, ncols;
-    std::vector<int> rows;
-    std::vector<int> cols;
-    std::vector<double> vals;
-
-    BASparseMat();
-    BASparseMat(int n_, int m_, int p_);
-
-    void insert_reproj_err_block(int obsIdx,
-        int camIdx, int ptIdx, const double* const J);
-
-    void insert_w_err_block(int wIdx, double w_d);
-
-    void clear();
-};
 
 void read_gmm_instance(const std::string& fn,
     int* d, int* k, int* n,
@@ -111,7 +87,6 @@ public:
     }
 };
 
-void write_J_sparse(const std::string& fn, const BASparseMat& J);
 
 void write_J(const std::string& fn, int Jrows, int Jcols, double** J);
 

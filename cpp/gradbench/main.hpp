@@ -2,8 +2,10 @@
 
 #pragma once
 
+#include <iostream>
 #include <fstream>
 #include <map>
+#include "json.hpp"
 
 // To implement a function for an eval, define a class that inherits
 // from this one. The InputP type must be deserialisable from JSON

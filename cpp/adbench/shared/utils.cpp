@@ -37,67 +37,6 @@ using std::getline;
 using std::memcpy;
 using namespace std::chrono;
 
-BASparseMat::BASparseMat() {}
-
-BASparseMat::BASparseMat(int n_, int m_, int p_) : n(n_), m(m_), p(p_)
-{
-    nrows = 2 * p + p;
-    ncols = BA_NCAMPARAMS * n + 3 * m + p;
-    rows.reserve(nrows + 1);
-    int nnonzero = (BA_NCAMPARAMS + 3 + 1) * 2 * p + p;
-    cols.reserve(nnonzero);
-    vals.reserve(nnonzero);
-    rows.push_back(0);
-}
-
-void BASparseMat::insert_reproj_err_block(int obsIdx,
-    int camIdx, int ptIdx, const double* const J)
-{
-    int n_new_cols = BA_NCAMPARAMS + 3 + 1;
-    rows.push_back(rows.back() + n_new_cols);
-    rows.push_back(rows.back() + n_new_cols);
-
-    for (int i_row = 0; i_row < 2; i_row++)
-    {
-        for (int i = 0; i < BA_NCAMPARAMS; i++)
-        {
-            cols.push_back(BA_NCAMPARAMS * camIdx + i);
-            vals.push_back(J[2 * i + i_row]);
-        }
-        int col_offset = BA_NCAMPARAMS * n;
-        int val_offset = BA_NCAMPARAMS * 2;
-        for (int i = 0; i < 3; i++)
-        {
-            cols.push_back(col_offset + 3 * ptIdx + i);
-            vals.push_back(J[val_offset + 2 * i + i_row]);
-        }
-        col_offset += 3 * m;
-        val_offset += 3 * 2;
-        cols.push_back(col_offset + obsIdx);
-        vals.push_back(J[val_offset + i_row]);
-    }
-}
-
-void BASparseMat::insert_w_err_block(int wIdx, double w_d)
-{
-    rows.push_back(rows.back() + 1);
-    cols.push_back(BA_NCAMPARAMS * n + 3 * m + wIdx);
-    vals.push_back(w_d);
-}
-
-void BASparseMat::clear()
-{
-    rows.clear();
-    cols.clear();
-    vals.clear();
-    rows.reserve(nrows + 1);
-    int nnonzero = (BA_NCAMPARAMS + 3 + 1) * 2 * p + p;
-    cols.reserve(nnonzero);
-    vals.reserve(nnonzero);
-    rows.push_back(0);
-}
-
-
 void read_gmm_instance(const string& fn,
     int* d, int* k, int* n,
     vector<double>& alphas,
@@ -225,29 +164,6 @@ void read_ba_instance(const string& fn,
     }
 
     fclose(fid);
-}
-
-void write_J_sparse(const string& fn, const BASparseMat& J)
-{
-    write_J_stream<decltype(J.vals)::value_type> out(fn, J.nrows, J.ncols);
-
-    out << J.rows.size() << endl;
-    for (size_t i = 0; i < J.rows.size(); i++)
-    {
-        out << J.rows[i] << " ";
-    }
-    out << endl;
-    out << J.cols.size() << endl;
-    for (size_t i = 0; i < J.cols.size(); i++)
-    {
-        out << J.cols[i] << " ";
-    }
-    out << endl;
-    for (size_t i = 0; i < J.vals.size(); i++)
-    {
-        out << J.vals[i] << " ";
-    }
-    out.close();
 }
 
 void write_J(const string& fn, int Jrows, int Jcols, double** J)

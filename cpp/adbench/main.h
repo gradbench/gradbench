@@ -12,7 +12,7 @@
 template<typename Input, typename Benchmark, auto ReadInput, auto WriteObjective, auto WriteJacobian>
 int generic_main(int argc, char* argv[]) {
   if (argc != 3 ||
-      (std::string(argv[2]) != "F" && (std::string(argv[2]) != "J"))) {
+      (std::string(argv[2]) != "objective" && (std::string(argv[2]) != "jacobian"))) {
     std::cerr << "Usage: " << argv[0] << " FILE <F|J>" << std::endl;
     exit(1);
   }
@@ -28,7 +28,7 @@ int generic_main(int argc, char* argv[]) {
 
   std::vector<struct timespec> start(runs), finish(runs);
 
-  if (std::string(argv[2]) == "F") {
+  if (std::string(argv[2]) == "objective") {
     for (int i = 0; i < runs; i++) {
       clock_gettime( CLOCK_REALTIME, &start[i] );
       b.calculate_objective();

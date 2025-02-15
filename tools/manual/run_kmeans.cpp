@@ -1,6 +1,5 @@
-#include "gradbench/KMeansData.h"
-#include "gradbench/kmeans.h"
-#include "gradbench/main.h"
+#include "gradbench/kmeans.hpp"
+#include "gradbench/main.hpp"
 
 void kmeans_objective_d(int n, int k, int d, double const *points,
                         double const *centroids,
@@ -14,7 +13,7 @@ void kmeans_objective_d(int n, int k, int d, double const *points,
     int closest_j = -1;
     for (int j = 0; j < k; j++) {
       double const *b = &centroids[j*d];
-      double dist = euclid_dist_2(d, a, b);
+      double dist = kmeans::euclid_dist_2(d, a, b);
       if (dist < closest) {
         closest = dist;
         closest_j = j;
@@ -37,17 +36,6 @@ void kmeans_objective_d(int n, int k, int d, double const *points,
   }
 }
 
-class Cost : public Function<kmeans::Input, kmeans::CostOutput> {
-public:
-  Cost(kmeans::Input& input) : Function(input) {}
-  void compute(kmeans::CostOutput& output) {
-    kmeans_objective(_input.n, _input.k, _input.d,
-                     _input.points.data(),
-                     _input.centroids.data(),
-                     &output);
-  }
-};
-
 class Dir : public Function<kmeans::Input, kmeans::DirOutput> {
 public:
   Dir(kmeans::Input& input) : Function(input) {}
@@ -64,7 +52,7 @@ public:
 
 int main(int argc, char* argv[]) {
   return generic_main(argc, argv, {
-      {"cost", function_main<Cost>},
+      {"cost", function_main<kmeans::Cost>},
       {"dir", function_main<Dir>}
     });
 }

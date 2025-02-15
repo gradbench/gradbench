@@ -1,25 +1,13 @@
-#include "gradbench/KMeansData.h"
-#include "gradbench/kmeans.h"
-#include "gradbench/main.h"
+#include "gradbench/kmeans.hpp"
+#include "gradbench/main.hpp"
 #include "enzyme.h"
-
-class Cost : public Function<kmeans::Input, kmeans::CostOutput> {
-public:
-  Cost(kmeans::Input& input) : Function(input) {}
-  void compute(kmeans::CostOutput& output) {
-    kmeans_objective(_input.n, _input.k, _input.d,
-                     _input.points.data(),
-                     _input.centroids.data(),
-                     &output);
-  }
-};
 
 void kmeans_objective_d(int n, int k, int d,
                         double const *points,
                         double const *centroids, double *centroids_J) {
   double err;
   double err_seed = 1;
-  __enzyme_autodiff(kmeans_objective<double>,
+  __enzyme_autodiff(kmeans::objective<double>,
                     enzyme_const, n,
                     enzyme_const, k,
                     enzyme_const, d,
@@ -84,7 +72,7 @@ public:
 
 int main(int argc, char* argv[]) {
   return generic_main(argc, argv, {
-      {"cost", function_main<Cost>},
+      {"cost", function_main<kmeans::Cost>},
       {"dir", function_main<Dir>}
     });
 }

@@ -1,7 +1,6 @@
 #include "json.hpp"
 #include "adbench/io.h"
 #include "adbench/shared/GMMData.h"
-#include "adbench/shared/BAData.h"
 
 void read_HelloInput_json(const char* fname, HelloInput &input, int *runs) {
   using json = nlohmann::json;
@@ -56,90 +55,6 @@ void write_GMMOutput_objective_json(std::ostream& f, GMMOutput &output) {
 void write_GMMOutput_jacobian_json(std::ostream& f, GMMOutput &output) {
   using json = nlohmann::json;
   f << json(output.gradient);
-}
-
-
-void read_BAInput_json(const char* fname, BAInput &input, int *runs) {
-  // Based on read_ba_instance from ADBench.
-  using json = nlohmann::json;
-  std::ifstream f(fname);
-  json data = json::parse(f);
-  input.n = data["n"].get<int>();
-  input.m = data["m"].get<int>();
-  input.p = data["p"].get<int>();
-
-  auto cam = data["cam"].get<std::vector<double>>();
-  auto x = data["x"].get<std::vector<double>>();
-  auto w = data["w"].get<double>();
-  auto feat = data["feat"].get<std::vector<double>>();
-
-  int nCamParams = 11;
-
-  input.cams.resize(nCamParams * input.n);
-  input.X.resize(3 * input.m);
-  input.w.resize(input.p);
-  input.obs.resize(2 * input.p);
-  input.feats.resize(2 * input.p);
-
-  for (int i = 0; i < input.n; i++) {
-    for (int j = 0; j < nCamParams; j++) {
-      input.cams[i * nCamParams + j] = cam[j];
-    }
-  }
-
-  for (int i = 0; i < input.m; i++) {
-    for (int j = 0; j < 3; j++) {
-      input.X[i*3+j] = x[j];
-    }
-  }
-
-  for (int i = 0; i < input.p; i++) {
-    input.w[i] = w;
-  }
-
-  int camIdx = 0;
-  int ptIdx = 0;
-  for (int i = 0; i < input.p; i++) {
-    input.obs[i * 2 + 0] = (camIdx++ % input.n);
-    input.obs[i * 2 + 1] = (ptIdx++ % input.m);
-  }
-
-  for (int i = 0; i < input.p; i++) {
-    input.feats[i * 2 + 0] = feat[0];
-    input.feats[i * 2 + 1] = feat[1];
-  }
-
-  *runs = data["runs"];
-}
-
-void write_BAOutput_objective_json(std::ostream& f, BAOutput &output) {
-  using json = nlohmann::json;
-  std::vector<double> reproj_err(2);
-  reproj_err[0] = output.reproj_err[0];
-  reproj_err[1] = output.reproj_err[1];
-  json out = {
-    {"reproj_error",
-     {{"elements", reproj_err},
-      {"repeated", output.reproj_err.size()/2}}},
-    {"w_err",
-     {{"element", output.w_err[0]},
-      {"repeated", output.w_err.size()}
-     }
-    }
-  };
-  f << out;
-}
-
-void write_BAOutput_jacobian_json(std::ostream& f, BAOutput &output) {
-  using json = nlohmann::json;
-  json out = {
-    {"BASparseMat", {
-        {"rows", output.J.rows},
-        {"cols", output.J.cols},
-        {"vals", output.J.vals}
-      }}
-  };
-  f << out;
 }
 
 void read_LSTMInput_json(const char* fname, LSTMInput &input, int *runs) {
