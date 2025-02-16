@@ -1,4 +1,4 @@
-{ "elapsed": { "nanoseconds": 1689860490 }, "message": {"id": 0, "kind": "start", "eval": "gmm", "config": {"n": 1000, "k": [5, 10, 25, 50], "d": [2, 10, 20, 32], "runs": 1, "no_validation": false}} }
-{ "elapsed": { "nanoseconds": 1690307608 }, "response": {"id": 0, "tool": "pytorch"} }
-{ "elapsed": { "nanoseconds": 1690770840 }, "message": {"id": 1, "kind": "define", "module": "gmm"} }
-{ "elapsed": { "nanoseconds": 1691207664 }, "response": {"id": 1, "success": false} }
+{ "elapsed": { "nanoseconds": 1667456916 }, "message": {"id": 0, "kind": "start", "eval": "gmm", "config": {"n": 1000, "k": [5, 10, 25, 50], "d": [2, 10, 20, 32], "runs": 1, "no_validation": false}} }
+{ "elapsed": { "nanoseconds": 1667882030 }, "response": {"id": 0, "tool": "pytorch"} }
+{ "elapsed": { "nanoseconds": 1668383358 }, "message": {"id": 1, "kind": "define", "module": "gmm"} }
+{ "elapsed": { "nanoseconds": 1668959200 }, "response": {"id": 1, "success": false} }
