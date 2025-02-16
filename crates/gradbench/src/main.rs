@@ -28,7 +28,7 @@ struct Cli {
 
 /// Help text for the `outcome` argument of the `exit-code` subcommand.
 const OUTCOME_HELP: &str =
-    "One of `interrupt`, `timeout`, `undefined`, `failure`, `invalid`, `error`, or `success`";
+    "One of `interrupt`, `timeout`, `invalid`, `failure`, `undefined`, `error`, or `success`";
 
 #[derive(Debug, Subcommand)]
 enum Commands {
@@ -514,7 +514,7 @@ fn nanostring(nanoseconds: u128) -> String {
 
 /// An imperfect outcome from running the intermediary.
 #[derive(Clone, Copy, Debug, EnumIter, EnumString, Eq, IntoStaticStr, PartialEq)]
-#[strum(serialize_all = "snake_case")]
+#[strum(serialize_all = "kebab-case")]
 enum BadOutcome {
     /// The user sent an interrupt signal.
     Interrupt,
@@ -522,14 +522,14 @@ enum BadOutcome {
     /// The tool timed out.
     Timeout,
 
-    /// The tool failed to define a module.
-    Undefined,
+    /// The tool returned some number of invalid results for the eval.
+    Invalid,
 
     /// The tool failed to evaluate a function.
     Failure,
 
-    /// The tool returned some number of invalid results for the eval.
-    Invalid,
+    /// The tool failed to define a module.
+    Undefined,
 
     /// Some other error occurred. Any relevant information has already been printed.
     Error,
@@ -538,12 +538,12 @@ enum BadOutcome {
 impl From<BadOutcome> for ExitCode {
     fn from(outcome: BadOutcome) -> Self {
         match outcome {
-            BadOutcome::Interrupt => ExitCode::from(2),
-            BadOutcome::Timeout => ExitCode::from(3),
-            BadOutcome::Undefined => ExitCode::from(4),
-            BadOutcome::Failure => ExitCode::from(5),
-            BadOutcome::Invalid => ExitCode::from(6),
-            BadOutcome::Error => ExitCode::from(7),
+            BadOutcome::Interrupt => ExitCode::from(6),
+            BadOutcome::Timeout => ExitCode::from(5),
+            BadOutcome::Invalid => ExitCode::from(4),
+            BadOutcome::Failure => ExitCode::from(3),
+            BadOutcome::Undefined => ExitCode::from(2),
+            BadOutcome::Error => ExitCode::from(1),
         }
     }
 }
@@ -1060,19 +1060,17 @@ fn cli_result() -> Result<(), ExitCode> {
                 },
                 None => intermediary(&mut io::sink(), &mut eval_child, &mut tool_child, timeout),
             };
-            let eval_wait = eval_child.wait().map_err(|_| ExitCode::FAILURE);
-            let tool_wait = tool_child.wait().map_err(|_| ExitCode::FAILURE);
+            let eval_wait = eval_child.wait();
+            let tool_wait = tool_child.wait();
             match outcome {
                 Ok(()) => {
-                    status_code(eval_wait?)?;
-                    status_code(tool_wait?)?;
-                    Ok(())
+                    if eval_wait.is_ok() && tool_wait.is_ok() {
+                        Ok(())
+                    } else {
+                        Err(ExitCode::FAILURE)
+                    }
                 }
-                Err(BadOutcome::Timeout) => {
-                    status_code(eval_wait?)?;
-                    Ok(())
-                }
-                Err(_) => Err(ExitCode::FAILURE),
+                Err(bad_outcome) => Err(ExitCode::from(bad_outcome)),
             }
         }
         Commands::ExitCode { outcome } => match BadOutcome::from_str(&outcome) {
@@ -1189,6 +1187,7 @@ mod tests {
     };
 
     use goldenfile::Mint;
+    use pretty_assertions::assert_eq;
     use serde::{Serialize, Serializer};
     use serde_json::json;
     use strum::IntoEnumIterator;
@@ -1263,26 +1262,21 @@ mod tests {
     }
 
     #[test]
-    fn test_outcome_exit_code_not_generic_failure() {
-        for outcome in BadOutcome::iter() {
-            assert_ne!(ExitCode::from(outcome), ExitCode::FAILURE);
-        }
+    fn test_outcome_exit_codes() {
+        let actual: Vec<(BadOutcome, ExitCode)> = BadOutcome::iter()
+            .rev()
+            .map(|outcome| (outcome, ExitCode::from(outcome)))
+            .collect();
+        let expected: Vec<(BadOutcome, ExitCode)> = (1..)
+            .zip(BadOutcome::iter().rev())
+            .map(|(i, outcome)| (outcome, ExitCode::from(i)))
+            .collect();
+        assert_eq!(actual, expected);
     }
 
     #[test]
-    fn test_outcome_exit_code_unique() {
-        for outcome1 in BadOutcome::iter() {
-            for outcome2 in BadOutcome::iter() {
-                if outcome1 == outcome2 {
-                    continue;
-                }
-                assert_ne!(
-                    ExitCode::from(outcome1),
-                    ExitCode::from(outcome2),
-                    "outcomes {outcome1:?} and {outcome2:?} have the same exit code",
-                );
-            }
-        }
+    fn test_outcome_error_exit_code_failure() {
+        assert_eq!(ExitCode::from(BadOutcome::Error), ExitCode::FAILURE);
     }
 
     fn join_lines(lines: &[&str]) -> String {

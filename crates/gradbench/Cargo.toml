@@ -21,3 +21,4 @@ timeout-readwrite = "0.4"
 
 [dev-dependencies]
 goldenfile = "1.7.2"
+pretty_assertions = "1"
