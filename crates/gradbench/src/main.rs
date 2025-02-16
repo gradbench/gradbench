@@ -1,5 +1,5 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashSet},
     env, fs,
     io::{self, BufRead, Write},
     path::{Path, PathBuf},
@@ -948,6 +948,19 @@ fn github_output(name: &str, value: impl Serialize) -> Result<(), ExitCode> {
     Ok(())
 }
 
+/// A single entry in the `run` matrix for GitHub Actions.
+#[derive(Serialize)]
+struct RunEntry<'a> {
+    /// The name of the eval.
+    eval: &'a str,
+
+    /// The name of the tool.
+    tool: &'a str,
+
+    /// The expected outcome of the run.
+    outcome: &'static str,
+}
+
 /// The status from running a tool on an eval.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -1124,20 +1137,38 @@ fn cli_result() -> Result<(), ExitCode> {
                     github_output("date", date)?;
                     let mut evals = ls("evals")?;
                     evals.sort();
-                    github_output("eval", evals)?;
+                    github_output("eval", &evals)?;
                     let mut tools = ls("tools")?;
                     tools.sort();
                     github_output("tool", &tools)?;
+                    let mut run = Vec::new();
+                    for eval in &evals {
+                        let path = Path::new("evals").join(eval).join("tools.txt");
+                        let tools_list = fs::read_to_string(path).unwrap_or_default();
+                        let supported: HashSet<&str> = tools_list.lines().collect();
+                        for tool in &tools {
+                            run.push(RunEntry {
+                                eval,
+                                tool,
+                                outcome: if supported.contains(tool.as_str()) {
+                                    "success"
+                                } else {
+                                    BadOutcome::Undefined.into()
+                                },
+                            });
+                        }
+                    }
+                    github_output("run", run)?;
                     Ok(())
                 }
                 RepoCommands::Summarize { dir, date, commit } => {
-                    let mut table = vec![];
+                    let mut table = Vec::new();
                     let mut evals = ls("evals")?;
                     evals.sort();
                     let mut tools = ls("tools")?;
                     tools.sort();
                     for eval in &evals {
-                        let mut row = vec![];
+                        let mut row = Vec::new();
                         for tool in &tools {
                             let path = dir.join(format!("run-{eval}-{tool}/log.jsonl"));
                             let status = summarize(&path).unwrap_or(Status::Unimplemented);
