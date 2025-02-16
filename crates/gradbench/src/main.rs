@@ -13,7 +13,7 @@ use anyhow::{anyhow, Context};
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use serde::{Deserialize, Deserializer, Serialize};
-use strum::{EnumIter, EnumString};
+use strum::{EnumIter, EnumString, IntoStaticStr};
 
 /// CLI utilities for GradBench, a benchmark suite for differentiable programming across languages
 /// and domains.
@@ -25,6 +25,10 @@ struct Cli {
     #[command(subcommand)]
     command: Commands,
 }
+
+/// Help text for the `outcome` argument of the `exit-code` subcommand.
+const OUTCOME_HELP: &str =
+    "One of `interrupt`, `timeout`, `undefined`, `failure`, `invalid`, `error`, or `success`";
 
 #[derive(Debug, Subcommand)]
 enum Commands {
@@ -86,7 +90,7 @@ enum Commands {
 
     /// Return a `gradbench run` exit code corresponding to a specific outcome.
     ExitCode {
-        /// One of `success`, `interrupt`, `timeout`, `undefined`, `failure`, `invalid`, or `error`
+        #[clap(help = OUTCOME_HELP)]
         outcome: String,
     },
 
@@ -509,7 +513,7 @@ fn nanostring(nanoseconds: u128) -> String {
 }
 
 /// An imperfect outcome from running the intermediary.
-#[derive(Clone, Copy, Debug, EnumIter, EnumString, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, EnumIter, EnumString, Eq, IntoStaticStr, PartialEq)]
 #[strum(serialize_all = "snake_case")]
 enum BadOutcome {
     /// The user sent an interrupt signal.
@@ -1191,7 +1195,7 @@ mod tests {
 
     use crate::{
         nanostring, AnalysisResponse, BadOutcome, DefineResponse, EvaluateResponse, Id,
-        Intermediary, Message, StartResponse, Timing,
+        Intermediary, Message, StartResponse, Timing, OUTCOME_HELP,
     };
 
     fn nanostring_test(expected: &str, duration: Duration) {
@@ -1242,6 +1246,20 @@ mod tests {
     #[test]
     fn test_nanostring_1_hour() {
         nanostring_test("     > 1 hr", Duration::from_secs(3600));
+    }
+
+    #[test]
+    fn test_outcome_help() {
+        let mut outcome_help = String::from("One of ");
+        for outcome in BadOutcome::iter() {
+            let s: &str = outcome.into();
+            outcome_help.push('`');
+            outcome_help.push_str(s);
+            outcome_help.push('`');
+            outcome_help.push_str(", ");
+        }
+        outcome_help.push_str("or `success`");
+        assert_eq!(OUTCOME_HELP, outcome_help);
     }
 
     #[test]
