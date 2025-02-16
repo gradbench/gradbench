@@ -1,43 +1,5 @@
 #include "json.hpp"
 #include "adbench/io.h"
-#include "adbench/shared/GMMData.h"
-
-void read_GMMInput_json(const char* fname, GMMInput &input, int *runs) {
-  // Based on read_lstm_instance from ADBench.
-  using json = nlohmann::json;
-  std::ifstream f(fname);
-  json data = json::parse(f);
-  input.d = data["d"].get<int>();
-  input.k = data["k"].get<int>();
-  input.n = data["n"].get<int>();
-  input.alphas = data["alpha"].get<std::vector<double>>();
-
-  auto means = data["means"].get<std::vector<std::vector<double>>>();
-  auto icf = data["icf"].get<std::vector<std::vector<double>>>();
-  auto x = data["x"].get<std::vector<std::vector<double>>>();
-  for (int i = 0; i < input.k; i++) {
-    input.means.insert(input.means.end(), means[i].begin(), means[i].end());
-    input.icf.insert(input.icf.end(), icf[i].begin(), icf[i].end());
-  }
-  for (int i = 0; i < input.n; i++) {
-    input.x.insert(input.x.end(), x[i].begin(), x[i].end());
-  }
-
-  input.wishart.gamma = data["gamma"].get<double>();
-  input.wishart.m = data["m"].get<int>();
-
-  *runs = data["runs"];
-}
-
-void write_GMMOutput_objective_json(std::ostream& f, GMMOutput &output) {
-  using json = nlohmann::json;
-  f << json(output.objective);
-}
-
-void write_GMMOutput_jacobian_json(std::ostream& f, GMMOutput &output) {
-  using json = nlohmann::json;
-  f << json(output.gradient);
-}
 
 void read_LSTMInput_json(const char* fname, LSTMInput &input, int *runs) {
   // Based on read_lstm_instance from ADBench.

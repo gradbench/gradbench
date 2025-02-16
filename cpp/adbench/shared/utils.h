@@ -43,23 +43,6 @@ public:
 };
 
 
-void read_gmm_instance(const std::string& fn,
-    int* d, int* k, int* n,
-    std::vector<double>& alphas,
-    std::vector<double>& means,
-    std::vector<double>& icf,
-    std::vector<double>& x,
-    Wishart& wishart,
-    bool replicate_point);
-
-void read_ba_instance(const std::string& fn,
-    int& n, int& m, int& p,
-    std::vector<double>& cams,
-    std::vector<double>& X,
-    std::vector<double>& w,
-    std::vector<int>& obs,
-    std::vector<double>& feats);
-
 template<class T>
 class precise_ofstream : public std::ofstream
 {
