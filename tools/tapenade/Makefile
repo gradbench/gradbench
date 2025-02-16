@@ -7,7 +7,7 @@ LDFLAGS=-lm
 UTIL_OBJECTS=utils/adBuffer.o utils/adStack.o ../../cpp/adbench/shared/utils.o ../../cpp/adbench/io.o
 GMM_OBJECTS=gmm/gmm.o gmm/gmm_b.o run_gmm.o
 BA_OBJECTS=ba/ba.o ba/ba_b.o run_ba.o
-LSTM_OBJECTS=TapenadeLSTM.o lstm/lstm.o lstm/lstm_b.o run_lstm.o
+LSTM_OBJECTS=lstm/lstm.o lstm/lstm_b.o run_lstm.o
 HT_OBJECTS=TapenadeHT.o hand/hand.o hand/hand_d.o run_ht.o
 EXECUTABLES=run_gmm run_ba run_lstm run_ht
 

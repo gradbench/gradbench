@@ -1,50 +1,6 @@
 #include "json.hpp"
 #include "adbench/io.h"
 
-void read_LSTMInput_json(const char* fname, LSTMInput &input, int *runs) {
-  // Based on read_lstm_instance from ADBench.
-  using json = nlohmann::json;
-  std::ifstream f(fname);
-  json data = json::parse(f);
-
-  auto main_params = data["main_params"].get<std::vector<std::vector<double>>>();
-  auto extra_params = data["extra_params"].get<std::vector<std::vector<double>>>();
-  auto state = data["state"].get<std::vector<std::vector<double>>>();
-  auto sequence = data["sequence"].get<std::vector<std::vector<double>>>();
-
-  input.l = main_params.size() / 2;
-  input.b = main_params[0].size() / 4;
-  input.c = sequence.size();
-
-  for (auto it = main_params.begin(); it != main_params.end(); it++) {
-    input.main_params.insert(input.main_params.end(), it->begin(), it->end());
-  }
-
-  for (auto it = extra_params.begin(); it != extra_params.end(); it++) {
-    input.extra_params.insert(input.extra_params.end(), it->begin(), it->end());
-  }
-
-  for (auto it = state.begin(); it != state.end(); it++) {
-    input.state.insert(input.state.end(), it->begin(), it->end());
-  }
-
-  for (auto it = sequence.begin(); it != sequence.end(); it++) {
-    input.sequence.insert(input.sequence.end(), it->begin(), it->end());
-  }
-
-  *runs = data["runs"];
-}
-
-void write_LSTMOutput_objective_json(std::ostream& f, LSTMOutput &output) {
-  using json = nlohmann::json;
-  f << json(output.objective);
-}
-
-void write_LSTMOutput_jacobian_json(std::ostream& f, LSTMOutput &output) {
-  using json = nlohmann::json;
-  f << json(output.gradient);
-}
-
 void to_light_matrix(LightMatrix<double> &m,
                      std::vector<std::vector<double>> v) {
   // LightMatrixes are column-major for some unknown reason.
