@@ -21,8 +21,8 @@ def prepare(server, input):
     server.put_value("us", input.us.flatten())
 
 
-def calculate_objectiveHT(server, input):
-    runs = 1
+def objective(server, input):
+    runs = input["runs"]
     (obj,), times = futhark_utils.run(
         server,
         "calculate_objective",
@@ -45,8 +45,8 @@ def calculate_objectiveHT(server, input):
     return (obj.flatten().tolist(), times)
 
 
-def calculate_jacobianHT(server, input):
-    runs = 1
+def jacobian(server, input):
+    runs = input["runs"]
     (J,), times = futhark_utils.run(
         server,
         "calculate_jacobian",

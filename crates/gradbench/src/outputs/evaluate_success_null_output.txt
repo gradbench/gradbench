@@ -1,0 +1,3 @@
+  [0] start
+  [1] def   foo                                     0ms ✓
+  [2] eval  foo::null       null                    0ms ✓

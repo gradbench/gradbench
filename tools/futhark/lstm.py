@@ -14,8 +14,8 @@ def prepare(server, input):
     server.put_value("sequence", input.sequence)
 
 
-def calculate_objectiveLSTM(server, input):
-    runs = 1
+def objective(server, input):
+    runs = input["runs"]
     (obj,), times = futhark_utils.run(
         server,
         "calculate_objective",
@@ -26,8 +26,8 @@ def calculate_objectiveLSTM(server, input):
     return (obj, times)
 
 
-def calculate_jacobianLSTM(server, input):
-    runs = 1
+def jacobian(server, input):
+    runs = input["runs"]
     (J,), times = futhark_utils.run(
         server,
         "calculate_jacobian",

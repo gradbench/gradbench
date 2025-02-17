@@ -32,8 +32,8 @@ def prepare(server, input):
     server.put_value("feats", feats)
 
 
-def calculate_objectiveBA(server, input):
-    runs = 1
+def objective(server, input):
+    runs = input["runs"]
     (r_err, w_err), times = futhark_utils.run(
         server,
         "calculate_objective",
@@ -52,8 +52,8 @@ def calculate_objectiveBA(server, input):
     )
 
 
-def calculate_jacobianBA(server, input):
-    runs = 1
+def jacobian(server, input):
+    runs = input["runs"]
     (rows, cols, vals), times = futhark_utils.run(
         server,
         "calculate_jacobian",
@@ -63,10 +63,9 @@ def calculate_jacobianBA(server, input):
     )
     return (
         {
-            "BASparseMat": {
-                "rows": rows.shape[0] - 1,
-                "columns": int(cols[-1] + 1),
-            }
+            "rows": rows.tolist(),
+            "cols": cols.tolist(),
+            "vals": vals.tolist(),
         },
         times,
     )
