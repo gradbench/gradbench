@@ -1150,7 +1150,7 @@ fn cli_result() -> Result<(), ExitCode> {
                             run.push(RunEntry {
                                 eval,
                                 tool,
-                                outcome: if supported.contains(tool.as_str()) {
+                                outcome: if supported.contains(eval.as_str()) {
                                     "success"
                                 } else {
                                     BadOutcome::Undefined.into()
