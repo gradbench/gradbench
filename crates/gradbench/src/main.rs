@@ -1142,11 +1142,11 @@ fn cli_result() -> Result<(), ExitCode> {
                     tools.sort();
                     github_output("tool", &tools)?;
                     let mut run = Vec::new();
-                    for eval in &evals {
-                        let path = Path::new("evals").join(eval).join("tools.txt");
-                        let tools_list = fs::read_to_string(path).unwrap_or_default();
-                        let supported: HashSet<&str> = tools_list.lines().collect();
-                        for tool in &tools {
+                    for tool in &tools {
+                        let path = Path::new("tools").join(tool).join("evals.txt");
+                        let evals_list = fs::read_to_string(path).unwrap_or_default();
+                        let supported: HashSet<&str> = evals_list.lines().collect();
+                        for eval in &evals {
                             run.push(RunEntry {
                                 eval,
                                 tool,
@@ -1320,12 +1320,12 @@ mod tests {
     }
 
     #[test]
-    fn test_eval_tools_sorted() {
-        let dir = Path::new("../../evals");
+    fn test_tool_evals_sorted() {
+        let dir = Path::new("../../tools");
         let mut mint = Mint::new(dir);
         for entry in fs::read_dir(dir).unwrap() {
             let name = entry.unwrap().file_name();
-            let subpath = Path::new(&name).join("tools.txt");
+            let subpath = Path::new(&name).join("evals.txt");
             let Ok(contents) = fs::read_to_string(dir.join(&subpath)) else {
                 continue;
             };
