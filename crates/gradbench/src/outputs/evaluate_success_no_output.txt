@@ -1,0 +1,4 @@
+  [0] start
+  [1] def   foo                                     0ms ✓
+  [2] eval  foo::bar        42                      0ms
+tool reported success but gave no output

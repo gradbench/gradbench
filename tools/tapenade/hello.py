@@ -22,7 +22,7 @@ def compile():
             capture_output=True,
         )
         if result.returncode != 0:
-            return False
+            return (False, "tapenade failed")
 
         # compile AD code
         result = subprocess.run(
@@ -37,7 +37,7 @@ def compile():
             ]
         )
         if result.returncode != 0:
-            return False
+            return (False, "gcc failed")
 
         # compile original code
         result = subprocess.run(
@@ -50,9 +50,9 @@ def compile():
             ]
         )
         if result.returncode != 0:
-            return False
+            return (False, "gcc failed")
 
-        return True
+        return (True, None)
 
     except Exception as e:
         # print(f"Compilation failed with error {e}", file=sys.stderr)

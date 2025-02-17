@@ -52,11 +52,11 @@ To illustrate, here is a hypothetical example of a complete session of the proto
 { "elapsed": { "nanoseconds": 200000 }, "message": { "id": 1, "kind": "define", "module": "foo" } }
 { "elapsed": { "nanoseconds": 250000 }, "response": { "id": 1, "success": true } }
 { "elapsed": { "nanoseconds": 300000 }, "message": { "id": 2, "kind": "evaluate", "module": "foo", "function": "bar", "input": 3.14159 } }
-{ "elapsed": { "nanoseconds": 350000 }, "response": { "id": 2, "output": 2.71828, "timings": [{ "name": "evaluate", "nanoseconds": 45678 }] } }
+{ "elapsed": { "nanoseconds": 350000 }, "response": { "id": 2, "success": true, "output": 2.71828, "timings": [{ "name": "evaluate", "nanoseconds": 45678 }] } }
 { "elapsed": { "nanoseconds": 400000 }, "message": { "id": 3, "kind": "analysis", "of": 2, "valid": false, "message": "Expected tau, got e." } }
 { "elapsed": { "nanoseconds": 450000 }, "response": { "id": 3 } }
 { "elapsed": { "nanoseconds": 500000 }, "message": { "id": 4, "kind": "evaluate", "module": "foo", "function": "baz", "input": { "mynumber": 121 } } }
-{ "elapsed": { "nanoseconds": 550000 }, "response": { "id": 4, "output": { "yournumber": 342 }, "timings": [{ "name": "evaluate", "nanoseconds": 23456 }] } }
+{ "elapsed": { "nanoseconds": 550000 }, "response": { "id": 4, "success": true, "output": { "yournumber": 342 }, "timings": [{ "name": "evaluate", "nanoseconds": 23456 }] } }
 { "elapsed": { "nanoseconds": 600000 }, "message": { "id": 5, "kind": "analysis", "of": 4, "valid": true } }
 { "elapsed": { "nanoseconds": 650000 }, "response": { "id": 5 } }
 ```
@@ -76,9 +76,9 @@ Here is that example from the perspectives of the eval and the tool.
   ```jsonl
   { "id": 0 }
   { "id": 1, "success": true }
-  { "id": 2, "output": 2.71828, "timings": [{ "name": "evaluate", "nanoseconds": 45678 }] }
+  { "id": 2, "success": true, "output": 2.71828, "timings": [{ "name": "evaluate", "nanoseconds": 45678 }] }
   { "id": 3 }
-  { "id": 4, "output": { "yournumber": 342 }, "timings": [{ "name": "evaluate", "nanoseconds": 23456 }] }
+  { "id": 4, "success": true, "output": { "yournumber": 342 }, "timings": [{ "name": "evaluate", "nanoseconds": 23456 }] }
   { "id": 5 }
   ```
 
@@ -88,17 +88,17 @@ As shown by this example, the intermediary forwards every message from the eval 
 
 The session proceeds over a series of _rounds_, driven by the eval. In each round, the eval sends a _message_ with a unique `"id"`, and the tool sends a _response_ with that same `"id"`. The message also includes a `"kind"`, which has four possibilities:
 
-1. `"kind": "start"` - the eval always sends this message first, waiting for the tool's response to ensure that it is ready to receive further messages.
+1. `"kind": "start"` - the eval always sends this message first, waiting for the tool's response to ensure that it is ready to receive further messages. This message may optionally contain the `"eval"` name, and the response may optionally contain the `"tool"` name and/or a `"config"` field that contains arbitrary information about how the tool or eval has been configured. This information can be used by programs that do offline processing of log files, but is not otherwise significant to the protocol.
 
 2. `"kind": "define"` - the eval provides the name of a `"module"` which the tool will need in order to proceed further with this particular benchmark. This will allow the tool to respond saying whether or not it knows of and has an implementation for the module of that name.
 
-   - The tool responds with the `"id"` and either `"success": true` or `"success": false`. In the former case, the benchmark proceeds normally. In the latter case, the tool is indicating that it does not have an implementation for the requested module, and the eval should stop and not send any further messages. Optionally, the tool may also provide a list of `"timings"` for subtasks of preparing the requested module.
+   - The tool responds with the `"id"` and either `"success": true` or `"success": false`. In the former case, the benchmark proceeds normally. In the latter case, the tool is indicating that it does not have an implementation for the requested module, and the eval should stop and not send any further messages; the tool may also optionally include an `"error"` string. In either case, the tool may optionally provide a list of `"timings"` for subtasks of preparing the requested module.
 
 3. `"kind": "evaluate"` - the eval again provides a `"module"` name, as well as the name of a `"function"` in that module. Currently there is no formal process for registering module names or specifying the functions available in those modules; those are specified informally via documentation in the evals themselves. An `"input"` to that function is also provided; the tool will be expected to evaluate that function at that input, and return the result. Optionally, the eval may also provide a short human-readable `"description"` of the input.
 
-   - The tool responds with the `"id"` and its `"output"` from evaluating the requested function with the given input. Optionally, the tool may also provide a list of `"timings"` for subtasks of the computation it performed. Each timing must include a `"name"` that does not need to be unique, and a number of `"nanoseconds"`. Currently, most tools only provide one entry in `"timings"`: an `"evaluate"` entry, which by convention means the amount of time that tool spent evaluating the function itself, not including other time such as JSON encoding/decoding.
+   - The tool responds with the `"id"` and whether or not it had `"success"` evaluating the function on the given input. If `"success": true` then the response must also include the resulting `"output"`; otherwise, the response may optionally include an `"error"` string. Optionally, the tool may also provide a list of `"timings"` for subtasks of the computation it performed. Each timing must include a `"name"` that does not need to be unique, and a number of `"nanoseconds"`. Currently, most tools only provide one entry in `"timings"`: an `"evaluate"` entry, which by convention means the amount of time that tool spent evaluating the function itself, not including other time such as JSON encoding/decoding.
 
-4. `"kind": "analysis"` - the eval provides the ID of a prior `"evaluate"` message it performed analysis `"of"`, along with a boolean saying whether the tool's output was `"valid"`. If the output was invalid, the eval can also provide a string `"message"` explaining why.
+4. `"kind": "analysis"` - the eval provides the ID of a prior `"evaluate"` message it performed analysis `"of"`, along with a boolean saying whether the tool's output was `"valid"`. If the output was invalid, the eval can also provide an `"error"` string explaining why.
 
 If the tool receives any message whose `"kind"` is neither `"define"` nor `"evaluate"`, it must always respond, but does not need to include anything other than the `"id"`.
 
@@ -107,8 +107,10 @@ If the tool receives any message whose `"kind"` is neither `"define"` nor `"eval
 Here is a somewhat more formal description of the protocol using [TypeScript][] types.
 
 ```typescript
+type Id = number;
+
 interface Base {
-  id: string;
+  id: Id;
 }
 
 interface Duration {
@@ -121,6 +123,8 @@ interface Timing extends Duration {
 
 interface StartMessage extends Base {
   kind: "start";
+  eval?: string;
+  config?: any;
 }
 
 interface DefineMessage extends Base {
@@ -137,23 +141,33 @@ interface EvaluateMessage extends Base {
 }
 
 interface AnalysisMessage extends Base {
+  kind: "analysis";
+  of: Id;
   valid: boolean;
-  message?: string;
+  error?: string;
 }
 
 type Message = StartMessage | DefineMessage | EvaluateMessage | AnalysisMessage;
 
+interface StartResponse extends Base {
+  tool?: string;
+  config?: any;
+}
+
 interface DefineResponse extends Base {
   success: boolean;
   timings?: Timing[];
+  error?: string;
 }
 
 interface EvaluateResponse extends Base {
-  output: any;
+  success: boolean;
+  output?: any;
   timings?: Timing[];
+  error?: string;
 }
 
-type Response = Base | DefineResponse | EvaluateResponse;
+type Response = Base | StartResponse | DefineResponse | EvaluateResponse;
 
 interface Line {
   elapsed: Duration;

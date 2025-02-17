@@ -30,14 +30,16 @@ function run(params)
   ret = func(arg)
   done = time_ns()
   timings = [Dict("name" => "evaluate", "nanoseconds" => done - start)]
-  return Dict("output" => ret, "timings" => timings)
+  return Dict("success" => true, "output" => ret, "timings" => timings)
 end
 
 function main()
   while !eof(stdin)
     message = JSON.parse(readline(stdin))
     response = Dict()
-    if message["kind"] == "evaluate"
+    if message["kind"] == "start"
+      response["tool"] = "zygote"
+    elseif message["kind"] == "evaluate"
       response = run(message)
     elseif message["kind"] == "define"
       success = true
