@@ -1,9 +1,10 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashSet},
     env, fs,
     io::{self, BufRead, Write},
     path::{Path, PathBuf},
     process::{Child, ChildStdout, Command, ExitCode, ExitStatus, Output, Stdio},
+    str::FromStr,
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
@@ -12,6 +13,7 @@ use anyhow::{anyhow, Context};
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use serde::{Deserialize, Deserializer, Serialize};
+use strum::{EnumIter, EnumString, IntoStaticStr};
 
 /// CLI utilities for GradBench, a benchmark suite for differentiable programming across languages
 /// and domains.
@@ -23,6 +25,10 @@ struct Cli {
     #[command(subcommand)]
     command: Commands,
 }
+
+/// Help text for the `outcome` argument of the `exit-code` subcommand.
+const OUTCOME_HELP: &str =
+    "One of `interrupt`, `timeout`, `invalid`, `failure`, `undefined`, `error`, or `success`";
 
 #[derive(Debug, Subcommand)]
 enum Commands {
@@ -80,6 +86,12 @@ enum Commands {
         /// The timeout, in seconds, for tool responses (not implemented on Windows)
         #[clap(long)]
         timeout: Option<u64>,
+    },
+
+    /// Return a `gradbench run` exit code corresponding to a specific outcome.
+    ExitCode {
+        #[clap(help = OUTCOME_HELP)]
+        outcome: String,
     },
 
     /// Perform a task in a clone of the https://github.com/gradbench/gradbench repository.
@@ -501,7 +513,8 @@ fn nanostring(nanoseconds: u128) -> String {
 }
 
 /// An imperfect outcome from running the intermediary.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, EnumIter, EnumString, Eq, IntoStaticStr, PartialEq)]
+#[strum(serialize_all = "kebab-case")]
 enum BadOutcome {
     /// The user sent an interrupt signal.
     Interrupt,
@@ -509,17 +522,30 @@ enum BadOutcome {
     /// The tool timed out.
     Timeout,
 
-    /// The tool failed to define a module.
-    Undefined,
+    /// The tool returned some number of invalid results for the eval.
+    Invalid,
 
     /// The tool failed to evaluate a function.
     Failure,
 
-    /// The tool returned some number of invalid results for the eval.
-    Invalid,
+    /// The tool failed to define a module.
+    Undefined,
 
     /// Some other error occurred. Any relevant information has already been printed.
     Error,
+}
+
+impl From<BadOutcome> for ExitCode {
+    fn from(outcome: BadOutcome) -> Self {
+        match outcome {
+            BadOutcome::Interrupt => ExitCode::from(6),
+            BadOutcome::Timeout => ExitCode::from(5),
+            BadOutcome::Invalid => ExitCode::from(4),
+            BadOutcome::Failure => ExitCode::from(3),
+            BadOutcome::Undefined => ExitCode::from(2),
+            BadOutcome::Error => ExitCode::from(1),
+        }
+    }
 }
 
 /// An intermediary that runs an eval and a tool, logging their output and timing their execution.
@@ -922,6 +948,19 @@ fn github_output(name: &str, value: impl Serialize) -> Result<(), ExitCode> {
     Ok(())
 }
 
+/// A single entry in the `run` matrix for GitHub Actions.
+#[derive(Serialize)]
+struct RunEntry<'a> {
+    /// The name of the eval.
+    eval: &'a str,
+
+    /// The name of the tool.
+    tool: &'a str,
+
+    /// The expected outcome of the run.
+    outcome: &'static str,
+}
+
 /// The status from running a tool on an eval.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -1034,21 +1073,30 @@ fn cli_result() -> Result<(), ExitCode> {
                 },
                 None => intermediary(&mut io::sink(), &mut eval_child, &mut tool_child, timeout),
             };
-            let eval_wait = eval_child.wait().map_err(|_| ExitCode::FAILURE);
-            let tool_wait = tool_child.wait().map_err(|_| ExitCode::FAILURE);
+            let eval_wait = eval_child.wait();
+            let tool_wait = tool_child.wait();
             match outcome {
-                Ok(()) | Err(BadOutcome::Undefined) => {
-                    status_code(eval_wait?)?;
-                    status_code(tool_wait?)?;
-                    Ok(())
+                Ok(()) => {
+                    if eval_wait.is_ok() && tool_wait.is_ok() {
+                        Ok(())
+                    } else {
+                        Err(ExitCode::FAILURE)
+                    }
                 }
-                Err(BadOutcome::Timeout) => {
-                    status_code(eval_wait?)?;
-                    Ok(())
-                }
-                Err(_) => Err(ExitCode::FAILURE),
+                Err(bad_outcome) => Err(ExitCode::from(bad_outcome)),
             }
         }
+        Commands::ExitCode { outcome } => match BadOutcome::from_str(&outcome) {
+            Ok(bad_outcome) => Err(bad_outcome.into()),
+            Err(_) => {
+                if outcome == "success" {
+                    Ok(())
+                } else {
+                    eprintln!("unknown outcome name {outcome:?}");
+                    Err(ExitCode::FAILURE)
+                }
+            }
+        },
         Commands::Repo { command } => {
             check_git()?;
             match command {
@@ -1089,20 +1137,38 @@ fn cli_result() -> Result<(), ExitCode> {
                     github_output("date", date)?;
                     let mut evals = ls("evals")?;
                     evals.sort();
-                    github_output("eval", evals)?;
+                    github_output("eval", &evals)?;
                     let mut tools = ls("tools")?;
                     tools.sort();
                     github_output("tool", &tools)?;
+                    let mut run = Vec::new();
+                    for tool in &tools {
+                        let path = Path::new("tools").join(tool).join("evals.txt");
+                        let evals_list = fs::read_to_string(path).unwrap_or_default();
+                        let supported: HashSet<&str> = evals_list.lines().collect();
+                        for eval in &evals {
+                            run.push(RunEntry {
+                                eval,
+                                tool,
+                                outcome: if supported.contains(eval.as_str()) {
+                                    "success"
+                                } else {
+                                    BadOutcome::Undefined.into()
+                                },
+                            });
+                        }
+                    }
+                    github_output("run", run)?;
                     Ok(())
                 }
                 RepoCommands::Summarize { dir, date, commit } => {
-                    let mut table = vec![];
+                    let mut table = Vec::new();
                     let mut evals = ls("evals")?;
                     evals.sort();
                     let mut tools = ls("tools")?;
                     tools.sort();
                     for eval in &evals {
-                        let mut row = vec![];
+                        let mut row = Vec::new();
                         for tool in &tools {
                             let path = dir.join(format!("run-{eval}-{tool}/log.jsonl"));
                             let status = summarize(&path).unwrap_or(Status::Unimplemented);
@@ -1143,18 +1209,23 @@ pub fn main() -> ExitCode {
 mod tests {
     use std::{
         f64::consts::{E, PI},
+        fs,
         io::{self, Write},
+        path::Path,
+        process::ExitCode,
         sync::{Arc, Mutex},
         time::Duration,
     };
 
     use goldenfile::Mint;
+    use pretty_assertions::assert_eq;
     use serde::{Serialize, Serializer};
     use serde_json::json;
+    use strum::IntoEnumIterator;
 
     use crate::{
         nanostring, AnalysisResponse, BadOutcome, DefineResponse, EvaluateResponse, Id,
-        Intermediary, Message, StartResponse, Timing,
+        Intermediary, Message, StartResponse, Timing, OUTCOME_HELP,
     };
 
     fn nanostring_test(expected: &str, duration: Duration) {
@@ -1205,6 +1276,64 @@ mod tests {
     #[test]
     fn test_nanostring_1_hour() {
         nanostring_test("     > 1 hr", Duration::from_secs(3600));
+    }
+
+    #[test]
+    fn test_outcome_help() {
+        let mut outcome_help = String::from("One of ");
+        for outcome in BadOutcome::iter() {
+            let s: &str = outcome.into();
+            outcome_help.push('`');
+            outcome_help.push_str(s);
+            outcome_help.push('`');
+            outcome_help.push_str(", ");
+        }
+        outcome_help.push_str("or `success`");
+        assert_eq!(OUTCOME_HELP, outcome_help);
+    }
+
+    #[test]
+    fn test_outcome_exit_codes() {
+        let actual: Vec<(BadOutcome, ExitCode)> = BadOutcome::iter()
+            .rev()
+            .map(|outcome| (outcome, ExitCode::from(outcome)))
+            .collect();
+        let expected: Vec<(BadOutcome, ExitCode)> = (1..)
+            .zip(BadOutcome::iter().rev())
+            .map(|(i, outcome)| (outcome, ExitCode::from(i)))
+            .collect();
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_outcome_error_exit_code_failure() {
+        assert_eq!(ExitCode::from(BadOutcome::Error), ExitCode::FAILURE);
+    }
+
+    fn join_lines(lines: &[&str]) -> String {
+        let mut out = String::new();
+        for line in lines {
+            out.push_str(line);
+            out.push('\n');
+        }
+        out
+    }
+
+    #[test]
+    fn test_tool_evals_sorted() {
+        let dir = Path::new("../../tools");
+        let mut mint = Mint::new(dir);
+        for entry in fs::read_dir(dir).unwrap() {
+            let name = entry.unwrap().file_name();
+            let subpath = Path::new(&name).join("evals.txt");
+            let Ok(contents) = fs::read_to_string(dir.join(&subpath)) else {
+                continue;
+            };
+            let mut tools: Vec<&str> = contents.lines().collect();
+            tools.sort();
+            let mut file = mint.new_goldenfile(subpath).unwrap();
+            file.write_all(join_lines(&tools).as_bytes()).unwrap();
+        }
     }
 
     enum Response {

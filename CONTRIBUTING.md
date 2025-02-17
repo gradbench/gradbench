@@ -105,15 +105,15 @@ All the Docker images for individual autodiff tools are in the `tools` directory
 
 ## Tools
 
-If you'd like to contribute a new tool: awesome! We're always excited to expand the set of automatic differentiation tools in GradBench. All you need to do is create a subdirectory under the `tools` directory in this repo, and create a `Dockerfile` in that new subdirectory. Other than having an `ENTRYPOINT`, you can pretty much do whatever you want; take a look at the already-supported tools to see some examples! You must include the following as the last line in your `Dockerfile`, though:
+If you'd like to contribute a new tool: awesome! We're always excited to expand the set of automatic differentiation tools in GradBench. The main thing you need to do is create a subdirectory under the `tools` directory in this repo, and create a `Dockerfile` in that new subdirectory. Other than having an `ENTRYPOINT`, you can pretty much do whatever you want; take a look at the already-supported tools to see some examples! You must include the following as the last line in your `Dockerfile`, though:
 
 ```Dockerfile
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
 ```
 
-We'd really appreciate it if you also write a short `README.md` file next to your `Dockerfile`; this can be as minimal as just a link to the tool's website, but can also include more information, e.g. anything specific about this setup of that tool for GradBench.
+We'd also really appreciate it if you also write a short `README.md` file next to your `Dockerfile`; this can be as minimal as just a link to the tool's website, but can also include more information, e.g. anything specific about this setup of that tool for GradBench.
 
-Before taking a look at any of the other evals, you should implement the [`hello` eval](evals/hello) for the tool you're adding! This will help you get all the structure for the GradBench protocol working correctly first, after which you can implement other evals for that tool over time.
+Before taking a look at any of the other evals, you should implement the [`hello` eval](evals/hello) for the tool you're adding! This will help you get all the structure for the GradBench protocol working correctly first, after which you can implement other evals for that tool over time. Once you've done so, add a file called `evals.txt` in your tool directory (next to your `Dockerfile`) with the names of all the evals your tool supports, each on their own line, in sorted order; otherwise GitHub Actions will squawk at you saying it expected your tool to be `undefined` on those evals.
 
 ## JavaScript
 

@@ -108,6 +108,7 @@ jobs:
     outputs:
       eval: ${{ steps.matrix.outputs.eval }}
       tool: ${{ steps.matrix.outputs.tool }}
+      run: ${{ steps.matrix.outputs.run }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -178,8 +179,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
-        tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
+        include: ${{ fromJSON(needs.matrix.outputs.run) }}
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
@@ -202,7 +202,17 @@ jobs:
         run: docker load --input x86-tool-${{ matrix.tool }}.tar
       - name: Run tool on eval
         id: run
-        run: gradbench run --eval 'gradbench eval ${{ matrix.eval }}' --tool 'gradbench tool ${{ matrix.tool }}' --output log.jsonl
+        run: |
+          set +e
+          gradbench exit-code ${{ matrix.outcome }}
+          expected=$?
+          gradbench run --eval 'gradbench eval ${{ matrix.eval }}' --tool 'gradbench tool ${{ matrix.tool }}' --output log.jsonl
+          actual=$?
+          set -e
+          if [ $actual -ne $expected ]; then
+            echo "expected exit code $expected (from outcome ${{ matrix.outcome }}) but got exit code $actual"
+            exit 1
+          fi
       - name: Upload log as artifact
         if: success() || steps.run.conclusion == 'failure'
         uses: actions/upload-artifact@v4
