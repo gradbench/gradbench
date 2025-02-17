@@ -965,11 +965,11 @@ fn github_output(name: &str, value: impl Serialize) -> Result<(), ExitCode> {
 /// A single entry in the `run` matrix for GitHub Actions.
 #[derive(Serialize)]
 struct RunEntry<'a> {
-    /// The name of the eval.
-    eval: &'a str,
-
     /// The name of the tool.
     tool: &'a str,
+
+    /// The name of the eval.
+    eval: &'a str,
 
     /// The expected outcome of the run.
     outcome: &'static str,
@@ -1162,8 +1162,8 @@ fn cli_result() -> Result<(), ExitCode> {
                         let supported: HashSet<&str> = evals_list.lines().collect();
                         for eval in &evals {
                             run.push(RunEntry {
-                                eval,
                                 tool,
+                                eval,
                                 outcome: if supported.contains(eval.as_str()) {
                                     "success"
                                 } else {
