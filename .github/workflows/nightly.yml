@@ -134,8 +134,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
         tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
+        eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
