@@ -4,6 +4,7 @@
 import json
 import sys
 import time
+import traceback
 from importlib import import_module
 from pathlib import Path
 
@@ -23,12 +24,7 @@ def run(params):
         timings = list(map(json.loads, ls[1:]))
         return {"success": True, "output": output, "timings": timings}
     else:
-        return {
-            "success": False,
-            "status": proc.returncode,
-            "stderr": proc.stderr,
-            "stdout": proc.stdout,
-        }
+        return {"success": False, "status": proc.returncode, "error": proc.stderr}
 
 
 def main(pathname: str):
@@ -53,7 +49,7 @@ def main(pathname: str):
                     response["success"] = False
                 except Exception as e:
                     response["success"] = False
-                    response["error"] = str(e)
+                    response["error"] = traceback.format_exc() + "\n" + str(e)
             print(json.dumps({"id": message["id"]} | response), flush=True)
     except (EOFError, BrokenPipeError):
         pass

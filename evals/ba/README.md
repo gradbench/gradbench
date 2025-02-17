@@ -46,11 +46,11 @@ $$w_{error} \in \mathbb{R}^{P}$$
 
 3. Jacobian ($J$): How the reprojection error will change given adjustments to the above inputs.
 
-$$BASparseMat \in \mathbb{R}^{(2P + P) \times (11N +3M + P)}$$
+$$SparseMat \in \mathbb{R}^{(2P + P) \times (11N +3M + P)}$$
 
 > **Example**
 >
-> If $N = 21$, $M = 11315$, and $P = 36455$, $J$ is a BASparseMat with 109365 rows and 70631 columns
+> If $N = 21$, $M = 11315$, and $P = 36455$, $J$ is a SparseMat with 109365 rows and 70631 columns
 
 ## Protocol
 
@@ -87,10 +87,8 @@ A tool must respond to an `EvaluateMessage` with an
 
 ```typescript
 interface BAOutput {
-  BASparseMat: {
-    "cols": int[];
-    "rows": int[];
-    "vals": double[];
-  };
+  "cols": int[];
+  "rows": int[];
+  "vals": double[];
 }
 ```

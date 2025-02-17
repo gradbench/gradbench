@@ -136,11 +136,9 @@ def objective_output(errors):
 # Convert jacobian output to dictionary
 def jacobian_output(ba_mat):
     return {
-        "BASparseMat": {
-            "rows": list(map(int, list(ba_mat.rows))),
-            "cols": list(map(int, list(ba_mat.cols))),
-            "vals": list(map(float, list(ba_mat.vals))),
-        }
+        "rows": list(map(int, list(ba_mat.rows))),
+        "cols": list(map(int, list(ba_mat.cols))),
+        "vals": list(map(float, list(ba_mat.vals))),
     }
 
 

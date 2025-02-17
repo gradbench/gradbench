@@ -158,11 +158,9 @@ def objective_output(errors):
 def jacobian_output(ba_mat):
     try:
         return {
-            "BASparseMat": {
-                "rows": list(map(int, list(ba_mat.rows))),
-                "cols": list(map(int, list(ba_mat.cols))),
-                "vals": list(map(float, list(ba_mat.vals))),
-            }
+            "rows": list(map(int, list(ba_mat.rows))),
+            "cols": list(map(int, list(ba_mat.cols))),
+            "vals": list(map(float, list(ba_mat.vals))),
         }
     except:
         return ba_mat

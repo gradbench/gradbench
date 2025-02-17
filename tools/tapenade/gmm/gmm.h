@@ -9,14 +9,14 @@
 
 #pragma once
 
+#include "adbench/shared/defs.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #include <stdlib.h>
 #include <math.h>
-
-#include "adbench/shared/defs.h"
 
 // d: dim
 // k: number of gaussians
