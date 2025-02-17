@@ -6,6 +6,11 @@ from typing import Any, Callable, Optional
 from pydantic import BaseModel
 
 
+class Timing(BaseModel):
+    name: str
+    nanoseconds: int
+
+
 class StartResponse(BaseModel):
     id: int
     tool: Optional[str] = None
@@ -15,12 +20,8 @@ class StartResponse(BaseModel):
 class DefineResponse(BaseModel):
     id: int
     success: bool
+    timings: Optional[list[Timing]] = None
     error: Optional[str] = None
-
-
-class Timing(BaseModel):
-    name: str
-    nanoseconds: int
 
 
 class EvaluateResponse(BaseModel):

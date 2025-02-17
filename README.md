@@ -92,7 +92,7 @@ The session proceeds over a series of _rounds_, driven by the eval. In each roun
 
 2. `"kind": "define"` - the eval provides the name of a `"module"` which the tool will need in order to proceed further with this particular benchmark. This will allow the tool to respond saying whether or not it knows of and has an implementation for the module of that name.
 
-   - The tool responds with the `"id"` and either `"success": true` or `"success": false`. In the former case, the benchmark proceeds normally. In the latter case, the tool is indicating that it does not have an implementation for the requested module, and the eval should stop and not send any further messages.
+   - The tool responds with the `"id"` and either `"success": true` or `"success": false`. In the former case, the benchmark proceeds normally. In the latter case, the tool is indicating that it does not have an implementation for the requested module, and the eval should stop and not send any further messages; the tool may also optionally include an `"error"` string. In either case, the tool may optionally provide a list of `"timings"` for subtasks of preparing the requested module.
 
 3. `"kind": "evaluate"` - the eval again provides a `"module"` name, as well as the name of a `"function"` in that module. Currently there is no formal process for registering module names or specifying the functions available in those modules; those are specified informally via documentation in the evals themselves. An `"input"` to that function is also provided; the tool will be expected to evaluate that function at that input, and return the result. Optionally, the eval may also provide a short human-readable `"description"` of the input.
 
@@ -156,6 +156,7 @@ interface StartResponse extends Base {
 
 interface DefineResponse extends Base {
   success: boolean;
+  timings?: Timing[];
   error?: string;
 }
 

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io};
+use std::{collections::HashMap, io, time::Instant};
 
 use serde::{Deserialize, Serialize};
 use wasmtime::{Engine, Instance, Module, Store, TypedFunc};
@@ -18,9 +18,16 @@ struct Response {
 }
 
 #[derive(Serialize)]
+struct Timing {
+    name: &'static str,
+    nanoseconds: u128,
+}
+
+#[derive(Serialize)]
 struct DefineResponse {
     id: Id,
     success: bool,
+    timings: Vec<Timing>,
 }
 
 #[derive(Serialize)]
@@ -72,10 +79,16 @@ fn main() {
         match message.kind.as_str() {
             "define" => {
                 let module = message.module.unwrap();
-                let success = define(&mut context, &module)
+                let mut defining = Defining::new(&mut context);
+                let success = defining
+                    .module(&module)
                     .map(|defined| modules.insert(module, defined))
                     .is_some();
-                print_jsonl(&DefineResponse { id, success });
+                print_jsonl(&DefineResponse {
+                    id,
+                    success,
+                    timings: defining.timings,
+                });
             }
             "evaluate" => modules[&message.module.unwrap()].evaluate(&mut context, id, &line),
             _ => print_jsonl(&Response { id }),
@@ -83,25 +96,50 @@ fn main() {
     }
 }
 
-fn define(context: &mut Context, name: &str) -> Option<Box<dyn GradBenchModule>> {
-    match name {
-        "hello" => {
-            let mut ad = floretta::Autodiff::new();
-            ad.export("square", "backprop");
-            let wasm = ad
-                .transform(&wat::parse_file("tools/floretta/hello.wat").unwrap())
-                .unwrap();
-            let module = Module::new(&context.engine, &wasm).unwrap();
-            let instance = Instance::new(&mut context.store, &module, &[]).unwrap();
-            let square = instance
-                .get_typed_func::<f64, f64>(&mut context.store, "square")
-                .unwrap();
-            let backprop = instance
-                .get_typed_func::<f64, f64>(&mut context.store, "backprop")
-                .unwrap();
-            Some(Box::new(Hello { square, backprop }))
+struct Defining<'a> {
+    context: &'a mut Context,
+    timings: Vec<Timing>,
+}
+
+impl<'a> Defining<'a> {
+    fn new(context: &'a mut Context) -> Self {
+        Self {
+            context,
+            timings: Vec::new(),
         }
-        _ => None,
+    }
+
+    fn time<T>(&mut self, name: &'static str, f: impl FnOnce() -> T) -> T {
+        let start = Instant::now();
+        let result = f();
+        self.timings.push(Timing {
+            name,
+            nanoseconds: start.elapsed().as_nanos(),
+        });
+        result
+    }
+
+    fn module(&mut self, name: &str) -> Option<Box<dyn GradBenchModule>> {
+        match name {
+            "hello" => {
+                let wasm_original = wat::parse_file("tools/floretta/hello.wat").unwrap();
+                let wasm = self.time("autodiff", || {
+                    let mut ad = floretta::Autodiff::new();
+                    ad.export("square", "backprop");
+                    ad.transform(&wasm_original).unwrap()
+                });
+                let module = Module::new(&self.context.engine, &wasm).unwrap();
+                let instance = Instance::new(&mut self.context.store, &module, &[]).unwrap();
+                let square = instance
+                    .get_typed_func::<f64, f64>(&mut self.context.store, "square")
+                    .unwrap();
+                let backprop = instance
+                    .get_typed_func::<f64, f64>(&mut self.context.store, "backprop")
+                    .unwrap();
+                Some(Box::new(Hello { square, backprop }))
+            }
+            _ => None,
+        }
     }
 }
 

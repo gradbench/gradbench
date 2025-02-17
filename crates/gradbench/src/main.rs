@@ -385,6 +385,16 @@ enum Message {
     },
 }
 
+/// Nanosecond timings from the tool.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct Timing {
+    /// The name of this timing.
+    name: String,
+
+    /// How many nanoseconds elapsed in this timing.
+    nanoseconds: u128,
+}
+
 /// A response from the tool to a `"start"` message.
 #[derive(Debug, Deserialize, Serialize)]
 struct StartResponse {
@@ -404,18 +414,11 @@ struct DefineResponse {
     /// Whether the module was successfully defined.
     success: bool,
 
+    /// Subtask timings.
+    timings: Option<Vec<Timing>>,
+
     /// An optional error message, if definition failed.
     error: Option<String>,
-}
-
-/// Nanosecond timings from the tool.
-#[derive(Clone, Debug, Deserialize, Serialize)]
-struct Timing {
-    /// The name of this timing.
-    name: String,
-
-    /// How many nanoseconds elapsed in this timing.
-    nanoseconds: u128,
 }
 
 /// A response from the tool to an `"evaluate"` message.
@@ -435,7 +438,7 @@ struct EvaluateResponse {
     )]
     output: Option<serde_json::Value>,
 
-    /// More granular timings.
+    /// Subtask timings.
     timings: Option<Vec<Timing>>,
 
     /// An optional error message, if evaluation failed.
@@ -611,6 +614,31 @@ impl<
             .context("invalid JSON from tool")
     }
 
+    /// Print subtask timings.
+    fn print_timings(&mut self, timings: &[Timing]) -> anyhow::Result<()> {
+        let mut sorted = BTreeMap::new();
+        for Timing { name, nanoseconds } in timings {
+            let (num, ns) = sorted.entry(name).or_insert((0, 0));
+            *num += 1;
+            *ns += nanoseconds;
+        }
+        let mut first = true;
+        for (name, (num, ns)) in sorted {
+            if first {
+                write!(self.out, " {}", "~".dimmed())?;
+            } else {
+                write!(self.out, ",")?;
+            }
+            first = false;
+            write!(self.out, " {}", nanostring(ns))?;
+            write!(self.out, " {name}")?;
+            if num > 1 {
+                write!(self.out, "×{num}")?;
+            }
+        }
+        Ok(())
+    }
+
     /// Run the intermediary, collecting miscellaneous errors via `anyhow`.
     fn run_inner(&mut self) -> anyhow::Result<Option<BadOutcome>> {
         let mut undefined = 0;
@@ -725,6 +753,9 @@ impl<
                     if !response.success {
                         undefined += 1;
                     }
+                    if let Some(timings) = response.timings {
+                        self.print_timings(&timings)?;
+                    }
                     self.print_status(response.success)?;
                     line.end(&mut self.out)?;
                     if let Some(error) = response.error {
@@ -740,25 +771,8 @@ impl<
                     if !response.success {
                         failure += 1;
                     }
-                    let mut timings = BTreeMap::new();
-                    for Timing { name, nanoseconds } in response.timings.unwrap_or_default() {
-                        let (num, ns) = timings.entry(name).or_insert((0, 0));
-                        *num += 1;
-                        *ns += nanoseconds;
-                    }
-                    let mut first = true;
-                    for (name, (num, ns)) in timings {
-                        if first {
-                            write!(self.out, " {}", "~".dimmed())?;
-                        } else {
-                            write!(self.out, ",")?;
-                        }
-                        first = false;
-                        write!(self.out, " {}", nanostring(ns))?;
-                        write!(self.out, " {name}")?;
-                        if num > 1 {
-                            write!(self.out, "×{num}")?;
-                        }
+                    if let Some(timings) = response.timings {
+                        self.print_timings(&timings)?;
                     }
                     if let Some(error) = response.error {
                         self.print_status(false)?;
@@ -1344,6 +1358,7 @@ mod tests {
         Define {
             id: Id,
             success: bool,
+            timings: Option<Vec<Timing>>,
             error: Option<String>,
         },
         Evaluate {
@@ -1369,9 +1384,15 @@ mod tests {
                     tool: tool.clone(),
                 }
                 .serialize(serializer),
-                Response::Define { id, success, error } => DefineResponse {
+                Response::Define {
+                    id,
+                    success,
+                    timings,
+                    error,
+                } => DefineResponse {
                     id: *id,
                     success: *success,
+                    timings: timings.clone(),
                     error: error.clone(),
                 }
                 .serialize(serializer),
@@ -1430,6 +1451,7 @@ mod tests {
                 Response::Define {
                     id: 1,
                     success: true,
+                    timings: None,
                     error: None,
                 },
             ),
@@ -1540,6 +1562,50 @@ mod tests {
     }
 
     #[test]
+    fn test_intermediary_define_timings() {
+        let (eval_out, tool_out) = session(&[
+            (
+                Message::Start { id: 0, eval: None },
+                Response::Start { id: 0, tool: None },
+            ),
+            (
+                Message::Define {
+                    id: 1,
+                    module: "foo".to_string(),
+                },
+                Response::Define {
+                    id: 1,
+                    success: true,
+                    timings: Some(vec![Timing {
+                        name: "busywork".to_string(),
+                        nanoseconds: Duration::from_millis(10).as_nanos(),
+                    }]),
+                    error: None,
+                },
+            ),
+        ]);
+        let mut duration = Duration::ZERO;
+        let mut increment = Duration::ZERO;
+        let mut intermediary = Intermediary {
+            outcome: Arc::new(Mutex::new(None)),
+            eval_in: io::sink(),
+            tool_in: io::sink(),
+            eval_out: eval_out.as_bytes(),
+            tool_out: tool_out.as_bytes(),
+            clock: || {
+                increment += Duration::from_millis(10);
+                duration += increment;
+                duration
+            },
+            out: Vec::new(),
+            log: io::sink(),
+        };
+        let result = intermediary.run();
+        write_goldenfile("define_timings.txt", &intermediary.out);
+        assert_eq!(result, Ok(()));
+    }
+
+    #[test]
     fn test_intermediary_invalid_json_eval() {
         let mut intermediary = Intermediary {
             outcome: Arc::new(Mutex::new(None)),
@@ -1588,6 +1654,7 @@ mod tests {
                 Response::Define {
                     id: 1,
                     success: false,
+                    timings: None,
                     error: Some("never heard of foo".to_string()),
                 },
             ),
@@ -1623,6 +1690,7 @@ mod tests {
                 Response::Define {
                     id: 1,
                     success: true,
+                    timings: None,
                     error: Some("all good!".to_string()),
                 },
             ),
@@ -1658,6 +1726,7 @@ mod tests {
                 Response::Define {
                     id: 1,
                     success: true,
+                    timings: None,
                     error: None,
                 },
             ),
@@ -1709,6 +1778,7 @@ mod tests {
                 Response::Define {
                     id: 1,
                     success: true,
+                    timings: None,
                     error: None,
                 },
             ),
@@ -1760,6 +1830,7 @@ mod tests {
                 Response::Define {
                     id: 1,
                     success: true,
+                    timings: None,
                     error: None,
                 },
             ),
@@ -1811,6 +1882,7 @@ mod tests {
                 Response::Define {
                     id: 1,
                     success: true,
+                    timings: None,
                     error: None,
                 },
             ),
@@ -1895,6 +1967,7 @@ mod tests {
                 Response::Define {
                     id: 1,
                     success: true,
+                    timings: None,
                     error: None,
                 },
             ),
