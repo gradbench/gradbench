@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <iostream>
 #include <fstream>
 #include <map>
@@ -25,6 +26,7 @@ public:
 
 template<typename Benchmark>
 int function_main(const std::string& input_file) {
+  using namespace std::chrono;
   using json = nlohmann::json;
   std::ifstream f(input_file);
   json j = json::parse(f);
@@ -33,24 +35,19 @@ int function_main(const std::string& input_file) {
   int runs = j.is_object() ? int(j["runs"]) : 1;
   assert(runs > 0);
 
-  double prepare_time_taken;
-  struct timespec prepare_start, prepare_finish;
-
-  clock_gettime( CLOCK_REALTIME, &prepare_start);
+  auto prepare_start = high_resolution_clock::now();
   Benchmark b(input);
-  clock_gettime( CLOCK_REALTIME, &prepare_finish);
-  prepare_time_taken =
-    (prepare_finish.tv_sec*1e9 + prepare_finish.tv_nsec) -
-    (prepare_start.tv_sec*1e9 + prepare_start.tv_nsec);
+  auto prepare_finish = high_resolution_clock::now();
+  long prepare_time_taken = duration_cast<nanoseconds>(prepare_finish - prepare_start).count();
 
-  std::vector<struct timespec> start(runs), finish(runs);
+  std::vector<high_resolution_clock::time_point> start(runs), finish(runs);
 
   typename Benchmark::Output output;
 
   for (int i = 0; i < runs; i++) {
-    clock_gettime( CLOCK_REALTIME, &start[i] );
+    start[i] = high_resolution_clock::now();
     b.compute(output);
-    clock_gettime( CLOCK_REALTIME, &finish[i] );
+    finish[i] = high_resolution_clock::now();
   }
 
   std::cout << json(output) << std::endl;
@@ -58,8 +55,7 @@ int function_main(const std::string& input_file) {
   std::cout << "{\"name\": \"prepare\", \"nanoseconds\": " << (long)prepare_time_taken << "}" << std::endl;
 
   for (int i = 0; i < runs; i++) {
-    long time_taken = ((finish[i].tv_sec*1e9 + finish[i].tv_nsec) -
-                       (start[i].tv_sec*1e9 + start[i].tv_nsec));
+    long time_taken = duration_cast<nanoseconds>(finish[i] - start[i]).count();
     std::cout << "{\"name\": \"evaluate\", \"nanoseconds\": " << (long)time_taken << "}" << std::endl;
   }
 
