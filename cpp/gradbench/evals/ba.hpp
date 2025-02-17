@@ -373,15 +373,15 @@ void to_json(nlohmann::json& j, const JacOutput& p) {
 
 class Objective : public Function<Input, ObjOutput> {
 public:
-  Objective(ba::Input& input) : Function(input) {}
+  Objective(Input& input) : Function(input) {}
 
-  void compute(ba::ObjOutput& output) {
+  void compute(ObjOutput& output) {
     output.reproj_err.resize(2 * _input.p);
     output.w_err.resize(_input.p);
-    ba::objective(_input.n, _input.m, _input.p,
-                  _input.cams.data(), _input.X.data(), _input.w.data(),
-                  _input.obs.data(), _input.feats.data(),
-                  output.reproj_err.data(), output.w_err.data());
+    objective(_input.n, _input.m, _input.p,
+              _input.cams.data(), _input.X.data(), _input.w.data(),
+              _input.obs.data(), _input.feats.data(),
+              output.reproj_err.data(), output.w_err.data());
   }
 };
 }

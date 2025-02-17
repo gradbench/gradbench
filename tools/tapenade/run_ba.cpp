@@ -8,7 +8,7 @@
 
 #include <algorithm>
 #include "gradbench/main.hpp"
-#include "gradbench/ba.hpp"
+#include "gradbench/evals/ba.hpp"
 
 class Jacobian : public Function<ba::Input, ba::JacOutput> {
 private:
