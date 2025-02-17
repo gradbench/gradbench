@@ -35,7 +35,7 @@ void compute_zach_weight_error_d(double w, double *err, double *J);
 
 #include "adbench/shared/defs.h"
 #include "adbench/shared/matrix.h"
-#include "gradbench/ba.hpp"
+#include "gradbench/evals/ba.hpp"
 
 void compute_zach_weight_error_d(double w, double* err, double* J)
 {

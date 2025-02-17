@@ -5,7 +5,7 @@
 
 #include <algorithm>
 #include "gradbench/main.hpp"
-#include "gradbench/ba.hpp"
+#include "gradbench/evals/ba.hpp"
 #include "finite.h"
 
 static int n_new_cols = BA_NCAMPARAMS + 3 + 1;

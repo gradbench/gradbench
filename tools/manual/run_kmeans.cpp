@@ -1,4 +1,4 @@
-#include "gradbench/kmeans.hpp"
+#include "gradbench/evals/kmeans.hpp"
 #include "gradbench/main.hpp"
 
 void kmeans_objective_d(int n, int k, int d, double const *points,
