@@ -58,7 +58,7 @@ impl KMeans {
     fn store(&self, context: &mut Context, offset: &mut usize, matrix: Matrix) -> usize {
         let pointer = *offset;
         let (rows, cols) = shape(&matrix);
-        self.accommodate(context, rows * cols * size_of::<f64>());
+        self.accommodate(context, pointer + rows * cols * size_of::<f64>());
         for row in matrix {
             for value in row {
                 self.memory
