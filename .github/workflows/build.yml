@@ -221,6 +221,10 @@ jobs:
           path: log.jsonl
 
   stats:
+    needs:
+      - cli
+      - matrix
+      - run
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout

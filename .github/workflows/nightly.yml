@@ -163,7 +163,7 @@ jobs:
           name: run-${{ matrix.eval }}-${{ matrix.tool }}
           path: log.jsonl
 
-  commit:
+  stats:
     needs:
       - cli
       - matrix
