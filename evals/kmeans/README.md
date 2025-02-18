@@ -16,7 +16,7 @@ of the K-Means Algorithms][paper] by Léon Bottou and Yoshua Bengio
 Given $n$ points $P$ and $k$ centroids $C$, the objective function is
 
 ```math
-f(P, C) = \sum_i \text{min}_j(|C_j-P_i|)
+f(P, C) = \sum_i \text{min}_j(|C_j-P_i|^2)
 ```
 
 and we must find the $C$ that minimises it.
