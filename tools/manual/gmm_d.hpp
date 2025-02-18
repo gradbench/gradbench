@@ -112,7 +112,7 @@ void gmm_objective_d(int d, int k, int n,
                      double *err,
                      double *J)
 {
-  const double CONSTANT = -n * d*0.5*log(2 * PI);
+  const double CONSTANT = -n * d*0.5*log(2 * M_PI);
   int icf_sz = d * (d + 1) / 2;
 
   std::vector<double> Qdiags(d*k);

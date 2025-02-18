@@ -28,6 +28,7 @@ def main():
     e = SingleModuleValidatedEval(module="kmeans", validator=mismatch(check))
     e.start()
     if e.define().success:
+        np.random.seed(31337)  # For determinism.
         combinations = sorted(
             [(k, n, d) for k in args.k for n in args.n for d in args.d],
             key=lambda v: v[0] * v[1] * v[2],

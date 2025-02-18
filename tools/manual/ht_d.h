@@ -19,7 +19,6 @@
 
 #include "adbench/shared/defs.h"
 #include "adbench/shared/light_matrix.h"
-#include "adbench/shared/utils.h"
 
 // Inputs:
 // angle_axis - double[3]
