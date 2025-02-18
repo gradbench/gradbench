@@ -9,6 +9,7 @@
 
 #include <vector>
 #include "adbench/shared/matrix.h"
+#include "adbench/shared/defs.h"
 
 namespace gmm {
 //// Declarations
@@ -147,7 +148,7 @@ void objective(int d, int k, int n,
                const double* __restrict__ const x,
                Wishart wishart,
                T* __restrict__ err) {
-  const double CONSTANT = -n * d * 0.5 * log(2 * PI);
+  const double CONSTANT = -n * d * 0.5 * log(2 * M_PI);
   int icf_sz = d * (d + 1) / 2;
 
   std::vector<T> Qdiags(d * k);
