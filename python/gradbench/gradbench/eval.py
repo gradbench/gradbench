@@ -45,7 +45,7 @@ Validator = Callable[[str, Any, Any], Analysis]
 
 
 def approve(function: str, input: Any, output: Any) -> Analysis:
-    return Analysis(valid=True, message=None)
+    return Analysis(valid=True, error=None)
 
 
 def assertion(check: Callable[[str, Any, Any], None]) -> Validator:
