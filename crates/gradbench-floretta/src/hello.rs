@@ -40,12 +40,12 @@ impl GradBenchModule for Hello {
         match serde_json::from_str::<HelloMessage>(line).unwrap() {
             HelloMessage::Square { input } => {
                 let output = self.square.call(&mut context.store, input).unwrap();
-                respond(id, output);
+                respond(id, output, Vec::new());
             }
             HelloMessage::Double { input } => {
                 self.square.call(&mut context.store, input).unwrap();
                 let output = self.backprop.call(&mut context.store, 1.).unwrap();
-                respond(id, output);
+                respond(id, output, Vec::new());
             }
         }
     }

@@ -1,11 +1,18 @@
+use std::time::Instant;
+
 use serde::Deserialize;
 use wasmtime::{Instance, Memory, Module, TypedFunc};
 
-use crate::{respond, Context, Defining, GradBenchModule, Id};
+use crate::{respond, Context, Defining, GradBenchModule, Id, Timing};
 
 impl Defining<'_> {
     pub fn kmeans(&mut self) -> Box<dyn GradBenchModule> {
-        let wasm = wat::parse_file("tools/floretta/kmeans.wat").unwrap();
+        let wasm = wat::parse_file(if std::env::args().nth(1).as_deref() == Some("--opt") {
+            "tools/floretta/kmeans-opt.wasm"
+        } else {
+            "tools/floretta/kmeans.wat"
+        })
+        .unwrap();
         let module = Module::new(&self.context.engine, &wasm).unwrap();
         let instance = Instance::new(&mut self.context.store, &module, &[]).unwrap();
         let memory = instance
@@ -90,14 +97,18 @@ impl KMeans {
 impl GradBenchModule for KMeans {
     fn evaluate(&self, context: &mut Context, id: Id, line: &str) {
         match serde_json::from_str::<KMeansMessage>(line).unwrap() {
-            KMeansMessage::Cost { input } => {
+            KMeansMessage::Cost { input } | KMeansMessage::Dir { input } => {
                 let params = self.prepare(context, input);
+                let start = Instant::now();
                 let output = self.cost.call(&mut context.store, params).unwrap();
-                respond(id, output);
-            }
-            KMeansMessage::Dir { input } => {
-                self.prepare(context, input);
-                todo!()
+                respond(
+                    id,
+                    output,
+                    vec![Timing {
+                        name: "evaluate",
+                        nanoseconds: start.elapsed().as_nanos(),
+                    }],
+                );
             }
         }
     }

@@ -38,6 +38,7 @@ struct EvaluateResponse<T> {
     id: Id,
     success: bool,
     output: T,
+    timings: Vec<Timing>,
 }
 
 fn print_jsonl(value: &impl Serialize) {
@@ -51,11 +52,12 @@ fn start(line: &str) {
     print_jsonl(&Response { id });
 }
 
-fn respond<T: Serialize>(id: Id, output: T) {
+fn respond<T: Serialize>(id: Id, output: T, timings: Vec<Timing>) {
     print_jsonl(&EvaluateResponse {
         id,
         success: true,
         output,
+        timings,
     });
 }
 
