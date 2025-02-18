@@ -22,7 +22,6 @@
 #include "adbench/shared/defs.h"
 #include "adbench/shared/light_matrix.h"
 #include "adbench/shared/matrix.h"
-#include "adbench/shared/utils.h"
 #include "gradbench/evals/ht.hpp"
 
 // Inputs:
