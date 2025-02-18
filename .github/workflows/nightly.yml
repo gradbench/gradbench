@@ -174,31 +174,36 @@ jobs:
         uses: actions/checkout@v4
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
-      - name: Checkout nightly outputs branch
-        uses: actions/checkout@v4
-        with:
-          path: run
-          ref: ci/refs/heads/nightly
-      - name: Delete contents of nightly outputs branch dir
-        working-directory: run
-        run: git rm -rf .
-      - name: Download all log artifacts into nightly outputs branch dir
+      - name: Download all log artifacts
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh run download ${{ github.run_id }} --dir run --pattern 'run-*'
-      - name: Create summary of logs in nightly outputs branch dir
+      - name: Checkout nightly stats branch
+        uses: actions/checkout@v4
+        with:
+          path: stats
+          ref: ci/refs/heads/nightly
+      - name: Delete contents of nightly stats branch dir
+        working-directory: stats
+        run: git rm -rf .
+      - name: Generate stats
         env:
           DATE: ${{ fromJSON(needs.matrix.outputs.date) }}
-        run: gradbench repo summarize --date "$DATE" --commit ${{ github.sha }} run
-      - name: Commit and push nightly outputs branch
-        working-directory: run
+        run: gradbench repo stats run -o stats --date "$DATE" --commit "$GITHUB_SHA"
+      - name: Upload stats as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stats
+          path: stats
+      - name: Commit and push nightly stats branch
+        working-directory: stats
         env:
           DATE: ${{ fromJSON(needs.matrix.outputs.date) }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           git add .
-          git commit --allow-empty -m "Nightly run on $DATE for commit $GITHUB_SHA"
+          git commit --allow-empty -m "Nightly stats on $DATE for commit $GITHUB_SHA"
           git push -f origin HEAD
           git tag "nightly-$DATE"
           git push origin "nightly-$DATE"

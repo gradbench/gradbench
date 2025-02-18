@@ -220,6 +220,63 @@ jobs:
           name: run-${{ matrix.eval }}-${{ matrix.tool }}
           path: log.jsonl
 
+  stats:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install CLI from artifact
+        uses: ./.github/actions/cli
+      - name: Download all log artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh run download ${{ github.run_id }} --dir run --pattern 'run-*'
+      - name: Checkout stats branch
+        uses: actions/checkout@v4
+        with:
+          path: stats
+          ref: ci/refs/heads/main
+      - name: Checkout target branch
+        if: github.event_name == 'pull_request'
+        working-directory: stats
+        run: git checkout -b "ci/$GITHUB_REF"
+      - name: Delete contents of stats branch dir
+        working-directory: stats
+        run: git rm -rf .
+      - name: Generate stats
+        run: gradbench repo stats run -o stats --commit ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Upload stats as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stats
+          path: stats
+      - name: Commit to stats branch
+        id: commit
+        working-directory: stats
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git add .
+          git commit --allow-empty -m 'Stats for commit ${{ github.event.pull_request.head.sha || github.sha }}'
+          echo "CI_COMMIT_SHA=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+      - name: Check for write permissions
+        id: check
+        uses: scherermichael-oss/action-has-permission@17f29510f1bf987b916c8cbb451566a56eed23f1
+        with:
+          required-permission: write
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push to stats branch
+        if: steps.check.outputs.has-permission
+        working-directory: stats
+        run: git push -f origin HEAD
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && steps.check.outputs.has-permission
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          message: |
+            Stats: ${{ steps.commit.outputs.CI_COMMIT_SHA }}
+
   tool:
     needs:
       - cli
