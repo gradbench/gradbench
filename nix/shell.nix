@@ -48,17 +48,29 @@ pkgs.stdenv.mkDerivation {
     [my-python
      pkgs.niv
      pkgs.gh
-     pkgs.cargo
-     pkgs.rustc
-     pkgs.rustfmt
+
      pkgs.futhark
      pkgs.enzyme
-     pkgs.adolc
      pkgs.pkg-config
      pkgs.llvmPackages_19.lld
      pkgs.llvmPackages_19.clang
+     pkgs.blas
+     pkgs.lapack
+     pkgs.openblas
+     pkgs.zlib
+     pkgs.adolc
      adept
      cppad
+
+     # Rust
+     pkgs.cargo
+     pkgs.rustc
+     pkgs.rustfmt
+
+     # OCaml
+     pkgs.ocaml
+     pkgs.opam
+     pkgs.ocamlPackages.owl
     ];
 
   # The following are environment variables used by various tools.
