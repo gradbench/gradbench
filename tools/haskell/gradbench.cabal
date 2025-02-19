@@ -1,0 +1,20 @@
+cabal-version:      3.0
+name:               gradbench
+version:            0.1.0.0
+homepage:           https://gradben.ch/
+license:            MIT
+author:             Troels Henriksen
+maintainer:         athas@sigkill.dk
+category:           Math
+build-type:         Simple
+
+common warnings
+    ghc-options: -Wall
+
+executable gradbench
+    import:           warnings
+    main-is:          Main.hs
+    other-modules:    GradBench.Hello
+    build-depends:    ad, aeson, base, bytestring, text
+    hs-source-dirs:   src
+    default-language: GHC2021
