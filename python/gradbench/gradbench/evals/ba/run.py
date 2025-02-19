@@ -1,10 +1,11 @@
 import argparse
+import json
 from pathlib import Path
 from typing import Any
 
+import manual.ba as golden
 import numpy as np
 
-import gradbench.pytorch.ba as golden
 from gradbench.comparison import compare_json_objects
 from gradbench.eval import SingleModuleValidatedEval, approve, mismatch
 from gradbench.wrap import Wrapped
@@ -35,9 +36,17 @@ def parse(file):
 
 
 def check(function: str, input: Any, output: Any) -> None:
-    func: Wrapped = getattr(golden, function)
-    expected = func.wrapped(input | {"runs": 1})["output"]
-    return compare_json_objects(expected, output)
+    func = getattr(golden, function)
+    proc = func(input | {"runs": 1})
+    if proc.returncode == 0:
+        ls = proc.stdout.splitlines()
+        expected = json.loads(ls[0])
+        return compare_json_objects(expected, output)
+    else:
+        return Analysis(
+            valid=False,
+            error=f"golden implementation failed with stderr:\n{proc.stderr}",
+        )
 
 
 def main():
