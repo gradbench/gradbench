@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+#
+# Validates eval results in one or more suspect log files against
+# corresponding results in a reference log file.
+
+import argparse
+import json
+import sys
+
+from gradbench.comparison import compare_json_objects
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--reference", type=str, required=True)
+parser.add_argument("suspect", nargs="+", type=str, default=[])
+args = parser.parse_args()
+
+
+def read_msgs(fname):
+    try:
+        l = []
+        with open(fname, "r") as f:
+            for line in f:
+                l.append(json.loads(line))
+        if len(l) % 2 != 0:
+            print("{fname} contains an odd number of messages.")
+            sys.exit(1)
+        return list(zip(l[0::2], l[1::2]))
+    except Exception as e:
+        print(f"Failed to read {fname}:")
+        print(e)
+        sys.exit(1)
+
+
+def find_output(ls, module, function, input):
+    for l in ls:
+        message = l[0]["message"]
+        if (
+            module == message.get("module", "")
+            and function == message.get("function", "")
+            and input == message.get("input", None)
+        ):
+            return l[1]["response"]["output"]
+
+
+reference = read_msgs(args.reference)
+
+exitcode = 0
+
+
+for suspect_fname in args.suspect:
+    suspect = read_msgs(suspect_fname)
+    for l in suspect:
+        message = l[0]["message"]
+        response = l[1]["response"]
+        if message["kind"] == "evaluate":
+            output_suspect = response["output"]
+            output_reference = find_output(
+                reference,
+                module=message["module"],
+                function=message["function"],
+                input=message["input"],
+            )
+
+            if output_reference == None:
+                print(
+                    f"{suspect_fname}: evaluation {message["id"]}, {message["module"]}.{message["function"]} on {message["description"]}, could not find reference result in {args.reference}."
+                )
+                exitcode = 1
+                continue
+
+            mismatches = compare_json_objects(output_reference, output_suspect)
+            if len(mismatches) != 0:
+                exitcode = 1
+                max_mismatches = 10
+                shown_mismatches = mismatches[0:max_mismatches]
+                mismatches_str = "\n".join(shown_mismatches)
+                print(
+                    f"{suspect_fname}: evaluation {message["id"]}, {message["module"]}.{message["function"]} on {message["description"]}, found {len(mismatches)} mismatches, showing {len(shown_mismatches)}:\n{mismatches_str}"
+                )
+
+
+sys.exit(exitcode)
