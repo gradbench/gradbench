@@ -283,7 +283,7 @@ jobs:
             **Summary statistics and charts were generated and pushed in commit ${{ steps.commit.outputs.CI_COMMIT_SHA }}.**
 
             > [!NOTE]
-            > Workflow run [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) was triggered by commit ${{ github.event.pull_request.head.sha }}, which was merged with the latest commit from branch `${{ github.event.pull_request.base.ref }}` before running; so, the workflow was run on commit ${{ github.sha }}, which may be the same as the trigger commit or may be a merge commit.
+            > Workflow run [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) was triggered by commit ${{ github.event.pull_request.head.sha }}, which was merged with the latest commit from branch `${{ github.event.pull_request.base.ref }}` before running; so, the workflow was run on the merge commit ${{ github.sha }}.
 
   tool:
     needs:
