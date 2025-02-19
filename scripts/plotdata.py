@@ -99,6 +99,8 @@ for tool in tools:
         if message["kind"] == "evaluate":
             workload = message["description"]
             workloads[workload] = None
+            if not response["success"]:
+                continue
             if message["function"] == primal:
                 primal_runtimes[tool][workload] = (
                     mean(

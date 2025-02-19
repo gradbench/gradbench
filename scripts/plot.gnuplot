@@ -9,9 +9,9 @@ print "EVAL=".EVAL
 DATA_PRIMAL = sprintf('%s-primal.data', EVAL)
 DATA_DIFF = sprintf('%s-diff.data', EVAL)
 DATA_RATIO = sprintf('%s-ratio.data', EVAL)
-PLOT_PRIMAL = sprintf('%s-primal.pdf', EVAL)
-PLOT_DIFF = sprintf('%s-diff.pdf', EVAL)
-PLOT_RATIO = sprintf('%s-ratio.pdf', EVAL)
+PLOT_PRIMAL = sprintf('%s-primal.svg', EVAL)
+PLOT_DIFF = sprintf('%s-diff.svg', EVAL)
+PLOT_RATIO = sprintf('%s-ratio.svg', EVAL)
 TITLE_PRIMAL = sprintf('%s - primal', EVAL)
 TITLE_DIFF = sprintf('%s - diff', EVAL)
 TITLE_RATIO = sprintf('%s - primal ÷ diff', EVAL)
@@ -29,7 +29,7 @@ set pointsize 0.5
 
 stats DATA_PRIMAL u (0)
 
-set term pdfcairo font "Monospace,8" color
+set term svg font "Monospace,8"
 
 set title TITLE_PRIMAL
 set output PLOT_PRIMAL
