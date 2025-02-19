@@ -1,4 +1,4 @@
-{ "elapsed": { "nanoseconds": 1699422399 }, "message": {"id": 0, "kind": "start", "eval": "lstm", "config": {"l": [2, 4], "c": [1024, 4096], "runs": 1, "no_validation": false}} }
-{ "elapsed": { "nanoseconds": 1699867688 }, "response": {"id": 0, "tool": "pytorch"} }
-{ "elapsed": { "nanoseconds": 1700275686 }, "message": {"id": 1, "kind": "define", "module": "lstm"} }
-{ "elapsed": { "nanoseconds": 1700703045 }, "response": {"id": 1, "success": false} }
+{ "elapsed": { "nanoseconds": 1659795047 }, "message": {"id": 0, "kind": "start", "eval": "lstm", "config": {"l": [2, 4], "c": [1024, 4096], "runs": 1, "no_validation": false}} }
+{ "elapsed": { "nanoseconds": 1660290016 }, "response": {"id": 0, "tool": "pytorch"} }
+{ "elapsed": { "nanoseconds": 1660647601 }, "message": {"id": 1, "kind": "define", "module": "lstm"} }
+{ "elapsed": { "nanoseconds": 1661085074 }, "response": {"id": 1, "success": false} }
