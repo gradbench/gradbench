@@ -280,7 +280,9 @@ jobs:
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           message: |
-            Stats: ${{ steps.commit.outputs.CI_COMMIT_SHA }}
+            Workflow run [`${{ github.run_id }}`]((${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) was triggered by commit ${{ github.event.pull_request.head.sha }}, which was merged with commit ${{ github.event.pull_request.base.sha }} from branch `${{ github.event.pull_request.base.ref }}` before running; so, CI was actually run on commit ${{ github.sha }}.
+
+            Summary statistics and charts were generated and pushed in commit ${{ steps.commit.outputs.CI_COMMIT_SHA }}.
 
   tool:
     needs:
