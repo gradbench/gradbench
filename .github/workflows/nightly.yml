@@ -137,8 +137,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
         eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
+        tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
@@ -187,6 +187,7 @@ jobs:
           path: stats
           ref: ci/refs/heads/nightly
       - name: Delete contents of nightly stats branch dir
+        continue-on-error: true
         working-directory: stats
         run: git rm -rf .
       - name: Generate stats

@@ -245,6 +245,7 @@ jobs:
         working-directory: stats
         run: git checkout -b "ci/$GITHUB_REF"
       - name: Delete contents of stats branch dir
+        continue-on-error: true
         working-directory: stats
         run: git rm -rf .
       - name: Generate stats

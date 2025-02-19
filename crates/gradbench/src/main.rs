@@ -3,14 +3,16 @@ mod protocol;
 mod stats;
 
 use std::{
-    collections::HashSet,
+    collections::{BTreeMap, BTreeSet},
     env, fs, io,
-    path::{Path, PathBuf},
+    path::PathBuf,
     process::{Command, ExitCode, ExitStatus, Output, Stdio},
+    rc::Rc,
     str::FromStr,
     time::Duration,
 };
 
+use anyhow::{anyhow, Context};
 use clap::{Parser, Subcommand};
 use serde::Serialize;
 use stats::StatsMetadata;
@@ -397,50 +399,88 @@ fn shell(command: &str) -> Command {
 }
 
 /// List the entries in a directory.
-fn ls(dir: &str) -> Result<Vec<String>, ExitCode> {
+fn ls(dir: &str) -> anyhow::Result<Vec<String>> {
     fs::read_dir(dir)
-        .map_err(|err| {
-            eprintln!("error reading directory {dir:?}: {err}");
-            ExitCode::FAILURE
-        })?
+        .with_context(|| format!("error reading directory {dir:?}"))?
         .map(|entry| {
-            entry
-                .map_err(|err| {
-                    eprintln!("error reading entry in directory {dir:?}: {err}");
-                    ExitCode::FAILURE
-                })?
+            entry?
                 .file_name()
                 .into_string()
-                .map_err(|name| {
-                    eprintln!("error converting entry name to string: {name:?}");
-                    ExitCode::FAILURE
-                })
+                .map_err(|name| anyhow!("invalid file name {name:?}"))
         })
         .collect()
 }
 
 /// Print a JSON `value` with a `name` for GitHub Actions.
-fn github_output(name: &str, value: impl Serialize) -> Result<(), ExitCode> {
+fn github_output(name: &str, value: impl Serialize) -> anyhow::Result<()> {
     print!("{name}=");
-    serde_json::to_writer(io::stdout(), &value).map_err(|err| {
-        eprintln!("error serializing {name}: {err}");
-        ExitCode::FAILURE
-    })?;
+    serde_json::to_writer(io::stdout(), &value)?;
     println!();
     Ok(())
+}
+
+/// Return a map from eval names to the tools that support them.
+fn evals_to_tools(evals: Vec<String>) -> anyhow::Result<BTreeMap<String, BTreeSet<Rc<str>>>> {
+    let mut map = BTreeMap::new();
+    for eval in evals {
+        map.insert(eval, BTreeSet::new());
+    }
+    for result in fs::read_dir("tools")? {
+        let entry = result?;
+        let tool = entry
+            .file_name()
+            .into_string()
+            .map_err(|name| anyhow!("invalid file name {name:?}"))?;
+        let evals = fs::read_to_string(entry.path().join("evals.txt")).unwrap_or_default();
+        for eval in evals.lines() {
+            map.get_mut(eval)
+                .ok_or_else(|| anyhow!("eval {eval:?} not found"))?
+                .insert(Rc::from(tool.as_str()));
+        }
+    }
+    Ok(map)
 }
 
 /// A single entry in the `run` matrix for GitHub Actions.
 #[derive(Serialize)]
 struct RunEntry<'a> {
-    /// The name of the tool.
-    tool: &'a str,
-
     /// The name of the eval.
     eval: &'a str,
 
+    /// The name of the tool.
+    tool: &'a str,
+
     /// The expected outcome of the run.
     outcome: &'static str,
+}
+
+/// Print the GitHub Actions matrix to stdout.
+fn matrix() -> anyhow::Result<()> {
+    let date = format!("{}", chrono::Utc::now().format("%Y-%m-%d"));
+    github_output("date", date)?;
+    let mut evals = ls("evals")?;
+    evals.sort();
+    github_output("eval", &evals)?;
+    let mut tools = ls("tools")?;
+    tools.sort();
+    github_output("tool", &tools)?;
+    let mut run = Vec::new();
+    let map = evals_to_tools(evals)?;
+    for (eval, supported) in &map {
+        for tool in &tools {
+            run.push(RunEntry {
+                eval,
+                tool,
+                outcome: if supported.contains(tool.as_str()) {
+                    "success"
+                } else {
+                    BadOutcome::Undefined.into()
+                },
+            });
+        }
+    }
+    github_output("run", run)?;
+    Ok(())
 }
 
 /// Run the GradBench CLI, returning a `Result`.
@@ -545,35 +585,10 @@ fn cli() -> Result<(), ExitCode> {
                         .arg(format!("{name}:{tag}")))?;
                     Ok(())
                 }
-                RepoCommands::Matrix => {
-                    let date = format!("{}", chrono::Utc::now().format("%Y-%m-%d"));
-                    github_output("date", date)?;
-                    let mut evals = ls("evals")?;
-                    evals.sort();
-                    github_output("eval", &evals)?;
-                    let mut tools = ls("tools")?;
-                    tools.sort();
-                    github_output("tool", &tools)?;
-                    let mut run = Vec::new();
-                    for tool in &tools {
-                        let path = Path::new("tools").join(tool).join("evals.txt");
-                        let evals_list = fs::read_to_string(path).unwrap_or_default();
-                        let supported: HashSet<&str> = evals_list.lines().collect();
-                        for eval in &evals {
-                            run.push(RunEntry {
-                                tool,
-                                eval,
-                                outcome: if supported.contains(eval.as_str()) {
-                                    "success"
-                                } else {
-                                    BadOutcome::Undefined.into()
-                                },
-                            });
-                        }
-                    }
-                    github_output("run", run)?;
-                    Ok(())
-                }
+                RepoCommands::Matrix => matrix().map_err(|err| {
+                    eprintln!("{err:#}");
+                    ExitCode::FAILURE
+                }),
                 RepoCommands::Stats {
                     input,
                     output,

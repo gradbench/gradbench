@@ -1,63 +1,20 @@
 use std::{
     fs,
     io::{self, BufRead},
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use serde::Serialize;
 
-use crate::protocol::Message;
-
-/// List the entries in a directory.
-fn ls(dir: &str) -> anyhow::Result<Vec<String>> {
-    fs::read_dir(dir)
-        .with_context(|| format!("error reading directory {dir:?}"))?
-        .map(|entry| {
-            entry?
-                .file_name()
-                .into_string()
-                .map_err(|name| anyhow!("invalid file name {name:?}"))
-        })
-        .collect()
-}
-
-/// The status from running a tool on an eval.
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "snake_case")]
-enum Status {
-    /// The tool is not implemented for the eval.
-    Unimplemented,
-
-    /// The tool returned invalid results for the eval.
-    Incorrect,
-
-    /// The tool returned correct results for the eval.
-    Correct,
-}
+use crate::{evals_to_tools, ls};
 
 /// Read a log file and summarize the results.
-fn summarize(path: &Path) -> Option<Status> {
-    let mut message: Option<Message> = None;
-    for res in io::BufReader::new(fs::File::open(path).ok()?).lines() {
-        let mut line: serde_json::Value = serde_json::from_str(&res.ok()?).ok()?;
-        if let Some(response) = line.get("response") {
-            if let Message::Define { .. } = message.take()? {
-                if !response.get("success")?.as_bool()? {
-                    return Some(Status::Unimplemented);
-                }
-            }
-        }
-        if let Some(msg) = line.get_mut("message") {
-            message = Some(serde_json::from_value(msg.take()).ok()?);
-            if let Some(Message::Analysis { valid, .. }) = &message {
-                if !valid {
-                    return Some(Status::Incorrect);
-                }
-            }
-        }
+fn score(reader: impl BufRead) -> anyhow::Result<f64> {
+    for res in reader.lines() {
+        serde_json::from_str::<serde_json::Value>(&res?)?;
     }
-    Some(Status::Correct)
+    Ok(1.)
 }
 
 /// A cell in a table of summary data.
@@ -66,8 +23,8 @@ struct Col<'a> {
     /// The name of the tool for this column.
     tool: &'a str,
 
-    /// The status of the tool for this eval.
-    status: Status,
+    /// The score of the tool for this eval.
+    score: Option<f64>,
 }
 
 /// A row in a table of summary data.
@@ -76,7 +33,7 @@ struct Row<'a> {
     /// The name of the eval for this row.
     eval: &'a str,
 
-    /// The status of each tool for this eval.
+    /// The score of each tool for this eval.
     tools: Vec<Col<'a>>,
 }
 
@@ -103,19 +60,24 @@ struct Summary<'a> {
 
 /// Generate summary data and plots in `output` from logs in `input`.
 pub fn generate(input: PathBuf, output: PathBuf, metadata: StatsMetadata) -> anyhow::Result<()> {
-    fs::create_dir(&output)
-        .with_context(|| format!("error creating stats directory {output:?}"))?;
-    let mut table = Vec::new();
+    fs::create_dir_all(&output)?;
     let mut evals = ls("evals")?;
     evals.sort();
     let mut tools = ls("tools")?;
     tools.sort();
-    for eval in &evals {
+    let mut table = Vec::new();
+    let map = evals_to_tools(evals)?;
+    for (eval, supported) in &map {
         let mut row = Vec::new();
         for tool in &tools {
-            let path = input.join(format!("run-{eval}-{tool}/log.jsonl"));
-            let status = summarize(&path).unwrap_or(Status::Unimplemented);
-            row.push(Col { tool, status });
+            let score = if supported.contains(tool.as_str()) {
+                let path = input.join(format!("run-{eval}-{tool}/log.jsonl"));
+                let reader = io::BufReader::new(fs::File::open(&path)?);
+                Some(score(reader).with_context(|| format!("failed to process {path:?}"))?)
+            } else {
+                None
+            };
+            row.push(Col { tool, score });
         }
         table.push(Row { eval, tools: row });
     }
