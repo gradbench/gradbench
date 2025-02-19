@@ -1,6 +1,7 @@
 mod intermediary;
 mod protocol;
 mod stats;
+mod util;
 
 use std::{
     collections::{BTreeMap, BTreeSet},
