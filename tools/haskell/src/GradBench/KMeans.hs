@@ -13,7 +13,6 @@ import Data.Aeson qualified as JSON
 import Data.List qualified as L
 import Data.List.NonEmpty qualified as NE
 import Data.Vector qualified as V
-import Numeric.AD
 import Numeric.AD.Double qualified as D
 
 getPoint :: Int -> V.Vector a -> Int -> V.Vector a
@@ -73,11 +72,24 @@ costGeneric d points centroids =
 cost :: Input -> CostOutput
 cost (Input d points centroids) = costGeneric d points centroids
 
+diagonal :: V.Vector (V.Vector a) -> V.Vector a
+diagonal x = V.zipWith (V.!) x (V.enumFromN 0 (V.length x))
+
 dir :: Input -> DirOutput
 dir (Input d points centroids) =
-  let (cost', cost'') =
-        V.unzip $
-          D.duF'
-            (grad (costGeneric d (fmap (D.auto . auto) points)))
-            (V.zip centroids (V.map (const 1) centroids))
+  let (_, x) = D.hessian' (costGeneric d (fmap D.auto points)) centroids
+      cost' = V.map fst x
+      cost'' = diagonal (V.map snd x)
    in DirOutput d $ V.zipWith (/) cost' cost''
+
+-- The following implementation is more efficient, but it uses much
+-- more memory for reasons I am unsure of - possibly laziness.
+
+-- dir :: Input -> DirOutput
+-- dir (Input d points centroids) =
+--   let (cost', cost'') =
+--         V.unzip $
+--           D.hessianProduct'
+--             (costGeneric d (fmap D.auto points))
+--             (V.map (,1) centroids)
+--    in DirOutput d $ V.zipWith (/) cost' cost''
