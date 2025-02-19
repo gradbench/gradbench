@@ -14,6 +14,7 @@ import Data.List qualified as L
 import Data.List.NonEmpty qualified as NE
 import Data.Vector qualified as V
 import Numeric.AD
+import Numeric.AD.Double qualified as D
 
 getPoint :: Int -> V.Vector a -> Int -> V.Vector a
 getPoint d v i = V.slice (i * d) d v
@@ -76,7 +77,7 @@ dir :: Input -> DirOutput
 dir (Input d points centroids) =
   let (cost', cost'') =
         V.unzip $
-          duF'
-            (grad (costGeneric d (fmap (auto . auto) points)))
+          D.duF'
+            (grad (costGeneric d (fmap (D.auto . auto) points)))
             (V.zip centroids (V.map (const 1) centroids))
    in DirOutput d $ V.zipWith (/) cost' cost''
