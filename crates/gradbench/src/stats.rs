@@ -1,21 +1,27 @@
 use std::{
+    collections::{BTreeMap, HashMap},
     fs,
     io::{self, BufRead, Write},
     path::PathBuf,
+    rc::Rc,
     time::Duration,
 };
 
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 
-use crate::{evals_to_tools, ls, protocol::EvaluateResponse, util::nanos_duration};
+use crate::{
+    evals_to_tools, ls,
+    protocol::{EvaluateResponse, Message},
+    util::nanos_duration,
+};
 
 trait CreateFile {
-    fn write(&self, subpath: &str, bytes: &[u8]) -> anyhow::Result<()>;
+    fn create(&self, subpath: &str, bytes: &[u8]) -> anyhow::Result<()>;
 }
 
 impl CreateFile for PathBuf {
-    fn write(&self, subpath: &str, bytes: &[u8]) -> anyhow::Result<()> {
+    fn create(&self, subpath: &str, bytes: &[u8]) -> anyhow::Result<()> {
         fs::create_dir_all(self)?;
         fs::File::create(self.join(subpath))?.write_all(bytes)?;
         Ok(())
@@ -23,13 +29,13 @@ impl CreateFile for PathBuf {
 }
 
 trait Scorer<R: BufRead, F: CreateFile> {
-    fn score(&mut self, log: R) -> anyhow::Result<f64>;
+    fn score(&mut self, tool: &str, log: R) -> anyhow::Result<f64>;
 
     fn finish(&self, file: F) -> anyhow::Result<()>;
 }
 
 impl<R: BufRead, F: CreateFile> Scorer<R, F> for () {
-    fn score(&mut self, _: R) -> anyhow::Result<f64> {
+    fn score(&mut self, _: &str, _: R) -> anyhow::Result<f64> {
         Ok(1.)
     }
 
@@ -39,64 +45,80 @@ impl<R: BufRead, F: CreateFile> Scorer<R, F> for () {
 }
 
 #[derive(Deserialize)]
+struct LoggedMessage<T> {
+    message: T,
+}
+
+fn description(message: Option<Message>) -> Option<String> {
+    match message {
+        Some(Message::Evaluate { description, .. }) => description,
+        _ => None,
+    }
+}
+
+#[derive(Deserialize)]
 struct LoggedResponse<T> {
     response: T,
 }
 
-fn score_reciprocal_evaluate_duration(log: impl BufRead) -> anyhow::Result<f64> {
-    let mut duration = Duration::ZERO;
-    for line in log.lines() {
-        if let Ok(parsed) = serde_json::from_str::<LoggedResponse<EvaluateResponse>>(&line?) {
-            for timing in parsed.response.timings.unwrap_or_default() {
-                if timing.name == "evaluate" {
-                    duration += nanos_duration(timing.nanoseconds)?;
+struct ScorerClassic {
+    primal: String,
+    derivative: String,
+    tools: BTreeMap<String, HashMap<Rc<str>, Duration>>,
+}
+
+impl ScorerClassic {
+    fn new(primal: impl ToString, derivative: impl ToString) -> Self {
+        Self {
+            primal: primal.to_string(),
+            derivative: derivative.to_string(),
+            tools: BTreeMap::new(),
+        }
+    }
+}
+
+impl<R: BufRead, F: CreateFile> Scorer<R, F> for ScorerClassic {
+    fn score(&mut self, tool: &str, log: R) -> anyhow::Result<f64> {
+        let mut workloads = HashMap::new();
+        let mut message = None;
+        for result in log.lines() {
+            let line = result?;
+            if let Ok(parsed) = serde_json::from_str::<LoggedMessage<Message>>(&line) {
+                message = Some(parsed.message);
+                continue;
+            }
+            let msg = message.take();
+            if let Ok(parsed) = serde_json::from_str::<LoggedResponse<EvaluateResponse>>(&line) {
+                let mut duration = Duration::ZERO;
+                for timing in parsed.response.timings.unwrap_or_default() {
+                    if timing.name == "evaluate" {
+                        duration += nanos_duration(timing.nanoseconds)?;
+                    }
+                }
+                if let Some(description) = description(msg) {
+                    *workloads
+                        .entry(Rc::from(description))
+                        .or_insert(Duration::ZERO) += duration;
                 }
             }
         }
-    }
-    Ok(1. / duration.as_secs_f64())
-}
-
-struct ScorerADBench {}
-
-impl ScorerADBench {
-    fn new() -> Self {
-        Self {}
-    }
-}
-
-impl<R: BufRead, F: CreateFile> Scorer<R, F> for ScorerADBench {
-    fn score(&mut self, log: R) -> anyhow::Result<f64> {
-        score_reciprocal_evaluate_duration(log)
+        let score = 1. / workloads.values().sum::<Duration>().as_secs_f64();
+        if self.tools.insert(tool.to_string(), workloads).is_none() {
+            Ok(score)
+        } else {
+            Err(anyhow::anyhow!("duplicate tool {tool}"))
+        }
     }
 
-    fn finish(&self, _: F) -> anyhow::Result<()> {
-        Ok(())
-    }
-}
-
-struct ScorerKMeans {}
-
-impl ScorerKMeans {
-    fn new() -> Self {
-        Self {}
-    }
-}
-
-impl<R: BufRead, F: CreateFile> Scorer<R, F> for ScorerKMeans {
-    fn score(&mut self, log: R) -> anyhow::Result<f64> {
-        score_reciprocal_evaluate_duration(log)
-    }
-
-    fn finish(&self, _: F) -> anyhow::Result<()> {
-        Ok(())
+    fn finish(&self, file: F) -> anyhow::Result<()> {
+        file.create("foo.json", &serde_json::to_vec_pretty(&self.tools)?)
     }
 }
 
 fn scorer<R: BufRead, F: CreateFile>(eval: &str) -> Box<dyn Scorer<R, F>> {
     match eval {
-        "ba" | "gmm" | "ht" | "lstm" => Box::new(ScorerADBench::new()),
-        "kmeans" => Box::new(ScorerKMeans::new()),
+        "ba" | "gmm" | "ht" | "lstm" => Box::new(ScorerClassic::new("objective", "jacobian")),
+        "kmeans" => Box::new(ScorerClassic::new("cost", "dir")),
         _ => Box::new(()),
     }
 }
@@ -163,7 +185,7 @@ pub fn generate(input: PathBuf, output: PathBuf, metadata: StatsMetadata) -> any
                 let reader = io::BufReader::new(fs::File::open(&path)?);
                 Some(
                     scorer
-                        .score(reader)
+                        .score(tool, reader)
                         .with_context(|| format!("failed to process {path:?}"))?,
                 )
             } else {
