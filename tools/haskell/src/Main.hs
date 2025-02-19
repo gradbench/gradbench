@@ -10,8 +10,7 @@ module Main (main) where
 import Control.Applicative
 import Control.DeepSeq (NFData, rnf)
 import Control.Exception
-  ( AllocationLimitExceeded,
-    SomeException,
+  ( SomeException,
     catch,
     evaluate,
     fromException,
@@ -22,22 +21,15 @@ import Data.Aeson (ToJSON (..), (.:))
 import Data.Aeson qualified as JSON
 import Data.Aeson.KeyMap qualified as KM
 import Data.ByteString.Char8 qualified as BS
-import Data.Int (Int64)
 import Data.List qualified as L
 import Data.Maybe (fromMaybe, isJust)
 import Data.Text qualified as T
 import GradBench.Hello qualified
 import GradBench.KMeans qualified
 import System.Clock (Clock (Monotonic), getTime, toNanoSecs)
-import System.Environment (getArgs)
 import System.Exit
 import System.IO
 import System.IO.Error (isEOFError)
-import System.Mem
-  ( disableAllocationLimit,
-    enableAllocationLimit,
-    setAllocationCounter,
-  )
 import Prelude hiding (mod)
 
 getRuns :: JSON.Value -> Int
@@ -126,14 +118,9 @@ instance JSON.FromJSON Msg where
         MsgEvaluate i <$> o .: "module" <*> o .: "function" <*> o .: "input"
 
 main :: IO ()
-main = do
-  args <- getArgs
-  let gib_limit = case args of
-        [l] | [(x, _)] <- reads l -> x
-        _ -> 32
-  forever $ loop gib_limit
+main = forever loop
   where
-    loop gib_limit = do
+    loop = do
       msg <-
         fromMaybe (error "line is not a JSON value") . JSON.decodeStrict
           <$> BS.getLine
@@ -153,10 +140,7 @@ main = do
                   ("error", toJSON $ "unknown function: " <> fun)
                 ]
             Just f -> do
-              setAllocationCounter $ gib_limit * 1024 * 1024 * 1024
-              enableAllocationLimit
-              r <- f input `catch` onOOM gib_limit
-              disableAllocationLimit
+              r <- f input
               case r of
                 Left err ->
                   reply
@@ -175,14 +159,6 @@ main = do
                       ("timings", toJSON $ map mkTiming runtimes)
                     ]
         MsgUnknown _ -> reply []
-
-    onOOM :: Int64 -> AllocationLimitExceeded -> IO (Either T.Text b)
-    onOOM gib_limit _ = do
-      pure $
-        Left $
-          "Exceeded allocation limit of "
-            <> T.pack (show gib_limit)
-            <> "GiB."
 
     onReadError :: SomeException -> IO a
     onReadError e =
