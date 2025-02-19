@@ -23,7 +23,7 @@ def check(function: str, input: Any, output: Any) -> None:
     else:
         return Analysis(
             valid=False,
-            error=f"golden implementation failed with stderr: {proc.stderr}",
+            error=f"golden implementation failed with stderr:\n{proc.stderr}",
         )
 
 
