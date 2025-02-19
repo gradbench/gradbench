@@ -1,3 +1,5 @@
+mod plot;
+
 use std::{
     collections::{BTreeMap, HashMap},
     fs,
@@ -7,7 +9,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::Context;
+use anyhow::{anyhow, bail, Context};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -49,22 +51,27 @@ struct LoggedMessage<T> {
     message: T,
 }
 
-fn description(message: Option<Message>) -> Option<String> {
-    match message {
-        Some(Message::Evaluate { description, .. }) => description,
-        _ => None,
-    }
-}
-
 #[derive(Deserialize)]
 struct LoggedResponse<T> {
     response: T,
 }
 
+#[derive(Clone, Copy, Default)]
+struct DurationPair {
+    primal: Duration,
+    derivative: Duration,
+}
+
+impl DurationPair {
+    fn sum(self) -> Duration {
+        self.primal + self.derivative
+    }
+}
+
 struct ScorerClassic {
     primal: String,
     derivative: String,
-    tools: BTreeMap<String, HashMap<Rc<str>, Duration>>,
+    tools: BTreeMap<String, HashMap<Rc<str>, DurationPair>>,
 }
 
 impl ScorerClassic {
@@ -79,7 +86,7 @@ impl ScorerClassic {
 
 impl<R: BufRead, F: CreateFile> Scorer<R, F> for ScorerClassic {
     fn score(&mut self, tool: &str, log: R) -> anyhow::Result<f64> {
-        let mut workloads = HashMap::new();
+        let mut workloads = HashMap::<Rc<str>, DurationPair>::new();
         let mut message = None;
         for result in log.lines() {
             let line = result?;
@@ -87,31 +94,49 @@ impl<R: BufRead, F: CreateFile> Scorer<R, F> for ScorerClassic {
                 message = Some(parsed.message);
                 continue;
             }
-            let msg = message.take();
-            if let Ok(parsed) = serde_json::from_str::<LoggedResponse<EvaluateResponse>>(&line) {
+            let Some(msg) = message.take() else {
+                bail!("response with no preceding message");
+            };
+            if let (
+                Message::Evaluate {
+                    function,
+                    description: Some(desc),
+                    ..
+                },
+                Ok(parsed),
+            ) = (
+                msg,
+                serde_json::from_str::<LoggedResponse<EvaluateResponse>>(&line),
+            ) {
                 let mut duration = Duration::ZERO;
                 for timing in parsed.response.timings.unwrap_or_default() {
                     if timing.name == "evaluate" {
                         duration += nanos_duration(timing.nanoseconds)?;
                     }
                 }
-                if let Some(description) = description(msg) {
-                    *workloads
-                        .entry(Rc::from(description))
-                        .or_insert(Duration::ZERO) += duration;
+                let pair = workloads.entry(Rc::from(desc)).or_default();
+                if function == self.primal {
+                    pair.primal += duration;
+                } else if function == self.derivative {
+                    pair.derivative += duration;
+                } else {
+                    bail!("unknown function {function:?}");
                 }
             }
         }
-        let score = 1. / workloads.values().sum::<Duration>().as_secs_f64();
+        let total = workloads.values().map(|pair| pair.sum()).sum::<Duration>();
         if self.tools.insert(tool.to_string(), workloads).is_none() {
-            Ok(score)
+            Ok(1. / total.as_secs_f64())
         } else {
-            Err(anyhow::anyhow!("duplicate tool {tool}"))
+            Err(anyhow!("duplicate tool {tool}"))
         }
     }
 
     fn finish(&self, file: F) -> anyhow::Result<()> {
-        file.create("foo.json", &serde_json::to_vec_pretty(&self.tools)?)
+        let mut string = String::new();
+        plot::plot_ratio(&mut string, self)?;
+        file.create("ratio.svg", string.as_bytes())?;
+        Ok(())
     }
 }
 
