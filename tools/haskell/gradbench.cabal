@@ -15,6 +15,9 @@ executable gradbench
     import:           warnings
     main-is:          Main.hs
     other-modules:    GradBench.Hello
-    build-depends:    ad, aeson, base, bytestring, text
+                      GradBench.KMeans
+    build-depends:    ad, aeson, base, bytestring, text, vector, clock, deepseq
     hs-source-dirs:   src
     default-language: GHC2021
+    default-extensions: OverloadedStrings
+    ghc-options:      -rtsopts "-with-rtsopts=-A500m"

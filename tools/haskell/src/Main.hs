@@ -1,39 +1,89 @@
-{-# LANGUAGE OverloadedStrings #-}
-
+-- We limit the memory usage of evaluation with enableAllocationLimit,
+-- as the tape-based code is otherwise very hungry. Note that this is
+-- not a residency limit, but simply counts how many bytes are
+-- allocated. On the other hand, we can reliably catch violations. It
+-- is also appropriate for our use case where the vast majority of
+-- allocations goes to the tape, which is kept until the very end.
+-- Still, this precise size can be calibrated as necessary.
 module Main (main) where
 
 import Control.Applicative
-import Control.Exception (catch)
+import Control.DeepSeq (NFData, rnf)
+import Control.Exception
+  ( AllocationLimitExceeded,
+    SomeException,
+    catch,
+    evaluate,
+    fromException,
+    throw,
+  )
 import Control.Monad (forever, guard)
 import Data.Aeson (ToJSON (..), (.:))
 import Data.Aeson qualified as JSON
+import Data.Aeson.KeyMap qualified as KM
 import Data.ByteString.Char8 qualified as BS
+import Data.Int (Int64)
 import Data.List qualified as L
 import Data.Maybe (fromMaybe, isJust)
 import Data.Text qualified as T
 import GradBench.Hello qualified
+import GradBench.KMeans qualified
+import System.Clock (Clock (Monotonic), getTime, toNanoSecs)
+import System.Environment (getArgs)
 import System.Exit
-import System.IO (hFlush, stdout)
+import System.IO
 import System.IO.Error (isEOFError)
+import System.Mem
+  ( disableAllocationLimit,
+    enableAllocationLimit,
+    setAllocationCounter,
+  )
 import Prelude hiding (mod)
 
+getRuns :: JSON.Value -> Int
+getRuns (JSON.Object kv)
+  | Just (JSON.Number x) <- KM.lookup "runs" kv =
+      round x
+getRuns _ = 1
+
+type Runtime = Integer
+
+doRuns :: (NFData b) => [Runtime] -> Int -> (a -> b) -> a -> IO (b, [Runtime])
+doRuns times runs f x = do
+  bef <- getTime Monotonic
+  let output = f x
+  evaluate $ rnf output
+  aft <- getTime Monotonic
+  let ns = toNanoSecs $ aft - bef
+      times' = ns : times
+  if runs == 1
+    then pure (output, times')
+    else doRuns times' (runs - 1) f x
+
 wrap ::
-  (JSON.FromJSON a, JSON.ToJSON b) =>
+  (JSON.FromJSON a, JSON.ToJSON b, NFData b) =>
   (a -> b) ->
   JSON.Value ->
-  Either T.Text JSON.Value
+  IO (Either T.Text (JSON.Value, [Runtime]))
 wrap f input =
   case JSON.fromJSON input of
-    JSON.Error e -> Left $ "Invalid input:\n" <> T.pack e
-    JSON.Success v ->
-      Right $ JSON.toJSON $ f v
+    JSON.Error e ->
+      pure $ Left $ "Invalid input:\n" <> T.pack e
+    JSON.Success v -> do
+      (output, runtimes) <- doRuns [] (getRuns input) f v
+      pure $ Right (JSON.toJSON output, runtimes)
 
-modules :: [((T.Text, T.Text), JSON.Value -> Either T.Text JSON.Value)]
+modules ::
+  [ ( (T.Text, T.Text),
+      JSON.Value -> IO (Either T.Text (JSON.Value, [Runtime]))
+    )
+  ]
 modules =
   [ (("hello", "square"), wrap GradBench.Hello.square),
-    (("hello", "double"), wrap GradBench.Hello.double)
+    (("hello", "double"), wrap GradBench.Hello.double),
+    (("kmeans", "cost"), wrap GradBench.KMeans.cost),
+    (("kmeans", "dir"), wrap GradBench.KMeans.dir)
   ]
-  where
 
 type Id = Int
 
@@ -50,6 +100,12 @@ data Msg
       JSON.Value
   | MsgUnknown Id
   deriving (Show)
+
+msgId :: Msg -> Id
+msgId (MsgStart i _) = i
+msgId (MsgDefine i _) = i
+msgId (MsgEvaluate i _ _ _) = i
+msgId (MsgUnknown i) = i
 
 instance JSON.FromJSON Msg where
   parseJSON = JSON.withObject "Msg" $ \o -> do
@@ -70,46 +126,68 @@ instance JSON.FromJSON Msg where
         MsgEvaluate i <$> o .: "module" <*> o .: "function" <*> o .: "input"
 
 main :: IO ()
-main = forever loop `catch` onError
+main = do
+  args <- getArgs
+  let gib_limit = case args of
+        [l] | [(x, _)] <- reads l -> x
+        _ -> 32
+  forever $ loop gib_limit
   where
-    loop = do
+    loop gib_limit = do
       msg <-
         fromMaybe (error "line is not a JSON value") . JSON.decodeStrict
           <$> BS.getLine
-      let reply i vs = do
-            BS.putStrLn . BS.toStrict $ JSON.encode $ JSON.object $ ("id", toJSON i) : vs
+            `catch` onReadError
+      let reply vs = do
+            BS.putStrLn . BS.toStrict . JSON.encode . JSON.object $
+              ("id", toJSON (msgId msg)) : vs
             hFlush stdout
       case msg of
-        MsgStart i _ -> reply i [("tool", "haskell")]
-        MsgDefine i mod -> reply i [("success", toJSON $ knownModule mod)]
-        MsgEvaluate i mod fun input ->
+        MsgStart _ _ -> reply [("tool", "haskell")]
+        MsgDefine _ mod -> reply [("success", toJSON $ knownModule mod)]
+        MsgEvaluate _ mod fun input ->
           case L.lookup (mod, fun) modules of
             Nothing ->
               reply
-                i
                 [ ("success", toJSON False),
                   ("error", toJSON $ "unknown function: " <> fun)
                 ]
-            Just f -> case f input of
-              Left err ->
-                reply
-                  i
-                  [ ("success", toJSON False),
-                    ("error", toJSON err)
-                  ]
-              Right v ->
-                reply
-                  i
-                  [ ("success", toJSON True),
-                    ("output", v)
-                  ]
-        MsgUnknown i -> reply i []
+            Just f -> do
+              setAllocationCounter $ gib_limit * 1024 * 1024 * 1024
+              enableAllocationLimit
+              r <- f input `catch` onOOM gib_limit
+              disableAllocationLimit
+              case r of
+                Left err ->
+                  reply
+                    [ ("success", toJSON False),
+                      ("error", toJSON err)
+                    ]
+                Right (v, runtimes) -> do
+                  let mkTiming t =
+                        JSON.object
+                          [ ("name", "evaluate"),
+                            ("nanoseconds", toJSON t)
+                          ]
+                  reply
+                    [ ("success", toJSON True),
+                      ("output", v),
+                      ("timings", toJSON $ map mkTiming runtimes)
+                    ]
+        MsgUnknown _ -> reply []
 
-    onError e =
-      if isEOFError e
-        then exitWith ExitSuccess
-        else do
-          print e
-          exitWith $ ExitFailure 1
+    onOOM :: Int64 -> AllocationLimitExceeded -> IO (Either T.Text b)
+    onOOM gib_limit _ = do
+      pure $
+        Left $
+          "Exceeded allocation limit of "
+            <> T.pack (show gib_limit)
+            <> "GiB."
+
+    onReadError :: SomeException -> IO a
+    onReadError e =
+      if maybe False isEOFError $ fromException e
+        then exitSuccess
+        else throw e
 
     knownModule mod = isJust $ L.find ((== mod) . fst . fst) modules
