@@ -1,19 +1,22 @@
 mod intermediary;
 mod protocol;
+mod stats;
+mod util;
 
 use std::{
-    collections::HashSet,
-    env, fs,
-    io::{self, BufRead},
-    path::{Path, PathBuf},
+    collections::{BTreeMap, BTreeSet},
+    env, fs, io,
+    path::PathBuf,
     process::{Command, ExitCode, ExitStatus, Output, Stdio},
+    rc::Rc,
     str::FromStr,
     time::Duration,
 };
 
+use anyhow::{anyhow, Context};
 use clap::{Parser, Subcommand};
-use protocol::Message;
 use serde::Serialize;
+use stats::StatsMetadata;
 use strum::{EnumIter, EnumString, IntoStaticStr};
 
 /// CLI utilities for GradBench, a benchmark suite for differentiable programming across languages
@@ -163,6 +166,10 @@ enum RepoCommands {
     Manual {
         /// The image to build and push
         image: String,
+
+        /// Don't push the image to the container registry
+        #[clap(long)]
+        dry_run: bool,
     },
 
     /// Print JSON values for consumption in GitHub Actions.
@@ -171,24 +178,25 @@ enum RepoCommands {
     /// sign. No extra whitespace is printed, because GitHub Actions seems to be sensitive to that.
     Matrix,
 
-    /// Generate summary data files in a directory containing log files.
+    /// Generate summary data files and plots from a directory containing log files.
     ///
-    /// The directory should first contain a `run-<EVAL>-<TOOL>/log.jsonl` file for each `<EVAL>`
-    /// under `evals` and each `<TOOL>` under `tools`.
-    ///
-    /// Used in the nightly builds, producing files that can be easily downloaded by JavaScript on
-    /// the GradBench website to generate tables and charts.
-    Summarize {
-        /// The directory to work in
-        dir: PathBuf,
+    /// The directory should contain a `run-<EVAL>-<TOOL>/log.jsonl` file for each `<EVAL>` under
+    /// `evals` and each `<TOOL>` under `tools`.
+    Stats {
+        /// The directory containing log files
+        input: PathBuf,
+
+        /// The directory to create
+        #[clap(short, long)]
+        output: PathBuf,
 
         /// The current date
         #[clap(long)]
-        date: String,
+        date: Option<String>,
 
-        /// The Git commit SHA from the `main` branch
+        /// The source Git commit SHA
         #[clap(long)]
-        commit: String,
+        commit: Option<String>,
     },
 }
 
@@ -396,121 +404,88 @@ fn shell(command: &str) -> Command {
 }
 
 /// List the entries in a directory.
-fn ls(dir: &str) -> Result<Vec<String>, ExitCode> {
+fn ls(dir: &str) -> anyhow::Result<Vec<String>> {
     fs::read_dir(dir)
-        .map_err(|err| {
-            eprintln!("error reading directory {dir:?}: {err}");
-            ExitCode::FAILURE
-        })?
+        .with_context(|| format!("error reading directory {dir:?}"))?
         .map(|entry| {
-            entry
-                .map_err(|err| {
-                    eprintln!("error reading entry in directory {dir:?}: {err}");
-                    ExitCode::FAILURE
-                })?
+            entry?
                 .file_name()
                 .into_string()
-                .map_err(|name| {
-                    eprintln!("error converting entry name to string: {name:?}");
-                    ExitCode::FAILURE
-                })
+                .map_err(|name| anyhow!("invalid file name {name:?}"))
         })
         .collect()
 }
 
 /// Print a JSON `value` with a `name` for GitHub Actions.
-fn github_output(name: &str, value: impl Serialize) -> Result<(), ExitCode> {
+fn github_output(name: &str, value: impl Serialize) -> anyhow::Result<()> {
     print!("{name}=");
-    serde_json::to_writer(io::stdout(), &value).map_err(|err| {
-        eprintln!("error serializing {name}: {err}");
-        ExitCode::FAILURE
-    })?;
+    serde_json::to_writer(io::stdout(), &value)?;
     println!();
     Ok(())
+}
+
+/// Return a map from eval names to the tools that support them.
+fn evals_to_tools(evals: Vec<String>) -> anyhow::Result<BTreeMap<String, BTreeSet<Rc<str>>>> {
+    let mut map = BTreeMap::new();
+    for eval in evals {
+        map.insert(eval, BTreeSet::new());
+    }
+    for result in fs::read_dir("tools")? {
+        let entry = result?;
+        let tool = entry
+            .file_name()
+            .into_string()
+            .map_err(|name| anyhow!("invalid file name {name:?}"))?;
+        let evals = fs::read_to_string(entry.path().join("evals.txt")).unwrap_or_default();
+        for eval in evals.lines() {
+            map.get_mut(eval)
+                .ok_or_else(|| anyhow!("eval {eval:?} not found"))?
+                .insert(Rc::from(tool.as_str()));
+        }
+    }
+    Ok(map)
 }
 
 /// A single entry in the `run` matrix for GitHub Actions.
 #[derive(Serialize)]
 struct RunEntry<'a> {
-    /// The name of the tool.
-    tool: &'a str,
-
     /// The name of the eval.
     eval: &'a str,
+
+    /// The name of the tool.
+    tool: &'a str,
 
     /// The expected outcome of the run.
     outcome: &'static str,
 }
 
-/// The status from running a tool on an eval.
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "snake_case")]
-enum Status {
-    /// The tool is not implemented for the eval.
-    Unimplemented,
-
-    /// The tool returned invalid results for the eval.
-    Incorrect,
-
-    /// The tool returned correct results for the eval.
-    Correct,
-}
-
-/// Read a log file and summarize the results.
-fn summarize(path: &Path) -> Option<Status> {
-    let mut message: Option<Message> = None;
-    for res in io::BufReader::new(fs::File::open(path).ok()?).lines() {
-        let mut line: serde_json::Value = serde_json::from_str(&res.ok()?).ok()?;
-        if let Some(response) = line.get("response") {
-            if let Message::Define { .. } = message.take()? {
-                if !response.get("success")?.as_bool()? {
-                    return Some(Status::Unimplemented);
-                }
-            }
-        }
-        if let Some(msg) = line.get_mut("message") {
-            message = Some(serde_json::from_value(msg.take()).ok()?);
-            if let Some(Message::Analysis { valid, .. }) = &message {
-                if !valid {
-                    return Some(Status::Incorrect);
-                }
-            }
+/// Print the GitHub Actions matrix to stdout.
+fn matrix() -> anyhow::Result<()> {
+    let date = format!("{}", chrono::Utc::now().format("%Y-%m-%d"));
+    github_output("date", date)?;
+    let mut evals = ls("evals")?;
+    evals.sort();
+    github_output("eval", &evals)?;
+    let mut tools = ls("tools")?;
+    tools.sort();
+    github_output("tool", &tools)?;
+    let mut run = Vec::new();
+    let map = evals_to_tools(evals)?;
+    for (eval, supported) in &map {
+        for tool in &tools {
+            run.push(RunEntry {
+                eval,
+                tool,
+                outcome: if supported.contains(tool.as_str()) {
+                    "success"
+                } else {
+                    BadOutcome::Undefined.into()
+                },
+            });
         }
     }
-    Some(Status::Correct)
-}
-
-/// A cell in a table of summary data.
-#[derive(Debug, Serialize)]
-struct Col<'a> {
-    /// The name of the tool for this column.
-    tool: &'a str,
-
-    /// The status of the tool for this eval.
-    status: Status,
-}
-
-/// A row in a table of summary data.
-#[derive(Debug, Serialize)]
-struct Row<'a> {
-    /// The name of the eval for this row.
-    eval: &'a str,
-
-    /// The status of each tool for this eval.
-    tools: Vec<Col<'a>>,
-}
-
-/// Summary data to be written to a `summary.json` file by the `repo summarize` subcommand.
-#[derive(Debug, Serialize)]
-struct Summary<'a> {
-    /// The current date.
-    date: String,
-
-    /// The Git commit SHA from the `main` branch.
-    commit: String,
-
-    /// The table of summary data.
-    table: Vec<Row<'a>>,
+    github_output("run", run)?;
+    Ok(())
 }
 
 /// Run the GradBench CLI, returning a `Result`.
@@ -599,7 +574,7 @@ fn cli() -> Result<(), ExitCode> {
                 RepoCommands::BuildTool { tool, cross } => {
                     build_tool(&tool, Platforms::cross(cross), Verbosity::Normal)
                 }
-                RepoCommands::Manual { image } => {
+                RepoCommands::Manual { image, dry_run } => {
                     let name = format!("ghcr.io/gradbench/{image}");
                     run(Command::new("docker")
                         .args(["build", "--platform", "linux/amd64,linux/arm64"])
@@ -610,70 +585,27 @@ fn cli() -> Result<(), ExitCode> {
                     run(Command::new("docker")
                         .args(["tag", &name])
                         .arg(format!("{name}:{tag}")))?;
-                    run(Command::new("docker")
-                        .arg("push")
-                        .arg(format!("{name}:{tag}")))?;
+                    if !dry_run {
+                        run(Command::new("docker")
+                            .arg("push")
+                            .arg(format!("{name}:{tag}")))?;
+                    }
                     Ok(())
                 }
-                RepoCommands::Matrix => {
-                    let date = format!("{}", chrono::Utc::now().format("%Y-%m-%d"));
-                    github_output("date", date)?;
-                    let mut evals = ls("evals")?;
-                    evals.sort();
-                    github_output("eval", &evals)?;
-                    let mut tools = ls("tools")?;
-                    tools.sort();
-                    github_output("tool", &tools)?;
-                    let mut run = Vec::new();
-                    for tool in &tools {
-                        let path = Path::new("tools").join(tool).join("evals.txt");
-                        let evals_list = fs::read_to_string(path).unwrap_or_default();
-                        let supported: HashSet<&str> = evals_list.lines().collect();
-                        for eval in &evals {
-                            run.push(RunEntry {
-                                tool,
-                                eval,
-                                outcome: if supported.contains(eval.as_str()) {
-                                    "success"
-                                } else {
-                                    BadOutcome::Undefined.into()
-                                },
-                            });
-                        }
-                    }
-                    github_output("run", run)?;
-                    Ok(())
-                }
-                RepoCommands::Summarize { dir, date, commit } => {
-                    let mut table = Vec::new();
-                    let mut evals = ls("evals")?;
-                    evals.sort();
-                    let mut tools = ls("tools")?;
-                    tools.sort();
-                    for eval in &evals {
-                        let mut row = Vec::new();
-                        for tool in &tools {
-                            let path = dir.join(format!("run-{eval}-{tool}/log.jsonl"));
-                            let status = summarize(&path).unwrap_or(Status::Unimplemented);
-                            row.push(Col { tool, status });
-                        }
-                        table.push(Row { eval, tools: row });
-                    }
-                    let summary = Summary {
-                        date,
-                        commit,
-                        table,
-                    };
-                    let output = dir.join("summary.json");
-                    let file = fs::File::create(&output).map_err(|err| {
-                        eprintln!("error creating summary file {output:?}: {err}");
+                RepoCommands::Matrix => matrix().map_err(|err| {
+                    eprintln!("{err:#}");
+                    ExitCode::FAILURE
+                }),
+                RepoCommands::Stats {
+                    input,
+                    output,
+                    date,
+                    commit,
+                } => {
+                    stats::generate(input, output, StatsMetadata { date, commit }).map_err(|err| {
+                        eprintln!("{err:#}");
                         ExitCode::FAILURE
-                    })?;
-                    serde_json::to_writer(file, &summary).map_err(|err| {
-                        eprintln!("error serializing summary table: {err}");
-                        ExitCode::FAILURE
-                    })?;
-                    Ok(())
+                    })
                 }
             }
         }
