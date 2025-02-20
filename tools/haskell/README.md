@@ -8,5 +8,5 @@ are advised to `cabal build` it before using `cabal run` to run it
 (see the command in the Dockerfile), as otherwise the build output
 from `cabal` will interfere with the protocol.
 
+[`ad`]: https://hackage.haskell.org/package/ad
 [haskell]: https://haskell.org/
-[ad]: https://hackage.haskell.org/package/ad
