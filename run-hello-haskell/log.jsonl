@@ -1,0 +1,36 @@
+{ "elapsed": { "nanoseconds": 581959036 }, "message": {"id": 0, "kind": "start", "eval": "hello"} }
+{ "elapsed": { "nanoseconds": 1010807441 }, "response": {"id":0,"tool":"haskell"} }
+{ "elapsed": { "nanoseconds": 1011323359 }, "message": {"id": 1, "kind": "define", "module": "hello"} }
+{ "elapsed": { "nanoseconds": 1011623673 }, "response": {"id":1,"success":true} }
+{ "elapsed": { "nanoseconds": 1011936024 }, "message": {"id": 2, "kind": "evaluate", "module": "hello", "function": "square", "input": 1.0} }
+{ "elapsed": { "nanoseconds": 1012298987 }, "response": {"id":2,"output":1,"success":true,"timings":[{"name":"evaluate","nanoseconds":23373}]} }
+{ "elapsed": { "nanoseconds": 1012892102 }, "message": {"id": 3, "kind": "analysis", "of": 2, "valid": true} }
+{ "elapsed": { "nanoseconds": 1013180351 }, "response": {"id":3} }
+{ "elapsed": { "nanoseconds": 1013454361 }, "message": {"id": 4, "kind": "evaluate", "module": "hello", "function": "double", "input": 1} }
+{ "elapsed": { "nanoseconds": 1013741676 }, "response": {"id":4,"output":2,"success":true,"timings":[{"name":"evaluate","nanoseconds":22342}]} }
+{ "elapsed": { "nanoseconds": 1014110642 }, "message": {"id": 5, "kind": "analysis", "of": 4, "valid": true} }
+{ "elapsed": { "nanoseconds": 1014361710 }, "response": {"id":5} }
+{ "elapsed": { "nanoseconds": 1014628234 }, "message": {"id": 6, "kind": "evaluate", "module": "hello", "function": "square", "input": 2} }
+{ "elapsed": { "nanoseconds": 1014895937 }, "response": {"id":6,"output":4,"success":true,"timings":[{"name":"evaluate","nanoseconds":1082}]} }
+{ "elapsed": { "nanoseconds": 1015226543 }, "message": {"id": 7, "kind": "analysis", "of": 6, "valid": true} }
+{ "elapsed": { "nanoseconds": 1015525108 }, "response": {"id":7} }
+{ "elapsed": { "nanoseconds": 1015801005 }, "message": {"id": 8, "kind": "evaluate", "module": "hello", "function": "double", "input": 4} }
+{ "elapsed": { "nanoseconds": 1016041112 }, "response": {"id":8,"output":8,"success":true,"timings":[{"name":"evaluate","nanoseconds":4919}]} }
+{ "elapsed": { "nanoseconds": 1016364987 }, "message": {"id": 9, "kind": "analysis", "of": 8, "valid": true} }
+{ "elapsed": { "nanoseconds": 1016614073 }, "response": {"id":9} }
+{ "elapsed": { "nanoseconds": 1016865239 }, "message": {"id": 10, "kind": "evaluate", "module": "hello", "function": "square", "input": 8} }
+{ "elapsed": { "nanoseconds": 1017095227 }, "response": {"id":10,"output":64,"success":true,"timings":[{"name":"evaluate","nanoseconds":1042}]} }
+{ "elapsed": { "nanoseconds": 1017413940 }, "message": {"id": 11, "kind": "analysis", "of": 10, "valid": true} }
+{ "elapsed": { "nanoseconds": 1017633188 }, "response": {"id":11} }
+{ "elapsed": { "nanoseconds": 1017882039 }, "message": {"id": 12, "kind": "evaluate", "module": "hello", "function": "double", "input": 64} }
+{ "elapsed": { "nanoseconds": 1018146028 }, "response": {"id":12,"output":128,"success":true,"timings":[{"name":"evaluate","nanoseconds":8246}]} }
+{ "elapsed": { "nanoseconds": 1018473685 }, "message": {"id": 13, "kind": "analysis", "of": 12, "valid": true} }
+{ "elapsed": { "nanoseconds": 1018717462 }, "response": {"id":13} }
+{ "elapsed": { "nanoseconds": 1018966452 }, "message": {"id": 14, "kind": "evaluate", "module": "hello", "function": "square", "input": 128} }
+{ "elapsed": { "nanoseconds": 1019200498 }, "response": {"id":14,"output":16384,"success":true,"timings":[{"name":"evaluate","nanoseconds":2836}]} }
+{ "elapsed": { "nanoseconds": 1019514696 }, "message": {"id": 15, "kind": "analysis", "of": 14, "valid": true} }
+{ "elapsed": { "nanoseconds": 1019758680 }, "response": {"id":15} }
+{ "elapsed": { "nanoseconds": 1019994241 }, "message": {"id": 16, "kind": "evaluate", "module": "hello", "function": "double", "input": 16384} }
+{ "elapsed": { "nanoseconds": 1020233594 }, "response": {"id":16,"output":32768,"success":true,"timings":[{"name":"evaluate","nanoseconds":3126}]} }
+{ "elapsed": { "nanoseconds": 1020557830 }, "message": {"id": 17, "kind": "analysis", "of": 16, "valid": true} }
+{ "elapsed": { "nanoseconds": 1020785198 }, "response": {"id":17} }
