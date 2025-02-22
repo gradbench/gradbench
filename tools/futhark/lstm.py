@@ -15,7 +15,6 @@ def prepare(server, input):
 
 
 def objective(server, input):
-    runs = input["runs"]
     (obj,), times = futhark_utils.run(
         server,
         "calculate_objective",
@@ -28,7 +27,6 @@ def objective(server, input):
 
 
 def jacobian(server, input):
-    runs = input["runs"]
     (J,), times = futhark_utils.run(
         server,
         "calculate_jacobian",
