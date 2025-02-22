@@ -21,7 +21,8 @@ def objective(server, input):
         "calculate_objective",
         ("obj",),
         ("main_params", "extra_params", "state", "sequence"),
-        runs,
+        input["min_runs"],
+        input["min_seconds"],
     )
     return (obj, times)
 
@@ -33,6 +34,7 @@ def jacobian(server, input):
         "calculate_jacobian",
         ("J",),
         ("main_params", "extra_params", "state", "sequence"),
-        runs,
+        input["min_runs"],
+        input["min_seconds"],
     )
     return (J.tolist(), times)

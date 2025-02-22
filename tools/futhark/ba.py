@@ -33,13 +33,13 @@ def prepare(server, input):
 
 
 def objective(server, input):
-    runs = input["runs"]
     (r_err, w_err), times = futhark_utils.run(
         server,
         "calculate_objective",
         ("reproj_error", "w_err"),
         ("cams", "X", "w", "obs", "feats"),
-        runs,
+        input["min_runs"],
+        input["min_seconds"],
     )
     num_r = r_err.shape[0]
     num_w = w_err.shape[0]
@@ -53,13 +53,13 @@ def objective(server, input):
 
 
 def jacobian(server, input):
-    runs = input["runs"]
     (rows, cols, vals), times = futhark_utils.run(
         server,
         "calculate_jacobian",
         ("rows", "cols", "vals"),
         ("cams", "X", "w", "obs", "feats"),
-        runs,
+        input["min_runs"],
+        input["min_seconds"],
     )
     return (
         {
