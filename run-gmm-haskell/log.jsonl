@@ -1,4 +1,4 @@
-{ "elapsed": { "nanoseconds": 1432717592 }, "message": {"id": 0, "kind": "start", "eval": "gmm", "config": {"n": 1000, "k": [5, 10, 25, 50], "d": [2, 10, 20, 32], "runs": 1, "no_validation": false}} }
-{ "elapsed": { "nanoseconds": 1944299088 }, "response": {"id":0,"tool":"haskell"} }
-{ "elapsed": { "nanoseconds": 1944864002 }, "message": {"id": 1, "kind": "define", "module": "gmm"} }
-{ "elapsed": { "nanoseconds": 1945215432 }, "response": {"id":1,"success":false} }
+{ "elapsed": { "nanoseconds": 573493307 }, "message": {"id": 0, "kind": "start", "eval": "gmm", "config": {"n": 1000, "k": [5, 10, 25, 50], "d": [2, 10, 20, 32], "runs": 1, "no_validation": false}} }
+{ "elapsed": { "nanoseconds": 1031969913 }, "response": {"id":0,"tool":"haskell"} }
+{ "elapsed": { "nanoseconds": 1032535407 }, "message": {"id": 1, "kind": "define", "module": "gmm"} }
+{ "elapsed": { "nanoseconds": 1032853272 }, "response": {"id":1,"success":false} }

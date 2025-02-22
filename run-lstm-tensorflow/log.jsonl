@@ -1,4 +1,4 @@
-{ "elapsed": { "nanoseconds": 640904825 }, "message": {"id": 0, "kind": "start", "eval": "lstm", "config": {"l": [2, 4], "c": [1024, 4096], "runs": 1, "no_validation": false}} }
-{ "elapsed": { "nanoseconds": 642190553 }, "response": {"id": 0, "tool": "tensorflow"} }
-{ "elapsed": { "nanoseconds": 642526139 }, "message": {"id": 1, "kind": "define", "module": "lstm"} }
-{ "elapsed": { "nanoseconds": 643017338 }, "response": {"id": 1, "success": false} }
+{ "elapsed": { "nanoseconds": 622351511 }, "message": {"id": 0, "kind": "start", "eval": "lstm", "config": {"l": [2, 4], "c": [1024, 4096], "runs": 1, "no_validation": false}} }
+{ "elapsed": { "nanoseconds": 624121892 }, "response": {"id": 0, "tool": "tensorflow"} }
+{ "elapsed": { "nanoseconds": 624494297 }, "message": {"id": 1, "kind": "define", "module": "lstm"} }
+{ "elapsed": { "nanoseconds": 624931207 }, "response": {"id": 1, "success": false} }
