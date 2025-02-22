@@ -13,7 +13,7 @@ COPY python /home/gradbench/python
 COPY cpp /home/gradbench/cpp
 RUN make -C cpp
 COPY tools/manual/ /home/gradbench/tools/manual
-RUN make -C /home/gradbench/tools/manual
+RUN make -C /home/gradbench/tools/manual -Bj
 
 COPY evals/ht/data /home/gradbench/evals/ht/data
 
