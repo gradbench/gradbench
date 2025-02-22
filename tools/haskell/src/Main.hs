@@ -19,7 +19,6 @@ import Control.Exception
 import Control.Monad (forever, guard)
 import Data.Aeson (ToJSON (..), (.:))
 import Data.Aeson qualified as JSON
-import Data.Aeson.KeyMap qualified as KM
 import Data.ByteString.Char8 qualified as BS
 import Data.List qualified as L
 import Data.Maybe (fromMaybe, isJust)
@@ -32,25 +31,35 @@ import System.IO
 import System.IO.Error (isEOFError)
 import Prelude hiding (mod)
 
-getRuns :: JSON.Value -> Int
-getRuns (JSON.Object kv)
-  | Just (JSON.Number x) <- KM.lookup "runs" kv =
-      round x
-getRuns _ = 1
+data Runs = Runs
+  { minRuns :: Int,
+    minSeconds :: Double
+  }
+
+instance JSON.FromJSON Runs where
+  parseJSON = JSON.withObject "input" $ \o ->
+    Runs <$> o .: "min_runs" <*> o .: "min_seconds"
+
+getRuns :: JSON.Value -> Runs
+getRuns input =
+  case JSON.fromJSON input of
+    JSON.Success runs -> runs
+    JSON.Error _ -> Runs 1 0
 
 type Runtime = Integer
 
-doRuns :: (NFData b) => [Runtime] -> Int -> (a -> b) -> a -> IO (b, [Runtime])
-doRuns times runs f x = do
+doRuns :: (NFData b) => [Runtime] -> Int -> Double -> Runs -> (a -> b) -> a -> IO (b, [Runtime])
+doRuns timings i elapsed runs f x = do
   bef <- getTime Monotonic
   let output = f x
   evaluate $ rnf output
   aft <- getTime Monotonic
   let ns = toNanoSecs $ aft - bef
-      times' = ns : times
-  if runs == 1
-    then pure (output, times')
-    else doRuns times' (runs - 1) f x
+      timings' = ns : timings
+      elapsed' = elapsed + fromIntegral ns / 1e9
+  if i < minRuns runs || elapsed' < minSeconds runs
+    then doRuns timings' (i + 1) elapsed' runs f x
+    else pure (output, timings')
 
 wrap ::
   (JSON.FromJSON a, JSON.ToJSON b, NFData b) =>
@@ -62,8 +71,8 @@ wrap f input =
     JSON.Error e ->
       pure $ Left $ "Invalid input:\n" <> T.pack e
     JSON.Success v -> do
-      (output, runtimes) <- doRuns [] (getRuns input) f v
-      pure $ Right (JSON.toJSON output, runtimes)
+      (output, timings) <- doRuns [] 1 0 (getRuns input) f v
+      pure $ Right (JSON.toJSON output, timings)
 
 modules ::
   [ ( (T.Text, T.Text),
