@@ -104,7 +104,7 @@ If the tool receives any message whose `"kind"` is neither `"define"` nor `"eval
 
 ### Types
 
-Here is a somewhat more formal description of the protocol using [TypeScript][] types.
+Here is a somewhat more formal description of the protocol using [TypeScript][] types. Some of the types are not used directly, or in all evals, but may be referenced by eval-specific protocol descriptions. In particular, the value expected in the `"input"` field of an `"EvaluateMessage"` is specific to each eval.
 
 ```typescript
 type Id = number;
@@ -119,6 +119,11 @@ interface Duration {
 
 interface Timing extends Duration {
   name: string;
+}
+
+interface Runs {
+  min_runs: number;
+  min_seconds: number;
 }
 
 interface StartMessage extends Base {

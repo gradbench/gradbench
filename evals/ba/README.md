@@ -64,7 +64,7 @@ will be either the string `"objective"` or `"jacobian"`.
 ### Inputs
 
 ```typescript
-interface BAInput {
+interface BAInput extends Runs {
   n: int;
   m: int;
   p: int;
