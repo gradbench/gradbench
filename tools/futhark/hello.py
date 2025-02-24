@@ -8,18 +8,16 @@ def prepare(server, input):
 
 
 def square(server, input):
-    runs = 1
     (out,), times = futhark_utils.run(
-        server,
-        "square",
-        ("output",),
-        ("input",),
-        runs,
+        server, "square", ("output",), ("input",), min_runs=1, min_seconds=0
     )
     return (out, times)
 
 
 def double(server, input):
-    runs = 1
-    (out,), times = futhark_utils.run(server, "double", ("output",), ("input",), runs)
+    min_runs = 1
+    min_seconds = 0
+    (out,), times = futhark_utils.run(
+        server, "double", ("output",), ("input",), min_runs=1, min_seconds=0
+    )
     return (out, times)

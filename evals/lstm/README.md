@@ -25,7 +25,7 @@ an instance of the `LSTMInput` type defined below. The `function` field
 will be either the string `"objective"` or `"jacobian"`.
 
 ```typescript
-interface LSTMInput {
+interface LSTMInput extends Runs {
   main_params: double[][];
   extra_params: double[][];
   state: double[][];

@@ -45,7 +45,7 @@ interface HTData {
   points: double[][];
 }
 
-interface HTInput {
+interface HTInput extends Runs {
   theta: double[];
   data: HTData;
   us: double[];
