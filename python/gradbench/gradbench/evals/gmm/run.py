@@ -45,21 +45,24 @@ def main():
     e.start(config=vars(args))
     if e.define().success:
         n = args.n
-        for d in args.d:
-            for k in args.k:
-                input = data_gen.main(d, k, n)
-                e.evaluate(
-                    function="objective",
-                    input=input
-                    | {"min_runs": args.min_runs, "min_seconds": args.min_seconds},
-                    description=f"{d}_{k}_{n}",
-                )
-                e.evaluate(
-                    function="jacobian",
-                    input=input
-                    | {"min_runs": args.min_runs, "min_seconds": args.min_seconds},
-                    description=f"{d}_{k}_{n}",
-                )
+        combinations = sorted(
+            [(d, k) for d in args.d for k in args.k],
+            key=lambda v: v[0] * v[1],
+        )
+        for d, k in combinations:
+            input = data_gen.main(d, k, n)
+            e.evaluate(
+                function="objective",
+                input=input
+                | {"min_runs": args.min_runs, "min_seconds": args.min_seconds},
+                description=f"{d}_{k}_{n}",
+            )
+            e.evaluate(
+                function="jacobian",
+                input=input
+                | {"min_runs": args.min_runs, "min_seconds": args.min_seconds},
+                description=f"{d}_{k}_{n}",
+            )
 
 
 if __name__ == "__main__":
