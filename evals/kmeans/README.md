@@ -48,7 +48,7 @@ an instance of the `KMeansInput` type defined below. The `function`
 field will one of the strings `"cost"` or `"dir"`.
 
 ```typescript
-interface KMeansInput {
+interface KMeansInput extends Runs {
   points: double[][];
   centroids: double[][];
 }

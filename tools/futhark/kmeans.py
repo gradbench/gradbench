@@ -12,24 +12,24 @@ def prepare(server, input):
 
 
 def cost(server, input):
-    runs = input["runs"]
     (o,), times = futhark_utils.run(
         server,
         "cost",
         ("output",),
         ("points", "centroids"),
-        runs,
+        input["min_runs"],
+        input["min_seconds"],
     )
     return (o.tolist(), times)
 
 
 def dir(server, input):
-    runs = input["runs"]
     (o,), times = futhark_utils.run(
         server,
         "dir",
         ("output",),
         ("points", "centroids"),
-        runs,
+        input["min_runs"],
+        input["min_seconds"],
     )
     return (o.tolist(), times)

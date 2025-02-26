@@ -58,7 +58,7 @@ an instance of the `GMMInput` interface defined below. The `function` field
 will be either the string `"objective"` or `"jacobian"`.
 
 ```typescript
-interface GMMInput {
+interface GMMInput extends Runs {
   d: int;
   k: int;
   n: int;

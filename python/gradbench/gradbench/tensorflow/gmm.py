@@ -114,13 +114,13 @@ def prepare_input(input):
     return py
 
 
-@wrap.function(pre=prepare_input, post=lambda x: x.numpy().tolist())
+@wrap.multiple_runs(pre=prepare_input, post=lambda x: x.numpy().tolist())
 def jacobian(py):
     py.calculate_jacobian(1)
     return py.gradient
 
 
-@wrap.function(pre=prepare_input, post=lambda x: x.numpy().tolist())
+@wrap.multiple_runs(pre=prepare_input, post=lambda x: x.numpy().tolist())
 def objective(py):
     py.calculate_objective(1)
     return py.objective

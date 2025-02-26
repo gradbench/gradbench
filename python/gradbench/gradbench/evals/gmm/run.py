@@ -14,7 +14,7 @@ from gradbench.wrap import Wrapped
 
 def check(function: str, input: Any, output: Any) -> None:
     func = getattr(golden, function)
-    proc = func(input | {"runs": 1})
+    proc = func(input | {"min_runs": 1, "min_seconds": 0})
     if proc.returncode == 0:
         ls = proc.stdout.splitlines()
         expected = json.loads(ls[0])
@@ -35,7 +35,8 @@ def main():
     parser.add_argument(
         "-d", nargs="+", type=int, default=[2, 10, 20, 32]
     )  # misses 64 128
-    parser.add_argument("--runs", type=int, default=1)
+    parser.add_argument("--min-runs", type=int, default=1)
+    parser.add_argument("--min-seconds", type=float, default=1)
     parser.add_argument("--no-validation", action="store_true", default=False)
     args = parser.parse_args()
     e = SingleModuleValidatedEval(
@@ -44,19 +45,24 @@ def main():
     e.start(config=vars(args))
     if e.define().success:
         n = args.n
-        for d in args.d:
-            for k in args.k:
-                input = data_gen.main(d, k, n)
-                e.evaluate(
-                    function="objective",
-                    input=input | {"runs": args.runs},
-                    description=f"{d}_{k}_{n}",
-                )
-                e.evaluate(
-                    function="jacobian",
-                    input=input | {"runs": args.runs},
-                    description=f"{d}_{k}_{n}",
-                )
+        combinations = sorted(
+            [(d, k) for d in args.d for k in args.k],
+            key=lambda v: v[0] * v[1],
+        )
+        for d, k in combinations:
+            input = data_gen.main(d, k, n)
+            e.evaluate(
+                function="objective",
+                input=input
+                | {"min_runs": args.min_runs, "min_seconds": args.min_seconds},
+                description=f"{d}_{k}_{n}",
+            )
+            e.evaluate(
+                function="jacobian",
+                input=input
+                | {"min_runs": args.min_runs, "min_seconds": args.min_seconds},
+                description=f"{d}_{k}_{n}",
+            )
 
 
 if __name__ == "__main__":
