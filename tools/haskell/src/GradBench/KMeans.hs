@@ -77,19 +77,9 @@ diagonal x = V.zipWith (V.!) x (V.enumFromN 0 (V.length x))
 
 dir :: Input -> DirOutput
 dir (Input d points centroids) =
-  let (_, x) = D.hessian' (costGeneric d (fmap D.auto points)) centroids
-      cost' = V.map fst x
-      cost'' = diagonal (V.map snd x)
+  let (cost', cost'') =
+        V.unzip $
+          D.hessianProduct'
+            (costGeneric d (fmap D.auto points))
+            (V.map (,1) centroids)
    in DirOutput d $ V.zipWith (/) cost' cost''
-
--- The following implementation is more efficient, but it uses much
--- more memory for reasons I am unsure of - possibly laziness.
-
--- dir :: Input -> DirOutput
--- dir (Input d points centroids) =
---   let (cost', cost'') =
---         V.unzip $
---           D.hessianProduct'
---             (costGeneric d (fmap D.auto points))
---             (V.map (,1) centroids)
---    in DirOutput d $ V.zipWith (/) cost' cost''
