@@ -8,12 +8,15 @@ const dateString = (date: Date): string => date.toISOString().split("T")[0];
 /**
  * Return `date` if it is a valid YYYY-MM-DD date string, otherwise `undefined`.
  */
-const parseDate = (date: any): string | undefined => {
+const parseDate = (date: string | null | undefined): string | undefined => {
+  if (date === null || date === undefined) return undefined;
   try {
     if (dateString(new Date(date)) === date) {
       return date;
     }
-  } catch (_) {}
+  } catch (_) {
+    return undefined;
+  }
 };
 
 /** Return the URL prefix we should download from. */
@@ -51,7 +54,9 @@ const download = async (prefix: string): Promise<Summary | undefined> => {
   try {
     const response = await fetch(`${prefix}/summary.json`);
     return await response.json();
-  } catch (_) {}
+  } catch (_) {
+    return undefined;
+  }
 };
 
 const Table = ({ summary }: { summary: Summary }) => {
@@ -128,9 +133,10 @@ const App = () => {
     summary: undefined,
   });
   const prefix = urlPrefix({ commit, date: state.date });
+  const downloaded = state.summary?.prefix;
   useEffect(() => {
     // Nothing to do if we've already downloaded this summary.
-    if (state.summary?.prefix === prefix) return;
+    if (prefix === downloaded) return;
     (async () => {
       const summary = await download(prefix);
       setState((current) => {
@@ -152,7 +158,7 @@ const App = () => {
         return newState;
       });
     })();
-  }, [prefix]);
+  }, [commit, prefix, downloaded]);
   const pickDate = (date: string) => {
     if (parseDate(date) === null) return;
     const url = new URL(window.location.href);
