@@ -2,7 +2,6 @@ mod intermediary;
 mod protocol;
 
 use std::{
-    collections::HashSet,
     env, fs,
     io::{self, BufRead},
     path::{Path, PathBuf},
@@ -627,17 +626,25 @@ fn cli() -> Result<(), ExitCode> {
                     let mut run = Vec::new();
                     for tool in &tools {
                         let path = Path::new("tools").join(tool).join("evals.txt");
-                        let evals_list = fs::read_to_string(path).unwrap_or_default();
-                        let supported: HashSet<&str> = evals_list.lines().collect();
+                        let evals_list = fs::read_to_string(&path).unwrap_or_default();
+                        let supported: Vec<&str> = evals_list.lines().collect();
                         for eval in &evals {
+                            let outcome =
+                                match supported.iter().find(|v| v.starts_with(&eval.as_str())) {
+                                    None => BadOutcome::Undefined.into(),
+                                    Some(l) => match l.split(' ').collect::<Vec<_>>()[..] {
+                                        [_] => "success",
+                                        [_, "timeout"] => "timeout",
+                                        _ => {
+                                            eprintln!("{path:?}: invalid line for eval {eval}");
+                                            return Err(ExitCode::FAILURE);
+                                        }
+                                    },
+                                };
                             run.push(RunEntry {
                                 tool,
                                 eval,
-                                outcome: if supported.contains(eval.as_str()) {
-                                    "success"
-                                } else {
-                                    BadOutcome::Undefined.into()
-                                },
+                                outcome,
                             });
                         }
                     }
