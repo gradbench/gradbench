@@ -159,10 +159,10 @@ impl<
                 write!(self.out, ",")?;
             }
             first = false;
-            write!(self.out, " {}", nanostring(ns/num))?;
+            write!(self.out, " {}", nanostring(ns / num))?;
             write!(self.out, " {name}")?;
             if num > 1 {
-                write!(self.out, "×{num}")?;
+                write!(self.out, " × {num}")?;
             }
         }
         Ok(())
