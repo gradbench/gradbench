@@ -6,6 +6,7 @@ def get_runtime_ns(ls):
         m = re.match("runtime: ([0-9]+)", l)
         if m:
             return int(m.group(1)) * 1000
+    raise Exception('Output does not contain runtime information:\n{}'.format('\n'.join(ls)))
 
 
 def run(server, entry_name, outputs, inputs, min_runs, min_seconds):
