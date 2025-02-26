@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   cli:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,7 +31,7 @@ jobs:
 
   matrix:
     needs: cli
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     outputs:
       date: ${{ steps.matrix.outputs.date }}
       eval: ${{ steps.matrix.outputs.eval }}
@@ -59,7 +59,7 @@ jobs:
       fail-fast: false
       matrix:
         eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       IMAGE: ghcr.io/gradbench/eval-${{ matrix.eval }}
       TAG: ${{ fromJSON(needs.matrix.outputs.date) }}
@@ -98,7 +98,7 @@ jobs:
       fail-fast: false
       matrix:
         tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       IMAGE: ghcr.io/gradbench/tool-${{ matrix.tool }}
       TAG: ${{ fromJSON(needs.matrix.outputs.date) }}
@@ -142,7 +142,7 @@ jobs:
       matrix:
         eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
         tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -174,7 +174,7 @@ jobs:
       - cli
       - matrix
       - run
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4

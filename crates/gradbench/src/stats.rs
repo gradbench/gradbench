@@ -1,5 +1,3 @@
-mod plot;
-
 use std::{
     collections::{BTreeMap, HashMap},
     fs,
@@ -19,6 +17,7 @@ use crate::{
 };
 
 trait CreateFile {
+    #[allow(dead_code)] // TODO: Remove this once we start generating files.
     fn create(&self, subpath: &str, bytes: &[u8]) -> anyhow::Result<()>;
 }
 
@@ -132,10 +131,7 @@ impl<R: BufRead, F: CreateFile> Scorer<R, F> for ScorerClassic {
         }
     }
 
-    fn finish(&self, file: F) -> anyhow::Result<()> {
-        let mut string = String::new();
-        plot::plot_ratio(&mut string, self)?;
-        file.create("ratio.svg", string.as_bytes())?;
+    fn finish(&self, _: F) -> anyhow::Result<()> {
         Ok(())
     }
 }

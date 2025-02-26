@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,7 +41,7 @@ jobs:
         run: cargo test
 
   site:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -67,14 +67,14 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Deploy website
         id: deploy
         uses: actions/deploy-pages@v4
 
   cli:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -107,7 +107,7 @@ jobs:
 
   matrix:
     needs: cli
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     outputs:
       eval: ${{ steps.matrix.outputs.eval }}
       tool: ${{ steps.matrix.outputs.tool }}
@@ -129,7 +129,7 @@ jobs:
       fail-fast: false
       matrix:
         eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -155,7 +155,7 @@ jobs:
       fail-fast: false
       matrix:
         tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -183,7 +183,7 @@ jobs:
       fail-fast: false
       matrix:
         include: ${{ fromJSON(needs.matrix.outputs.run) }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -228,7 +228,7 @@ jobs:
       - cli
       - matrix
       - run
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -283,7 +283,9 @@ jobs:
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           message: |
-            **Summary statistics and charts were generated and pushed in commit ${{ steps.commit.outputs.CI_COMMIT_SHA }}.**
+            **Summary statistics and charts were generated and pushed in commit ${{ steps.commit.outputs.CI_COMMIT_SHA }}. View them at this URL:**
+
+            https://gradben.ch/?commit=${{ steps.commit.outputs.CI_COMMIT_SHA }}
 
             > [!NOTE]
             > Workflow run [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) was triggered by commit ${{ github.event.pull_request.head.sha }}, which was merged with the latest commit from branch `${{ github.event.pull_request.base.ref }}` before running, so the workflow was run on the merge commit ${{ github.sha }}.
@@ -297,7 +299,7 @@ jobs:
       fail-fast: false
       matrix:
         tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4

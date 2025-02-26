@@ -2,9 +2,38 @@ import { useEffect, useState } from "react";
 import { Fragment } from "react/jsx-runtime";
 import "./App.css";
 
+/** Return a YYYY-MM-DD date string from a `Date` object. */
+const dateString = (date: Date): string => date.toISOString().split("T")[0];
+
+/**
+ * Return `date` if it is a valid YYYY-MM-DD date string, otherwise `undefined`.
+ */
+const parseDate = (date: any): string | undefined => {
+  try {
+    if (dateString(new Date(date)) === date) {
+      return date;
+    }
+  } catch (_) {}
+};
+
+/** Return the URL prefix we should download from. */
+const urlPrefix = (params: {
+  commit: string | undefined;
+  date: string | undefined;
+}): string => {
+  const prefix = "https://raw.githubusercontent.com/gradbench/gradbench";
+  if (params.date !== undefined) {
+    return `${prefix}/refs/tags/nightly-${params.date}`;
+  } else if (params.commit !== undefined) {
+    return `${prefix}/${params.commit}`;
+  } else {
+    return `${prefix}/refs/heads/ci/refs/heads/nightly`;
+  }
+};
+
 interface Cell {
   tool: string;
-  status: "unimplemented" | "incorrect" | "correct";
+  status?: "unimplemented" | "incorrect" | "correct";
 }
 
 interface Row {
@@ -13,29 +42,19 @@ interface Row {
 }
 
 interface Summary {
+  date?: string;
   table: Row[];
 }
 
-const Table = ({ date }: { date: string }) => {
-  const [summary, setSummary] = useState<undefined | null | Summary>(undefined);
+/** Attempt to download the summary using the given URL prefix. */
+const download = async (prefix: string): Promise<Summary | undefined> => {
+  try {
+    const response = await fetch(`${prefix}/summary.json`);
+    return await response.json();
+  } catch (_) {}
+};
 
-  useEffect(() => {
-    setSummary(undefined);
-    const download = async () => {
-      try {
-        const url = `https://raw.githubusercontent.com/gradbench/gradbench/refs/tags/nightly-${date}/summary.json`;
-        const response = await fetch(url);
-        setSummary(await response.json());
-      } catch (e) {
-        setSummary(null);
-      }
-    };
-    download();
-  }, [date]);
-
-  if (summary === undefined) return <p>Downloading...</p>;
-  if (summary === null) return <p>No data found for {date}.</p>;
-
+const Table = ({ summary }: { summary: Summary }) => {
   const numTools = summary.table[0].tools.length;
   const cellSize = "30px";
   return (
@@ -85,21 +104,114 @@ const Table = ({ date }: { date: string }) => {
   );
 };
 
-const today = new Date().toISOString().split("T")[0];
+interface DownloadedSummary {
+  /** The URL prefix we used to download the summary. */
+  prefix: string;
+
+  /** The summary we downloaded, if there was one. */
+  summary: Summary | undefined;
+}
+
+interface State {
+  /** The date that we are currently displaying, if any. */
+  date: string | undefined;
+
+  /** The summary that we are currently displaying, if any. */
+  summary: DownloadedSummary | undefined;
+}
 
 const App = () => {
-  const [date, setDate] = useState(today);
+  const params = new URL(window.location.href).searchParams;
+  const commit: string | undefined = params.get("commit") ?? undefined;
+  const [state, setState] = useState<State>({
+    date: parseDate(params.get("date")),
+    summary: undefined,
+  });
+  const prefix = urlPrefix({ commit, date: state.date });
+  useEffect(() => {
+    // Nothing to do if we've already downloaded this summary.
+    if (state.summary?.prefix === prefix) return;
+    (async () => {
+      const summary = await download(prefix);
+      setState((current) => {
+        // Only overwrite the summary if the URL prefix we're using is still the
+        // same as the one wanted by the current state.
+        if (urlPrefix({ commit, date: current.date }) !== prefix)
+          return current;
+        const newState = { ...current, summary: { prefix, summary } };
+        if (current.date === undefined) {
+          const date = parseDate(summary?.date);
+          // If the user hasn't picked a date and there's no `commit` in the
+          // query parameters, then we just downloaded the summary for the most
+          // recent nightly build, which probably has a date, so we can just
+          // store that to show in the date picker.
+          if (date !== undefined) {
+            newState.date = date;
+          }
+        }
+        return newState;
+      });
+    })();
+  }, [prefix]);
+  const pickDate = (date: string) => {
+    if (parseDate(date) === null) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("date", date);
+    window.history.pushState(null, "", url.href);
+    setState((current) => ({ ...current, date }));
+  };
   return (
     <>
       <h1>
         <a href="https://github.com/gradbench/gradbench">GradBench</a>{" "}
+        <button
+          disabled={state.date === undefined}
+          onClick={() => {
+            if (state.date === undefined) return;
+            const d = new Date(state.date);
+            d.setDate(d.getDate() - 1);
+            pickDate(dateString(d));
+          }}
+        >
+          ◀
+        </button>{" "}
         <input
           type="date"
-          defaultValue={date}
-          onChange={(e) => setDate(e.target.value)}
-        />
+          value={state.date ?? ""}
+          onChange={(e) => pickDate(e.target.value)}
+        />{" "}
+        <button
+          disabled={state.date === undefined}
+          onClick={() => {
+            if (state.date === undefined) return;
+            const d = new Date(state.date);
+            d.setDate(d.getDate() + 1);
+            pickDate(dateString(d));
+          }}
+        >
+          ▶
+        </button>
       </h1>
-      <Table date={date} />
+      {state.summary === undefined ? (
+        <p>Downloading...</p>
+      ) : state.summary.summary === undefined ? (
+        <p>
+          No data found
+          {state.date !== undefined ? (
+            ` for ${state.date}`
+          ) : commit !== undefined ? (
+            <>
+              {" "}
+              at commit <code>{commit}</code>
+            </>
+          ) : (
+            " for the latest nightly build"
+          )}
+          .
+        </p>
+      ) : (
+        <Table summary={state.summary.summary} />
+      )}
     </>
   );
 };
