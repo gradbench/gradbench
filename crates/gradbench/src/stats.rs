@@ -17,7 +17,9 @@ use crate::{
     util::nanos_duration,
 };
 
+/// Simple trait for creating files inside of an existing directory.
 trait CreateFile {
+    /// Create a file with the given subpath inside of the directory.
     fn create(&self, subpath: &str, bytes: &[u8]) -> anyhow::Result<()>;
 }
 
@@ -29,9 +31,13 @@ impl CreateFile for PathBuf {
     }
 }
 
+/// Trait for scoring multiple tools on an eval by ingesting their log files one-by-one via the type
+/// `R: BufRead` and then generating some number of summary files via the type `F: CreateFile`.
 trait Scorer<R: BufRead, F: CreateFile> {
+    /// Score a `log` file for a `tool`, returning a nonnegative score; higher is better.
     fn score(&mut self, tool: &str, log: R) -> anyhow::Result<f64>;
 
+    /// Finish the scoring process and write the results using `F` to create files if necessary.
     fn finish(&self, file: F) -> anyhow::Result<()>;
 }
 
@@ -45,32 +51,60 @@ impl<R: BufRead, F: CreateFile> Scorer<R, F> for () {
     }
 }
 
+/// A message from the eval to the tool, as wrapped in a log file written by the intermediary.
 #[derive(Deserialize)]
 struct LoggedMessage<T> {
+    /// The message.
     message: T,
 }
 
+/// A response from the tool to the eval, as wrapped in a log file written by the intermediary.
 #[derive(Deserialize)]
 struct LoggedResponse<T> {
+    /// The response.
     response: T,
 }
 
+/// An average duration for a given eval, tool, and workload, plus the same for the derivative.
 #[derive(Clone, Copy, Default, Serialize)]
 struct DurationPair {
+    /// The average duration to compute the primal value for this workload.
     primal: Duration,
+
+    /// The average duration to compute the derivative for this workload.
     derivative: Duration,
 }
 
 impl DurationPair {
+    /// Sum the average duration for the primal with the average duration for the derivative.
     fn sum(self) -> Duration {
         self.primal + self.derivative
     }
 }
 
+/// A scorer for "classic" evals, like the ADBench ones and also _k_-means.
+///
+/// Each of these evals has exactly two functions, the "primal" function and the "derivative"
+/// function. They take the same input but the derivative produces more output.
+///
+/// The eval should have sent the same set of messages in the same order to each tool, typically a
+/// message to evaluate the primal function followed by a message to evaluate the derivative
+/// function on the same input.
+///
+/// For a given message, the tool will run the function some number of times according to the eval's
+/// demands; it is expected to include one timing entry with the name `"evaluate"` for each time it
+/// ran the function for that message. This scorer averages all those timings within each message.
+///
+/// The final score is calculated by summing the average time from all messages.
 #[derive(Serialize)]
 struct ScorerClassic {
+    /// The name of the primal function.
     primal: String,
+
+    /// The name of the derivative function.
     derivative: String,
+
+    /// The average duration for each tool (outer keys) and workload (inner keys).
     tools: BTreeMap<String, IndexMap<Rc<str>, DurationPair>>,
 }
 
@@ -140,6 +174,7 @@ impl<R: BufRead, F: CreateFile> Scorer<R, F> for ScorerClassic {
     }
 }
 
+/// Return the `Scorer` for the `eval` with the given name.
 fn scorer<R: BufRead, F: CreateFile>(eval: &str) -> Box<dyn Scorer<R, F>> {
     match eval {
         "ba" | "gmm" | "ht" | "lstm" => Box::new(ScorerClassic::new("objective", "jacobian")),
