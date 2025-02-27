@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::BTreeMap,
     fs,
     io::{self, BufRead, Write},
     path::PathBuf,
@@ -7,7 +7,8 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{anyhow, bail, Context};
+use anyhow::{anyhow, bail};
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -17,7 +18,6 @@ use crate::{
 };
 
 trait CreateFile {
-    #[allow(dead_code)] // TODO: Remove this once we start generating files.
     fn create(&self, subpath: &str, bytes: &[u8]) -> anyhow::Result<()>;
 }
 
@@ -55,7 +55,7 @@ struct LoggedResponse<T> {
     response: T,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Serialize)]
 struct DurationPair {
     primal: Duration,
     derivative: Duration,
@@ -67,10 +67,11 @@ impl DurationPair {
     }
 }
 
+#[derive(Serialize)]
 struct ScorerClassic {
     primal: String,
     derivative: String,
-    tools: BTreeMap<String, HashMap<Rc<str>, DurationPair>>,
+    tools: BTreeMap<String, IndexMap<Rc<str>, DurationPair>>,
 }
 
 impl ScorerClassic {
@@ -85,7 +86,7 @@ impl ScorerClassic {
 
 impl<R: BufRead, F: CreateFile> Scorer<R, F> for ScorerClassic {
     fn score(&mut self, tool: &str, log: R) -> anyhow::Result<f64> {
-        let mut workloads = HashMap::<Rc<str>, DurationPair>::new();
+        let mut workloads = IndexMap::<Rc<str>, DurationPair>::new();
         let mut message = None;
         for result in log.lines() {
             let line = result?;
@@ -107,17 +108,19 @@ impl<R: BufRead, F: CreateFile> Scorer<R, F> for ScorerClassic {
                 msg,
                 serde_json::from_str::<LoggedResponse<EvaluateResponse>>(&line),
             ) {
+                let mut count = 0;
                 let mut duration = Duration::ZERO;
                 for timing in parsed.response.timings.unwrap_or_default() {
                     if timing.name == "evaluate" {
+                        count += 1;
                         duration += nanos_duration(timing.nanoseconds)?;
                     }
                 }
                 let pair = workloads.entry(Rc::from(desc)).or_default();
                 if function == self.primal {
-                    pair.primal += duration;
+                    pair.primal += duration / count;
                 } else if function == self.derivative {
-                    pair.derivative += duration;
+                    pair.derivative += duration / count;
                 } else {
                     bail!("unknown function {function:?}");
                 }
@@ -131,7 +134,8 @@ impl<R: BufRead, F: CreateFile> Scorer<R, F> for ScorerClassic {
         }
     }
 
-    fn finish(&self, _: F) -> anyhow::Result<()> {
+    fn finish(&self, file: F) -> anyhow::Result<()> {
+        file.create("summary.json", serde_json::to_string(&self)?.as_bytes())?;
         Ok(())
     }
 }
@@ -180,6 +184,9 @@ pub struct StatsMetadata {
 /// Summary data to be written to a `summary.json` file.
 #[derive(Debug, Serialize)]
 struct Summary<'a> {
+    /// The version of the format for these stats.
+    version: usize,
+
     /// Optional metadata.
     #[serde(flatten)]
     metadata: StatsMetadata,
@@ -198,26 +205,28 @@ pub fn generate(input: PathBuf, output: PathBuf, metadata: StatsMetadata) -> any
     let mut table = Vec::new();
     let map = evals_to_tools(evals)?;
     for (eval, supported) in &map {
+        println!("{}", eval);
         let mut row = Vec::new();
         let mut scorer = scorer(eval);
         for tool in &tools {
             let score = if supported.contains(tool.as_str()) {
                 let path = input.join(format!("run-{eval}-{tool}/log.jsonl"));
+                println!("  {}", path.display());
                 let reader = io::BufReader::new(fs::File::open(&path)?);
-                Some(
-                    scorer
-                        .score(tool, reader)
-                        .with_context(|| format!("failed to process {path:?}"))?,
-                )
+                Some(scorer.score(tool, reader)?)
             } else {
                 None
             };
             row.push(Col { tool, score });
         }
-        scorer.finish(output.join(eval))?;
+        scorer.finish(output.join("evals").join(eval))?;
         table.push(Row { eval, tools: row });
     }
-    let summary = Summary { metadata, table };
+    let summary = Summary {
+        version: 1,
+        metadata,
+        table,
+    };
     let output = output.join("summary.json");
     let file = fs::File::create(&output)?;
     serde_json::to_writer(file, &summary)?;

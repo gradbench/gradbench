@@ -677,6 +677,7 @@ dependencies = [
  "colored",
  "ctrlc",
  "goldenfile",
+ "indexmap",
  "nix",
  "pretty_assertions",
  "serde",

@@ -283,7 +283,7 @@ jobs:
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           message: |
-            **Summary statistics and charts were generated and pushed in commit ${{ steps.commit.outputs.CI_COMMIT_SHA }}. View them at this URL:**
+            **Summary statistics were generated and pushed in commit ${{ steps.commit.outputs.CI_COMMIT_SHA }}. View them at this URL:**
 
             https://gradben.ch/?commit=${{ steps.commit.outputs.CI_COMMIT_SHA }}
 
