@@ -36,6 +36,7 @@ const urlPrefix = (params: {
 
 interface Cell {
   tool: string;
+  score?: number;
   status?: "unimplemented" | "incorrect" | "correct";
 }
 
@@ -59,6 +60,43 @@ const download = async (prefix: string): Promise<Summary | undefined> => {
   }
 };
 
+const ScoredRow = ({ tools }: Row) => {
+  const maxScore = Math.max(
+    ...tools.flatMap(({ score }) => (score === undefined ? [] : [score])),
+  );
+  return tools.map(({ tool, score, status }) => {
+    if (score !== undefined) {
+      const hue = 120 * (score / maxScore);
+      return (
+        <div
+          key={tool}
+          className="cell"
+          style={{ backgroundColor: `hsl(${hue} 75% 50%)` }}
+        ></div>
+      );
+    }
+    switch (status) {
+      case "incorrect": {
+        return (
+          <div key={tool} className="cell incorrect">
+            ✗
+          </div>
+        );
+      }
+      case "correct": {
+        return (
+          <div key={tool} className="cell correct">
+            ✓
+          </div>
+        );
+      }
+      default: {
+        return <div key={tool} className="cell unimplemented"></div>;
+      }
+    }
+  });
+};
+
 const Table = ({ summary }: { summary: Summary }) => {
   const numTools = summary.table[0].tools.length;
   const cellSize = "30px";
@@ -80,29 +118,7 @@ const Table = ({ summary }: { summary: Summary }) => {
       {summary.table.map((row) => (
         <Fragment key={row.eval}>
           <div className="row-header">{row.eval}</div>
-          {row.tools.map((cell) => {
-            switch (cell.status) {
-              case "incorrect": {
-                return (
-                  <div key={cell.tool} className="cell incorrect">
-                    ✗
-                  </div>
-                );
-              }
-              case "correct": {
-                return (
-                  <div key={cell.tool} className="cell correct">
-                    ✓
-                  </div>
-                );
-              }
-              default: {
-                return (
-                  <div key={cell.tool} className="cell unimplemented"></div>
-                );
-              }
-            }
-          })}
+          <ScoredRow {...row} />
         </Fragment>
       ))}
     </div>
