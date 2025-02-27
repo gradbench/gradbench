@@ -1,30 +1,16 @@
 # Hand Tracking (HT)
 
-This eval is taken from
-[ADBench](https://github.com/microsoft/ADBench). See [the ADBench
-paper](https://arxiv.org/abs/1807.10129) for details on the underlying
-problem. The data files are also taken directly from ADBench. ADBench
-also sometimes refers to the HT problem as "HAND", but GradBench seeks
-to use the name "HT" consistently.
+This eval is taken from [ADBench][]. See [the ADBench paper][paper] for details on the underlying problem. The data files are also taken directly from ADBench. ADBench also sometimes refers to the HT problem as "HAND", but GradBench seeks to use the name "HT" consistently.
 
-ADBench distinguishes explicitly between "complicated" and "simple"
-inputs, which differ in whether the `us` vector (see below) is empty.
-In GradBench there is no such distinction, and the "simple" case is
-simply identified by a zero-length `us`.
+ADBench distinguishes explicitly between "complicated" and "simple" inputs, which differ in whether the `us` vector (see below) is empty. In GradBench there is no such distinction, and the "simple" case is simply identified by a zero-length `us`.
 
 ## Protocol
 
-The protocol is specified in terms of [TypeScript][] types and
-references [types defined in the GradBench protocol
-description](https://github.com/gradbench/gradbench?tab=readme-ov-file#types).
+The protocol is specified in terms of [TypeScript][] types and references [types defined in the GradBench protocol description][protocol].
 
 ### Inputs
 
-The eval sends a leading `DefineMessage` followed by
-`EvaluateMessages`. The `input` field of any `EvaluateMessage` will be
-an instance of the `HTInput` type defined below. The `function` field
-will be either the string `"objective"` or `"jacobian"`.
-
+The eval sends a leading `DefineMessage` followed by `EvaluateMessages`. The `input` field of any `EvaluateMessage` will be an instance of the `HTInput` type defined below. The `function` field will be either the string `"objective"` or `"jacobian"`.
 
 ```typescript
 interface HTModel {
@@ -54,17 +40,19 @@ interface HTInput extends Runs {
 
 ### Outputs
 
-A tool must respond to an `EvaluateMessage` with an
-`EvaluateResponse`. The type of the `output` field in the
-`EvaluateResponse` depends on the `function` field in the
-`EvaluateMessage`:
+A tool must respond to an `EvaluateMessage` with an `EvaluateResponse`. The type of the `output` field in the `EvaluateResponse` depends on the `function` field in the `EvaluateMessage`:
 
-* `"objective"`: `HTObjectiveOutput`.
-* `"jacobian"`: `HTJacobianOutput`.
+- `"objective"`: `HTObjectiveOutput`.
+- `"jacobian"`: `HTJacobianOutput`.
 
 ```typescript
 type HTObjectiveOutput = double[];
 type HTJacobianOutput = double[][];
 ```
 
+Because the input extends `Runs`, the tool is expected to run the function some number of times. It should include one timing entry with the name `"evaluate"` for each time it ran the function.
+
+[adbench]: https://github.com/microsoft/ADBench
+[paper]: https://arxiv.org/abs/1807.10129
+[protocol]: https://github.com/gradbench/gradbench?tab=readme-ov-file#types
 [typescript]: https://www.typescriptlang.org/
