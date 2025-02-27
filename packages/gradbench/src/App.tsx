@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Fragment } from "react/jsx-runtime";
 import "./App.css";
+import { Stats } from "./Stats.tsx";
 
 /** Return a YYYY-MM-DD date string from a `Date` object. */
 const dateString = (date: Date): string => date.toISOString().split("T")[0];
@@ -46,6 +47,7 @@ interface Row {
 }
 
 interface Summary {
+  version?: number;
   date?: string;
   table: Row[];
 }
@@ -72,7 +74,7 @@ const ScoredRow = ({ tools }: Row) => {
           key={tool}
           className="cell"
           style={{ backgroundColor: `hsl(${hue} 75% 50%)` }}
-        ></div>
+        />
       );
     }
     switch (status) {
@@ -97,31 +99,59 @@ const ScoredRow = ({ tools }: Row) => {
   });
 };
 
-const Table = ({ summary }: { summary: Summary }) => {
+const Viz = ({ prefix, summary }: { prefix: string; summary: Summary }) => {
+  const [activeEval, setActiveEval] = useState<string | undefined>(undefined);
+  const numEvals = summary.table.length;
   const numTools = summary.table[0].tools.length;
   const cellSize = "30px";
+  // We use the URL as the `key` for the `Stats` component so that its state
+  // completely resets when the URL changes; that way, when that component
+  // fetches the data, it doesn't need to check before overwriting its state.
+  const url =
+    activeEval === undefined
+      ? undefined
+      : summary.version === 1
+        ? `${prefix}/evals/${activeEval}/summary.json`
+        : undefined;
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: `min-content repeat(${numTools}, ${cellSize})`,
-        gridTemplateRows: `min-content repeat(${numTools}, ${cellSize})`,
-        gap: "3px",
-      }}
-    >
-      <div />
-      {summary.table[0].tools.map((cell) => (
-        <div key={cell.tool} className="column-header">
-          {cell.tool}
-        </div>
-      ))}
-      {summary.table.map((row) => (
-        <Fragment key={row.eval}>
-          <div className="row-header">{row.eval}</div>
-          <ScoredRow {...row} />
-        </Fragment>
-      ))}
-    </div>
+    <>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: `min-content repeat(${numTools}, ${cellSize})`,
+          gridTemplateRows: `min-content repeat(${numEvals}, ${cellSize})`,
+          gap: "5px",
+        }}
+      >
+        <div />
+        {summary.table[0].tools.map((cell) => (
+          <div key={cell.tool} className="column-header">
+            {cell.tool}
+          </div>
+        ))}
+        {summary.table.map((row) => (
+          <Fragment key={row.eval}>
+            <div
+              className={`row-header ${summary.version === 1 ? "header-clickable" : ""}`}
+              onClick={() => {
+                setActiveEval(row.eval);
+              }}
+            >
+              {row.eval}
+            </div>
+            <ScoredRow {...row} />
+          </Fragment>
+        ))}
+      </div>
+      {url === undefined ? (
+        <></>
+      ) : (
+        <>
+          <h2>{activeEval}</h2>
+          <Stats key={url} url={url} />
+        </>
+      )}
+    </>
   );
 };
 
@@ -160,7 +190,7 @@ const App = () => {
         // same as the one wanted by the current state.
         if (urlPrefix({ commit, date: current.date }) !== prefix)
           return current;
-        const newState = { ...current, summary: { prefix, summary } };
+        const newState: State = { ...current, summary: { prefix, summary } };
         if (current.date === undefined) {
           const date = parseDate(summary?.date);
           // If the user hasn't picked a date and there's no `commit` in the
@@ -232,7 +262,7 @@ const App = () => {
           .
         </p>
       ) : (
-        <Table summary={state.summary.summary} />
+        <Viz prefix={prefix} summary={state.summary.summary} />
       )}
     </>
   );
