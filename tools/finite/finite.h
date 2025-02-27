@@ -65,25 +65,12 @@ private:
     return a;
   }
 
-  // Subtract B from A
-  static std::vector<T>& sub_vec(std::vector<T>& a, const std::vector<T>& b) {
-    int sz = a.size();
-    for (int i = 0; i < sz; ++i)
-      a[i] -= b[i];
-    return a;
-  }
-
   // Scale vector A by scalar B
   static std::vector<T>& scale_vec(std::vector<T>& a, T b) {
     int sz = a.size();
     for (int i = 0; i < sz; ++i)
       a[i] *= b;
     return a;
-  }
-
-  // Divide vector A by scalar B
-  static std::vector<T>& div_vec(std::vector<T>& a, T b) {
-    return scale_vec(a, 1/b);
   }
 
   // Insert B starting at a point in A
@@ -184,7 +171,7 @@ public:
       }
       input[i] = input_i_orig;
 
-      div_vec(tmp_output_f, pow(dx,order));
+      scale_vec(tmp_output_f, 1/pow(dx,order));
       vec_ins(&result[output_size * i], tmp_output_f.data(), output_size);
     }
   }
