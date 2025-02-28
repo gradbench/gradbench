@@ -5,27 +5,33 @@ on:
     - cron: "0 1 * * *"
   workflow_dispatch:
 
+concurrency:
+  group: nightly
+
 permissions:
   contents: write
   packages: write
 
 jobs:
   cli:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Build CLI
-        run: cargo build --release
+        uses: houseabsolute/actions-rust-cross@v1
+        with:
+          target: x86_64-unknown-linux-musl
+          args: --package gradbench --release
       - name: Upload CLI as artifact
         uses: actions/upload-artifact@v4
         with:
           name: cli
-          path: target/release/gradbench
+          path: target/x86_64-unknown-linux-musl/release/gradbench
 
   matrix:
     needs: cli
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     outputs:
       date: ${{ steps.matrix.outputs.date }}
       eval: ${{ steps.matrix.outputs.eval }}
@@ -53,7 +59,7 @@ jobs:
       fail-fast: false
       matrix:
         eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       IMAGE: ghcr.io/gradbench/eval-${{ matrix.eval }}
       TAG: ${{ fromJSON(needs.matrix.outputs.date) }}
@@ -92,7 +98,7 @@ jobs:
       fail-fast: false
       matrix:
         tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       IMAGE: ghcr.io/gradbench/tool-${{ matrix.tool }}
       TAG: ${{ fromJSON(needs.matrix.outputs.date) }}
@@ -136,7 +142,7 @@ jobs:
       matrix:
         eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
         tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -163,42 +169,48 @@ jobs:
           name: run-${{ matrix.eval }}-${{ matrix.tool }}
           path: log.jsonl
 
-  commit:
+  stats:
     needs:
       - cli
       - matrix
       - run
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
-      - name: Checkout nightly outputs branch
-        uses: actions/checkout@v4
-        with:
-          path: run
-          ref: ci/refs/heads/nightly
-      - name: Delete contents of nightly outputs branch dir
-        working-directory: run
-        run: git rm -rf .
-      - name: Download all log artifacts into nightly outputs branch dir
+      - name: Download all log artifacts
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh run download ${{ github.run_id }} --dir run --pattern 'run-*'
-      - name: Create summary of logs in nightly outputs branch dir
+      - name: Checkout nightly stats branch
+        uses: actions/checkout@v4
+        with:
+          path: stats
+          ref: ci/refs/heads/nightly
+      - name: Delete contents of nightly stats branch dir
+        continue-on-error: true
+        working-directory: stats
+        run: git rm -rf .
+      - name: Generate stats
         env:
           DATE: ${{ fromJSON(needs.matrix.outputs.date) }}
-        run: gradbench repo summarize --date "$DATE" --commit ${{ github.sha }} run
-      - name: Commit and push nightly outputs branch
-        working-directory: run
+        run: gradbench repo stats run -o stats --date "$DATE" --commit "$GITHUB_SHA"
+      - name: Upload stats as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stats
+          path: stats
+      - name: Commit and push nightly stats branch
+        working-directory: stats
         env:
           DATE: ${{ fromJSON(needs.matrix.outputs.date) }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           git add .
-          git commit --allow-empty -m "Nightly run on $DATE for commit $GITHUB_SHA"
+          git commit --allow-empty -m "Nightly stats on $DATE for commit $GITHUB_SHA"
           git push -f origin HEAD
           git tag "nightly-$DATE"
           git push origin "nightly-$DATE"

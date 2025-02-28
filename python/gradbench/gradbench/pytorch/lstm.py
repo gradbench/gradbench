@@ -67,13 +67,13 @@ def jacobian_output(output):
     return output.tolist()
 
 
-@wrap.multiple_runs(runs=lambda x: x["runs"], pre=prepare_input, post=objective_output)
+@wrap.multiple_runs(pre=prepare_input, post=objective_output)
 def objective(py):
     py.calculate_objective(1)
     return py.objective
 
 
-@wrap.multiple_runs(runs=lambda x: x["runs"], pre=prepare_input, post=jacobian_output)
+@wrap.multiple_runs(pre=prepare_input, post=jacobian_output)
 def jacobian(py):
     py.calculate_jacobian(1)
     return py.gradient

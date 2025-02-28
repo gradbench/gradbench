@@ -136,11 +136,9 @@ def objective_output(errors):
 # Convert jacobian output to dictionary
 def jacobian_output(ba_mat):
     return {
-        "BASparseMat": {
-            "rows": list(map(int, list(ba_mat.rows))),
-            "cols": list(map(int, list(ba_mat.cols))),
-            "vals": list(map(float, list(ba_mat.vals))),
-        }
+        "rows": list(map(int, list(ba_mat.rows))),
+        "cols": list(map(int, list(ba_mat.cols))),
+        "vals": list(map(float, list(ba_mat.vals))),
     }
 
 
@@ -172,13 +170,19 @@ def prepare_input(input):
     return py
 
 
-@wrap.multiple_runs(runs=lambda x: x["runs"], pre=prepare_input, post=objective_output)
+@wrap.multiple_runs(
+    pre=prepare_input,
+    post=objective_output,
+)
 def objective(py):
     py.calculate_objective(1)
     return py.reproj_error, py.w_err
 
 
-@wrap.multiple_runs(runs=lambda x: x["runs"], pre=prepare_input, post=jacobian_output)
+@wrap.multiple_runs(
+    pre=prepare_input,
+    post=jacobian_output,
+)
 def jacobian(py):
     py.calculate_jacobian(1)
     return py.jacobian

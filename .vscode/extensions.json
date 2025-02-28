@@ -1,12 +1,17 @@
 {
   "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "diku.futhark-vscode",
     "esbenp.prettier-vscode",
-    "ionide.ionide-fsharp",
+    "github.vscode-github-actions",
     "julialang.language-julia",
     "leanprover.lean",
+    "ms-azuretools.vscode-docker",
     "ms-python.black-formatter",
     "ms-python.isort",
     "ms-python.python",
-    "rust-lang.rust-analyzer"
+    "oven.bun-vscode",
+    "rust-lang.rust-analyzer",
+    "tamasfe.even-better-toml"
   ]
 }

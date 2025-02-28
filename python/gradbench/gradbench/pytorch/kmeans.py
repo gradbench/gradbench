@@ -26,17 +26,13 @@ def prepare_input(input):
     return points, centroids
 
 
-@wrap.multiple_runs(
-    runs=lambda x: x["runs"], pre=prepare_input, post=lambda x: float(x)
-)
+@wrap.multiple_runs(pre=prepare_input, post=lambda x: float(x))
 def cost(input):
     points, centroids = input
     return costfun(points, centroids)
 
 
-@wrap.multiple_runs(
-    runs=lambda x: x["runs"], pre=prepare_input, post=lambda x: x.tolist()
-)
+@wrap.multiple_runs(pre=prepare_input, post=lambda x: x.tolist())
 def dir(input):
     points, centroids = input
     _, jac = vjp(partial(costfun, points), centroids, v=torch.tensor(1.0))

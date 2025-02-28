@@ -91,7 +91,8 @@ def prepare_input(input):
 
 
 @wrap.multiple_runs(
-    runs=lambda x: x["runs"], pre=prepare_input, post=lambda x: x.tolist()
+    pre=prepare_input,
+    post=lambda x: x.tolist(),
 )
 def jacobian(py):
     py.calculate_jacobian(1)
@@ -99,7 +100,8 @@ def jacobian(py):
 
 
 @wrap.multiple_runs(
-    runs=lambda x: x["runs"], pre=prepare_input, post=lambda x: x.tolist()
+    pre=prepare_input,
+    post=lambda x: x.tolist(),
 )
 def objective(py):
     py.calculate_objective(1)

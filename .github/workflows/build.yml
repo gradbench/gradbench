@@ -6,12 +6,12 @@ on:
       - main
 
 concurrency:
-  group: ${{ github.event.pull_request.number || github.sha }}
+  group: ${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,7 +41,7 @@ jobs:
         run: cargo test
 
   site:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -67,24 +67,27 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Deploy website
         id: deploy
         uses: actions/deploy-pages@v4
 
   cli:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Build CLI
-        run: cargo build --package gradbench --release
+        uses: houseabsolute/actions-rust-cross@v1
+        with:
+          target: x86_64-unknown-linux-musl
+          args: --package gradbench --release
       - name: Upload CLI as artifact
         uses: actions/upload-artifact@v4
         with:
           name: cli
-          path: target/release/gradbench
+          path: target/x86_64-unknown-linux-musl/release/gradbench
 
   windows:
     runs-on: windows-2022
@@ -104,10 +107,11 @@ jobs:
 
   matrix:
     needs: cli
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     outputs:
       eval: ${{ steps.matrix.outputs.eval }}
       tool: ${{ steps.matrix.outputs.tool }}
+      run: ${{ steps.matrix.outputs.run }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -125,7 +129,7 @@ jobs:
       fail-fast: false
       matrix:
         eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -151,7 +155,7 @@ jobs:
       fail-fast: false
       matrix:
         tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -178,9 +182,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
-        tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
-    runs-on: ubuntu-22.04
+        include: ${{ fromJSON(needs.matrix.outputs.run) }}
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -202,13 +205,90 @@ jobs:
         run: docker load --input x86-tool-${{ matrix.tool }}.tar
       - name: Run tool on eval
         id: run
-        run: gradbench run --eval 'gradbench eval ${{ matrix.eval }}' --tool 'gradbench tool ${{ matrix.tool }}' --output log.jsonl
+        run: |
+          set +e
+          gradbench exit-code ${{ matrix.outcome }}
+          expected=$?
+          gradbench run --eval 'gradbench eval ${{ matrix.eval }}' --tool 'gradbench tool ${{ matrix.tool }}' --output log.jsonl
+          actual=$?
+          set -e
+          if [ $actual -ne $expected ]; then
+            echo "expected exit code $expected (from outcome ${{ matrix.outcome }}) but got exit code $actual"
+            exit 1
+          fi
       - name: Upload log as artifact
         if: success() || steps.run.conclusion == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: run-${{ matrix.eval }}-${{ matrix.tool }}
           path: log.jsonl
+
+  stats:
+    needs:
+      - cli
+      - matrix
+      - run
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install CLI from artifact
+        uses: ./.github/actions/cli
+      - name: Download all log artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh run download ${{ github.run_id }} --dir run --pattern 'run-*'
+      - name: Checkout stats branch
+        uses: actions/checkout@v4
+        with:
+          path: stats
+          ref: ci/refs/heads/main
+      - name: Checkout target branch
+        if: github.event_name == 'pull_request'
+        working-directory: stats
+        run: git checkout -b "ci/$GITHUB_REF"
+      - name: Delete contents of stats branch dir
+        continue-on-error: true
+        working-directory: stats
+        run: git rm -rf .
+      - name: Generate stats
+        run: gradbench repo stats run -o stats --commit ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Upload stats as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stats
+          path: stats
+      - name: Commit to stats branch
+        id: commit
+        working-directory: stats
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git add .
+          git commit --allow-empty -m 'Stats for commit ${{ github.event.pull_request.head.sha || github.sha }}'
+          echo "CI_COMMIT_SHA=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+      - name: Check for write permissions
+        id: check
+        uses: scherermichael-oss/action-has-permission@17f29510f1bf987b916c8cbb451566a56eed23f1
+        with:
+          required-permission: write
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push to stats branch
+        if: steps.check.outputs.has-permission
+        working-directory: stats
+        run: git push -f origin HEAD
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && steps.check.outputs.has-permission
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          message: |
+            **Summary statistics were generated and pushed in commit ${{ steps.commit.outputs.CI_COMMIT_SHA }}. View them at this URL:**
+
+            https://gradben.ch/?commit=${{ steps.commit.outputs.CI_COMMIT_SHA }}
+
+            > [!NOTE]
+            > Workflow run [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) was triggered by commit ${{ github.event.pull_request.head.sha }}, which was merged with the latest commit from branch `${{ github.event.pull_request.base.ref }}` before running, so the workflow was run on the merge commit ${{ github.sha }}.
 
   tool:
     needs:
@@ -219,7 +299,7 @@ jobs:
       fail-fast: false
       matrix:
         tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4

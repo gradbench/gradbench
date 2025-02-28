@@ -1,8 +1,6 @@
 # Bundle Adjustment (BA)
 
-Information on the BA equation from Microsoft's [ADBench](https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87) based on their python implementation.
-
-Link to [I/O file](https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/shared/BAData.py) and [data folder](https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87/data/ba).
+This eval implements Bundle Adjustment from Microsoft's [ADBench][], based on their Python implementation. Here are links to the [I/O file][io] and [data folder][data] from that original implementation.
 
 ## Generation
 
@@ -46,25 +44,20 @@ $$w_{error} \in \mathbb{R}^{P}$$
 
 3. Jacobian ($J$): How the reprojection error will change given adjustments to the above inputs.
 
-$$BASparseMat \in \mathbb{R}^{(2P + P) \times (11N +3M + P)}$$
+$$SparseMat \in \mathbb{R}^{(2P + P) \times (11N +3M + P)}$$
 
 > **Example**
 >
-> If $N = 21$, $M = 11315$, and $P = 36455$, $J$ is a BASparseMat with 109365 rows and 70631 columns
+> If $N = 21$, $M = 11315$, and $P = 36455$, $J$ is a SparseMat with 109365 rows and 70631 columns
 
 ## Protocol
 
-The eval sends a leading `DefineMessage` followed by
-`EvaluateMessages`. The `input` field of any `EvaluateMessage` will be
-an instance of the `BAInput` interface defined below. The `function` field
-will be either the string `"objective"` or `"jacobian"`.
-
-[typescript]: https://www.typescriptlang.org/
+The eval sends a leading `DefineMessage` followed by `EvaluateMessages`. The `input` field of any `EvaluateMessage` will be an instance of the `BAInput` interface defined below. The `function` field will be either the string `"objective"` or `"jacobian"`.
 
 ### Inputs
 
 ```typescript
-interface BAInput {
+interface BAInput extends Runs {
   n: int;
   m: int;
   p: int;
@@ -77,20 +70,22 @@ interface BAInput {
 
 ### Outputs
 
-A tool must respond to an `EvaluateMessage` with an
-`EvaluateResponse`. The type of the `output` field in the
-`EvaluateResponse` depends on the `function` field in the
-`EvaluateMessage`:
+A tool must respond to an `EvaluateMessage` with an `EvaluateResponse`. The type of the `output` field in the `EvaluateResponse` depends on the `function` field in the `EvaluateMessage`:
 
-* `"objective"`: `BAObjectiveOutput`.
-* `"jacobian"`: `BAObjectiveOutput`.
+- `"objective"`: `BAObjectiveOutput`.
+- `"jacobian"`: `BAObjectiveOutput`.
 
 ```typescript
 interface BAOutput {
-  BASparseMat: {
-    "cols": int[];
-    "rows": int[];
-    "vals": double[];
-  };
+  cols: int[];
+  rows: int[];
+  vals: double[];
 }
 ```
+
+Because the input extends `Runs`, the tool is expected to run the function some number of times. It should include one timing entry with the name `"evaluate"` for each time it ran the function.
+
+[adbench]: https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87
+[data]: https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87/data/ba
+[io]: https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/shared/BAData.py
+[typescript]: https://www.typescriptlang.org/
