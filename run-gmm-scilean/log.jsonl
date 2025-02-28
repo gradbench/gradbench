@@ -1,4 +1,0 @@
-{ "elapsed": { "nanoseconds": 739441854 }, "message": {"id": 0, "kind": "start", "eval": "gmm", "config": {"n": 1000, "k": [5, 10, 25, 50], "d": [2, 10, 20, 32], "min_runs": 1, "min_seconds": 1, "no_validation": false}} }
-{ "elapsed": { "nanoseconds": 739910983 }, "response": {"tool": "scilean", "id": 0} }
-{ "elapsed": { "nanoseconds": 740283507 }, "message": {"id": 1, "kind": "define", "module": "gmm"} }
-{ "elapsed": { "nanoseconds": 740570825 }, "response": {"success": false, "id": 1} }

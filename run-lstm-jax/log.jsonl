@@ -1,4 +1,0 @@
-{ "elapsed": { "nanoseconds": 524315668 }, "message": {"id": 0, "kind": "start", "eval": "lstm", "config": {"l": [2, 4], "c": [1024, 4096], "min_runs": 1, "min_seconds": 1, "no_validation": false}} }
-{ "elapsed": { "nanoseconds": 524727605 }, "response": {"id": 0, "tool": "jax"} }
-{ "elapsed": { "nanoseconds": 525045132 }, "message": {"id": 1, "kind": "define", "module": "lstm"} }
-{ "elapsed": { "nanoseconds": 525470512 }, "response": {"id": 1, "success": false} }

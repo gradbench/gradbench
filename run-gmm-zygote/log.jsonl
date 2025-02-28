@@ -1,4 +1,0 @@
-{ "elapsed": { "nanoseconds": 539906376 }, "message": {"id": 0, "kind": "start", "eval": "gmm", "config": {"n": 1000, "k": [5, 10, 25, 50], "d": [2, 10, 20, 32], "min_runs": 1, "min_seconds": 1, "no_validation": false}} }
-{ "elapsed": { "nanoseconds": 1388591304 }, "response": {"id":0,"tool":"zygote"} }
-{ "elapsed": { "nanoseconds": 1389136135 }, "message": {"id": 1, "kind": "define", "module": "gmm"} }
-{ "elapsed": { "nanoseconds": 1401068437 }, "response": {"success":false,"id":1} }

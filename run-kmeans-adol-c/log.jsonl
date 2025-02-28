@@ -1,4 +1,0 @@
-{ "elapsed": { "nanoseconds": 574697882 }, "message": {"id": 0, "kind": "start", "eval": "kmeans"} }
-{ "elapsed": { "nanoseconds": 575134661 }, "response": {"id": 0, "tool": "adol-c"} }
-{ "elapsed": { "nanoseconds": 575525975 }, "message": {"id": 1, "kind": "define", "module": "kmeans"} }
-{ "elapsed": { "nanoseconds": 575948990 }, "response": {"id": 1, "success": false} }

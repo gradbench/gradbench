@@ -1,4 +1,0 @@
-{ "elapsed": { "nanoseconds": 591561950 }, "message": {"id": 0, "kind": "start", "eval": "lstm", "config": {"l": [2, 4], "c": [1024, 4096], "min_runs": 1, "min_seconds": 1, "no_validation": false}} }
-{ "elapsed": { "nanoseconds": 592185219 }, "response": {"id":0,"tool":"haskell"} }
-{ "elapsed": { "nanoseconds": 592572932 }, "message": {"id": 1, "kind": "define", "module": "lstm"} }
-{ "elapsed": { "nanoseconds": 592854321 }, "response": {"id":1,"success":false} }

@@ -1,4 +1,0 @@
-{ "elapsed": { "nanoseconds": 508772176 }, "message": {"id": 0, "kind": "start", "eval": "gmm", "config": {"n": 1000, "k": [5, 10, 25, 50], "d": [2, 10, 20, 32], "min_runs": 1, "min_seconds": 1, "no_validation": false}} }
-{ "elapsed": { "nanoseconds": 509255058 }, "response": {"id": 0, "tool": "mygrad"} }
-{ "elapsed": { "nanoseconds": 509617706 }, "message": {"id": 1, "kind": "define", "module": "gmm"} }
-{ "elapsed": { "nanoseconds": 510119854 }, "response": {"id": 1, "success": false} }
