@@ -48,6 +48,7 @@ pkgs.stdenv.mkDerivation {
     [my-python
      pkgs.niv
      pkgs.gh
+     pkgs.bun
      pkgs.cargo
      pkgs.rustc
      pkgs.rustfmt
