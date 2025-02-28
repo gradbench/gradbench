@@ -1,4 +1,5 @@
 import math
+
 import jax.numpy as jnp
 from jax.scipy.special import logsumexp, multigammaln
 
