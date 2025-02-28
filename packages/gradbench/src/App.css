@@ -14,7 +14,17 @@ a:link {
 
 .row-header {
   align-items: center;
+  cursor: pointer;
   display: flex;
+  font-weight: bold;
+}
+
+.header-clickable {
+  text-decoration: underline;
+}
+
+.header-clickable:hover {
+  text-decoration: none;
 }
 
 .cell {

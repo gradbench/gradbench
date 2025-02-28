@@ -1,5 +1,6 @@
 {
   "recommendations": [
+    "dbaeumer.vscode-eslint",
     "diku.futhark-vscode",
     "esbenp.prettier-vscode",
     "github.vscode-github-actions",
