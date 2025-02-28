@@ -27,7 +27,8 @@ def main():
             try:
                 import_module(message["module"])
                 response["success"] = True
-            except:
+            except Exception as e:
+                response["error"] = str(e)
                 response["success"] = False
         print(json.dumps({"id": message["id"]} | response), flush=True)
 
