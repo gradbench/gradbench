@@ -21,13 +21,13 @@ a:link {
 
 .row-header {
   align-items: center;
-  cursor: pointer;
   display: flex;
   font-weight: bold;
   padding: 5px;
 }
 
 .header-clickable {
+  cursor: pointer;
   text-decoration: underline;
 }
 
