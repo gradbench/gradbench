@@ -14,8 +14,8 @@ import torch
 from gradbench import wrap
 from gradbench.adbench.itest import ITest
 from gradbench.adbench.lstm_data import LSTMInput, LSTMOutput
-from gradbench.pytorch.lstm_objective import lstm_objective
-from gradbench.pytorch.utils import to_torch_tensors, torch_jacobian
+from gradbench.tools.pytorch.lstm_objective import lstm_objective
+from gradbench.tools.pytorch.utils import to_torch_tensors, torch_jacobian
 
 
 class PyTorchLSTM(ITest):
