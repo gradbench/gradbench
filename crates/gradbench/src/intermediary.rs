@@ -66,11 +66,16 @@ const WIDTH_DESCRIPTION: usize = 15;
 
 /// Return an 11-character human-readable string for the given number of nanoseconds.
 fn nanostring(nanoseconds: u128) -> String {
-    let ms = nanoseconds / 1_000_000;
+    let us = nanoseconds / 1000;
+    let ms = us / 1000;
     let sec = ms / 1000;
     let min = sec / 60;
-    if sec == 0 {
-        format!("{:2} {:2} {:3}ms", "", "", ms)
+    if ms == 0 {
+        format!("{:2} {:2} {:3} μs", "", "", us)
+    } else if sec == 0 && ms < 100 {
+        format!("{:2} {:2}.{:03} ms", "", ms, us % 1000)
+    } else if sec == 0 {
+        format!("{:2} {:2} {:03} ms", "", "", ms)
     } else if min == 0 {
         format!("{:2} {:2}.{:03} s", "", sec, ms % 1000)
     } else if min < 60 {
