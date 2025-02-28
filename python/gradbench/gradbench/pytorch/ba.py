@@ -67,9 +67,21 @@ class PyTorchBA(ITest):
         self.w_err = torch.zeros(len(input.w))
         self.jacobian = BASparseMat(len(input.cams), len(input.x), self.p)
 
-    def calculate_jacobian(self):
-        """Calculates objective function jacobian many times."""
+    def calculate_objective(self, times):
+        reproj_error = torch.empty((self.p, 2), dtype=torch.float64)
+        for j in range(self.p):
+            reproj_error[j] = compute_reproj_err(
+                self.cams[self.obs[j, 0]],
+                self.x[self.obs[j, 1]],
+                self.w[j],
+                self.feats[j],
+            )
 
+            self.w_err[j] = compute_w_err(self.w[j])
+
+        self.reproj_error = reproj_error.flatten()
+
+    def calculate_jacobian(self):
         reproj_error = torch.empty((self.p, 2), dtype=torch.float64)
         # reprojection error jacobian calculation
         for j in range(self.p):

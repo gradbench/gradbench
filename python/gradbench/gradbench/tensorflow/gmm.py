@@ -60,7 +60,7 @@ class TensorflowGMM(ITest):
         self.objective = tf.zeros(1)
         self.gradient = tf.zeros(0)
 
-    def calculate_objective(self, times):
+    def calculate_objective(self):
         self.objective = gmm_objective(
             self.alphas,
             self.means,

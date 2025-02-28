@@ -34,18 +34,12 @@ class PyTorchLSTM(ITest):
         self.objective = torch.zeros(1)
 
     def calculate_objective(self):
-        """Calculates objective function many times."""
-
-        for i in range(times):
-            self.objective = lstm_objective(*self.inputs, *self.params)
+        self.objective = lstm_objective(*self.inputs, *self.params)
 
     def calculate_jacobian(self):
-        """Calculates objective function jacobian many times."""
-
-        for i in range(times):
-            self.objective, self.gradient = torch_jacobian(
-                lstm_objective, self.inputs, self.params
-            )
+        self.objective, self.gradient = torch_jacobian(
+            lstm_objective, self.inputs, self.params
+        )
 
 
 def prepare_input(input):

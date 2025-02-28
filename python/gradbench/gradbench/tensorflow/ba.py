@@ -185,11 +185,11 @@ def prepare_input(input):
 
 @wrap.function(pre=prepare_input, post=objective_output)
 def objective(py):
-    py.calculate_objective(1)
+    py.calculate_objective()
     return (py.reproj_error, py.w_err)
 
 
 @wrap.function(pre=prepare_input, post=jacobian_output)
 def jacobian(py):
-    py.calculate_jacobian(1)
+    py.calculate_jacobian()
     return py.jacobian
