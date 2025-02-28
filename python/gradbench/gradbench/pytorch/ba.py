@@ -67,7 +67,7 @@ class PyTorchBA(ITest):
         self.w_err = torch.zeros(len(input.w))
         self.jacobian = BASparseMat(len(input.cams), len(input.x), self.p)
 
-    def calculate_objective(self, times):
+    def calculate_objective(self):
         reproj_error = torch.empty((self.p, 2), dtype=torch.float64)
         for j in range(self.p):
             reproj_error[j] = compute_reproj_err(
