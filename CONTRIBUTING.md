@@ -146,7 +146,7 @@ This will log a `localhost` URL to your terminal; open that URL in your browser.
 The Docker images should be considered canonical, but for local development, it can be more convenient to instead install and run tools directly. You can use `uv run` to do this:
 
 ```sh
-./gradbench run --eval './gradbench repo eval hello' --tool 'uv run python/gradbench/gradbench/pytorch/run.py'
+./gradbench run --eval './gradbench repo eval hello' --tool 'uv run python/gradbench/gradbench/tools/pytorch/run.py'
 ```
 
 We autoformat Python code using [Black][] and [isort][]. If you're using [VS Code][], our configuration in this repository should automatically recommend that you install the corresponding extensions for those formatters, as well as automatically run them whenever you save a Python file. You can also run them manually via the command line:
