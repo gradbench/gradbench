@@ -42,8 +42,8 @@ from gradbench import wrap
 from gradbench.adbench.ba_data import BAInput, BAOutput
 from gradbench.adbench.ba_sparse_mat import BASparseMat
 from gradbench.adbench.itest import ITest
-from gradbench.tensorflow.ba_objective import compute_reproj_err, compute_w_err
-from gradbench.tensorflow.utils import flatten, to_tf_tensor
+from gradbench.tools.tensorflow.ba_objective import compute_reproj_err, compute_w_err
+from gradbench.tools.tensorflow.utils import flatten, to_tf_tensor
 
 tf.get_logger().setLevel("ERROR")  # Suppress warnings
 

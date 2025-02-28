@@ -39,8 +39,8 @@ from gradbench import wrap
 from gradbench.adbench.ba_data import BAInput, BAOutput
 from gradbench.adbench.ba_sparse_mat import BASparseMat
 from gradbench.adbench.itest import ITest
-from gradbench.pytorch.ba_objective import compute_reproj_err, compute_w_err
-from gradbench.pytorch.utils import to_torch_tensor, torch_jacobian
+from gradbench.tools.pytorch.ba_objective import compute_reproj_err, compute_w_err
+from gradbench.tools.pytorch.utils import to_torch_tensor, torch_jacobian
 
 
 class PyTorchBA(ITest):

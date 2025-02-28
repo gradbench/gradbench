@@ -10,5 +10,5 @@ WORKDIR /home/gradbench
 COPY python /home/gradbench/python
 ENV PYTHONPATH=/home/gradbench/python/gradbench
 
-ENTRYPOINT ["python", "/home/gradbench/python/gradbench/gradbench/tensorflow/run.py"]
+ENTRYPOINT ["python", "/home/gradbench/python/gradbench/gradbench/tools/tensorflow/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench

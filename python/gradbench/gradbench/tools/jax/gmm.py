@@ -8,7 +8,7 @@ from jax import grad, jit
 from gradbench import wrap
 from gradbench.adbench.defs import Wishart
 from gradbench.adbench.gmm_data import GMMInput
-from gradbench.jax.gmm_objective import gmm_objective
+from gradbench.tools.jax.gmm_objective import gmm_objective
 
 
 @jit

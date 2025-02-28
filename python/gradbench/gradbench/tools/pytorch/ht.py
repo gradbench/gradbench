@@ -14,8 +14,11 @@ import torch
 from gradbench import wrap
 from gradbench.adbench.ht_data import HandInput, HandOutput
 from gradbench.adbench.itest import ITest
-from gradbench.pytorch.ht_objective import hand_objective, hand_objective_complicated
-from gradbench.pytorch.utils import to_torch_tensor, torch_jacobian
+from gradbench.tools.pytorch.ht_objective import (
+    hand_objective,
+    hand_objective_complicated,
+)
+from gradbench.tools.pytorch.utils import to_torch_tensor, torch_jacobian
 
 
 class PyTorchHand(ITest):

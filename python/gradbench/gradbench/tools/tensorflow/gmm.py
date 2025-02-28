@@ -20,64 +20,88 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/modules/PyTorch/PyTorchGMM.py
+# https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/modules/Tensorflow/TensorflowGMM.py
 
 """
 Changes Made:
-- Added two functions to create a PyTorchGMM object and call calculate_objective and calculate_jacobian
+- Added two functions to create a TensorflowGMM object and call calculate_objective and calculate_jacobian
 - Added function to create GMMInput object
 - Import a decorator to convert input and outputs to necessary types
 """
 
-import numpy as np
-import torch
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+import tensorflow as tf
 
 from gradbench import wrap
 from gradbench.adbench.defs import Wishart
-from gradbench.adbench.gmm_data import GMMInput
+from gradbench.adbench.gmm_data import GMMInput, GMMOutput
 from gradbench.adbench.itest import ITest
-from gradbench.pytorch.gmm_objective import gmm_objective
-from gradbench.pytorch.utils import to_torch_tensor, to_torch_tensors, torch_jacobian
+from gradbench.tools.tensorflow.gmm_objective import gmm_objective
+from gradbench.tools.tensorflow.utils import flatten, to_tf_tensor
 
 
-class PyTorchGMM(ITest):
-    """Test class for GMM differentiation by PyTorch."""
+class TensorflowGMM(ITest):
+    """Test class for GMM differentiation by Tensorflow using eager
+    execution."""
 
     def prepare(self, input):
         """Prepares calculating. This function must be run before
         any others."""
 
-        self.inputs = to_torch_tensors(
-            (input.alphas, input.means, input.icf), grad_req=True
-        )
+        self.alphas = to_tf_tensor(input.alphas)
+        self.means = to_tf_tensor(input.means)
+        self.icf = to_tf_tensor(input.icf)
 
-        self.params = to_torch_tensors((input.x, input.wishart.gamma, input.wishart.m))
+        self.x = to_tf_tensor(input.x)
+        self.wishart_gamma = to_tf_tensor(input.wishart.gamma)
+        self.wishart_m = to_tf_tensor(input.wishart.m)
 
-        self.objective = torch.zeros(1)
-        self.gradient = torch.empty(0)
+        self.objective = tf.zeros(1)
+        self.gradient = tf.zeros(0)
 
     def output(self):
         """Returns calculation result."""
 
-        return GMMOutput(self.objective.item(), self.gradient.numpy())
+        return GMMOutput(self.objective.numpy(), self.gradient.numpy())
 
     def calculate_objective(self, times):
         """Calculates objective function many times."""
 
-        for i in range(times):
-            self.objective = gmm_objective(*self.inputs, *self.params)
+        for _ in range(times):
+            self.objective = gmm_objective(
+                self.alphas,
+                self.means,
+                self.icf,
+                self.x,
+                self.wishart_gamma,
+                self.wishart_m,
+            )
 
     def calculate_jacobian(self, times):
         """Calculates objective function jacobian many times."""
 
-        for i in range(times):
-            self.objective, self.gradient = torch_jacobian(
-                gmm_objective, self.inputs, self.params
-            )
+        for _ in range(times):
+            with tf.GradientTape(persistent=True) as t:
+                t.watch(self.alphas)
+                t.watch(self.means)
+                t.watch(self.icf)
+
+                self.objective = gmm_objective(
+                    self.alphas,
+                    self.means,
+                    self.icf,
+                    self.x,
+                    self.wishart_gamma,
+                    self.wishart_m,
+                )
+
+            J = t.gradient(self.objective, (self.alphas, self.means, self.icf))
+            self.gradient = tf.concat([flatten(d) for d in J], 0)
 
 
 def prepare_input(input):
-    py = PyTorchGMM()
+    py = TensorflowGMM()
     py.prepare(
         GMMInput(
             input["alpha"],
@@ -90,19 +114,13 @@ def prepare_input(input):
     return py
 
 
-@wrap.multiple_runs(
-    pre=prepare_input,
-    post=lambda x: x.tolist(),
-)
+@wrap.multiple_runs(pre=prepare_input, post=lambda x: x.numpy().tolist())
 def jacobian(py):
     py.calculate_jacobian(1)
     return py.gradient
 
 
-@wrap.multiple_runs(
-    pre=prepare_input,
-    post=lambda x: x.tolist(),
-)
+@wrap.multiple_runs(pre=prepare_input, post=lambda x: x.numpy().tolist())
 def objective(py):
     py.calculate_objective(1)
     return py.objective
