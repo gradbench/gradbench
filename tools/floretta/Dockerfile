@@ -7,7 +7,6 @@ RUN rustup target add "$(tools/floretta/target.py $TARGETARCH)"
 COPY Cargo.toml .
 COPY Cargo.lock .
 COPY crates/gradbench-floretta crates/gradbench-floretta
-ENV TARGET_AR=ar
 RUN cargo build --release --target "$(tools/floretta/target.py $TARGETARCH)"
 RUN cp "target/$(tools/floretta/target.py $TARGETARCH)/release/gradbench-floretta" .
 
