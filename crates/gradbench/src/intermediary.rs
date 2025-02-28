@@ -71,11 +71,11 @@ fn nanostring(nanoseconds: u128) -> String {
     let sec = ms / 1000;
     let min = sec / 60;
     if ms == 0 {
-        format!("{:2} {:2} {:3} μs", "", "", us)
+        format!("{:2} {:2} {:3}μs", "", "", us)
     } else if sec == 0 && ms < 100 {
-        format!("{:2} {:2}.{:03} ms", "", ms, us % 1000)
+        format!("{:2} {:2}.{:03}ms", "", ms, us % 1000)
     } else if sec == 0 {
-        format!("{:2} {:2} {:03} ms", "", "", ms)
+        format!("{:2} {:2} {:3}ms", "", "", ms)
     } else if min == 0 {
         format!("{:2} {:2}.{:03} s", "", sec, ms % 1000)
     } else if min < 60 {
@@ -448,17 +448,17 @@ mod tests {
 
     #[test]
     fn test_nanostring_0() {
-        nanostring_test("        0ms", Duration::ZERO);
+        nanostring_test("       0μs", Duration::ZERO);
     }
 
     #[test]
     fn test_nanostring_999_microseconds() {
-        nanostring_test("        0ms", Duration::from_micros(999));
+        nanostring_test("     999μs", Duration::from_micros(999));
     }
 
     #[test]
     fn test_nanostring_1_millisecond() {
-        nanostring_test("        1ms", Duration::from_millis(1));
+        nanostring_test("    1.000ms", Duration::from_millis(1));
     }
 
     #[test]
