@@ -76,43 +76,37 @@ class PyTorchHand(ITest):
             self.objective.detach().flatten().numpy(), self.jacobian.detach().numpy()
         )
 
-    def calculate_objective(self, times):
-        """Calculates objective function many times."""
+    def calculate_objective(self):
+        self.objective = self.objective_function(self.inputs, *self.params)
 
-        for i in range(times):
-            self.objective = self.objective_function(self.inputs, *self.params)
+    def calculate_jacobian(self):
+        self.objective, J = torch_jacobian(
+            self.objective_function, (self.inputs,), self.params, False
+        )
 
-    def calculate_jacobian(self, times):
-        """Calculates objective function jacobian many times."""
+        if self.complicated:
+            # getting us part of jacobian
+            # Note: jacobian has the following structure:
+            #
+            #   [us_part theta_part]
+            #
+            # where in us part is a block diagonal matrix with blocks of
+            # size [3, 2]
+            n_rows, n_cols = J.shape
+            us_J = torch.empty([n_rows, 2])
+            for i in range(n_rows // 3):
+                for k in range(3):
+                    us_J[3 * i + k] = J[3 * i + k][2 * i : 2 * i + 2]
 
-        for i in range(times):
-            self.objective, J = torch_jacobian(
-                self.objective_function, (self.inputs,), self.params, False
-            )
+            us_count = 2 * n_rows // 3
+            theta_count = n_cols - us_count
+            theta_J = torch.empty([n_rows, theta_count])
+            for i in range(n_rows):
+                theta_J[i] = J[i][us_count:]
 
-            if self.complicated:
-                # getting us part of jacobian
-                # Note: jacobian has the following structure:
-                #
-                #   [us_part theta_part]
-                #
-                # where in us part is a block diagonal matrix with blocks of
-                # size [3, 2]
-                n_rows, n_cols = J.shape
-                us_J = torch.empty([n_rows, 2])
-                for i in range(n_rows // 3):
-                    for k in range(3):
-                        us_J[3 * i + k] = J[3 * i + k][2 * i : 2 * i + 2]
-
-                us_count = 2 * n_rows // 3
-                theta_count = n_cols - us_count
-                theta_J = torch.empty([n_rows, theta_count])
-                for i in range(n_rows):
-                    theta_J[i] = J[i][us_count:]
-
-                self.jacobian = torch.cat((us_J, theta_J), 1)
-            else:
-                self.jacobian = J
+            self.jacobian = torch.cat((us_J, theta_J), 1)
+        else:
+            self.jacobian = J
 
 
 def prepare_input(input):
@@ -131,11 +125,11 @@ def jacobian_output(output):
 
 @wrap.multiple_runs(pre=prepare_input, post=objective_output)
 def objective(py):
-    py.calculate_objective(1)
+    py.calculate_objective()
     return py.objective
 
 
 @wrap.multiple_runs(pre=prepare_input, post=jacobian_output)
 def jacobian(py):
-    py.calculate_jacobian(1)
+    py.calculate_jacobian()
     return py.jacobian

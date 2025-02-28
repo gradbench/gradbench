@@ -60,15 +60,22 @@ class TensorflowGMM(ITest):
         self.objective = tf.zeros(1)
         self.gradient = tf.zeros(0)
 
-    def output(self):
-        """Returns calculation result."""
-
-        return GMMOutput(self.objective.numpy(), self.gradient.numpy())
-
     def calculate_objective(self, times):
-        """Calculates objective function many times."""
+        self.objective = gmm_objective(
+            self.alphas,
+            self.means,
+            self.icf,
+            self.x,
+            self.wishart_gamma,
+            self.wishart_m,
+        )
 
-        for _ in range(times):
+    def calculate_jacobian(self):
+        with tf.GradientTape(persistent=True) as t:
+            t.watch(self.alphas)
+            t.watch(self.means)
+            t.watch(self.icf)
+
             self.objective = gmm_objective(
                 self.alphas,
                 self.means,
@@ -78,26 +85,8 @@ class TensorflowGMM(ITest):
                 self.wishart_m,
             )
 
-    def calculate_jacobian(self, times):
-        """Calculates objective function jacobian many times."""
-
-        for _ in range(times):
-            with tf.GradientTape(persistent=True) as t:
-                t.watch(self.alphas)
-                t.watch(self.means)
-                t.watch(self.icf)
-
-                self.objective = gmm_objective(
-                    self.alphas,
-                    self.means,
-                    self.icf,
-                    self.x,
-                    self.wishart_gamma,
-                    self.wishart_m,
-                )
-
-            J = t.gradient(self.objective, (self.alphas, self.means, self.icf))
-            self.gradient = tf.concat([flatten(d) for d in J], 0)
+        J = t.gradient(self.objective, (self.alphas, self.means, self.icf))
+        self.gradient = tf.concat([flatten(d) for d in J], 0)
 
 
 def prepare_input(input):
@@ -116,11 +105,11 @@ def prepare_input(input):
 
 @wrap.multiple_runs(pre=prepare_input, post=lambda x: x.numpy().tolist())
 def jacobian(py):
-    py.calculate_jacobian(1)
+    py.calculate_jacobian()
     return py.gradient
 
 
 @wrap.multiple_runs(pre=prepare_input, post=lambda x: x.numpy().tolist())
 def objective(py):
-    py.calculate_objective(1)
+    py.calculate_objective()
     return py.objective

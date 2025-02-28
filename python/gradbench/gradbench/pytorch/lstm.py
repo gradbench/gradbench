@@ -33,18 +33,13 @@ class PyTorchLSTM(ITest):
         self.gradient = torch.empty(0)
         self.objective = torch.zeros(1)
 
-    def output(self):
-        """Returns calculation result."""
-
-        return LSTMOutput(self.objective.item(), self.gradient.numpy())
-
-    def calculate_objective(self, times):
+    def calculate_objective(self):
         """Calculates objective function many times."""
 
         for i in range(times):
             self.objective = lstm_objective(*self.inputs, *self.params)
 
-    def calculate_jacobian(self, times):
+    def calculate_jacobian(self):
         """Calculates objective function jacobian many times."""
 
         for i in range(times):
@@ -69,11 +64,11 @@ def jacobian_output(output):
 
 @wrap.multiple_runs(pre=prepare_input, post=objective_output)
 def objective(py):
-    py.calculate_objective(1)
+    py.calculate_objective()
     return py.objective
 
 
 @wrap.multiple_runs(pre=prepare_input, post=jacobian_output)
 def jacobian(py):
-    py.calculate_jacobian(1)
+    py.calculate_jacobian()
     return py.gradient
