@@ -6,5 +6,5 @@ WORKDIR /home/gradbench
 COPY python /home/gradbench/python
 ENV PYTHONPATH=/home/gradbench/python/gradbench
 
-ENTRYPOINT ["python", "/home/gradbench/python/gradbench/gradbench/mygrad/run.py"]
+ENTRYPOINT ["python", "/home/gradbench/python/gradbench/gradbench/tools/mygrad/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench

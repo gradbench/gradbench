@@ -37,8 +37,8 @@ from gradbench import wrap
 from gradbench.adbench.defs import Wishart
 from gradbench.adbench.gmm_data import GMMInput, GMMOutput
 from gradbench.adbench.itest import ITest
-from gradbench.tensorflow.gmm_objective import gmm_objective
-from gradbench.tensorflow.utils import flatten, to_tf_tensor
+from gradbench.tools.tensorflow.gmm_objective import gmm_objective
+from gradbench.tools.tensorflow.utils import flatten, to_tf_tensor
 
 
 class TensorflowGMM(ITest):

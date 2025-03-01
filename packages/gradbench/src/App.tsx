@@ -68,12 +68,12 @@ const ScoredRow = ({ tools }: Row) => {
   );
   return tools.map(({ tool, score, status }) => {
     if (score !== undefined) {
-      const hue = 120 * (score / maxScore);
+      const lightness = 100 - 50 * (score / maxScore);
       return (
         <div
           key={tool}
           className="cell"
-          style={{ backgroundColor: `hsl(${hue} 75% 50%)` }}
+          style={{ backgroundColor: `hsl(240 100% ${lightness}%)` }}
         />
       );
     }
@@ -93,7 +93,7 @@ const ScoredRow = ({ tools }: Row) => {
         );
       }
       default: {
-        return <div key={tool} className="cell unimplemented"></div>;
+        return <div key={tool} className="cell" />;
       }
     }
   });
@@ -115,7 +115,13 @@ const Viz = ({ prefix, summary }: { prefix: string; summary: Summary }) => {
         : undefined;
   return (
     <>
+      <p>
+        A <em>white</em> cell means the tool is <strong>slow</strong> for that
+        eval, a <em>blue</em> cell means the tool is <strong>fast</strong> for
+        that eval.
+      </p>
       <div
+        className="table"
         style={{
           display: "grid",
           gridTemplateColumns: `min-content repeat(${numTools}, ${cellSize})`,

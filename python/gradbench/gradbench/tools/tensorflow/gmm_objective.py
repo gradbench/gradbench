@@ -28,7 +28,7 @@ import math
 import tensorflow as tf
 from scipy import special
 
-from gradbench.tensorflow.utils import shape
+from gradbench.tools.tensorflow.utils import shape
 
 
 def logsumexp(x):
