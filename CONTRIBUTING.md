@@ -149,11 +149,10 @@ The Docker images should be considered canonical, but for local development, it 
 ./gradbench run --eval './gradbench repo eval hello' --tool 'uv run python/gradbench/gradbench/tools/pytorch/run.py'
 ```
 
-We autoformat Python code using [Black][] and [isort][]. If you're using [VS Code][], our configuration in this repository should automatically recommend that you install the corresponding extensions for those formatters, as well as automatically run them whenever you save a Python file. You can also run them manually via the command line:
+We lint and autoformat Python code using [Ruff][]. If you're using [VS Code][], our configuration in this repository should automatically recommend that you install the corresponding extensions for those formatters, as well as automatically run them whenever you save a Python file. You can also run them manually via the command line:
 
 ```sh
-uv run black .
-uv run isort .
+uv run ruff check
 ```
 
 ## C++
@@ -164,18 +163,17 @@ Some tools make use of C++ code shared in the `cpp` directory; if doing local de
 make -C cpp
 ```
 
-[black]: https://black.readthedocs.io/en/stable/
 [bun]: https://bun.sh/
 [containerd]: https://docs.docker.com/storage/containerd/
 [docker]: https://docs.docker.com/engine/install/
 [git]: https://git-scm.com/downloads
 [github cli]: https://github.com/cli/cli#installation
-[isort]: https://pycqa.github.io/isort/
 [log in to GHCR]: https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-with-a-personal-access-token-classic
 [make]: https://en.wikipedia.org/wiki/Make_(software)
 [markdown-toc]: https://www.npmjs.com/package/markdown-toc
 [multi-platform images]: https://docs.docker.com/build/building/multi-platform/
 [qemu]: https://docs.docker.com/build/building/multi-platform/#install-qemu-manually
+[ruff]: https://docs.astral.sh/ruff/
 [rust]: https://www.rust-lang.org/tools/install
 [uv]: https://docs.astral.sh/uv
 [vite]: https://vitejs.dev/

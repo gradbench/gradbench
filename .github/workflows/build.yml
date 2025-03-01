@@ -31,10 +31,8 @@ jobs:
           echo "$CHANGES"
           git diff
           [ -z "$CHANGES" ]
-      - name: Check Python formatting
-        run: uv run black --check .
-      - name: Check Python imports
-        run: uv run isort --check .
+      - name: Lint Python code
+        run: uv run ruff check
       - name: Lint Rust code
         run: cargo clippy
       - name: Test Rust code
