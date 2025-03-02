@@ -24,4 +24,4 @@ gradbench = { workspace = true }
 members = ["python/*"]
 
 [tool.ruff.lint]
-extend-select = ["I"]
+extend-select = ["I", "RUF"]

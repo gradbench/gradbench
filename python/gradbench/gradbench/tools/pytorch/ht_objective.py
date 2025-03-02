@@ -149,7 +149,7 @@ def get_skinned_vertex_positions(
         .transpose(1, 2)
     )
 
-    positions2 = torch.sum(positions * weights.reshape(weights.shape + (1,)), 1)[:, :3]
+    positions2 = torch.sum(positions * weights.reshape((*weights.shape, 1)), 1)[:, :3]
 
     positions3 = apply_global_transform(pose_params, positions2)
 
