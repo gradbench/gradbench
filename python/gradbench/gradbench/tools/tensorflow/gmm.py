@@ -1,115 +1,135 @@
 # Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
 
-# MIT License
-
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-
-# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-
-# https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/modules/Tensorflow/TensorflowGMM.py
+# https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/modules/TensorflowGraph/TensorflowGraphGMM.py
 
 """
-Changes Made:
-- Added two functions to create a TensorflowGMM object and call calculate_objective and calculate_jacobian
-- Added function to create GMMInput object
-- Import a decorator to convert input and outputs to necessary types
+Changes made:
+  * Use simplified ITest interface.
+  * Add jacobian/objective top level functions.
 """
 
-from __future__ import absolute_import, division, print_function, unicode_literals
-
+import numpy as np
 import tensorflow as tf
+from tensorflow.python.framework.ops import disable_eager_execution
+
+disable_eager_execution()  # turn eager execution off
 
 from gradbench import wrap
 from gradbench.adbench.defs import Wishart
-from gradbench.adbench.gmm_data import GMMInput, GMMOutput
+from gradbench.adbench.gmm_data import GMMInput
 from gradbench.adbench.itest import ITest
 from gradbench.tools.tensorflow.gmm_objective import gmm_objective
 from gradbench.tools.tensorflow.utils import flatten, to_tf_tensor
 
 
 class TensorflowGMM(ITest):
-    """Test class for GMM differentiation by Tensorflow using eager
-    execution."""
+    """Test class for GMM diferentiation by Tensorflow using computational
+    graphs."""
 
     def prepare(self, input):
         """Prepares calculating. This function must be run before
         any others."""
 
-        self.alphas = to_tf_tensor(input.alphas)
-        self.means = to_tf_tensor(input.means)
-        self.icf = to_tf_tensor(input.icf)
+        self.alphas = input.alphas
+        self.means = input.means
+        self.icf = input.icf
 
-        self.x = to_tf_tensor(input.x)
-        self.wishart_gamma = to_tf_tensor(input.wishart.gamma)
-        self.wishart_m = to_tf_tensor(input.wishart.m)
+        graph = tf.compat.v1.Graph()
+        with graph.as_default():
+            self.x = to_tf_tensor(input.x)
+            self.wishart_gamma = input.wishart.gamma
+            self.wishart_m = input.wishart.m
 
-        self.objective = tf.zeros(1)
-        self.gradient = tf.zeros(0)
+            self.prepare_operations()
 
-    def calculate_objective(self):
-        self.objective = gmm_objective(
-            self.alphas,
-            self.means,
-            self.icf,
-            self.x,
-            self.wishart_gamma,
-            self.wishart_m,
+        self.session = tf.compat.v1.Session(graph=graph)
+        self.first_running()
+
+        self.objective = np.zeros(1)
+        self.gradient = np.zeros(0)
+
+    def prepare_operations(self):
+        """Prepares computational graph for needed operations."""
+
+        self.alphas_placeholder = tf.compat.v1.placeholder(
+            dtype=tf.float64, shape=self.alphas.shape
         )
 
-    def calculate_jacobian(self):
-        with tf.GradientTape(persistent=True) as t:
-            t.watch(self.alphas)
-            t.watch(self.means)
-            t.watch(self.icf)
+        self.means_placeholder = tf.compat.v1.placeholder(
+            dtype=tf.float64, shape=self.means.shape
+        )
 
-            self.objective = gmm_objective(
-                self.alphas,
-                self.means,
-                self.icf,
+        self.icf_placeholder = tf.compat.v1.placeholder(
+            dtype=tf.float64, shape=self.icf.shape
+        )
+
+        with tf.GradientTape(persistent=True) as grad_tape:
+            grad_tape.watch(self.alphas_placeholder)
+            grad_tape.watch(self.means_placeholder)
+            grad_tape.watch(self.icf_placeholder)
+
+            self.objective_operation = gmm_objective(
+                self.alphas_placeholder,
+                self.means_placeholder,
+                self.icf_placeholder,
                 self.x,
                 self.wishart_gamma,
                 self.wishart_m,
             )
 
-        J = t.gradient(self.objective, (self.alphas, self.means, self.icf))
-        self.gradient = tf.concat([flatten(d) for d in J], 0)
+        J = grad_tape.gradient(
+            self.objective_operation,
+            (self.alphas_placeholder, self.means_placeholder, self.icf_placeholder),
+        )
+
+        self.gradient_operation = tf.concat([flatten(d) for d in J], 0)
+
+        self.feed_dict = {
+            self.alphas_placeholder: self.alphas,
+            self.means_placeholder: self.means,
+            self.icf_placeholder: self.icf,
+        }
+
+    def first_running(self):
+        """Performs the first session running."""
+
+        self.session.run(self.objective_operation, feed_dict=self.feed_dict)
+
+        self.session.run(self.gradient_operation, feed_dict=self.feed_dict)
+
+    def calculate_objective(self):
+        self.objective = self.session.run(
+            self.objective_operation, feed_dict=self.feed_dict
+        )
+
+    def calculate_jacobian(self):
+        self.gradient = self.session.run(
+            self.gradient_operation, feed_dict=self.feed_dict
+        )
 
 
 def prepare_input(input):
     py = TensorflowGMM()
     py.prepare(
         GMMInput(
-            input["alpha"],
-            input["means"],
-            input["icf"],
-            input["x"],
+            np.array(input["alpha"]),
+            np.array(input["means"]),
+            np.array(input["icf"]),
+            np.array(input["x"]),
             Wishart(input["gamma"], input["m"]),
         )
     )
     return py
 
 
-@wrap.multiple_runs(pre=prepare_input, post=lambda x: x.numpy().tolist())
+@wrap.multiple_runs(pre=prepare_input, post=lambda x: x.tolist())
 def jacobian(py):
     py.calculate_jacobian()
     return py.gradient
 
 
-@wrap.multiple_runs(pre=prepare_input, post=lambda x: x.numpy().tolist())
+@wrap.multiple_runs(pre=prepare_input, post=lambda x: float(x))
 def objective(py):
     py.calculate_objective()
     return py.objective
