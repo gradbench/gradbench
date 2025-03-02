@@ -182,9 +182,7 @@ def get_skinned_vertex_positions(
     transforms = absolutes @ inverse_base_absolutes
 
     positions = base_positions @ tf.transpose(transforms, perm=[0, 2, 1])
-    positions = tf.reduce_sum(
-        positions * tf.reshape(weights, (shape(weights) + [1])), 0
-    )
+    positions = tf.reduce_sum(positions * tf.reshape(weights, [*shape(weights), 1]), 0)
     positions = apply_global_transform(pose_params, positions[:, :3])
 
     return positions
@@ -250,7 +248,7 @@ def ht_objective_complicated(
             + (1.0 - us[:, 0] - us[:, 1]) * tf.gather(vertex_positions, triangles[:, 2])
         )
 
-    us = tf.reshape(us, us.shape + [1])
+    us = tf.reshape(us, [*us.shape, 1])
     err = points - get_hand_pt(us, tf.gather(triangles, correspondences))
 
     return err

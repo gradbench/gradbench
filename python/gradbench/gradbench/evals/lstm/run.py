@@ -4,11 +4,9 @@ from pathlib import Path
 from typing import Any
 
 import manual.lstm as golden
-import numpy as np
 from gradbench.comparison import compare_json_objects
-from gradbench.eval import SingleModuleValidatedEval, approve, mismatch
+from gradbench.eval import Analysis, SingleModuleValidatedEval, approve, mismatch
 from gradbench.evals.lstm import io
-from gradbench.wrap import Wrapped
 
 
 def check(function: str, input: Any, output: Any) -> None:
@@ -41,7 +39,7 @@ def main():
     if e.define().success:
         data_root = Path("evals/lstm/data")  # assumes cwd is set correctly
 
-        for l in args.l:
+        for l in args.l:  # noqa: E741
             for c in args.c:
                 fn = next(data_root.glob(f"lstm_l{l}_c{c}.txt"), None)
                 input = io.read_lstm_instance(fn).to_dict()

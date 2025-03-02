@@ -44,7 +44,9 @@ def lstm_objective(main_params, extra_params, state, sequence):
     """Gets the average loss for the LSTM across a sequence of inputs."""
 
     max_t = sequence.shape[0] - 1
-    cond = lambda t, state, inp, total, count: tf.less(t, max_t)
+
+    def cond(t, state, inp, total, count):
+        return tf.less(t, max_t)
 
     def body(t, state, inp, total, count):
         ypred, state = predict(main_params, extra_params, state, inp)
