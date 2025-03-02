@@ -30,7 +30,6 @@ Changes Made:
 - Added a function to create BA input based on data provided in files
 """
 
-
 import numpy as np
 import torch
 from gradbench import wrap
