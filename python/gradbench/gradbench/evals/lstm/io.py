@@ -41,7 +41,6 @@ def read_lstm_instance(fn):
     line = fid.readline().split()
     layer_count = int(line[0])
     char_count = int(line[1])
-    char_bits = int(line[2])
 
     fid.readline()
     main_params = np.array(

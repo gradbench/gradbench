@@ -25,7 +25,7 @@
 
 import torch
 
-from gradbench.adbench.defs import BA_NCAMPARAMS, C_IDX, F_IDX, RAD_IDX, ROT_IDX, X0_IDX
+from gradbench.adbench.defs import C_IDX, F_IDX, RAD_IDX, ROT_IDX, X0_IDX
 
 ######### BA objective in Python (torch) #############
 

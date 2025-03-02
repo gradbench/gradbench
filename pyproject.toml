@@ -22,3 +22,6 @@ gradbench = { workspace = true }
 
 [tool.uv.workspace]
 members = ["python/*"]
+
+[tool.ruff.lint]
+ignore = ["E721", "E741"]

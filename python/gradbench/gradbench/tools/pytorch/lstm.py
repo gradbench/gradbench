@@ -8,7 +8,6 @@ Changes Made:
 - Added two functions to create a PyTorchHand object and call calculate_objective and calculate_jacobian
 """
 
-import numpy as np
 import torch
 
 from gradbench import wrap

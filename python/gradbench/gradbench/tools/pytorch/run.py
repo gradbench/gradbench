@@ -27,7 +27,7 @@ def main():
             try:
                 import_module(message["module"])
                 response["success"] = True
-            except:
+            except ModuleNotFoundError:
                 response["success"] = False
         print(json.dumps({"id": message["id"]} | response), flush=True)
 

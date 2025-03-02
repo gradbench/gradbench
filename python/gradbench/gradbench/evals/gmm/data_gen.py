@@ -70,8 +70,6 @@ def generate(data_uniform, data_normal, D, k, n):
     view_uniform = data_uniform[:]
     view_normal = data_normal[:]
 
-    filename = f"gmm_d{D}_K{k}_N{n}.txt"
-
     output = {}
 
     output["d"] = D

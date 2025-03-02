@@ -33,7 +33,6 @@ Changes Made:
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import time
 
 import numpy as np
 import tensorflow as tf
@@ -150,7 +149,7 @@ def objective_output(errors):
             "reproj_error": {"elements": r_err.numpy().tolist()[:2], "repeated": num_r},
             "w_err": {"element": w_err.numpy().tolist()[0], "repeated": num_w},
         }
-    except:
+    except Exception:
         return errors
 
 
@@ -162,7 +161,7 @@ def jacobian_output(ba_mat):
             "cols": list(map(int, list(ba_mat.cols))),
             "vals": list(map(float, list(ba_mat.vals))),
         }
-    except:
+    except Exception:
         return ba_mat
 
 

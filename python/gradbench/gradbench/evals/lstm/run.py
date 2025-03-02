@@ -4,12 +4,10 @@ from pathlib import Path
 from typing import Any
 
 import manual.lstm as golden
-import numpy as np
 
 from gradbench.comparison import compare_json_objects
-from gradbench.eval import SingleModuleValidatedEval, approve, mismatch
+from gradbench.eval import SingleModuleValidatedEval, approve, mismatch, Analysis
 from gradbench.evals.lstm import io
-from gradbench.wrap import Wrapped
 
 
 def check(function: str, input: Any, output: Any) -> None:
