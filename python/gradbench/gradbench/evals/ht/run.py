@@ -6,7 +6,7 @@ from typing import Any
 
 import manual.ht as golden
 from gradbench.comparison import compare_json_objects
-from gradbench.eval import SingleModuleValidatedEval, approve, mismatch
+from gradbench.eval import Analysis, SingleModuleValidatedEval, approve, mismatch
 from gradbench.evals.ht import io
 
 

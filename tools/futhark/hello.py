@@ -14,8 +14,6 @@ def square(server, input):
 
 
 def double(server, input):
-    min_runs = 1
-    min_seconds = 0
     (out,), times = futhark_utils.run(
         server, "double", ("output",), ("input",), min_runs=1, min_seconds=0
     )

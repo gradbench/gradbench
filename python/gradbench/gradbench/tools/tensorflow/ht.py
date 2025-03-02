@@ -5,10 +5,6 @@
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.python.framework.ops import disable_eager_execution
-
-disable_eager_execution()  # turn eager execution off
-
 from gradbench import wrap
 from gradbench.adbench.ht_data import HandInput
 from gradbench.adbench.itest import ITest
@@ -17,6 +13,9 @@ from gradbench.tools.tensorflow.ht_objective import (
     ht_objective_complicated,
 )
 from gradbench.tools.tensorflow.utils import flatten, to_tf_tensor
+from tensorflow.python.framework.ops import disable_eager_execution
+
+disable_eager_execution()  # turn eager execution off
 
 
 class TensorflowHT(ITest):

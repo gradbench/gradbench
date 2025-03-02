@@ -6,6 +6,7 @@
 """
 Changes Made:
 - Reformatted all "np.ndarray = field(default = np.empty(0, dtype = np.float64))" to "np.ndarray = field(default_factory=lambda: np.empty(0, dtype=np.float64))"
+- Removed `save_output_to_file` method
 """
 
 from dataclasses import dataclass, field
@@ -30,14 +31,3 @@ class BAOutput:
     )
     w_err: np.ndarray = field(default_factory=lambda: np.empty(0, dtype=np.float64))
     J: BASparseMat = field(default=BASparseMat())
-
-    def save_output_to_file(self, output_prefix, input_basename, module_basename):
-        save_errors_to_file(
-            objective_file_name(output_prefix, input_basename, module_basename),
-            self.reproj_err,
-            self.w_err,
-        )
-
-        save_sparse_j_to_file(
-            jacobian_file_name(output_prefix, input_basename, module_basename), self.J
-        )

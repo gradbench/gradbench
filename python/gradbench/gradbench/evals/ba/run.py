@@ -5,7 +5,7 @@ from typing import Any
 
 import manual.ba as golden
 from gradbench.comparison import compare_json_objects
-from gradbench.eval import SingleModuleValidatedEval, approve, mismatch
+from gradbench.eval import Analysis, SingleModuleValidatedEval, approve, mismatch
 
 
 def parse(file):

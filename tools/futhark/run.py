@@ -51,7 +51,7 @@ def main():
             response = run(message)
         elif message["kind"] == "define":
             try:
-                c = subprocess.check_output(
+                subprocess.check_output(
                     [
                         "futhark",
                         args.backend,

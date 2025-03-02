@@ -4,7 +4,7 @@ from typing import Any
 
 import manual.gmm as golden
 from gradbench.comparison import compare_json_objects
-from gradbench.eval import SingleModuleValidatedEval, approve, mismatch
+from gradbench.eval import Analysis, SingleModuleValidatedEval, approve, mismatch
 from gradbench.evals.gmm import data_gen
 
 
