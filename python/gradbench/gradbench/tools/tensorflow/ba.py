@@ -9,7 +9,6 @@ Changes made:
   * Add jacobian/objective top level functions.
 """
 
-import sys
 
 import numpy as np
 import tensorflow as tf
@@ -22,7 +21,7 @@ from gradbench.adbench.ba_data import BAInput
 from gradbench.adbench.ba_sparse_mat import BASparseMat
 from gradbench.adbench.itest import ITest
 from gradbench.tools.tensorflow.ba_objective import compute_reproj_err, compute_w_err
-from gradbench.tools.tensorflow.utils import flatten, to_tf_tensor
+from gradbench.tools.tensorflow.utils import flatten
 
 
 class TensorflowBA(ITest):

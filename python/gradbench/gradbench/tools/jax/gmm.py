@@ -2,7 +2,6 @@ import jax
 import numpy as np
 
 jax.config.update("jax_enable_x64", True)
-import jax.numpy as jnp
 from gradbench import wrap
 from gradbench.adbench.defs import Wishart
 from gradbench.adbench.gmm_data import GMMInput

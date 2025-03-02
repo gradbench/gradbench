@@ -11,7 +11,7 @@ disable_eager_execution()  # turn eager execution off
 
 from gradbench import wrap
 from gradbench.adbench.itest import ITest
-from gradbench.adbench.lstm_data import LSTMInput, LSTMOutput
+from gradbench.adbench.lstm_data import LSTMInput
 from gradbench.tools.tensorflow.lstm_objective import lstm_objective
 from gradbench.tools.tensorflow.utils import flatten, to_tf_tensor
 

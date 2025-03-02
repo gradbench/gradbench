@@ -29,7 +29,6 @@ Changes Made:
 - Import a decorator to convert input and outputs to necessary types
 """
 
-import numpy as np
 import torch
 from gradbench import wrap
 from gradbench.adbench.defs import Wishart
@@ -37,7 +36,6 @@ from gradbench.adbench.gmm_data import GMMInput
 from gradbench.adbench.itest import ITest
 from gradbench.tools.pytorch.gmm_objective import gmm_objective
 from gradbench.tools.pytorch.utils import (
-    to_torch_tensor,
     to_torch_tensors,
     torch_jacobian,
 )

@@ -2,7 +2,6 @@
 # Licensed under the MIT license.
 
 # https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/modules/TensorflowGraph/TensorflowGraphHand.py
-import sys
 
 import numpy as np
 import tensorflow as tf
@@ -17,7 +16,7 @@ from gradbench.tools.tensorflow.ht_objective import (
     ht_objective,
     ht_objective_complicated,
 )
-from gradbench.tools.tensorflow.utils import flatten, shape, to_tf_tensor
+from gradbench.tools.tensorflow.utils import flatten, to_tf_tensor
 
 
 class TensorflowHT(ITest):
