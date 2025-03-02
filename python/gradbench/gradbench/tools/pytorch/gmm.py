@@ -60,24 +60,17 @@ class PyTorchGMM(ITest):
         self.objective = torch.zeros(1)
         self.gradient = torch.empty(0)
 
-    def output(self):
-        """Returns calculation result."""
-
-        return GMMOutput(self.objective.item(), self.gradient.numpy())
-
-    def calculate_objective(self, times):
+    def calculate_objective(self):
         """Calculates objective function many times."""
 
-        for i in range(times):
-            self.objective = gmm_objective(*self.inputs, *self.params)
+        self.objective = gmm_objective(*self.inputs, *self.params)
 
-    def calculate_jacobian(self, times):
+    def calculate_jacobian(self):
         """Calculates objective function jacobian many times."""
 
-        for i in range(times):
-            self.objective, self.gradient = torch_jacobian(
-                gmm_objective, self.inputs, self.params
-            )
+        self.objective, self.gradient = torch_jacobian(
+            gmm_objective, self.inputs, self.params
+        )
 
 
 def prepare_input(input):
@@ -99,7 +92,7 @@ def prepare_input(input):
     post=lambda x: x.tolist(),
 )
 def jacobian(py):
-    py.calculate_jacobian(1)
+    py.calculate_jacobian()
     return py.gradient
 
 
@@ -108,5 +101,5 @@ def jacobian(py):
     post=lambda x: x.tolist(),
 )
 def objective(py):
-    py.calculate_objective(1)
+    py.calculate_objective()
     return py.objective
