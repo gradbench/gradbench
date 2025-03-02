@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-
 from gradbench.eval import SingleModuleValidatedEval, assertion
 
 

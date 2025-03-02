@@ -5,7 +5,6 @@ from typing import Any
 
 import manual.lstm as golden
 import numpy as np
-
 from gradbench.comparison import compare_json_objects
 from gradbench.eval import SingleModuleValidatedEval, approve, mismatch
 from gradbench.evals.lstm import io

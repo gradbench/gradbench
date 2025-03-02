@@ -1,7 +1,6 @@
 import numpy as np
-from mygrad import tensor as mg_tensor
-
 from gradbench import wrap
+from mygrad import tensor as mg_tensor
 
 
 def to_tensor(x):

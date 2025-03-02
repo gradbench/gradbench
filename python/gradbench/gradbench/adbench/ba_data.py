@@ -11,7 +11,6 @@ Changes Made:
 from dataclasses import dataclass, field
 
 import numpy as np
-
 from gradbench.adbench.ba_sparse_mat import BASparseMat
 
 

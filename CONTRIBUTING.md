@@ -152,6 +152,7 @@ The Docker images should be considered canonical, but for local development, it 
 We autoformat Python code using [Ruff][]. If you're using [VS Code][], our configuration in this repository should automatically recommend that you install the Ruff extension, as well as automatically run it whenever you save a Python file. You can also run it manually via the command line:
 
 ```sh
+uv run ruff check --fix
 uv run ruff format
 ```
 

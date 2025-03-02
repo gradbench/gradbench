@@ -9,7 +9,6 @@ Changes made:
 """
 
 import numpy as np
-
 from gradbench.adbench.lstm_data import LSTMInput
 
 

@@ -6,7 +6,6 @@ from typing import Any
 
 import manual.kmeans as golden
 import numpy as np
-
 from gradbench.comparison import compare_json_objects
 from gradbench.eval import SingleModuleValidatedEval, mismatch
 from gradbench.wrap import Wrapped
