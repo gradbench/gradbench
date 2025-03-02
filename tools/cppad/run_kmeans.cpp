@@ -39,7 +39,7 @@ public:
 
     _tape = new CppAD::ADFun<double>(acentroids, err);
 
-    _tape->optimize("no_compare_op");
+    _tape->optimize("no_compare_op no_conditional_skip no_print_for_op");
 
     size_t input_size = _input.k * _input.d;
 

@@ -25,10 +25,7 @@ void objective(int n, int k, int d,
     T closest = INFINITY;
     for (int j = 0; j < k; j++) {
       T const *b = &centroids[j*d];
-      T dist = euclid_dist_2(d, a, b);
-      if (dist < closest) {
-        closest = dist;
-      }
+      closest = std::min(closest, euclid_dist_2(d, a, b));
     }
     cost += closest;
   }
