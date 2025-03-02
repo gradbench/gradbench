@@ -36,6 +36,7 @@ jobs:
       date: ${{ steps.matrix.outputs.date }}
       eval: ${{ steps.matrix.outputs.eval }}
       tool: ${{ steps.matrix.outputs.tool }}
+      run: ${{ steps.matrix.outputs.run }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -97,7 +98,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
+        include: ${{ fromJSON(needs.matrix.outputs.tool) }}
     runs-on: ubuntu-24.04
     env:
       IMAGE: ghcr.io/gradbench/tool-${{ matrix.tool }}
@@ -112,7 +113,11 @@ jobs:
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Build tool Docker image
+        if: ${{ matrix.cross }}
         run: gradbench repo build-tool --cross ${{ matrix.tool }}
+      - name: Build x86-only Docker image as a fallback
+        if: ${{ !matrix.cross }}
+        run: gradbench repo build-tool ${{ matrix.tool }}
       - name: Tag tool Docker image
         run: docker tag $IMAGE $IMAGE:$TAG
       - name: Login to GitHub Container registry
@@ -140,8 +145,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
-        tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
+        include: ${{ fromJSON(needs.matrix.outputs.run) }}
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout

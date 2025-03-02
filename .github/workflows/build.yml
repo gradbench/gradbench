@@ -154,7 +154,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
+        include: ${{ fromJSON(needs.matrix.outputs.tool) }}
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -166,12 +166,12 @@ jobs:
       - name: Build tool Docker image
         run: gradbench repo build-tool ${{ matrix.tool }}
       - name: Serialize tool Docker image
-        run: docker save --output x86-tool-${{ matrix.tool }}.tar ghcr.io/gradbench/tool-${{ matrix.tool }}
+        run: docker save --output tool-${{ matrix.tool }}.tar ghcr.io/gradbench/tool-${{ matrix.tool }}
       - name: Upload tool Docker image as artifact
         uses: actions/upload-artifact@v4
         with:
           name: x86-tool-${{ matrix.tool }}
-          path: x86-tool-${{ matrix.tool }}.tar
+          path: tool-${{ matrix.tool }}.tar
 
   run:
     needs:
@@ -202,7 +202,7 @@ jobs:
       - name: Load eval Docker image
         run: docker load --input eval-${{ matrix.eval }}.tar
       - name: Load tool Docker image
-        run: docker load --input x86-tool-${{ matrix.tool }}.tar
+        run: docker load --input tool-${{ matrix.tool }}.tar
       - name: Run tool on eval
         id: run
         run: |
@@ -298,7 +298,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
+        include: ${{ fromJSON(needs.matrix.outputs.tool) }}
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -310,9 +310,15 @@ jobs:
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Build tool Docker image
-        run: gradbench repo build-tool --cross ${{ matrix.tool }}
-      - name: Serialize tool Docker image
-        run: docker save --output tool-${{ matrix.tool }}.tar ghcr.io/gradbench/tool-${{ matrix.tool }}
+        if: ${{ matrix.cross }}
+        run: |
+          gradbench repo build-tool --cross ${{ matrix.tool }}
+          docker save --output tool-${{ matrix.tool }}.tar ghcr.io/gradbench/tool-${{ matrix.tool }}
+      - name: Download x86-only Docker image as a fallback
+        if: ${{ !matrix.cross }}
+        uses: actions/download-artifact@v4
+        with:
+          name: x86-tool-${{ matrix.tool }}
       - name: Upload tool Docker image as artifact
         uses: actions/upload-artifact@v4
         with:
