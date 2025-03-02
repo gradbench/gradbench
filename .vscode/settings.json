@@ -1,5 +1,8 @@
 {
-  "[python]": { "editor.defaultFormatter": "charliermarsh.ruff" },
+  "[python]": {
+    "editor.codeActionsOnSave": { "source.organizeImports": "always" },
+    "editor.defaultFormatter": "charliermarsh.ruff"
+  },
   "editor.formatOnSave": true,
   "files.associations": {
     "time.h": "c"
