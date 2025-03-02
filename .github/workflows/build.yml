@@ -198,7 +198,7 @@ jobs:
       - name: Download tool Docker image from artifact
         uses: actions/download-artifact@v4
         with:
-          name: tool-${{ matrix.tool }}
+          name: x86-tool-${{ matrix.tool }}
       - name: Load eval Docker image
         run: docker load --input eval-${{ matrix.eval }}.tar
       - name: Load tool Docker image
