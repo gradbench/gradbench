@@ -31,7 +31,7 @@ jobs:
           echo "$CHANGES"
           git diff
           [ -z "$CHANGES" ]
-      - name: Lint Python code
+      - name: Check Python formatting
         run: uv run ruff format --check
       - name: Lint Rust code
         run: cargo clippy
