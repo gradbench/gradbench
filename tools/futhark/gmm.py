@@ -1,4 +1,7 @@
+import os
+import re
 
+import futhark_server
 import futhark_utils
 import numpy as np
 

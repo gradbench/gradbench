@@ -3,7 +3,8 @@
 
 # https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/shared/defs.py
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Tuple
 
 from numpy import float64, int32
 

@@ -106,7 +106,7 @@ def torch_jacobian(func, inputs, params=None, flatten=True):
 
             J.append(torch.cat(list(get_grad(inp, flatten) for inp in inputs)))
 
-    if params is not None:
+    if params != None:
         res = func(*inputs, *params)
     else:
         res = func(*inputs)

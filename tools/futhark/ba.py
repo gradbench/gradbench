@@ -1,3 +1,4 @@
+import futhark_server
 import futhark_utils
 import numpy as np
 

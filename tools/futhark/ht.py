@@ -1,7 +1,8 @@
+import futhark_server
 import futhark_utils
 import numpy as np
 
-from gradbench.adbench.ht_data import HandInput
+from gradbench.adbench.ht_data import HandInput, HandOutput
 
 
 def prepare(server, input):

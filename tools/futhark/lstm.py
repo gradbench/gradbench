@@ -1,4 +1,6 @@
+import futhark_server
 import futhark_utils
+import numpy as np
 
 from gradbench.adbench.lstm_data import LSTMInput
 

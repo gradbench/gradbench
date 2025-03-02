@@ -4,9 +4,11 @@ from pathlib import Path
 from typing import Any
 
 import manual.ba as golden
+import numpy as np
 
 from gradbench.comparison import compare_json_objects
-from gradbench.eval import SingleModuleValidatedEval, approve, mismatch, Analysis
+from gradbench.eval import SingleModuleValidatedEval, approve, mismatch
+from gradbench.wrap import Wrapped
 
 
 def parse(file):
