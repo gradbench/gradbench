@@ -34,7 +34,6 @@ import signal
 
 import numpy as np
 import torch
-
 from gradbench import wrap
 from gradbench.adbench.ba_data import BAInput, BAOutput
 from gradbench.adbench.ba_sparse_mat import BASparseMat
