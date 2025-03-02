@@ -67,59 +67,44 @@ class PyTorchBA(ITest):
         self.w_err = torch.zeros(len(input.w))
         self.jacobian = BASparseMat(len(input.cams), len(input.x), self.p)
 
-    def output(self):
-        """Returns calculation result."""
-
-        return BAOutput(
-            self.reproj_error.detach().numpy(),
-            self.w_err.detach().numpy(),
-            self.jacobian,
-        )
-
-    def calculate_objective(self, times):
-        """Calculates objective function many times."""
-
+    def calculate_objective(self):
         reproj_error = torch.empty((self.p, 2), dtype=torch.float64)
-        for i in range(times):
-            for j in range(self.p):
-                reproj_error[j] = compute_reproj_err(
-                    self.cams[self.obs[j, 0]],
-                    self.x[self.obs[j, 1]],
-                    self.w[j],
-                    self.feats[j],
-                )
+        for j in range(self.p):
+            reproj_error[j] = compute_reproj_err(
+                self.cams[self.obs[j, 0]],
+                self.x[self.obs[j, 1]],
+                self.w[j],
+                self.feats[j],
+            )
 
-                self.w_err[j] = compute_w_err(self.w[j])
+            self.w_err[j] = compute_w_err(self.w[j])
 
-            self.reproj_error = reproj_error.flatten()
+        self.reproj_error = reproj_error.flatten()
 
-    def calculate_jacobian(self, times):
-        """Calculates objective function jacobian many times."""
-
+    def calculate_jacobian(self):
         reproj_error = torch.empty((self.p, 2), dtype=torch.float64)
-        for i in range(times):
-            # reprojection error jacobian calculation
-            for j in range(self.p):
-                camIdx = self.obs[j, 0]
-                ptIdx = self.obs[j, 1]
+        # reprojection error jacobian calculation
+        for j in range(self.p):
+            camIdx = self.obs[j, 0]
+            ptIdx = self.obs[j, 1]
 
-                cam = self.cams[camIdx]
-                x = self.x[ptIdx]
-                w = self.w[j]
+            cam = self.cams[camIdx]
+            x = self.x[ptIdx]
+            w = self.w[j]
 
-                reproj_error[j], J = torch_jacobian(
-                    compute_reproj_err, (cam, x, w), (self.feats[j],)
-                )
+            reproj_error[j], J = torch_jacobian(
+                compute_reproj_err, (cam, x, w), (self.feats[j],)
+            )
 
-                self.jacobian.insert_reproj_err_block(j, camIdx, ptIdx, J)
+            self.jacobian.insert_reproj_err_block(j, camIdx, ptIdx, J)
 
-            # weight error jacobian calculation
-            for j in range(self.p):
-                self.w_err[j], J = torch_jacobian(compute_w_err, (self.w[j],))
+        # weight error jacobian calculation
+        for j in range(self.p):
+            self.w_err[j], J = torch_jacobian(compute_w_err, (self.w[j],))
 
-                self.jacobian.insert_w_err_block(j, J)
+            self.jacobian.insert_w_err_block(j, J)
 
-            self.reproj_error = reproj_error.flatten()
+        self.reproj_error = reproj_error.flatten()
 
 
 # Convert objective output to dictionary
@@ -175,7 +160,7 @@ def prepare_input(input):
     post=objective_output,
 )
 def objective(py):
-    py.calculate_objective(1)
+    py.calculate_objective()
     return py.reproj_error, py.w_err
 
 
@@ -184,5 +169,5 @@ def objective(py):
     post=jacobian_output,
 )
 def jacobian(py):
-    py.calculate_jacobian(1)
+    py.calculate_jacobian()
     return py.jacobian
