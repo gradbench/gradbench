@@ -1,5 +1,6 @@
 import json
 import sys
+import traceback
 from importlib import import_module
 
 from gradbench.wrap import Wrapped
@@ -27,7 +28,8 @@ def main():
             try:
                 import_module(message["module"])
                 response["success"] = True
-            except:
+            except Exception as e:
+                response["error"] = "".join(traceback.format_exception(e))
                 response["success"] = False
         print(json.dumps({"id": message["id"]} | response), flush=True)
 
