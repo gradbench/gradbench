@@ -97,7 +97,7 @@ This typically takes much longer, so it tends not to be convenient for local dev
 
 ### Manual images
 
-All the Docker images for individual autodiff tools are in the `tools` directory and built automatically in GitHub Actions. However, some of those `Dockerfile`s are built `FROM` base images that we are unable to build in GitHub Actions. All such base images are in the `docker` directory. Each must have an `ENTRYPOINT` that simply prints the tag of the image. _If you have write access to the GradBench organization on GitHub_, you can build, tag, and push one of these images by first [log in to GHCR][] and then running the `repo manual` subcommand:
+All the Docker images for individual autodiff tools are in the `tools` directory and built automatically in GitHub Actions. However, some of those `Dockerfile`s are built `FROM` base images that we are unable to build in GitHub Actions. All such base images are in the `docker` directory. Each must have an `ENTRYPOINT` that simply prints the tag of the image. _If you have write access to the GradBench organization on GitHub_, you can [log in to GHCR][] and then build, tag, and push one of these images by running the `repo manual` subcommand:
 
 ```sh
 ./gradbench repo manual mathlib4
@@ -105,15 +105,15 @@ All the Docker images for individual autodiff tools are in the `tools` directory
 
 ## Tools
 
-If you'd like to contribute a new tool: awesome! We're always excited to expand the set of automatic differentiation tools in GradBench. All you need to do is create a subdirectory under the `tools` directory in this repo, and create a `Dockerfile` in that new subdirectory. Other than having an `ENTRYPOINT`, you can pretty much do whatever you want; take a look at the already-supported tools to see some examples! You must include the following as the last line in your `Dockerfile`, though:
+If you'd like to contribute a new tool: awesome! We're always excited to expand the set of automatic differentiation tools in GradBench. The main thing you need to do is create a subdirectory under the `tools` directory in this repo, and create a `Dockerfile` in that new subdirectory. Other than having an `ENTRYPOINT`, you can pretty much do whatever you want; take a look at the already-supported tools to see some examples! You must include the following as the last line in your `Dockerfile`, though:
 
 ```Dockerfile
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
 ```
 
-We'd really appreciate it if you also write a short `README.md` file next to your `Dockerfile`; this can be as minimal as just a link to the tool's website, but can also include more information, e.g. anything specific about this setup of that tool for GradBench.
+We'd also really appreciate it if you also write a short `README.md` file next to your `Dockerfile`; this can be as minimal as just a link to the tool's website, but can also include more information, e.g. anything specific about this setup of that tool for GradBench.
 
-Before taking a look at any of the other evals, you should implement the [`hello` eval](evals/hello) for the tool you're adding! This will help you get all the structure for the GradBench protocol working correctly first, after which you can implement other evals for that tool over time.
+Before taking a look at any of the other evals, you should implement the [`hello` eval](evals/hello) for the tool you're adding! This will help you get all the structure for the GradBench protocol working correctly first, after which you can implement other evals for that tool over time. Once you've done so, add a file called `evals.txt` in your tool directory (next to your `Dockerfile`) with the names of all the evals your tool supports, each on their own line, in sorted order; otherwise GitHub Actions will squawk at you saying it expected your tool to be `undefined` on those evals.
 
 ## JavaScript
 
@@ -146,14 +146,14 @@ This will log a `localhost` URL to your terminal; open that URL in your browser.
 The Docker images should be considered canonical, but for local development, it can be more convenient to instead install and run tools directly. You can use `uv run` to do this:
 
 ```sh
-./gradbench run --eval './gradbench repo eval hello' --tool 'uv run python/gradbench/gradbench/pytorch/run.py'
+./gradbench run --eval './gradbench repo eval hello' --tool 'uv run python/gradbench/gradbench/tools/pytorch/run.py'
 ```
 
-We autoformat Python code using [Black][] and [isort][]. If you're using [VS Code][], our configuration in this repository should automatically recommend that you install the corresponding extensions for those formatters, as well as automatically run them whenever you save a Python file. You can also run them manually via the command line:
+We autoformat Python code using [Ruff][]. If you're using [VS Code][], our configuration in this repository should automatically recommend that you install the Ruff extension, as well as automatically run it whenever you save a Python file. You can also run it manually via the command line:
 
 ```sh
-uv run black .
-uv run isort .
+uv run ruff check --fix
+uv run ruff format
 ```
 
 ## C++
@@ -164,18 +164,17 @@ Some tools make use of C++ code shared in the `cpp` directory; if doing local de
 make -C cpp
 ```
 
-[black]: https://black.readthedocs.io/en/stable/
 [bun]: https://bun.sh/
 [containerd]: https://docs.docker.com/storage/containerd/
 [docker]: https://docs.docker.com/engine/install/
 [git]: https://git-scm.com/downloads
 [github cli]: https://github.com/cli/cli#installation
-[isort]: https://pycqa.github.io/isort/
 [log in to GHCR]: https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-with-a-personal-access-token-classic
 [make]: https://en.wikipedia.org/wiki/Make_(software)
 [markdown-toc]: https://www.npmjs.com/package/markdown-toc
 [multi-platform images]: https://docs.docker.com/build/building/multi-platform/
-[qemu]: https://docs.docker.com/build/building/multi-platform/#qemu-without-docker-desktop
+[qemu]: https://docs.docker.com/build/building/multi-platform/#install-qemu-manually
+[ruff]: https://docs.astral.sh/ruff/
 [rust]: https://www.rust-lang.org/tools/install
 [uv]: https://docs.astral.sh/uv
 [vite]: https://vitejs.dev/

@@ -7,8 +7,6 @@
 
 #include <cmath>
 
-#include "defs.h"
-
 ////////////////////////////////////////////////////////////
 //////////////////// Declarations //////////////////////////
 ////////////////////////////////////////////////////////////
@@ -69,7 +67,7 @@ void p2e(
 // inline so that it could be defined in the header
 inline double log_gamma_distrib(double a, double p)
 {
-    double out = 0.25 * p * (p - 1) * log(PI);
+    double out = 0.25 * p * (p - 1) * log(M_PI);
     for (int j = 1; j <= p; j++)
     {
         out = out + lgamma(a + 0.5 * (1 - j));

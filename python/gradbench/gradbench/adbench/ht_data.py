@@ -7,6 +7,7 @@
 Changes Made:
 - Changed default= to default_factory in data classes.
 - Added dataclass_json decorators.
+- Removed `save_output_to_file` method.
 """
 
 from dataclasses import dataclass, field
@@ -108,17 +109,6 @@ class HandOutput:
         default_factory=lambda: np.empty(0, dtype=np.float64),
         metadata=config(encoder=lambda x: x.tolist(), decoder=np.asarray),
     )
-
-    def save_output_to_file(self, output_prefix, input_basename, module_basename):
-        save_vector_to_file(
-            objective_file_name(output_prefix, input_basename, module_basename),
-            self.objective,
-        )
-
-        save_jacobian_to_file(
-            jacobian_file_name(output_prefix, input_basename, module_basename),
-            self.jacobian,
-        )
 
 
 @dataclass_json

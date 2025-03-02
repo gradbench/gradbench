@@ -9,7 +9,6 @@ Changes Made:
 - Added dataclass_json decorators.
 """
 
-
 from dataclasses import dataclass, field
 
 import numpy as np

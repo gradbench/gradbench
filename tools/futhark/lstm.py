@@ -1,7 +1,4 @@
-import futhark_server
 import futhark_utils
-import numpy as np
-
 from gradbench.adbench.lstm_data import LSTMInput
 
 
@@ -15,24 +12,24 @@ def prepare(server, input):
 
 
 def objective(server, input):
-    runs = input["runs"]
     (obj,), times = futhark_utils.run(
         server,
         "calculate_objective",
         ("obj",),
         ("main_params", "extra_params", "state", "sequence"),
-        runs,
+        input["min_runs"],
+        input["min_seconds"],
     )
     return (obj, times)
 
 
 def jacobian(server, input):
-    runs = input["runs"]
     (J,), times = futhark_utils.run(
         server,
         "calculate_jacobian",
         ("J",),
         ("main_params", "extra_params", "state", "sequence"),
-        runs,
+        input["min_runs"],
+        input["min_seconds"],
     )
     return (J.tolist(), times)

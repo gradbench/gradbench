@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 
 
-def functions(pathname: str):
+def functions(pathname: str, functions=["objective", "jacobian"]):
     """
     Helper functions for implementing ADBench evals in C++ tools.
 
@@ -34,28 +34,23 @@ def functions(pathname: str):
         else:
             return (True, None)
 
-    def objective(input):
-        with tempfile.NamedTemporaryFile("w") as tmp:
-            json.dump(input, tmp)
-            tmp.flush()
-            return subprocess.run(
-                [f"tools/{TOOL}/run_{EVAL}", tmp.name, "F"],
-                text=True,
-                capture_output=True,
-            )
+    provide = {}
+    provide["compile"] = compile
 
-    def jacobian(input):
-        with tempfile.NamedTemporaryFile("w") as tmp:
-            json.dump(input, tmp)
-            tmp.flush()
-            return subprocess.run(
-                [f"tools/{TOOL}/run_{EVAL}", tmp.name, "J"],
-                text=True,
-                capture_output=True,
-            )
+    def mk_run(l):  # noqa: E741
+        def run(input):
+            with tempfile.NamedTemporaryFile("w") as tmp:
+                json.dump(input, tmp)
+                tmp.flush()
+                return subprocess.run(
+                    [f"tools/{TOOL}/run_{EVAL}", tmp.name, l],
+                    text=True,
+                    capture_output=True,
+                )
 
-    return {
-        "compile": compile,
-        "objective": objective,
-        "jacobian": jacobian,
-    }
+        return run
+
+    for f in functions:
+        provide[f] = mk_run(f)
+
+    return provide
