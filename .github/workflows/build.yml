@@ -32,7 +32,7 @@ jobs:
           git diff
           [ -z "$CHANGES" ]
       - name: Lint Python code
-        run: uv run ruff check
+        run: uv run ruff format --check
       - name: Lint Rust code
         run: cargo clippy
       - name: Test Rust code

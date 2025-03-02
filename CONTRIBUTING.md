@@ -149,10 +149,10 @@ The Docker images should be considered canonical, but for local development, it 
 ./gradbench run --eval './gradbench repo eval hello' --tool 'uv run python/gradbench/gradbench/tools/pytorch/run.py'
 ```
 
-We lint and autoformat Python code using [Ruff][]. If you're using [VS Code][], our configuration in this repository should automatically recommend that you install the corresponding extensions for those formatters, as well as automatically run them whenever you save a Python file. You can also run them manually via the command line:
+We autoformat Python code using [Ruff][]. If you're using [VS Code][], our configuration in this repository should automatically recommend that you install the Ruff extension, as well as automatically run it whenever you save a Python file. You can also run it manually via the command line:
 
 ```sh
-uv run ruff check
+uv run ruff format
 ```
 
 ## C++

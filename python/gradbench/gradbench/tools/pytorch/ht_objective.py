@@ -75,7 +75,6 @@ def get_posed_relatives(pose_params, base_relatives):
 
 
 def relatives_to_absolutes(relatives, parents):
-
     absolutes = []
     for i in range(relatives.shape[0]):
         if parents[i] == -1:
