@@ -3,7 +3,7 @@ FROM python:3.11
 RUN apt-get update && apt-get install -y \
     build-essential \
     libhdf5-dev
-RUN pip install h5py tensorflow scipy
+RUN pip install h5py tensorflow scipy dataclasses-json
 
 WORKDIR /home/gradbench
 
