@@ -482,7 +482,10 @@ fn matrix() -> anyhow::Result<()> {
         "tool",
         tools
             .iter()
-            .map(|tool| ToolEntry { tool, cross: true })
+            .map(|tool| ToolEntry {
+                tool,
+                cross: tool != "scilean",
+            })
             .collect::<Vec<_>>(),
     )?;
     let mut run = Vec::new();
