@@ -446,6 +446,16 @@ fn evals_to_tools(evals: Vec<String>) -> anyhow::Result<BTreeMap<String, BTreeSe
     Ok(map)
 }
 
+/// A single entry in the `tool` matrix for GitHub Actions.
+#[derive(Serialize)]
+struct ToolEntry<'a> {
+    /// The name of the tool.
+    tool: &'a str,
+
+    /// Whether the tool can be built for `linux/arm64`, as opposed to just `linux/amd64`.
+    cross: bool,
+}
+
 /// A single entry in the `run` matrix for GitHub Actions.
 #[derive(Serialize)]
 struct RunEntry<'a> {
@@ -468,7 +478,13 @@ fn matrix() -> anyhow::Result<()> {
     github_output("eval", &evals)?;
     let mut tools = ls("tools")?;
     tools.sort();
-    github_output("tool", &tools)?;
+    github_output(
+        "tool",
+        tools
+            .iter()
+            .map(|tool| ToolEntry { tool, cross: true })
+            .collect::<Vec<_>>(),
+    )?;
     let mut run = Vec::new();
     let map = evals_to_tools(evals)?;
     for (eval, supported) in &map {
