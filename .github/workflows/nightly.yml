@@ -36,6 +36,7 @@ jobs:
       date: ${{ steps.matrix.outputs.date }}
       eval: ${{ steps.matrix.outputs.eval }}
       tool: ${{ steps.matrix.outputs.tool }}
+      run: ${{ steps.matrix.outputs.run }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -71,7 +72,7 @@ jobs:
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Build eval Docker image
-        run: gradbench repo build-eval --cross ${{ matrix.eval }}
+        run: gradbench repo build-eval --platform linux/amd64,linux/arm64 ${{ matrix.eval }}
       - name: Tag eval Docker image
         run: docker tag $IMAGE $IMAGE:$TAG
       - name: Login to GitHub Container registry
@@ -97,7 +98,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
+        include: ${{ fromJSON(needs.matrix.outputs.tool) }}
     runs-on: ubuntu-24.04
     env:
       IMAGE: ghcr.io/gradbench/tool-${{ matrix.tool }}
@@ -112,7 +113,11 @@ jobs:
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Build tool Docker image
-        run: gradbench repo build-tool --cross ${{ matrix.tool }}
+        if: ${{ matrix.cross }}
+        run: gradbench repo build-tool --platform linux/amd64,linux/arm64 ${{ matrix.tool }}
+      - name: Build x86-only Docker image as a fallback
+        if: ${{ !matrix.cross }}
+        run: gradbench repo build-tool ${{ matrix.tool }}
       - name: Tag tool Docker image
         run: docker tag $IMAGE $IMAGE:$TAG
       - name: Login to GitHub Container registry
@@ -140,12 +145,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
-        tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
+        include: ${{ fromJSON(needs.matrix.outputs.run) }}
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Increase disk space
+        uses: ./.github/actions/space
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Download eval Docker image from artifact

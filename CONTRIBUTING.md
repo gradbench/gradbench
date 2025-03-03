@@ -7,7 +7,6 @@
 - [CLI](#cli)
 - [Docker](#docker)
   - [Multi-platform images](#multi-platform-images)
-  - [Manual images](#manual-images)
 - [Tools](#tools)
 - [JavaScript](#javascript)
   - [Markdown](#markdown)
@@ -86,21 +85,17 @@ So for instance, to increase `n` for the GMM eval:
 
 ### Multi-platform images
 
-The `repo eval` and `repo tool` subcommands are just for convenience when building and running the Docker images locally; they do not build multi-platform images. If you have followed the above instructions to configure Docker for building such images, you can do so using the `--cross` flag on the `repo build-eval` and `repo build-tool` subcommands:
+The `repo eval` and `repo tool` subcommands are just for convenience when building and running the Docker images locally; they do not build multi-platform images. If you have followed the above instructions to configure Docker for building such images, you can do so using the `--platform` flag on the `repo build-eval` and `repo build-tool` subcommands:
 
 ```sh
-./gradbench repo build-eval --cross hello
-./gradbench repo build-tool --cross pytorch
+./gradbench repo build-eval --platform linux/amd64,linux/arm64 hello
+./gradbench repo build-tool --platform linux/amd64,linux/arm64 pytorch
 ```
 
-This typically takes much longer, so it tends not to be convenient for local development.
-
-### Manual images
-
-All the Docker images for individual autodiff tools are in the `tools` directory and built automatically in GitHub Actions. However, some of those `Dockerfile`s are built `FROM` base images that we are unable to build in GitHub Actions. All such base images are in the `docker` directory. Each must have an `ENTRYPOINT` that simply prints the tag of the image. _If you have write access to the GradBench organization on GitHub_, you can [log in to GHCR][] and then build, tag, and push one of these images by running the `repo manual` subcommand:
+This typically takes much longer, so it tends not to be convenient for local development. However, if a tool does not support your machine's native architecture, emulation may be your only option, in which case you can select just one platform which is supported by that tool:
 
 ```sh
-./gradbench repo manual mathlib4
+./gradbench run --eval './gradbench repo eval hello' --tool './gradbench repo tool --platform linux/amd64 scilean'
 ```
 
 ## Tools
@@ -146,14 +141,14 @@ This will log a `localhost` URL to your terminal; open that URL in your browser.
 The Docker images should be considered canonical, but for local development, it can be more convenient to instead install and run tools directly. You can use `uv run` to do this:
 
 ```sh
-./gradbench run --eval './gradbench repo eval hello' --tool 'uv run python/gradbench/gradbench/pytorch/run.py'
+./gradbench run --eval './gradbench repo eval hello' --tool 'uv run python/gradbench/gradbench/tools/pytorch/run.py'
 ```
 
-We autoformat Python code using [Black][] and [isort][]. If you're using [VS Code][], our configuration in this repository should automatically recommend that you install the corresponding extensions for those formatters, as well as automatically run them whenever you save a Python file. You can also run them manually via the command line:
+We autoformat Python code using [Ruff][]. If you're using [VS Code][], our configuration in this repository should automatically recommend that you install the Ruff extension, as well as automatically run it whenever you save a Python file. You can also run it manually via the command line:
 
 ```sh
-uv run black .
-uv run isort .
+uv run ruff check --fix
+uv run ruff format
 ```
 
 ## C++
@@ -164,18 +159,16 @@ Some tools make use of C++ code shared in the `cpp` directory; if doing local de
 make -C cpp
 ```
 
-[black]: https://black.readthedocs.io/en/stable/
 [bun]: https://bun.sh/
 [containerd]: https://docs.docker.com/storage/containerd/
 [docker]: https://docs.docker.com/engine/install/
 [git]: https://git-scm.com/downloads
 [github cli]: https://github.com/cli/cli#installation
-[isort]: https://pycqa.github.io/isort/
-[log in to GHCR]: https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-with-a-personal-access-token-classic
 [make]: https://en.wikipedia.org/wiki/Make_(software)
 [markdown-toc]: https://www.npmjs.com/package/markdown-toc
 [multi-platform images]: https://docs.docker.com/build/building/multi-platform/
 [qemu]: https://docs.docker.com/build/building/multi-platform/#install-qemu-manually
+[ruff]: https://docs.astral.sh/ruff/
 [rust]: https://www.rust-lang.org/tools/install
 [uv]: https://docs.astral.sh/uv
 [vite]: https://vitejs.dev/

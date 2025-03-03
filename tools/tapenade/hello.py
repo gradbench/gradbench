@@ -1,6 +1,4 @@
 import subprocess
-import sys
-import time
 
 
 def compile():
@@ -54,7 +52,7 @@ def compile():
 
         return (True, None)
 
-    except Exception as e:
+    except Exception:
         # print(f"Compilation failed with error {e}", file=sys.stderr)
         return False
 
