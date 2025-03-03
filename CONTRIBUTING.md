@@ -85,14 +85,18 @@ So for instance, to increase `n` for the GMM eval:
 
 ### Multi-platform images
 
-The `repo eval` and `repo tool` subcommands are just for convenience when building and running the Docker images locally; they do not build multi-platform images. If you have followed the above instructions to configure Docker for building such images, you can do so using the `--cross` flag on the `repo build-eval` and `repo build-tool` subcommands:
+The `repo eval` and `repo tool` subcommands are just for convenience when building and running the Docker images locally; they do not build multi-platform images. If you have followed the above instructions to configure Docker for building such images, you can do so using the `--platform` flag on the `repo build-eval` and `repo build-tool` subcommands:
 
 ```sh
-./gradbench repo build-eval --cross hello
-./gradbench repo build-tool --cross pytorch
+./gradbench repo build-eval --platform linux/amd64,linux/arm64 hello
+./gradbench repo build-tool --platform linux/amd64,linux/arm64 pytorch
 ```
 
-This typically takes much longer, so it tends not to be convenient for local development.
+This typically takes much longer, so it tends not to be convenient for local development. However, if a tool does not support your machine's native architecture, emulation may be your only option, in which case you can select just one platform which is supported by that tool:
+
+```sh
+./gradbench run './gradbench repo eval hello' --tool './gradbench repo tool --platform linux/amd64 scilean'
+```
 
 ## Tools
 

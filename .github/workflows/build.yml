@@ -138,7 +138,7 @@ jobs:
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Build eval Docker image
-        run: gradbench repo build-eval --cross ${{ matrix.eval }}
+        run: gradbench repo build-eval --platform linux/amd64,linux/arm64 ${{ matrix.eval }}
       - name: Serialize eval Docker image
         run: docker save --output eval-${{ matrix.eval }}.tar ghcr.io/gradbench/eval-${{ matrix.eval }}
       - name: Upload eval Docker image as artifact
@@ -306,7 +306,7 @@ jobs:
       - name: Build tool Docker image
         if: ${{ matrix.cross }}
         run: |
-          gradbench repo build-tool --cross ${{ matrix.tool }}
+          gradbench repo build-tool --platform linux/amd64,linux/arm64 ${{ matrix.tool }}
           docker save --output tool-${{ matrix.tool }}.tar ghcr.io/gradbench/tool-${{ matrix.tool }}
       - name: Download x86-only Docker image as a fallback
         if: ${{ !matrix.cross }}
