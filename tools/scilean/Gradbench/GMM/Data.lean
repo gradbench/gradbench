@@ -14,7 +14,6 @@ local macro (priority:=high+1) "Float^[" N:term "]" : term =>
 
 
 structure GMMDataRaw where
-  runs : Nat
   d : Nat
   k : Nat
   n : Nat
