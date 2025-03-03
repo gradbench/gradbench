@@ -95,7 +95,7 @@ The `repo eval` and `repo tool` subcommands are just for convenience when buildi
 This typically takes much longer, so it tends not to be convenient for local development. However, if a tool does not support your machine's native architecture, emulation may be your only option, in which case you can select just one platform which is supported by that tool:
 
 ```sh
-./gradbench run './gradbench repo eval hello' --tool './gradbench repo tool --platform linux/amd64 scilean'
+./gradbench run --eval './gradbench repo eval hello' --tool './gradbench repo tool --platform linux/amd64 scilean'
 ```
 
 ## Tools
