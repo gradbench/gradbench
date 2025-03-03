@@ -22,7 +22,6 @@ import argparse
 import json
 import sys
 
-import numpy as np
 
 def mean(xs):
     if len(xs) == 0:
@@ -33,14 +32,14 @@ def mean(xs):
 
 def read_msgs(fname):
     try:
-        l = []
+        msgs = []
         with open(fname, "r") as f:
             for line in f:
-                l.append(json.loads(line))
-        if len(l) % 2 != 0:
+                msgs.append(json.loads(line))
+        if len(msgs) % 2 != 0:
             print("{fname} contains an odd number of messages.", file=sys.stderr)
             sys.exit(1)
-        return list(zip(l[0::2], l[1::2]))
+        return list(zip(msgs[0::2], msgs[1::2]))
     except Exception as e:
         print(f"Failed to read {fname}:", file=sys.stderr)
         print(e, file=sys.stderr)
@@ -54,18 +53,21 @@ args = parser.parse_args()
 eval = None
 tools = {}
 for fname in args.jsons:
-    print(f"Reading {fname}... ", end='', file=sys.stderr)
+    print(f"Reading {fname}... ", end="", file=sys.stderr)
     msgs = read_msgs(fname)
     this_eval = msgs[0][0]["message"]["eval"]
     if "tool" not in msgs[0][1]["response"]:
-        print('invalid, skipping.', file=sys.stderr)
+        print("invalid, skipping.", file=sys.stderr)
         continue
     this_tool = msgs[0][1]["response"]["tool"]
-    print(f'tool={this_tool} eval={this_eval}.', file=sys.stderr)
+    print(f"tool={this_tool} eval={this_eval}.", file=sys.stderr)
     if eval is None:
         eval = this_eval
     elif this_eval != eval:
-        print(f'{fname}: is a log for eval "{this_eval}", which differs from "{eval}".', file=sys.stderr)
+        print(
+            f'{fname}: is a log for eval "{this_eval}", which differs from "{eval}".',
+            file=sys.stderr,
+        )
         sys.exit(1)
     tools[this_tool] = msgs
 
@@ -74,20 +76,15 @@ primal_runtimes = {}
 diff_runtimes = {}
 
 KNOWN_EVALS = {
-    'gmm': {'primal': 'objective',
-            'diff': 'jacobian'},
-    'lstm': {'primal': 'objective',
-             'diff': 'jacobian'},
-    'ht': {'primal': 'objective',
-           'diff': 'jacobian'},
-    'ba': {'primal': 'objective',
-           'diff': 'jacobian'},
-    'kmeans': {'primal': 'cost',
-               'diff': 'dir'}
-    }
+    "gmm": {"primal": "objective", "diff": "jacobian"},
+    "lstm": {"primal": "objective", "diff": "jacobian"},
+    "ht": {"primal": "objective", "diff": "jacobian"},
+    "ba": {"primal": "objective", "diff": "jacobian"},
+    "kmeans": {"primal": "cost", "diff": "dir"},
+}
 
-primal = KNOWN_EVALS[eval]['primal']
-diff = KNOWN_EVALS[eval]['diff']
+primal = KNOWN_EVALS[eval]["primal"]
+diff = KNOWN_EVALS[eval]["diff"]
 
 for tool in tools:
     print(f"Extrating measurements for {tool}...", file=sys.stderr)
@@ -124,28 +121,42 @@ for tool in tools:
                     / 1e9
                 )
 
+
 def gendata(variant, point):
-    with open(f'{eval}-{variant}.data', 'w') as f:
-        f.write('Workload')
+    with open(f"{eval}-{variant}.data", "w") as f:
+        f.write("Workload")
         for tool in tools:
-            f.write(' ')
-            f.write(tool.replace('_', '\\\\_'))
-        f.write('\n')
+            f.write(" ")
+            f.write(tool.replace("_", "\\\\_"))
+        f.write("\n")
 
         for w in workloads:
-            f.write(w.replace('_', '\\\\_'))
+            f.write(w.replace("_", "\\\\_"))
             for tool in tools:
-                f.write(' ')
+                f.write(" ")
                 f.write(point(tool, w))
-            f.write('\n')
+            f.write("\n")
 
-gendata('primal', lambda tool, w: str(primal_runtimes[tool][w]) if w in primal_runtimes[tool] else '?')
-gendata('diff', lambda tool, w: str(diff_runtimes[tool][w]) if w in diff_runtimes[tool] else '?')
+
+gendata(
+    "primal",
+    lambda tool, w: str(primal_runtimes[tool][w])
+    if w in primal_runtimes[tool]
+    else "?",
+)
+gendata(
+    "diff",
+    lambda tool, w: str(diff_runtimes[tool][w]) if w in diff_runtimes[tool] else "?",
+)
+
+
 def ratio_point(tool, w):
     if w in diff_runtimes[tool] and primal_runtimes[tool][w]:
         return str(diff_runtimes[tool][w] / primal_runtimes[tool][w])
     else:
-        return '?'
-gendata('ratio', ratio_point)
+        return "?"
+
+
+gendata("ratio", ratio_point)
 
 print(eval)

@@ -58,6 +58,7 @@ pkgs.stdenv.mkDerivation {
      pkgs.pkg-config
      pkgs.llvmPackages_19.lld
      pkgs.llvmPackages_19.clang
+     pkgs.ruff
      adept
      cppad
     ];
