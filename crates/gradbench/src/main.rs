@@ -156,22 +156,6 @@ enum RepoCommands {
         cross: bool,
     },
 
-    /// Manually build and push a base Docker image. For example:
-    ///
-    ///     gradbench repo manual mathlib4
-    #[clap(
-        about = "Manually build and push a base Docker image",
-        verbatim_doc_comment
-    )]
-    Manual {
-        /// The image to build and push
-        image: String,
-
-        /// Don't push the image to the container registry
-        #[clap(long)]
-        dry_run: bool,
-    },
-
     /// Print JSON values for consumption in GitHub Actions.
     ///
     /// Each value is printed on a single line, preceded by the name of that value and an equals
@@ -592,24 +576,6 @@ fn cli() -> Result<(), ExitCode> {
                 }
                 RepoCommands::BuildTool { tool, cross } => {
                     build_tool(&tool, Platforms::cross(cross), Verbosity::Normal)
-                }
-                RepoCommands::Manual { image, dry_run } => {
-                    let name = format!("ghcr.io/gradbench/{image}");
-                    run(Command::new("docker")
-                        .args(["build", "--platform", "linux/amd64,linux/arm64"])
-                        .arg(format!("docker/{image}"))
-                        .args(["--tag", &name]))?;
-                    let output = stdout(Command::new("docker").args(["run", "--rm", &name]))?;
-                    let tag = output.trim();
-                    run(Command::new("docker")
-                        .args(["tag", &name])
-                        .arg(format!("{name}:{tag}")))?;
-                    if !dry_run {
-                        run(Command::new("docker")
-                            .arg("push")
-                            .arg(format!("{name}:{tag}")))?;
-                    }
-                    Ok(())
                 }
                 RepoCommands::Matrix => matrix().map_err(|err| {
                     eprintln!("{err:#}");
