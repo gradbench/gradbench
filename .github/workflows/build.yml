@@ -187,8 +187,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Increase disk space
-        uses: ./.github/actions/space
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Download eval Docker image from artifact
@@ -267,19 +265,13 @@ jobs:
           git add .
           git commit --allow-empty -m 'Stats for commit ${{ github.event.pull_request.head.sha || github.sha }}'
           echo "CI_COMMIT_SHA=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
-      - name: Check for write permissions
-        id: check
-        uses: scherermichael-oss/action-has-permission@17f29510f1bf987b916c8cbb451566a56eed23f1
-        with:
-          required-permission: write
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Push to stats branch
-        if: steps.check.outputs.has-permission
+        continue-on-error: true
         working-directory: stats
         run: git push -f origin HEAD
       - name: Comment on PR
-        if: github.event_name == 'pull_request' && steps.check.outputs.has-permission
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           message: |
