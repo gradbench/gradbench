@@ -7,7 +7,6 @@
 - [CLI](#cli)
 - [Docker](#docker)
   - [Multi-platform images](#multi-platform-images)
-  - [Manual images](#manual-images)
 - [Tools](#tools)
 - [JavaScript](#javascript)
   - [Markdown](#markdown)
@@ -94,14 +93,6 @@ The `repo eval` and `repo tool` subcommands are just for convenience when buildi
 ```
 
 This typically takes much longer, so it tends not to be convenient for local development.
-
-### Manual images
-
-All the Docker images for individual autodiff tools are in the `tools` directory and built automatically in GitHub Actions. However, some of those `Dockerfile`s are built `FROM` base images that we are unable to build in GitHub Actions. All such base images are in the `docker` directory. Each must have an `ENTRYPOINT` that simply prints the tag of the image. _If you have write access to the GradBench organization on GitHub_, you can [log in to GHCR][] and then build, tag, and push one of these images by running the `repo manual` subcommand:
-
-```sh
-./gradbench repo manual mathlib4
-```
 
 ## Tools
 
