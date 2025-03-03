@@ -164,7 +164,6 @@ make -C cpp
 [docker]: https://docs.docker.com/engine/install/
 [git]: https://git-scm.com/downloads
 [github cli]: https://github.com/cli/cli#installation
-[log in to GHCR]: https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-with-a-personal-access-token-classic
 [make]: https://en.wikipedia.org/wiki/Make_(software)
 [markdown-toc]: https://www.npmjs.com/package/markdown-toc
 [multi-platform images]: https://docs.docker.com/build/building/multi-platform/
