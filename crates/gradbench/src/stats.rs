@@ -244,7 +244,7 @@ pub fn generate(input: PathBuf, output: PathBuf, metadata: StatsMetadata) -> any
         let mut row = Vec::new();
         let mut scorer = scorer(eval);
         for tool in &tools {
-            let score = if supported.contains(tool.as_str()) {
+            let score = if supported.contains_key(tool.as_str()) {
                 let path = input.join(format!("run-{eval}-{tool}/log.jsonl"));
                 println!("  {}", path.display());
                 let reader = io::BufReader::new(fs::File::open(&path)?);
