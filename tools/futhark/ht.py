@@ -1,8 +1,6 @@
-import futhark_server
 import futhark_utils
 import numpy as np
-
-from gradbench.adbench.ht_data import HandInput, HandOutput
+from gradbench.adbench.ht_data import HandInput
 
 
 def prepare(server, input):
@@ -22,7 +20,6 @@ def prepare(server, input):
 
 
 def objective(server, input):
-    runs = input["runs"]
     (obj,), times = futhark_utils.run(
         server,
         "calculate_objective",
@@ -40,13 +37,13 @@ def objective(server, input):
             "theta",
             "us",
         ),
-        runs,
+        input["min_runs"],
+        input["min_seconds"],
     )
     return (obj.flatten().tolist(), times)
 
 
 def jacobian(server, input):
-    runs = input["runs"]
     (J,), times = futhark_utils.run(
         server,
         "calculate_jacobian",
@@ -64,6 +61,7 @@ def jacobian(server, input):
             "theta",
             "us",
         ),
-        runs,
+        input["min_runs"],
+        input["min_seconds"],
     )
     return (J.T.tolist(), times)

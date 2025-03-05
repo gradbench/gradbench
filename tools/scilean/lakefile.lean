@@ -1,11 +1,41 @@
 import Lake
-open Lake DSL
+open System Lake DSL
 
-package «gradbench»
+def moreLinkArgs :=
+  if System.Platform.isWindows then
+    #[]
+  else if System.Platform.isOSX then
+    #["-L/opt/homebrew/opt/openblas/lib", "-lblas"]
+  else -- assuming linux
+    #["-L/usr/lib/x86_64-linux-gnu/", "-lblas", "-lm"]
+def moreLeancArgs :=
+  if System.Platform.isWindows then
+    #[]
+  else if System.Platform.isOSX then
+    #["-I/opt/homebrew/opt/openblas/include"]
+  else -- assuming linux
+    #[]
+
+package «gradbench» {
+  moreLinkArgs := moreLinkArgs
+  moreLeancArgs := moreLeancArgs
+}
 
 @[default_target]
 lean_exe «gradbench» where
   root := `Main
-  supportInterpreter := true
+  moreLinkArgs := moreLinkArgs
+  moreLeancArgs := moreLeancArgs
 
-require scilean from git "https://github.com/lecopivo/SciLean.git" @ "22d53b2f4e3db2a172e71da6eb9c916e62655744"
+lean_lib Gradbench where
+  roots := #[`Gradbench]
+  moreLinkArgs := moreLinkArgs
+  moreLeancArgs := moreLeancArgs
+
+@[default_target]
+lean_exe buildscilean where
+  root := `BuildSciLean
+  moreLinkArgs := moreLinkArgs
+  moreLeancArgs := moreLeancArgs
+
+require scilean from git "https://github.com/lecopivo/SciLean" @ "blas"

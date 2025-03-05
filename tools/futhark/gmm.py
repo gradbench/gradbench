@@ -1,7 +1,3 @@
-import os
-import re
-
-import futhark_server
 import futhark_utils
 import numpy as np
 
@@ -16,25 +12,25 @@ def prepare(server, input):
 
 
 def objective(server, input):
-    runs = input["runs"]
     (o,), times = futhark_utils.run(
         server,
         "calculate_objective",
         ("output",),
         ("alpha", "means", "icf", "x", "gamma", "m"),
-        runs,
+        input["min_runs"],
+        input["min_seconds"],
     )
     return (o, times)
 
 
 def jacobian(server, input):
-    runs = input["runs"]
     (o1, o2, o3), times = futhark_utils.run(
         server,
         "calculate_jacobian",
         ("output0", "output1", "output2"),
         ("alpha", "means", "icf", "x", "gamma", "m"),
-        runs,
+        input["min_runs"],
+        input["min_seconds"],
     )
     return (
         o1.flatten().tolist() + o2.flatten().tolist() + o3.flatten().tolist(),

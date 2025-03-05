@@ -4,8 +4,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     wget
 
-RUN pip install numpy==1.26.0 pydantic && \
-    pip install torch --index-url https://download.pytorch.org/whl/cpu
+RUN pip install numpy==1.26.0 pydantic
 
 WORKDIR /home/gradbench
 
@@ -14,7 +13,7 @@ COPY python /home/gradbench/python
 COPY cpp /home/gradbench/cpp
 RUN make -C cpp
 COPY tools/manual/ /home/gradbench/tools/manual
-RUN make -C /home/gradbench/tools/manual
+RUN make -C /home/gradbench/tools/manual -Bj
 
 COPY evals/ba/data /home/gradbench/evals/ba/data
 

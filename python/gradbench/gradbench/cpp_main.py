@@ -37,7 +37,7 @@ def functions(pathname: str, functions=["objective", "jacobian"]):
     provide = {}
     provide["compile"] = compile
 
-    def mk_run(l):
+    def mk_run(l):  # noqa: E741
         def run(input):
             with tempfile.NamedTemporaryFile("w") as tmp:
                 json.dump(input, tmp)
