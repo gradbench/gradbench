@@ -4,12 +4,6 @@ open SciLean Scalar Lean ToJson FromJson
 
 namespace Gradbench.LSTM
 
-local macro (priority:=high+1) "Float^[" M:term ", " N:term "]" : term =>
-  `(FloatMatrix' .RowMajor .normal (Fin $M) (Fin $N))
-
-local macro (priority:=high+1) "Float^[" N:term "]" : term =>
-  `(FloatVector (Fin $N))
-
 set_default_scalar Float
 
 structure LSTMInputRaw where
@@ -41,14 +35,14 @@ def LSTMInputRaw.toLSTMInput (data : LSTMInputRaw) : LSTMInput :=
     d := d
     stlen := stlen
     lenseq := lenseq
-    mainParams := ⊞ (i : Fin stlen × Fin 2) => VectorType.fromVec (X:=Float^[_,_])
-      fun (j : Fin 4 × Fin d) => (data.main_params.get! (toFin i))[(toFin j)]!
-    extraParams := MatrixType.fromMatrix (M:=Float^[_,_])
-      fun i j => (data.extra_params.get! i)[j]!
-    state := ⊞ (i : Fin stlen × Fin 2) => VectorType.fromVec (X:=Float^[_])
-      fun j => (data.state.get! (toFin i))[(toFin j)]!
-    sequence := ⊞ (i : Fin _) => VectorType.fromVec (X:=Float^[_])
-      fun j => (data.sequence.get! i)[j]!
+    mainParams := ⊞ (i : Fin stlen × Fin 2) => ⊞ (j : Fin 4 × Fin d) =>
+      (data.main_params.get! (toFin i))[(toFin j)]!
+    extraParams := ⊞ (i : Fin 3) (j : Fin d) =>
+      (data.extra_params.get! i)[j]!
+    state := ⊞ (i : Fin stlen × Fin 2) => ⊞ (j : Fin d) =>
+      (data.state.get! (toFin i))[(toFin j)]!
+    sequence := ⊞ (i : Fin lenseq) => ⊞ (j : Fin d) =>
+      (data.sequence.get! i)[j]!
   }
 
 instance : FromJson LSTMInput where

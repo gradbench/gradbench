@@ -9,12 +9,6 @@ set_option pp.deepTerms true
 set_option pp.proofs false
 -- set_option profiler true
 
-local macro (priority:=high+1) "Float^[" M:term ", " N:term "]" : term =>
-  `(FloatMatrix' .RowMajor .normal (Fin $M) (Fin $N))
-
-local macro (priority:=high+1) "Float^[" N:term "]" : term =>
-  `(FloatVector (Fin $N))
-
 set_default_scalar Float
 
 open Scalar in
@@ -80,8 +74,8 @@ def lstmPredict {slen d : ℕ}
     (fun sx (i : Fin slen) =>
       let' (s,x) := sx
       let' (h,c) := lstmModel mainParams[i,0] mainParams[i,1] state[i,0] state[i,1] x
-      let s := ArrayType.set s (i,0) h
-      let s := ArrayType.set s (i,1) c
+      let s := setElem s (i,(0:Fin 2)) h .intro
+      let s := setElem s (i,(1:Fin 2)) c .intro
       (s,h))
 
   let v' := mul x' (row extraParams 1) + (row extraParams 2)
@@ -125,12 +119,12 @@ def lstmObjective {slen lenSeq d : ℕ}
   (-total * count⁻¹)
 
 open VectorType in
-abbrev_data_synth scalAdd in beta x [Lawful X] : HasRevFDeriv K by
+abbrev_data_synth scalAdd in beta x [InjectiveGetElem X n] : HasRevFDeriv K by
   simp only [blas_to_module]
   data_synth => enter[3]; simp[vector_optimize]; to_ssa; to_ssa; lsimp
 
 open VectorType in
-abbrev_data_synth scalAdd in beta x [Lawful X] : HasRevFDerivUpdate K by
+abbrev_data_synth scalAdd in beta x [InjectiveGetElem X n] : HasRevFDerivUpdate K by
   simp only [blas_to_module]
   data_synth => enter[3]; simp[vector_optimize]; to_ssa; to_ssa; lsimp
 
