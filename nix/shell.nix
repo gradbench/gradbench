@@ -68,9 +68,10 @@ pkgs.stdenv.mkDerivation {
      pkgs.rustfmt
 
      # OCaml
-     pkgs.ocaml
-     pkgs.opam
-     pkgs.ocamlPackages.owl
+     pkgs.ocamlPackages.dune
+     pkgs.ocamlPackages.ocaml
+     pkgs.ocamlPackages.opam
+     pkgs.ocamlPackages.oel
     ];
 
   # The following are environment variables used by various tools.
