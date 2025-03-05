@@ -34,6 +34,7 @@ const makeSpec = ({
       x: {
         field: "workload",
         type: "nominal",
+        sort: null,
         axis: { labelAngle: -45 },
       },
       y: {
