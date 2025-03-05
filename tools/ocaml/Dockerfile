@@ -17,7 +17,10 @@ RUN opam init --yes --disable-sandboxing && \
     opam switch create 5.0.0
 
 # Install dune.
-RUN eval $(opam env) && opam install dune=3.7.0
+RUN eval $(opam env) && opam install --yes dune=3.7.0
+
+# Install dune.
+RUN eval $(opam env) && opam install --yes yojson
 
 # Install owl.
 RUN eval $(opam env) && opam install --yes owl=1.1
