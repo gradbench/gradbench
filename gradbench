@@ -1,2 +1,139 @@
-#!/usr/bin/env bash
-cargo run --quiet --release -- "$@"
+#!/usr/bin/env python3
+
+import fcntl
+import os
+import pty
+import re
+import select
+import shutil
+import struct
+import subprocess
+import sys
+import termios
+
+
+def strip_ansi(text):
+    """Strip ANSI escape sequences and hyperlinks from text."""
+    # First remove OSC hyperlinks (everything between \x1b]8;; and \x1b\\)
+    text = re.sub(r"\x1b]8;;.*?\x1b\\", "", text)
+    # Then remove other ANSI sequences
+    return re.sub(r"\x1b\[[^m]*m", "", text)
+
+
+def is_status_message(line):
+    """Check if a line is a status message that should be filtered."""
+    return (
+        line.startswith("Finished")
+        or line.startswith("Running")
+        or line.startswith("Blocking waiting for file lock")
+        or not line  # empty lines
+    )
+
+
+def ensure_release_build():
+    # Create a pseudo-terminal to preserve color/progress output
+    master, slave = pty.openpty()
+
+    # Get the terminal size
+    cols, rows = shutil.get_terminal_size()
+
+    # Set the PTY window size
+    # TIOCSWINSZ is terminal window size - see termios(3)
+    TIOCSWINSZ = getattr(termios, "TIOCSWINSZ", 0x5414)
+    s = struct.pack("HHHH", rows, cols, 0, 0)
+    fcntl.ioctl(slave, TIOCSWINSZ, s)
+
+    # Run cargo build --release with output going to our pty
+    process = subprocess.Popen(
+        ["cargo", "build", "--release", "--package", "gradbench"],
+        stderr=slave,
+        # Don't pipe stdout - let it go straight to terminal
+        env={
+            **os.environ,
+            "CARGO_TERM_PROGRESS_WHEN": "always",  # Always show progress
+            "CARGO_TERM_COLOR": "always",  # Always show colors
+            "CARGO_TERM_PROGRESS_WIDTH": str(cols),  # Set terminal width
+            "TERM": os.environ.get("TERM", "xterm-256color"),  # Ensure TERM is set
+        },
+    )
+    os.close(slave)  # Close slave end after process has it
+
+    # Buffer for incomplete lines
+    line_buffer = b""
+    # Whether we've seen any non-status output
+    has_real_output = False
+
+    while True:
+        # Wait for data to be available (100ms timeout)
+        ready, _, _ = select.select([master], [], [], 0.1)
+        if not ready:
+            # No data available - check if process is done
+            if process.poll() is not None:
+                break
+            continue
+
+        # Read a chunk of data
+        try:
+            chunk = os.read(master, 4096)
+        except OSError:
+            # PTY was closed
+            break
+        if not chunk:
+            break
+
+        # Look for complete lines in the chunk
+        while b"\n" in chunk:
+            before, chunk = chunk.split(b"\n", 1)
+            # Add any previous buffer content to this line
+            line = line_buffer + before
+            line_buffer = b""
+
+            try:
+                decoded = line.decode()
+            except UnicodeDecodeError:
+                # If we can't decode, just pass it through
+                sys.stderr.buffer.write(line + b"\n")
+                sys.stderr.buffer.flush()
+                continue
+
+            # Strip ANSI sequences and clean up the line for checking
+            clean_line = strip_ansi(decoded).strip().replace("\r", "")
+            if has_real_output or not is_status_message(clean_line):
+                has_real_output = True
+                sys.stderr.buffer.write(line + b"\n")
+                sys.stderr.buffer.flush()
+
+        # Store any remaining partial line
+        line_buffer = chunk
+
+        # If we've seen real output, also pass through any partial content immediately
+        # This ensures progress indicators show up in real-time
+        if has_real_output and line_buffer:
+            sys.stderr.buffer.write(line_buffer)
+            sys.stderr.buffer.flush()
+            line_buffer = b""
+
+    # Handle any remaining data
+    if line_buffer and has_real_output:
+        sys.stderr.buffer.write(line_buffer)
+        sys.stderr.buffer.flush()
+
+    # Clean up the pty
+    os.close(master)
+
+    # Check final status
+    if process.wait() != 0:
+        sys.exit(process.returncode)
+
+
+def main():
+    # Ensure the release binary is built
+    ensure_release_build()
+
+    # Run the actual binary directly
+    binary_path = "target/release/gradbench"
+    return subprocess.run([binary_path, *sys.argv[1:]]).returncode
+
+
+if __name__ == "__main__":
+    sys.exit(main())

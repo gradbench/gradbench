@@ -21,6 +21,7 @@
 Make sure to have these tools installed:
 
 - [Git][]
+- [Python][]
 - [Rust][]
 - [Docker][]
 
@@ -49,19 +50,13 @@ cd gradbench
 
 ## CLI
 
-Many tasks make use of the GradBench CLI, which you can build using this command:
-
-```sh
-cargo build --release
-```
-
-That is strictly optional though, and is only listed here because it provides a progress indicator which is convenient when building for the first time. To actually run the CLI, use the `./gradbench` script:
+Many tasks make use of the GradBench CLI, which you can run via the `./gradbench` script:
 
 ```sh
 ./gradbench --help
 ```
 
-This script will always automatically rebuild the CLI if it is not already up to date.
+This script will always automatically build the CLI if it is not already up to date.
 
 ## Docker
 
@@ -167,6 +162,7 @@ make -C cpp
 [make]: https://en.wikipedia.org/wiki/Make_(software)
 [markdown-toc]: https://www.npmjs.com/package/markdown-toc
 [multi-platform images]: https://docs.docker.com/build/building/multi-platform/
+[python]: https://docs.astral.sh/uv/guides/install-python/
 [qemu]: https://docs.docker.com/build/building/multi-platform/#install-qemu-manually
 [ruff]: https://docs.astral.sh/ruff/
 [rust]: https://www.rust-lang.org/tools/install
