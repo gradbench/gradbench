@@ -7,6 +7,7 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     env, fs,
     io::{self, BufRead},
+    mem::take,
     path::PathBuf,
     process::{Command, ExitCode, ExitStatus, Output, Stdio},
     rc::Rc,
@@ -285,39 +286,26 @@ enum Verbosity {
 }
 
 /// Run a `docker build` command but don't print output if everything is cached.
-fn docker_build_quiet(color: Color, mut cmd: Command) -> Result<(), ExitCode> {
-    let mut child = cmd
-        .arg("--progress=plain")
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|err| {
-            eprintln!("error running {:?}: {err}", cmd.get_program());
-            ExitCode::FAILURE
-        })?;
-    colored::control::set_override(true);
+fn docker_build_quiet(color: Color, mut cmd: Command) -> anyhow::Result<ExitStatus> {
+    let mut child = cmd.arg("--progress=plain").stderr(Stdio::piped()).spawn()?;
     let re = Regex::new(r"^#\d+ \d").unwrap();
     let mut cached = true;
     let mut buffer = String::new();
+    colored::control::set_override(true);
     for result in io::BufReader::new(child.stderr.take().unwrap()).lines() {
-        let line = result.map_err(|err| {
-            eprintln!("error reading stderr: {err}");
-            ExitCode::FAILURE
-        })?;
+        let line = result?;
         if cached {
             buffer.push_str(&line);
             buffer.push('\n');
             if re.is_match(&line) {
                 cached = false;
-                eprintln!("{}", buffer.color(color));
+                eprint!("{}", take(&mut buffer).color(color));
             }
         } else {
             eprintln!("{}", line.color(color));
         }
     }
-    status_code(child.wait().map_err(|err| {
-        eprintln!("error waiting for {:?}: {err}", cmd.get_program());
-        ExitCode::FAILURE
-    })?)
+    Ok(child.wait()?)
 }
 
 /// Build the Docker image for an eval.
@@ -336,7 +324,13 @@ fn build_eval(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Resul
             run(&mut cmd)?;
             Ok(())
         }
-        Verbosity::Quiet => docker_build_quiet(Color::Blue, cmd),
+        Verbosity::Quiet => {
+            let color = Color::Blue;
+            status_code(docker_build_quiet(color, cmd).map_err(|err| {
+                eprintln!("error building eval {name}: {err}");
+                ExitCode::FAILURE
+            })?)
+        }
     }
 }
 
@@ -356,7 +350,13 @@ fn build_tool(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Resul
             run(&mut cmd)?;
             Ok(())
         }
-        Verbosity::Quiet => docker_build_quiet(Color::Magenta, cmd),
+        Verbosity::Quiet => {
+            let color = Color::Magenta;
+            status_code(docker_build_quiet(color, cmd).map_err(|err| {
+                eprintln!("error building tool {name}: {err}");
+                ExitCode::FAILURE
+            })?)
+        }
     }
 }
 
