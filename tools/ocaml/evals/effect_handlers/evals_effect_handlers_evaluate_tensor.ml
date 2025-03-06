@@ -1,5 +1,5 @@
 open Effect.Deep
-open Modules_effect_handlers_smooth_tensor
+open Evals_effect_handlers_smooth_tensor
 
 module Evaluate_Non_Diff : SMOOTH_NON_DIFF
   with type scalar = float

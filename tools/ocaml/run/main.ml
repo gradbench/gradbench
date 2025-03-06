@@ -1,3 +1,5 @@
+open Gradbench_evals
+
 type id = int
 type eval_name = string
 type function_name = string
@@ -50,13 +52,24 @@ let () =
     match In_channel.input_line stdin with
     | Some line ->
        let msg = msg_of_json (Yojson.Basic.from_string line) in
-       let reply vs =
+       let reply (vs: (string * Yojson.Basic.t) list) =
          (Yojson.Basic.to_channel stdout (`Assoc (("id", `Int (msg_id msg)) :: vs));
           Printf.printf "\n%!")
        in (match msg with
              Msg_Unknown _id -> reply []
            | Msg_Start (_id, _eval) -> reply [("tool", `String "ocaml")]
-           | Msg_Define (_id, _f) -> reply [("success", `Bool false)]
-           | Msg_Evaluate (_id, _mod, _, _input) -> reply [("success", `Bool false)])
+           | Msg_Define (_id, mname) -> reply [("success", `Bool (mname = "hello"))]
+           | Msg_Evaluate (_id, mname, fname, input) ->
+              (* Hardcode hello for now. *)
+              match (mname, fname, input) with
+                ("hello", "square", `Float x) ->
+                 let v = Evals_effect_handlers_hello.Hello.square x
+                 in reply [("success", `Bool true);
+                           ("output", `Float v)]
+               | ("hello", "double", `Float x) ->
+                 let v = Evals_effect_handlers_hello.Hello.double x
+                 in reply [("success", `Bool true);
+                           ("output", `Float v)]
+              | _ -> reply [("success", `Bool false)])
     | None -> exit 0
   done

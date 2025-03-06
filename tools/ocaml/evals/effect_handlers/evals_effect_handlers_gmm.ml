@@ -1,7 +1,7 @@
 open Gradbench_shared
 open Owl.Dense.Ndarray.Generic
-open Modules_effect_handlers_evaluate_tensor
-open Modules_effect_handlers_reverse_tensor
+open Evals_effect_handlers_evaluate_tensor
+open Evals_effect_handlers_reverse_tensor
 
 module FloatScalar : Shared_gmm_types.GMM_SCALAR
   with type t = float

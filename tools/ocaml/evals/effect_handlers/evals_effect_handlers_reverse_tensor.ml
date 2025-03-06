@@ -1,5 +1,5 @@
 open Effect.Deep
-open Modules_effect_handlers_smooth_tensor
+open Evals_effect_handlers_smooth_tensor
 
 type 't prop = {v : 't; mutable dv : 't}
 
