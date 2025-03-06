@@ -23,8 +23,7 @@ RUN eval $(opam env) && opam install --yes dune=3.7.0
 RUN eval $(opam env) && opam install --yes yojson
 
 # Install owl.
-RUN eval $(opam env) && opam --version && opam pin --yes -n git+https://github.com/mseri/owl.git#arm64 --with-version=1.1.0
-RUN eval $(opam env) && opam install --yes owl
+RUN eval $(opam env) && opam install --yes owl=1.2
 
 COPY tools/ocaml/ /home/gradbench/tools/ocaml
 
