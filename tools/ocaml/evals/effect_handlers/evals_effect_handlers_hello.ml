@@ -34,7 +34,10 @@ end
 module Hello : HELLO = struct
   let square x =
     let module Objective = Shared_hello.Make (EvaluateScalar)
-    in Objective.square x
+    in Effect.Deep.match_with
+         Objective.square
+         x
+         Evaluate.evaluate
 
   let double x =
     let module Objective =
@@ -42,8 +45,8 @@ module Hello : HELLO = struct
     let square' (x' : Evaluate.tensor prop array) =
       Objective.square (ReverseEvaluate.get (x'.(0)) [|0|])
     in
-    let grads = Effect.Deep.match_with (fun p ->
-                    ReverseEvaluate.grad square' p
-                  ) [|Evaluate.create [|1|] x|] Evaluate.evaluate
-    in Evaluate.get (grads.(0)) [|0|]
+    Effect.Deep.match_with (fun p ->
+        let v = ReverseEvaluate.grad square' [|Evaluate.create [|1|] p|]
+        in Evaluate.get (v.(0)) [|0|]
+      ) x Evaluate.evaluate
 end
