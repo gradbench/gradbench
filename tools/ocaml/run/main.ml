@@ -54,9 +54,9 @@ let () =
          (Yojson.Basic.to_channel stdout (`Assoc (("id", `Int (msg_id msg)) :: vs));
           Printf.printf "\n%!")
        in (match msg with
-             Msg_Unknown id -> reply []
-           | Msg_Start (id, eval) -> reply [("tool", `String "ocaml")]
-           | Msg_Define (id, _f) -> reply [("success", `Bool false)]
-           | Msg_Evaluate (id, _mod, _, _input) -> reply [("success", `Bool false)])
+             Msg_Unknown _id -> reply []
+           | Msg_Start (_id, _eval) -> reply [("tool", `String "ocaml")]
+           | Msg_Define (_id, _f) -> reply [("success", `Bool false)]
+           | Msg_Evaluate (_id, _mod, _, _input) -> reply [("success", `Bool false)])
     | None -> exit 0
   done
