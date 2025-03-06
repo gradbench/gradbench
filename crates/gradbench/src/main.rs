@@ -5,7 +5,8 @@ mod util;
 
 use std::{
     collections::{BTreeMap, BTreeSet},
-    env, fs, io,
+    env, fs,
+    io::{self, BufRead},
     path::PathBuf,
     process::{Command, ExitCode, ExitStatus, Output, Stdio},
     rc::Rc,
@@ -15,6 +16,8 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use clap::{Parser, Subcommand};
+use colored::{Color, Colorize};
+use regex::Regex;
 use serde::Serialize;
 use stats::StatsMetadata;
 use strum::{EnumIter, EnumString, IntoStaticStr};
@@ -120,6 +123,8 @@ enum Commands {
 enum RepoCommands {
     /// Build and run an eval using Docker.
     ///
+    /// If the build is not already cached, any output will be printed in blue.
+    ///
     /// The Docker image name is `ghcr.io/gradbench/eval-<EVAL>:latest`.
     Eval {
         /// The name of the eval to run
@@ -134,6 +139,8 @@ enum RepoCommands {
     },
 
     /// Build and run a tool using Docker.
+    ///
+    /// If the build is not already cached, any output will be printed in magenta.
     ///
     /// The Docker image name is `ghcr.io/gradbench/tool-<TOOL>:latest`.
     Tool {
@@ -277,6 +284,42 @@ enum Verbosity {
     Quiet,
 }
 
+/// Run a `docker build` command but don't print output if everything is cached.
+fn docker_build_quiet(color: Color, mut cmd: Command) -> Result<(), ExitCode> {
+    let mut child = cmd
+        .arg("--progress=plain")
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|err| {
+            eprintln!("error running {:?}: {err}", cmd.get_program());
+            ExitCode::FAILURE
+        })?;
+    colored::control::set_override(true);
+    let re = Regex::new(r"^#\d+ \d").unwrap();
+    let mut cached = true;
+    let mut buffer = String::new();
+    for result in io::BufReader::new(child.stderr.take().unwrap()).lines() {
+        let line = result.map_err(|err| {
+            eprintln!("error reading stderr: {err}");
+            ExitCode::FAILURE
+        })?;
+        if cached {
+            buffer.push_str(&line);
+            buffer.push('\n');
+            if re.is_match(&line) {
+                cached = false;
+                eprintln!("{}", buffer.color(color));
+            }
+        } else {
+            eprintln!("{}", line.color(color));
+        }
+    }
+    status_code(child.wait().map_err(|err| {
+        eprintln!("error waiting for {:?}: {err}", cmd.get_program());
+        ExitCode::FAILURE
+    })?)
+}
+
 /// Build the Docker image for an eval.
 fn build_eval(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Result<(), ExitCode> {
     let mut cmd = Command::new("docker");
@@ -289,14 +332,12 @@ fn build_eval(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Resul
         .arg("--tag")
         .arg(format!("ghcr.io/gradbench/eval-{name}"));
     match verbosity {
-        Verbosity::Normal => {}
-        Verbosity::Quiet => {
-            cmd.arg("--quiet");
-            cmd.stdout(Stdio::null()); // Suppress the printed image ID.
+        Verbosity::Normal => {
+            run(&mut cmd)?;
+            Ok(())
         }
+        Verbosity::Quiet => docker_build_quiet(Color::Blue, cmd),
     }
-    run(&mut cmd)?;
-    Ok(())
 }
 
 /// Build the Docker image for a tool.
@@ -311,14 +352,12 @@ fn build_tool(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Resul
         .arg("--tag")
         .arg(format!("ghcr.io/gradbench/tool-{name}"));
     match verbosity {
-        Verbosity::Normal => {}
-        Verbosity::Quiet => {
-            cmd.arg("--quiet");
-            cmd.stdout(Stdio::null()); // Suppress the printed image ID.
+        Verbosity::Normal => {
+            run(&mut cmd)?;
+            Ok(())
         }
+        Verbosity::Quiet => docker_build_quiet(Color::Magenta, cmd),
     }
-    run(&mut cmd)?;
-    Ok(())
 }
 
 /// An imperfect outcome from running the intermediary.
