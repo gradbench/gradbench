@@ -48,6 +48,7 @@ pkgs.stdenv.mkDerivation {
     [my-python
      pkgs.niv
      pkgs.gh
+     pkgs.bun
      pkgs.cargo
      pkgs.rustc
      pkgs.rustfmt
@@ -57,6 +58,7 @@ pkgs.stdenv.mkDerivation {
      pkgs.pkg-config
      pkgs.llvmPackages_19.lld
      pkgs.llvmPackages_19.clang
+     pkgs.ruff
      adept
      cppad
     ];
