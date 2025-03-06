@@ -1,10 +1,14 @@
-<div align="center"><img height="256" src="packages/gradbench/src/logo.svg" /></div>
+<div align="center"><img height="128" src="packages/gradbench/src/logo.svg" /></div>
 <h1 align="center">GradBench</h1>
 <p align="center"><a href="LICENSE"><img src="https://img.shields.io/github/license/rose-lang/rose" alt="license" /></a> <a href="https://github.com/gradbench/gradbench/actions/workflows/nightly.yml"><img src="https://github.com/gradbench/gradbench/actions/workflows/nightly.yml/badge.svg" alt="Nightly" /></a> <a href="https://discord.gg/nPXmPzeykS"><img src="https://dcbadge.vercel.app/api/server/nPXmPzeykS?style=flat" alt="Discord" /></a></p>
 
 **GradBench** is a benchmark suite for differentiable programming across languages and domains.
 
-See https://gradben.ch for a daily overview of all the tools (columns) and benchmarks (rows). The website is a work in progress and currently pretty bare-bones, but soon it will provide more detailed information, such as charts of tools' relative performance for each individual benchmark.
+See https://gradben.ch for interactive performance charts generated from our latest nightly build. Here's a static preview of the overview table on the website, where rows are _evals_ and columns are _tools_; a _white_ cell means the tool is **slow** for that eval, and a _blue_ cell means the tool is **fast** for that eval.
+
+![summary](summary.svg)
+
+## Contents
 
 <!-- toc -->
 
