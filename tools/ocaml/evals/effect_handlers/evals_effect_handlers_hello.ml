@@ -27,11 +27,20 @@ module ReverseScalar : Shared_hello.HELLO_SCALAR
 end
 
 module type HELLO = sig
-  val square : float -> float
-  val double : float -> float
+  type input
+  type output
+
+  val square : input -> output
+  val double : input -> output
+
+  val input_of_json : Yojson.Basic.t -> input
+  val json_of_output : output -> Yojson.Basic.t
 end
 
 module Hello : HELLO = struct
+  type input = float
+  type output = float
+
   let square x =
     let module Objective = Shared_hello.Make (EvaluateScalar)
     in Effect.Deep.match_with
@@ -41,11 +50,14 @@ module Hello : HELLO = struct
 
   let double x =
     let module Objective = Shared_hello.Make (ReverseScalar) in
-    let square' x' =
-      Objective.square (ReverseEvaluate.get (x'.(0)) [|0|])
-    in
-    Effect.Deep.match_with (fun p ->
-        let v = ReverseEvaluate.grad square' [|Evaluate.create [|1|] p|]
-        in Evaluate.get (v.(0)) [|0|]
-      ) x Evaluate.evaluate
+    Effect.Deep.match_with
+      (ReverseEvaluate.grads Objective.square)
+      x Evaluate.evaluate
+
+  let input_of_json = function
+    | `Float x -> x
+    | _ -> failwith "input_from_json: unexpected JSON"
+
+  let json_of_output x = `Float x
+
 end

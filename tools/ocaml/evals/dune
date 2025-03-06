@@ -2,4 +2,4 @@
 
 (library
  (name gradbench_evals)
- (libraries gradbench_shared unix owl))
+ (libraries gradbench_shared unix owl yojson))

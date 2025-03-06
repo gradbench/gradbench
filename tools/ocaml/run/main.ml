@@ -36,10 +36,10 @@ let msg_of_json = function
         "start" ->
          let eval = look_string "eval" l in
          Msg_Start (id, eval)
-       | "define" ->
+      | "define" ->
          let m = look_string "module" l in
          Msg_Define (id, m)
-       | "evaluate" ->
+      | "evaluate" ->
          let m = look_string "module" l in
          let f = look_string "function" l in
          let input = look "input" l in
@@ -61,15 +61,18 @@ let () =
            | Msg_Define (_id, mname) -> reply [("success", `Bool (mname = "hello"))]
            | Msg_Evaluate (_id, mname, fname, input) ->
               (* Hardcode hello for now. *)
-              match (mname, fname, input) with
-                ("hello", "square", `Float x) ->
-                 let v = Evals_effect_handlers_hello.Hello.square x
+              match (mname, fname) with
+                ("hello", "square") ->
+                 let v = Evals_effect_handlers_hello.Hello.square
+                           (Evals_effect_handlers_hello.Hello.input_of_json input)
                  in reply [("success", `Bool true);
-                           ("output", `Float v)]
-               | ("hello", "double", `Float x) ->
-                 let v = Evals_effect_handlers_hello.Hello.double x
+                           ("output",
+                            Evals_effect_handlers_hello.Hello.json_of_output v)]
+              | ("hello", "double") ->
+                 let v = Evals_effect_handlers_hello.Hello.double
+                           (Evals_effect_handlers_hello.Hello.input_of_json input)
                  in reply [("success", `Bool true);
-                           ("output", `Float v)]
+                           ("output", Evals_effect_handlers_hello.Hello.json_of_output v)]
               | _ -> reply [("success", `Bool false)])
     | None -> exit 0
   done
