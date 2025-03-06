@@ -57,7 +57,7 @@ interface GMMInput extends Runs {
   icf: double[][];
   x: double[][];
   gamma: number;
-  m: number;
+  m: int;
 }
 ```
 
