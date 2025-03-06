@@ -288,7 +288,9 @@ enum Verbosity {
 /// Run a `docker build` command but don't print output if everything is cached.
 fn docker_build_quiet(color: Color, mut cmd: Command) -> anyhow::Result<ExitStatus> {
     let mut child = cmd.arg("--progress=plain").stderr(Stdio::piped()).spawn()?;
-    let re = Regex::new(r"^#\d+ \d").unwrap();
+    // A digit mean the start of a number of seconds for an output line for a `RUN` command. The
+    // string `sha256` is the start of a line for downloading in a `FROM` command.
+    let re = Regex::new(r"^#\d+ (\d|sha256)").unwrap();
     let mut cached = true;
     let mut buffer = String::new();
     colored::control::set_override(true);
@@ -347,6 +349,7 @@ fn build_tool(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Resul
         .arg(format!("ghcr.io/gradbench/tool-{name}"));
     match verbosity {
         Verbosity::Normal => {
+            cmd.arg("--progress=plain");
             run(&mut cmd)?;
             Ok(())
         }
