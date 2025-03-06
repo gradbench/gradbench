@@ -478,7 +478,7 @@ fn matrix() -> anyhow::Result<()> {
             .iter()
             .map(|tool| ToolEntry {
                 tool,
-                cross: tool != "scilean" && tool != "ocaml",
+                cross: tool != "scilean",
             })
             .collect::<Vec<_>>(),
     )?;
