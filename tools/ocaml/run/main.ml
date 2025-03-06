@@ -28,24 +28,64 @@ let look_int k l =
     (`Int x) -> x
   | _ -> failwith "look_int: not an int"
 
+let look_float k l =
+  match look k l with
+    (`Float x) -> x
+  | _ -> failwith "look_float: not an int"
+
 let msg_of_json = function
   | `Assoc l ->
      let id = look_int "id" l in
      let kind = look_string "kind" l in
      (match kind with
-        "start" ->
-         let eval = look_string "eval" l in
-         Msg_Start (id, eval)
-      | "define" ->
-         let m = look_string "module" l in
-         Msg_Define (id, m)
-      | "evaluate" ->
-         let m = look_string "module" l in
-         let f = look_string "function" l in
-         let input = look "input" l in
-         Msg_Evaluate (id, m, f, input)
-      | _ -> Msg_Unknown id)
+       "start" ->
+        let eval = look_string "eval" l in
+        Msg_Start (id, eval)
+     | "define" ->
+        let m = look_string "module" l in
+        Msg_Define (id, m)
+     | "evaluate" ->
+        let m = look_string "module" l in
+        let f = look_string "function" l in
+        let input = look "input" l in
+        Msg_Evaluate (id, m, f, input)
+     | _ -> Msg_Unknown id)
   | _ -> failwith "msg_of_json: not an object"
+
+type runs = {minRuns: int; minSeconds: float}
+
+let runs_of = function
+    `Assoc l -> {minRuns = look_int "min_runs" l;
+                 minSeconds = look_float "min_seconds" l}
+  | _ -> {minRuns = 1; minSeconds = 0.0}
+
+let nanoseconds() = int_of_float(Unix.gettimeofday() *. 1.0e9)
+
+let rec do_runs timings i elapsed runs f x =
+  let bef = nanoseconds() in
+  let output = f x in
+  let aft = nanoseconds() in
+  let ns = aft-bef in
+  let timings' = ns :: timings in
+  let elapsed' = elapsed +. float_of_int ns/.1e9
+  in if i < runs.minRuns || elapsed' < runs.minSeconds
+     then do_runs timings' (i+1) elapsed' runs f x
+     else (output, timings')
+
+let wrap f input_from_json output_to_json input =
+  let input' = input_from_json input in
+  let (output, timings) = do_runs [] 1 0. (runs_of input) f input'
+  in (output_to_json output, timings)
+
+let modules =
+  [ (let module M = Evals_effect_handlers_hello.Hello
+     in (("hello", "square"), wrap M.square M.input_of_json M.json_of_output));
+    let module M = Evals_effect_handlers_hello.Hello
+    in (("hello", "double"), wrap M.double M.input_of_json M.json_of_output)
+  ]
+
+let timing_of x =
+  `Assoc [("name", `String "evaluate"); ("nanoseconds", `Int x)]
 
 let () =
   while true; do
@@ -56,23 +96,17 @@ let () =
          (Yojson.Basic.to_channel stdout (`Assoc (("id", `Int (msg_id msg)) :: vs));
           Printf.printf "\n%!")
        in (match msg with
-             Msg_Unknown _id -> reply []
-           | Msg_Start (_id, _eval) -> reply [("tool", `String "ocaml")]
-           | Msg_Define (_id, mname) -> reply [("success", `Bool (mname = "hello"))]
-           | Msg_Evaluate (_id, mname, fname, input) ->
-              (* Hardcode hello for now. *)
-              match (mname, fname) with
-                ("hello", "square") ->
-                 let v = Evals_effect_handlers_hello.Hello.square
-                           (Evals_effect_handlers_hello.Hello.input_of_json input)
-                 in reply [("success", `Bool true);
-                           ("output",
-                            Evals_effect_handlers_hello.Hello.json_of_output v)]
-              | ("hello", "double") ->
-                 let v = Evals_effect_handlers_hello.Hello.double
-                           (Evals_effect_handlers_hello.Hello.input_of_json input)
-                 in reply [("success", `Bool true);
-                           ("output", Evals_effect_handlers_hello.Hello.json_of_output v)]
-              | _ -> reply [("success", `Bool false)])
+            Msg_Unknown _id -> reply []
+          | Msg_Start (_id, _eval) -> reply [("tool", `String "ocaml")]
+          | Msg_Define (_id, mname) ->
+             reply [("success", `Bool (List.exists (fun l -> fst (fst l) = mname) modules))]
+          | Msg_Evaluate (_id, mname, fname, input) ->
+             match look (mname, fname) modules with
+               f ->
+               let (output, timings) = f input in
+               let timings' = `List (List.map timing_of timings)
+               in reply [("success", `Bool true);
+                         ("output",output);
+                         ("timings", timings')])
     | None -> exit 0
   done
