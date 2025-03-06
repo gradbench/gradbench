@@ -109,5 +109,5 @@ GradBench is licensed under the [MIT License](LICENSE).
 [docker]: https://docs.docker.com/desktop/
 [github cli]: https://github.com/cli/cli#installation
 [rust]: https://www.rust-lang.org/tools/install
-[svg]: https://raw.githubusercontent.com/gradbench/gradbench/refs/heads/better-readme/summary.svg
+[svg]: https://raw.githubusercontent.com/gradbench/gradbench/refs/heads/ci/refs/heads/main/summary.svg
 [website]: https://gradben.ch/
