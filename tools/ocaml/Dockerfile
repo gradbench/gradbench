@@ -28,7 +28,7 @@ RUN eval $(opam env) && opam install --yes owl=1.1
 COPY tools/ocaml/ /home/gradbench/tools/ocaml
 
 # Build tool.
-RUN eval $(opam env) && dune build --root tools/ocaml
+RUN eval $(opam env) && dune build --root tools/ocaml --profile release
 
 ENTRYPOINT ["/home/gradbench/tools/ocaml/_build/install/default/bin/gradbench"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
