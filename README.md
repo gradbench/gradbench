@@ -4,9 +4,9 @@
 
 **GradBench** is a benchmark suite for differentiable programming across languages and domains.
 
-See https://gradben.ch for interactive performance charts generated from our latest nightly build. Here's a static preview of the overview table on the website, where rows are _evals_ and columns are _tools_; a _white_ cell means the tool is **slow** for that eval, and a _blue_ cell means the tool is **fast** for that eval.
+See <https://gradben.ch> for interactive performance charts generated from our latest nightly build. Here's a static preview of the overview table on the website, where rows are [evals](evals) and columns are [tools](tools). A _white_ cell means the tool is **slow** for that eval; a _blue_ cell means the tool is **fast** for that eval.
 
-![summary](summary.svg)
+![summary][svg]
 
 ## Contents
 
@@ -204,4 +204,5 @@ GradBench is licensed under the [MIT License](LICENSE).
 [docker]: https://docs.docker.com/engine/install/
 [json]: https://json.org/
 [rust]: https://www.rust-lang.org/tools/install
+[svg]: https://raw.githubusercontent.com/gradbench/gradbench/refs/heads/better-readme/summary.svg
 [typescript]: https://www.typescriptlang.org/
