@@ -30,8 +30,9 @@ let look_int k l =
 
 let look_float k l =
   match look k l with
-    (`Float x) -> x
-  | _ -> failwith "look_float: not an int"
+    (`Int x) -> float_of_int x
+  | (`Float x) -> x
+  | _ -> failwith "look_float: not a number"
 
 let msg_of_json = function
   | `Assoc l ->
@@ -80,8 +81,12 @@ let wrap f input_from_json output_to_json input =
 let modules =
   [ (let module M = Evals_effect_handlers_hello.Hello
      in (("hello", "square"), wrap M.square M.input_of_json M.json_of_output));
-    let module M = Evals_effect_handlers_hello.Hello
-    in (("hello", "double"), wrap M.double M.input_of_json M.json_of_output)
+    (let module M = Evals_effect_handlers_hello.Hello
+    in (("hello", "double"), wrap M.double M.input_of_json M.json_of_output));
+    (let module M = Evals_effect_handlers_gmm.GMM
+     in (("gmm", "objective"), wrap M.objective M.input_of_json M.json_of_objective));
+    (let module M = Evals_effect_handlers_gmm.GMM
+     in (("gmm", "jacobian"), wrap M.jacobian M.input_of_json M.json_of_jacobian));
   ]
 
 let timing_of x =

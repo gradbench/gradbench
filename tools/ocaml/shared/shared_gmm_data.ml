@@ -1,3 +1,5 @@
+(* https://github.com/jasigal/ADBench/blob/b98752f96a3b785e07ff6991853dc1073e6bf075/src/ocaml/shared/shared_gmm_types.ml *)
+
 (* Wishart priors *)
 type 's wishart = {
   gamma : 's ;
@@ -11,15 +13,4 @@ type ('s, 't) gmm_input = {
   icfs : 't;
   x : 't;
   wishart : 's wishart;
-}
-
-(* Output data *)
-type ('s, 't) gmm_output = {
-  objective : 's;
-  gradient : 't;
-}
-
-(* Parameters *)
-type gmm_parameters = {
-  replicate_point : bool;
 }

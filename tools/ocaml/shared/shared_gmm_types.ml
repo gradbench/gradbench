@@ -1,3 +1,5 @@
+(* https://github.com/jasigal/ADBench/blob/b98752f96a3b785e07ff6991853dc1073e6bf075/src/ocaml/shared/shared_gmm_types.ml *)
+
 module type GMM_SCALAR = sig
   type t
 
