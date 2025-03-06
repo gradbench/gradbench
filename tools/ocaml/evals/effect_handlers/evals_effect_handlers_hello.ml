@@ -40,9 +40,8 @@ module Hello : HELLO = struct
          Evaluate.evaluate
 
   let double x =
-    let module Objective =
-      Shared_hello.Make (ReverseScalar) in
-    let square' (x' : Evaluate.tensor prop array) =
+    let module Objective = Shared_hello.Make (ReverseScalar) in
+    let square' x' =
       Objective.square (ReverseEvaluate.get (x'.(0)) [|0|])
     in
     Effect.Deep.match_with (fun p ->
