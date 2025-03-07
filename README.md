@@ -22,41 +22,36 @@ See <https://gradben.ch> for interactive performance charts generated from our l
 
 ## Motivation
 
-[Differentiable programming][] is
+[Differentiable programming][] is ...
 
 ## Usage
 
 If you haven't already, take a look at the [website][]! We generate daily charts visualizing the performance of all the different tools (columns) on all the different evals (rows). You can click on the name of a specific eval to see more detailed charts plotting the performance of each tool on that eval across a variety of different workload sizes.
 
+To go beyond just the data that has already been generated, here are instructions on how to run the benchmarks yourself.
+
 ### Running GradBench locally
 
-If you'd like to First make sure you have the following installed:
-
-- [GitHub CLI][]
-- [Rust][]
-- [Docker][]
+If you'd like to run GradBench locally using this Git repository, first clone it; for instance, if you have the [GitHub CLI][] installed:
 
 ```sh
 gh repo clone gradbench/gradbench
 cd gradbench
 ```
 
-All the command-line scripts for working with GradBench are packaged into _GradBench CLI_, which you can run using the [`./gradbench`](gradbench) script at the root of this repository. For example:
+Make sure you have the following tools available on your system:
 
-```sh
-./gradbench --help
-```
+- [Python][]
+- [Rust][]
+- [Docker][]
 
-```sh
-./gradbench repo build-eval hello
-./gradbench repo build-tool pytorch
-```
+All the command-line scripts for working with GradBench are packaged into the _GradBench CLI_, which you can run using the [`./gradbench`](gradbench) script at the root of this repository. For example, you can use the following command to run [PyTorch][] on our simplest eval:
 
 ```sh
 ./gradbench run --eval "./gradbench repo eval hello" --tool "./gradbench repo tool pytorch"
 ```
 
-You should see output that looks something like this:
+You should see a bunch of green and blue and magenta build output, followed by something like this:
 
 ```
   [0] start hello (pytorch)
@@ -71,33 +66,23 @@ You should see output that looks something like this:
  [16] eval  hello::double   16384.0                 0ms ~         0ms evaluate ✓
 ```
 
-Congrats! You've
+Congrats, this means everything worked correctly! Now you can try running other combinations from our set of available [evals](evals) and [tools](tools).
 
-This is just a quickstart summary. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for more details!
+This was just a quickstart summary. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for more details!
 
 ### Without cloning this repository
 
-> [!WARNING]
-> Only use this method if you have a specific reason not to use the preferred method documented above.
-
-It's also possible to install and run the GradBench CLI without cloning this repository, if you'd prefer. To do this, use [`cargo install`][] with the `--git` flag:
+It's also possible to install and run the GradBench CLI without cloning this repository, if you'd prefer. In this case you don't need Python but you still need Rust and Docker. Use [`cargo install`][] with the `--git` flag (note that this command only installs GradBench once; to update, you'll need to re-run it):
 
 ```sh
-cargo install --locked gradbench --git https://github.com/gradbench/gradbench
+cargo install --locked gradbench --git https://github.com/gradbench/gradbench --branch nightly
 ```
 
-If you have [Rust][] installed, you can download and install the GradBench CLI:
-
-Then if you have [Docker][] installed, you can use the GradBench CLI to run any of our [evals](evals) against any of our [tools](tools):
+Then, you can use the newly installed `gradbench` CLI to download and run our [nightly Docker images][packages]. For instance, if you have [jq][] installed, you can run these commands to grab the date of the most recent successful nightly build, then download and run those images for the `hello` eval and the `pytorch` tool:
 
 ```sh
-gradbench run --eval 'gradbench eval hello' --tool 'gradbench tool pytorch'
-```
-
-This will first automatically download our latest nightly Docker images for the given eval and tool, and then run the eval against the tool while printing a summary of the communication log to the terminal. To save the full log to a file, use the `--output` flag. Or, to see a list of all possible subcommands:
-
-```sh
-gradbench --help
+DATE=$(curl https://raw.githubusercontent.com/gradbench/gradbench/refs/heads/ci/refs/heads/nightly/summary.json | jq --raw-output .date)
+gradbench run --eval "gradbench eval hello --tag $DATE" --tool "gradbench tool pytorch --tag $DATE"
 ```
 
 ## License
@@ -108,6 +93,10 @@ GradBench is licensed under the [MIT License](LICENSE).
 [differentiable programming]: https://en.wikipedia.org/wiki/Differentiable_programming
 [docker]: https://docs.docker.com/desktop/
 [github cli]: https://github.com/cli/cli#installation
+[jq]: https://jqlang.org/
+[packages]: https://github.com/orgs/gradbench/packages
+[python]: https://docs.astral.sh/uv/guides/install-python/
+[pytorch]: https://pytorch.org/
 [rust]: https://www.rust-lang.org/tools/install
 [svg]: https://raw.githubusercontent.com/gradbench/gradbench/refs/heads/ci/refs/heads/nightly/summary.svg
 [website]: https://gradben.ch/
