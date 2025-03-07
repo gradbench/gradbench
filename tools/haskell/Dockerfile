@@ -1,8 +1,8 @@
 FROM haskell:9
 
-WORKDIR /home/gradbench
+WORKDIR /gradbench
 
-COPY tools/haskell/ /home/gradbench/tools/haskell
+COPY tools/haskell/ /gradbench/tools/haskell
 
 RUN cabal update
 

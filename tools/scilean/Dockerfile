@@ -2,7 +2,7 @@ FROM ubuntu
 RUN apt-get update && apt-get install -y curl git jq build-essential libopenblas-dev
 RUN         curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | bash -s -- -y
 ENV PATH="/root/.elan/bin:$PATH"
-WORKDIR /home/gradbench
+WORKDIR /gradbench
 
 RUN elan default leanprover/lean4:v4.16.0  # download specific lean version
 
@@ -20,5 +20,5 @@ COPY tools/scilean/Gradbench.lean .
 COPY tools/scilean/Gradbench/ ./Gradbench/
 RUN lake build              # Build the SciLean gradbench tool
 
-ENTRYPOINT ["/home/gradbench/.lake/build/bin/gradbench"]
+ENTRYPOINT ["/gradbench/.lake/build/bin/gradbench"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench

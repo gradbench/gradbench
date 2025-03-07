@@ -1,20 +1,20 @@
 FROM python:3.11-slim
 
-WORKDIR /home/gradbench
+WORKDIR /gradbench
 
 RUN apt-get update && apt-get install -y \
     build-essential \
     python3 \
     wget
 
-COPY python /home/gradbench/python
-ENV PYTHONPATH=/home/gradbench/python/gradbench
+COPY python /gradbench/python
+ENV PYTHONPATH=/gradbench/python/gradbench
 
-COPY cpp /home/gradbench/cpp
+COPY cpp /gradbench/cpp
 
 RUN make -C cpp
 
-COPY tools/manual/ /home/gradbench/tools/manual
+COPY tools/manual/ /gradbench/tools/manual
 
-ENTRYPOINT ["python3", "/home/gradbench/tools/manual/run.py"]
+ENTRYPOINT ["python3", "/gradbench/tools/manual/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench

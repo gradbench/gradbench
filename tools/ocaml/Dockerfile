@@ -1,6 +1,6 @@
 FROM debian:12-slim
 
-WORKDIR /home/gradbench
+WORKDIR /gradbench
 
 RUN apt-get update && apt-get install -y \
     build-essential \
@@ -25,10 +25,10 @@ RUN eval $(opam env) && opam install --yes yojson
 # Install owl.
 RUN eval $(opam env) && opam install --yes owl=1.2
 
-COPY tools/ocaml/ /home/gradbench/tools/ocaml
+COPY tools/ocaml/ /gradbench/tools/ocaml
 
 # Build tool.
 RUN eval $(opam env) && dune build --root tools/ocaml --profile release
 
-ENTRYPOINT ["/home/gradbench/tools/ocaml/_build/install/default/bin/gradbench"]
+ENTRYPOINT ["/gradbench/tools/ocaml/_build/install/default/bin/gradbench"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
