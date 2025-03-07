@@ -8,7 +8,7 @@ use std::{
     env, fs,
     io::{self, BufRead},
     mem::take,
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::{Command, ExitCode, ExitStatus, Output, Stdio},
     rc::Rc,
     str::FromStr,
@@ -84,7 +84,7 @@ enum Commands {
 
     /// Run a given tool on a given eval. For example:
     ///
-    ///     gradbench run -o log.jsonl --eval 'gradbench eval hello' --tool 'gradbench tool pytorch'
+    ///     gradbench run -o log.jsonl --eval "gradbench eval hello" --tool "gradbench tool pytorch"
     #[clap(about = "Run a given tool on a given eval", verbatim_doc_comment)]
     Run {
         /// A shell script to run the eval. For example: `gradbench eval hello`
@@ -312,6 +312,10 @@ fn docker_build_quiet(color: Color, mut cmd: Command) -> anyhow::Result<ExitStat
 
 /// Build the Docker image for an eval.
 fn build_eval(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Result<(), ExitCode> {
+    if name.is_empty() || !fs::exists(Path::new("evals").join(name)).unwrap_or(false) {
+        eprintln!("can't find eval to build: {name:?}");
+        return Err(ExitCode::FAILURE);
+    }
     let mut cmd = Command::new("docker");
     cmd.arg("build");
     if let Some(platform) = platform {
@@ -338,6 +342,10 @@ fn build_eval(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Resul
 
 /// Build the Docker image for a tool.
 fn build_tool(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Result<(), ExitCode> {
+    if name.is_empty() || !fs::exists(Path::new("tools").join(name)).unwrap_or(false) {
+        eprintln!("can't find tool to build: {name:?}");
+        return Err(ExitCode::FAILURE);
+    }
     let mut cmd = Command::new("docker");
     cmd.arg("build");
     if let Some(platform) = platform {

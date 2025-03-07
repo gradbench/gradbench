@@ -83,5 +83,5 @@ Because the input extends `Runs`, the tool is expected to run the function some 
 [data]: https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87/data/gmm
 [gen]: https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/data/gmm/gmm-data-gen.py
 [io]: https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/shared/GMMData.py
-[protocol]: https://github.com/gradbench/gradbench?tab=readme-ov-file#types
+[protocol]: /CONTRIBUTING.md#types
 [typescript]: https://www.typescriptlang.org/

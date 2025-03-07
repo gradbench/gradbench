@@ -205,7 +205,7 @@ jobs:
           set +e
           gradbench exit-code ${{ matrix.outcome }}
           expected=$?
-          gradbench run --eval 'gradbench eval ${{ matrix.eval }}' --tool 'gradbench tool ${{ matrix.tool }}' --output log.jsonl
+          gradbench run --eval "gradbench eval ${{ matrix.eval }}" --tool "gradbench tool ${{ matrix.tool }}" --output log.jsonl
           actual=$?
           set -e
           if [ $actual -ne $expected ]; then
