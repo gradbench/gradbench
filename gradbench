@@ -34,8 +34,11 @@ def build():
 
 
 def main():
-    build()
-    sys.exit(subprocess.run(["target/release/gradbench", *sys.argv[1:]]).returncode)
+    try:
+        build()
+        sys.exit(subprocess.run(["target/release/gradbench", *sys.argv[1:]]).returncode)
+    except KeyboardInterrupt:
+        pass
 
 
 if __name__ == "__main__":
