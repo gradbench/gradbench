@@ -67,7 +67,7 @@ This script will always automatically build the CLI if it is not already up to d
 Use the `run` subcommand to run a given eval on a given tool. You can use pass any commands for the eval and tool, but to use the Docker images, the easiest way is to use the `repo eval` and `repo tool` subcommands:
 
 ```sh
-./gradbench run --eval './gradbench repo eval hello' --tool './gradbench repo tool pytorch'
+./gradbench run --eval "./gradbench repo eval hello" --tool "./gradbench repo tool pytorch"
 ```
 
 Some evals support further configuration via their own CLI flags, which you can see by passing `--help` to the eval itself:
@@ -79,7 +79,7 @@ Some evals support further configuration via their own CLI flags, which you can 
 So for instance, to increase `n` for the GMM eval:
 
 ```sh
-./gradbench run --eval './gradbench repo eval gmm -- -n10000' --tool './gradbench repo tool pytorch'
+./gradbench run --eval "./gradbench repo eval gmm -- -n10000" --tool "./gradbench repo tool pytorch"
 ```
 
 ### Multi-platform images
@@ -94,7 +94,7 @@ The `repo eval` and `repo tool` subcommands are just for convenience when buildi
 This typically takes much longer, so it tends not to be convenient for local development. However, if a tool does not support your machine's native architecture, emulation may be your only option, in which case you can select just one platform which is supported by that tool:
 
 ```sh
-./gradbench run --eval './gradbench repo eval hello' --tool './gradbench repo tool --platform linux/amd64 scilean'
+./gradbench run --eval "./gradbench repo eval hello" --tool "./gradbench repo tool --platform linux/amd64 scilean"
 ```
 
 ## Tools
@@ -140,7 +140,7 @@ This will log a `localhost` URL to your terminal; open that URL in your browser.
 The Docker images should be considered canonical, but for local development, it can be more convenient to instead install and run tools directly. You can use `uv run` to do this:
 
 ```sh
-./gradbench run --eval './gradbench repo eval hello' --tool 'uv run python/gradbench/gradbench/tools/pytorch/run.py'
+./gradbench run --eval "./gradbench repo eval hello" --tool "uv run python/gradbench/gradbench/tools/pytorch/run.py"
 ```
 
 We autoformat Python code using [Ruff][]. If you're using [VS Code][], our configuration in this repository should automatically recommend that you install the Ruff extension, as well as automatically run it whenever you save a Python file. You can also run it manually via the command line:

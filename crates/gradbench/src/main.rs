@@ -84,7 +84,7 @@ enum Commands {
 
     /// Run a given tool on a given eval. For example:
     ///
-    ///     gradbench run -o log.jsonl --eval 'gradbench eval hello' --tool 'gradbench tool pytorch'
+    ///     gradbench run -o log.jsonl --eval "gradbench eval hello" --tool "gradbench tool pytorch"
     #[clap(about = "Run a given tool on a given eval", verbatim_doc_comment)]
     Run {
         /// A shell script to run the eval. For example: `gradbench eval hello`
