@@ -3,7 +3,7 @@ CC?=cc
 CFLAGS=-std=c++17 -O3 -Wall -I../../cpp
 LDFLAGS=-lm
 
-EXECUTABLES=run_hello
+EXECUTABLES=run_hello run_gmm
 
 all: $(EXECUTABLES)
 
