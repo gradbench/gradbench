@@ -1,2 +1,45 @@
-#!/usr/bin/env bash
-cargo run --quiet --release -- "$@"
+#!/usr/bin/env python3
+
+import subprocess
+import sys
+
+
+def eprint(s):
+    sys.stderr.buffer.write(s)
+    sys.stderr.flush()
+
+
+def build():
+    process = subprocess.Popen(
+        ["cargo", "build", "--release", "--package", "gradbench", "--color", "always"],
+        stderr=subprocess.PIPE,
+    )
+    cached = True
+    lines = []
+    while True:
+        line = process.stderr.readline()
+        if not line:
+            break
+        if cached:
+            lines.append(line)
+            if not (b"    Finished" in line or b"    Blocking" in line):
+                cached = False
+                for line in lines:
+                    eprint(line)
+        else:
+            eprint(line)
+    returncode = process.wait()
+    if returncode != 0:
+        sys.exit(returncode)
+
+
+def main():
+    try:
+        build()
+        sys.exit(subprocess.run(["target/release/gradbench", *sys.argv[1:]]).returncode)
+    except KeyboardInterrupt:
+        pass
+
+
+if __name__ == "__main__":
+    main()
