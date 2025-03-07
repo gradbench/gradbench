@@ -68,7 +68,7 @@ You should see a bunch of green and blue and magenta build output, followed by s
 
 Congrats, this means everything worked correctly! Now you can try running other combinations from our set of available [evals](evals) and [tools](tools).
 
-This was just a quickstart summary. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for more details!
+This was just a quickstart summary; see [`CONTRIBUTING.md`](CONTRIBUTING.md) for more details.
 
 ### Without cloning this repository
 
