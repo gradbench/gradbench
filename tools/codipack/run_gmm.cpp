@@ -2,7 +2,7 @@
 #include "gradbench/evals/gmm.hpp"
 #include <codi.hpp>
 
- using Real = codi::RealReverse;
+using Real = codi::RealReverse;
 using Tape = typename Real::Tape;
 
 class Jacobian : public Function<gmm::Input, gmm::JacOutput> {
