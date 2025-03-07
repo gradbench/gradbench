@@ -312,8 +312,8 @@ fn docker_build_quiet(color: Color, mut cmd: Command) -> anyhow::Result<ExitStat
 
 /// Build the Docker image for an eval.
 fn build_eval(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Result<(), ExitCode> {
-    if !fs::exists(Path::new("evals").join(name)).unwrap_or(false) {
-        eprintln!("can't find eval to build: {name}");
+    if name.is_empty() || !fs::exists(Path::new("evals").join(name)).unwrap_or(false) {
+        eprintln!("can't find eval to build: {name:?}");
         return Err(ExitCode::FAILURE);
     }
     let mut cmd = Command::new("docker");
@@ -342,8 +342,8 @@ fn build_eval(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Resul
 
 /// Build the Docker image for a tool.
 fn build_tool(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Result<(), ExitCode> {
-    if !fs::exists(Path::new("tools").join(name)).unwrap_or(false) {
-        eprintln!("can't find tool to build: {name}");
+    if name.is_empty() || !fs::exists(Path::new("tools").join(name)).unwrap_or(false) {
+        eprintln!("can't find tool to build: {name:?}");
         return Err(ExitCode::FAILURE);
     }
     let mut cmd = Command::new("docker");
