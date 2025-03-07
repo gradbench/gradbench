@@ -22,7 +22,15 @@ See <https://gradben.ch> for interactive performance charts generated from our l
 
 ## Motivation
 
-[Differentiable programming][] is ...
+[Automatic differentiation][] (often shortened as "AD" or "autodiff") and [differentiable programming][] allow a programmer to write code to compute a mathematical function, and then automatically provide code to compute the _derivative_ of that function. These techniques are currently ubiquitous in machine learning, but are broadly applicable in a much larger set of domains in scientific computing and beyond. Many autodiff tools exist, for many different programming languages, with varying feature sets and performance characteristics.
+
+This project exists to facilitate quantitative comparison of the absolute and relative performance of different autodiff tools. There is some related work in this space:
+
+- The 2016 paper ["Efficient Implementation of a Higher-Order Language with Built-In AD"][ad2016] by Siskind and Pearlmutter includes some benchmarks implemented for a variety of tools.
+- [ADBench][] was an autodiff benchmark suite, active around 2018-2019, but is now archived as of summer 2024. The benchmarks from ADBench are a strict subset of the evals in GradBench.
+- [cmpad][] is an autodiff comparison package for C++ and Python.
+
+What sets GradBench apart is the focus on supporting tools for many different programming languages in an easily extensible way. We achieve this by packaging each eval and tool into its own Docker image, and running benchmarks by having the eval and tool talk to each other over a common JSON-based protocol. We also make our benchmarks and data as easily accessible as possible, via nightly builds that publish our Docker images and run every eval against every tool to generate performance charts on the GradBench website.
 
 ## Usage
 
@@ -72,6 +80,9 @@ This was just a quickstart summary; see [`CONTRIBUTING.md`](CONTRIBUTING.md) for
 
 ### Without cloning this repository
 
+> [!WARNING]
+> Only use this method if you have a specific reason not to use the primary method documented above.
+
 It's also possible to install and run the GradBench CLI without cloning this repository, if you'd prefer. In this case you don't need Python but you still need Rust and Docker. Use [`cargo install`][] with the `--git` flag (note that this command only installs GradBench once; to update, you'll need to re-run it):
 
 ```sh
@@ -90,6 +101,10 @@ gradbench run --eval "gradbench eval hello --tag $DATE" --tool "gradbench tool p
 GradBench is licensed under the [MIT License](LICENSE).
 
 [`cargo install`]: https://doc.rust-lang.org/cargo/commands/cargo-install.html
+[ad2016]: https://arxiv.org/abs/1611.03416
+[adbench]: https://github.com/microsoft/ADBench
+[automatic differentiation]: https://en.wikipedia.org/wiki/Automatic_differentiation
+[cmpad]: https://cmpad.readthedocs.io/
 [differentiable programming]: https://en.wikipedia.org/wiki/Differentiable_programming
 [docker]: https://docs.docker.com/desktop/
 [github cli]: https://github.com/cli/cli#installation
