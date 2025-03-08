@@ -36,8 +36,12 @@ structure Response where
   timings : List Timing
 deriving ToJson
 
+
+
 def wrap [FromJson a] [ToJson b] (f : a -> b) (x' : Json)
     : Except String (IO Output) := do
+  -- let min_runs ← x'.getObjVal? "min_runs" >>= Json.getNat?
+  -- let min_seconds ← x'.getObjVal? "min_seconds" >>= Json.getNat?
   let x : a <- fromJson? x'
   return do
     let start <- IO.monoNanosNow
