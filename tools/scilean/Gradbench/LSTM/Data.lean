@@ -7,12 +7,6 @@ namespace Gradbench.LSTM
 set_default_scalar Float
 
 structure LSTMInputRaw where
-  runs : Nat
-
-  -- d : Nat
-  -- stlen : Nat
-  -- lenseq : Nat
-
   main_params  : Array (Array Float)
   extra_params : Array (Array Float)
   state        : Array (Array Float)

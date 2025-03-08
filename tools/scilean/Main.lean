@@ -15,6 +15,7 @@ def resolve (module : String)
   | "hello" => some hello
   | "gmm" => some gmm
   | "lstm" => some lstm
+  | "kmeans" => some kmeans
   | _ => none
 
 

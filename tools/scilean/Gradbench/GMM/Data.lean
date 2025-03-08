@@ -7,7 +7,6 @@ namespace Gradbench.GMM
 
 
 structure GMMDataRaw where
-  runs : Nat
   d : Nat
   k : Nat
   n : Nat
