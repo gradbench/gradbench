@@ -43,30 +43,31 @@ public:
       const int camIdx = _input.obs[i * 2 + 0];
       const int ptIdx = _input.obs[i * 2 + 1];
 
+      tape.reset();
+      tape.setActive();
+
+      Real ad_reproj_err[2];
+
+      for (size_t j = 0; j < BA_NCAMPARAMS; j++) {
+        tape.registerInput(ad_cams[camIdx*BA_NCAMPARAMS+j]);
+      }
+      for (size_t j = 0; j < 3; j++) {
+        tape.registerInput(ad_X[ptIdx*3 + j]);
+      }
+      tape.registerInput(ad_w[i]);
+
+      ba::computeReprojError<Real>(&ad_cams[camIdx*BA_NCAMPARAMS],
+                                   &ad_X[ptIdx * 3],
+                                   &ad_w[i],
+                                   &_input.feats[i * 2],
+                                   ad_reproj_err);
+
+      tape.registerOutput(ad_reproj_err[0]);
+      tape.registerOutput(ad_reproj_err[1]);
+      tape.setPassive();
+
       // Compute first row.
       {
-        tape.reset();
-        tape.setActive();
-
-        Real ad_reproj_err[2];
-
-        for (size_t j = 0; j < BA_NCAMPARAMS; j++) {
-          tape.registerInput(ad_cams[camIdx*BA_NCAMPARAMS+j]);
-        }
-        for (size_t j = 0; j < 3; j++) {
-          tape.registerInput(ad_X[ptIdx*3 + j]);
-        }
-        tape.registerInput(ad_w[i]);
-
-        ba::computeReprojError<Real>(&ad_cams[camIdx*BA_NCAMPARAMS],
-                                     &ad_X[ptIdx * 3],
-                                     &ad_w[i],
-                                     &_input.feats[i * 2],
-                                     ad_reproj_err);
-
-        tape.registerOutput(ad_reproj_err[0]);
-        tape.registerOutput(ad_reproj_err[1]);
-        tape.setPassive();
         ad_reproj_err[0].setGradient(1);
         ad_reproj_err[1].setGradient(0);
         tape.evaluate();
@@ -83,28 +84,7 @@ public:
 
       // Compute second row.
       {
-        tape.reset();
-        tape.setActive();
-
-        Real ad_reproj_err[2];
-
-        for (size_t j = 0; j < BA_NCAMPARAMS; j++) {
-          tape.registerInput(ad_cams[camIdx*BA_NCAMPARAMS+j]);
-        }
-        for (size_t j = 0; j < 3; j++) {
-          tape.registerInput(ad_X[ptIdx*3 + j]);
-        }
-        tape.registerInput(ad_w[i]);
-
-        ba::computeReprojError<Real>(&ad_cams[camIdx*BA_NCAMPARAMS],
-                                     &ad_X[ptIdx * 3],
-                                     &ad_w[i],
-                                     &_input.feats[i * 2],
-                                     ad_reproj_err);
-
-        tape.registerOutput(ad_reproj_err[0]);
-        tape.registerOutput(ad_reproj_err[1]);
-        tape.setPassive();
+        tape.clearAdjoints();
         ad_reproj_err[0].setGradient(0);
         ad_reproj_err[1].setGradient(1);
         tape.evaluate();
