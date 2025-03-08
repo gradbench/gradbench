@@ -9,35 +9,24 @@ namespace Gradbench.GMM
 set_option pp.deepTerms true
 set_option pp.proofs false
 
-local macro (priority:=high+1) "Float^[" M:term ", " N:term "]" : term =>
-  `(FloatMatrix' .RowMajor .normal (Fin $M) (Fin $N))
-
-local macro (priority:=high+1) "Float^[" N:term "]" : term =>
-  `(FloatVector (Fin $N))
-
 set_default_scalar Float
 
 open VectorType in
 /-- unlack `logdiag` and `lt` to lower triangular matrix -/
 def unpackQ {d : Nat} (logdiag : Float^[d]) (lt : Float^[((d-1)*d/2)]) : Float^[d,d]  :=
-  fromVec fun ij : Fin d × Fin d=>
+  ⊞ (ij : Fin d × Fin d) =>
     let' (i,j) := ij
     if h : i < j then 0
-       else if h' : i == j then exp (toVec logdiag i)
+       else if h' : i == j then exp (logdiag[i])
        else
          let idx : Fin ((d-1)*d/2) := ⟨d*j.1 + i.1 - j.1 - 1 - (j.1 * (j.1+1))/2,
                                        have := h; have := h'; sorry_proof⟩
-         (toVec lt idx)
+         (lt[idx])
 
 
 abbrev_data_synth unpackQ in logdiag lt : HasRevFDeriv Float by
   unfold unpackQ; dsimp
   data_synth => enter[3]; lsimp [↓let_ite_normalize]
-
--- abbrev_data_synth unpackQ in logdiag lt : HasRevFDerivUpdate Float by
---   unfold unpackQ; dsimp
---   data_synth => enter[3]; lsimp [↓let_ite_normalize]
-
 
 def logWishartPrior {k d : Nat} (Qs : Float^[d,d]^[k]) (qsums : Float^[k]) (wishartGamma : Float) (wishartM : Nat) :=
     let p := d
@@ -52,9 +41,6 @@ abbrev_data_synth logWishartPrior in Qs qsums : HasRevFDeriv Float by
   unfold logWishartPrior;
   data_synth => enter[3]; lsimp
 
--- abbrev_data_synth logWishartPrior in Qs qsums : HasRevFDerivUpdate Float by
---   unfold logWishartPrior;
---   data_synth => enter[3]; lsimp
 
 open VectorType
 def gmmObjective {d k n : Nat}
@@ -65,18 +51,19 @@ def gmmObjective {d k n : Nat}
 
     -- qsAndSums
     let Qs := ⊞ i => unpackQ (MatrixType.row logdiag i) (MatrixType.row lt i)
-    let qsums := VectorType.fromVec (X:=FloatVector _) fun i => VectorType.sum (MatrixType.row logdiag i)
+    let qsums := ⊞ i => VectorType.sum (MatrixType.row logdiag i)
 
     let slse : Float :=
-      ∑ (i : Fin n), logsumexp (VectorType.fromVec (X:=FloatVector _)
+      ∑ (i : Fin n), logsumexp (VectorType.fromVec (X:=Float^[k])
         fun (j : Fin k) =>
-          toVec alphas j
+          alphas[j]
           +
-          toVec qsums j
+          qsums[j]
           -
           0.5 * ‖MatrixType.gemv 1 1 Qs[j] ((MatrixType.row x i) - (MatrixType.row means j)) 0‖₂²)
 
     C + slse - n * VectorType.logsumexp alphas + logWishartPrior Qs qsums wishartGamma wishartM
+
 
 abbrev_data_synth gmmObjective in alphas means logdiag lt : HasRevFDeriv Float by
   unfold gmmObjective
