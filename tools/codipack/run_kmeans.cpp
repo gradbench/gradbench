@@ -6,22 +6,9 @@ using t1s = codi::RealForwardGen<double>;
 using r2s = codi::RealReverseGen<t1s>;
 
 class Dir : public Function<kmeans::Input, kmeans::DirOutput> {
-private:
-  std::vector<double> _centroids_seed;
-  std::vector<double> _centroids_J;
-  std::vector<double> _centroids_H;
-
 public:
 
-  Dir(kmeans::Input& input) :
-    Function(input),
-    _centroids_seed(input.k*input.d),
-    _centroids_J(input.k * input.d),
-    _centroids_H(input.k * input.d) {
-    for (int i = 0; i < input.k*input.d; i++) {
-      _centroids_seed[i] = 1;
-    }
-  }
+  Dir(kmeans::Input& input) : Function(input) {}
 
   void compute(kmeans::DirOutput& output) {
     using DH = codi::DerivativeAccess<r2s>;
