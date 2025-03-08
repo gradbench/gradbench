@@ -1,4 +1,3 @@
-#include <algorithm>
 #include "gradbench/main.hpp"
 #include "gradbench/evals/ba.hpp"
 #include <codi.hpp>
@@ -8,17 +7,9 @@ using RealFwd = codi::RealForward;
 using Tape = typename Real::Tape;
 
 class Jacobian : public Function<ba::Input, ba::JacOutput> {
-private:
-  std::vector<double> _reproj_err;
-  std::vector<double> _w_err;
-  std::vector<double> _reproj_err_d;
-
 public:
   Jacobian(ba::Input& input) :
-    Function(input),
-    _reproj_err(2 * input.p),
-    _w_err(input.p),
-    _reproj_err_d(2 * (BA_NCAMPARAMS + 3 + 1))
+    Function(input)
   {}
 
   void compute(ba::JacOutput& output) {
