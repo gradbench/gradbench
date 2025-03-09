@@ -36,17 +36,21 @@ structure Response where
   timings : List Timing
 deriving ToJson
 
+structure Runs where
+  min_runs : Nat
+  min_seconds : Float
+deriving ToJson, FromJson
+
 def wrap [FromJson a] [ToJson b] (f : a -> b) (x' : Json)
     : Except String (IO Output) := do
-  let min_runs ← x'.getObjVal? "min_runs" >>= Json.getNat?
-  let min_seconds ← x'.getObjVal? "min_seconds" >>= Json.getNat?
+  let runs : Runs := fromJson? x' |>.toOption |>.getD { min_runs := 1, min_seconds := 0.0 }
   let x : a <- fromJson? x'
   return do
     let mut totalRuns := 0
-    let mut totalNs := 0
+    let mut totalNs : Nat := 0
     let mut timings : List Timing := []
     let mut y' : Json := default
-    while (totalRuns < min_runs) || (totalNs < 10^9 * min_seconds) do
+    while (totalRuns < runs.min_runs) || (totalNs.toFloat < 10^9 * runs.min_seconds) do
       let start <- IO.monoNanosNow
       let y ← pure (f x)
       let done <- IO.monoNanosNow
