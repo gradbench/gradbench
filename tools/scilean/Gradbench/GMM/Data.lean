@@ -6,13 +6,6 @@ open Lean ToJson FromJson SciLean
 namespace Gradbench.GMM
 
 
-local macro (priority:=high+1) "Float^[" M:term ", " N:term "]" : term =>
-  `(FloatMatrix' .RowMajor .normal (Fin $M) (Fin $N))
-
-local macro (priority:=high+1) "Float^[" N:term "]" : term =>
-  `(FloatVector (Fin $N))
-
-
 structure GMMDataRaw where
   d : Nat
   k : Nat
@@ -44,11 +37,11 @@ def GMMDataRaw.toGMMData (d : GMMDataRaw) : GMMData :={
   n := d.n
   m := d.m
   gamma := d.gamma
-  alpha := VectorType.fromVec fun (i : Fin d.k) => d.alpha[i.1]!
-  means := MatrixType.fromMatrix fun (i : Fin d.k) (j : Fin d.d) => (d.means.get! i.1 |>.get! j.1)
-  logdiag := MatrixType.fromMatrix fun (i : Fin d.k) (j : Fin d.d) => (d.icf.get! i.1 |>.get! j.1)
-  lt := MatrixType.fromMatrix fun (i : Fin d.k) (j : Fin (((d.d-1)*d.d)/2)) => (d.icf.get! i.1 |>.get! (d.d+j.1))
-  x := MatrixType.fromMatrix fun (i : Fin d.n) (j : Fin d.d) => (d.x.get! i.1 |>.get! j.1)
+  alpha := ⊞ (i : Fin d.k) => d.alpha[i.1]!
+  means := ⊞ (i : Fin d.k) (j : Fin d.d) => (d.means.get! i.1 |>.get! j.1)
+  logdiag := ⊞ (i : Fin d.k) (j : Fin d.d) => (d.icf.get! i.1 |>.get! j.1)
+  lt := ⊞ (i : Fin d.k) (j : Fin (((d.d-1)*d.d)/2)) => (d.icf.get! i.1 |>.get! (d.d+j.1))
+  x := ⊞ (i : Fin d.n) (j : Fin d.d) => (d.x.get! i.1 |>.get! j.1)
 }
 
 instance : FromJson GMMData where
