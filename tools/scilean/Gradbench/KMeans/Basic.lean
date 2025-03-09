@@ -43,7 +43,7 @@ rewrite_by
   unfold kmeansObjective
   lsimp -zeta (disch:=unsafeAD) only [simp_core,↓revFDeriv_simproc,↓fwdFDeriv_simproc]
 
-def objective (data : KMeansInput) : Float :=
+def cost (data : KMeansInput) : Float :=
   kmeansObjective data.points data.centroids
 
 def dir (data : KMeansInput) : KMeansOutput :=

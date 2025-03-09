@@ -7,7 +7,6 @@ namespace Gradbench.LSTM
 
 set_option pp.deepTerms true
 set_option pp.proofs false
--- set_option profiler true
 
 set_default_scalar Float
 

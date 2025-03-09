@@ -2,9 +2,9 @@ import Gradbench.KMeans.Basic
 
 namespace Gradbench
 
-open KMeans Lean ToJson FromJson
+open Lean ToJson FromJson
 
 def kmeans : String → Option (Json → Except String (IO Output))
-  | "cost" => some (wrap objective)
-  | "dir" => some (wrap dir)
+  | "cost" => some (wrap KMeans.cost)
+  | "dir" => some (wrap KMeans.dir)
   | _ => none
