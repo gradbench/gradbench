@@ -40,6 +40,7 @@ let
   my-python = pkgs.python3.withPackages my-python-packages;
   cppad = pkgs.callPackage ./cppad.nix {};
   adept = pkgs.callPackage ./adept.nix {};
+  codipack = pkgs.callPackage ./codipack.nix {};
   GRADBENCH_PATH = builtins.getEnv "PWD";
 in
 pkgs.stdenv.mkDerivation {
@@ -61,6 +62,7 @@ pkgs.stdenv.mkDerivation {
      pkgs.adolc
      adept
      cppad
+     codipack
 
      # Rust
      pkgs.cargo
