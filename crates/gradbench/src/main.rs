@@ -4,13 +4,12 @@ mod stats;
 mod util;
 
 use std::{
-    collections::{BTreeMap, BTreeSet},
-    env, fs,
-    io::{self, BufRead},
+    collections::BTreeMap,
+    env, fs, io,
+    io::BufRead,
     mem::take,
     path::{Path, PathBuf},
     process::{Command, ExitCode, ExitStatus, Output, Stdio},
-    rc::Rc,
     str::FromStr,
     time::Duration,
 };
@@ -469,10 +468,12 @@ fn github_output(name: &str, value: impl Serialize) -> anyhow::Result<()> {
 }
 
 /// Return a map from eval names to the tools that support them.
-fn evals_to_tools(evals: Vec<String>) -> anyhow::Result<BTreeMap<String, BTreeSet<Rc<str>>>> {
+fn evals_to_tools(
+    evals: Vec<String>,
+) -> anyhow::Result<BTreeMap<String, BTreeMap<String, &'static str>>> {
     let mut map = BTreeMap::new();
     for eval in evals {
-        map.insert(eval, BTreeSet::new());
+        map.insert(eval, BTreeMap::new());
     }
     for result in fs::read_dir("tools")? {
         let entry = result?;
@@ -480,11 +481,24 @@ fn evals_to_tools(evals: Vec<String>) -> anyhow::Result<BTreeMap<String, BTreeSe
             .file_name()
             .into_string()
             .map_err(|name| anyhow!("invalid file name {name:?}"))?;
-        let evals = fs::read_to_string(entry.path().join("evals.txt")).unwrap_or_default();
-        for eval in evals.lines() {
+        let path = entry.path().join("evals.txt");
+        let evals = fs::read_to_string(&path).unwrap_or_default();
+        for line in evals.lines() {
+            let (eval, outcome) = match line.split(' ').collect::<Vec<_>>()[..] {
+                [eval] => (eval, "success"),
+                [eval, o] => match BadOutcome::from_str(o) {
+                    Ok(bad_outcome) => (eval, bad_outcome.into()),
+                    Err(_) => {
+                        return Err(anyhow!("{path:?}: Unknown outcome for {eval}: {o}"));
+                    }
+                },
+                _ => {
+                    return Err(anyhow!("{path:?}: invalid line: {line}"));
+                }
+            };
             map.get_mut(eval)
                 .ok_or_else(|| anyhow!("eval {eval:?} not found"))?
-                .insert(Rc::from(tool.as_str()));
+                .insert(tool.to_string(), outcome);
         }
     }
     Ok(map)
@@ -539,10 +553,9 @@ fn matrix() -> anyhow::Result<()> {
             run.push(RunEntry {
                 eval,
                 tool,
-                outcome: if supported.contains(tool.as_str()) {
-                    "success"
-                } else {
-                    BadOutcome::Undefined.into()
+                outcome: match supported.get(tool.as_str()) {
+                    Some(o) => o,
+                    None => BadOutcome::Undefined.into(),
                 },
             });
         }
