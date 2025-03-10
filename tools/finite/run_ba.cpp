@@ -32,15 +32,15 @@ public:
       int camIdx = _input.obs[2 * j + 0];
       int ptIdx = _input.obs[2 * j + 1];
 
-      _engine.finite_differences([&](double* cam_in, double* reproj_err) {
+      _engine.finite_differences(1, [&](double* cam_in, double* reproj_err) {
         ba::computeReprojError(cam_in, &_input.X[ptIdx * 3], &_input.w[j], &_input.feats[2 * j], reproj_err);
       }, &_input.cams[camIdx * BA_NCAMPARAMS], BA_NCAMPARAMS, 2, _reproj_err_d.data());
 
-      _engine.finite_differences([&](double* X_in, double* reproj_err) {
+      _engine.finite_differences(1, [&](double* X_in, double* reproj_err) {
         ba::computeReprojError(&_input.cams[camIdx * BA_NCAMPARAMS], X_in, &_input.w[j], &_input.feats[2 * j], reproj_err);
       }, &_input.X[ptIdx * 3], 3, 2, &_reproj_err_d.data()[2 * BA_NCAMPARAMS]);
 
-      _engine.finite_differences([&](double* w_in, double* reproj_err) {
+      _engine.finite_differences(1, [&](double* w_in, double* reproj_err) {
         ba::computeReprojError(&_input.cams[camIdx * BA_NCAMPARAMS], &_input.X[ptIdx * 3], w_in, &_input.feats[2 * j], reproj_err);
       }, &_input.w[j], 1, 2, &_reproj_err_d.data()[2 * (BA_NCAMPARAMS + 3)]);
 
@@ -50,7 +50,7 @@ public:
     double w_d;
 
     for (int j = 0; j < _input.p; ++j) {
-      _engine.finite_differences([&](double* w_in, double* w_er) {
+      _engine.finite_differences(1, [&](double* w_in, double* w_er) {
         ba::computeZachWeightError(w_in, w_er);
       }, &_input.w[j], 1, 1, &w_d);
 
