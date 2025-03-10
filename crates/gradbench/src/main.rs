@@ -5,8 +5,8 @@ mod util;
 
 use std::{
     collections::BTreeMap,
-    env, fs, io,
-    io::BufRead,
+    env, fs,
+    io::{self, BufRead},
     mem::take,
     path::{Path, PathBuf},
     process::{Command, ExitCode, ExitStatus, Output, Stdio},
