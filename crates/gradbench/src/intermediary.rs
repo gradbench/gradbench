@@ -1,5 +1,4 @@
 use std::{
-    collections::BTreeMap,
     io::{self, BufRead, Write},
     process::{Child, ChildStdout},
     sync::{Arc, Mutex},
@@ -8,6 +7,7 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use colored::Colorize;
+use indexmap::IndexMap;
 use serde::Deserialize;
 
 use crate::{
@@ -145,14 +145,14 @@ impl<
 
     /// Print subtask timings.
     fn print_timings(&mut self, timings: &[Timing]) -> anyhow::Result<()> {
-        let mut sorted = BTreeMap::new();
+        let mut collected = IndexMap::new();
         for Timing { name, nanoseconds } in timings {
-            let (num, ns) = sorted.entry(name).or_insert((0, 0));
+            let (num, ns) = collected.entry(name).or_insert((0, 0));
             *num += 1;
             *ns += nanoseconds;
         }
         let mut first = true;
-        for (name, (num, ns)) in sorted {
+        for (name, (num, ns)) in collected {
             if first {
                 write!(self.out, " {}", "~".dimmed())?;
             } else {

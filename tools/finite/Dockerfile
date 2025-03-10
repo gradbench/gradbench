@@ -1,19 +1,19 @@
 FROM python:3.11-slim
 
-WORKDIR /home/gradbench
+WORKDIR /gradbench
 
 RUN apt-get update && apt-get install -y \
     build-essential \
     python3 \
     wget
 
-COPY python /home/gradbench/python
-ENV PYTHONPATH=/home/gradbench/python/gradbench
+COPY python /gradbench/python
+ENV PYTHONPATH=/gradbench/python/gradbench
 
-COPY cpp /home/gradbench/cpp
+COPY cpp /gradbench/cpp
 RUN make -C cpp
 
-COPY tools/finite/ /home/gradbench/tools/finite
+COPY tools/finite/ /gradbench/tools/finite
 
-ENTRYPOINT ["python3", "/home/gradbench/tools/finite/run.py"]
+ENTRYPOINT ["python3", "/gradbench/tools/finite/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench

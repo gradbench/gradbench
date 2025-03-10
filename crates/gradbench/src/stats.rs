@@ -2,7 +2,7 @@ use std::{
     collections::BTreeMap,
     fs,
     io::{self, BufRead, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
     rc::Rc,
     time::Duration,
 };
@@ -230,6 +230,70 @@ struct Summary<'a> {
     table: Vec<Row<'a>>,
 }
 
+fn svg(output: &Path, summary: Summary) -> anyhow::Result<()> {
+    let mut file = fs::File::create(output.join("summary.svg"))?;
+    let num_evals = summary.table.len() as f64;
+    let num_tools = summary.table[0].tools.len() as f64;
+    let font_size = 12.;
+    let eval_text_length = 60.;
+    let tool_text_length = 80.;
+    let gap = 5.;
+    let cell_size = 30.;
+    let total_width = eval_text_length + gap + num_tools * (cell_size + gap);
+    let total_height = tool_text_length + gap + num_evals * (cell_size + gap);
+    writeln!(
+        file,
+        r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {} {}">"#,
+        total_width, total_height,
+    )?;
+    writeln!(
+        file,
+        r##"  <rect x="0" y="0" width="{}" height="{}" rx="{}" ry="{}" fill="#222" />"##,
+        total_width, total_height, gap, gap,
+    )?;
+    for (i, row) in summary.table.iter().enumerate() {
+        let x = eval_text_length;
+        let y = tool_text_length + gap + cell_size / 2. + i as f64 * (cell_size + gap);
+        writeln!(
+            file,
+            r#"  <text x="{}" y="{}" fill="white" font-family="sans-serif" font-weight="bold" font-size="{}" text-anchor="end" dominant-baseline="middle">{}</text>"#,
+            x, y, font_size, row.eval,
+        )?;
+    }
+    for (j, col) in summary.table[0].tools.iter().enumerate() {
+        let x = eval_text_length + gap + cell_size / 2. + j as f64 * (cell_size + gap);
+        let y = tool_text_length;
+        writeln!(
+            file,
+            r#"  <text x="{}" y="{}" fill="white" font-family="sans-serif" font-weight="bold" font-size="{}" text-anchor="end" dominant-baseline="middle" transform="rotate(90 {} {})">{}</text>"#,
+            x, y, font_size, x, y, col.tool,
+        )?;
+    }
+    for (i, row) in summary.table.iter().enumerate() {
+        let max_score = row
+            .tools
+            .iter()
+            .filter_map(|col| col.score)
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        for (j, col) in row.tools.iter().enumerate() {
+            if let Some(score) = col.score {
+                let lightness = 100. - 50. * (score / max_score);
+                let color = format!("hsl(240 100% {lightness}%)");
+                let x = eval_text_length + gap + j as f64 * (cell_size + gap);
+                let y = tool_text_length + gap + i as f64 * (cell_size + gap);
+                writeln!(
+                    file,
+                    r#"  <rect x="{}" y="{}" width="{}" height="{}" fill="{}" />"#,
+                    x, y, cell_size, cell_size, color,
+                )?;
+            }
+        }
+    }
+    writeln!(file, "</svg>")?;
+    Ok(())
+}
+
 /// Generate summary data and plots in `output` from logs in `input`.
 pub fn generate(input: PathBuf, output: PathBuf, metadata: StatsMetadata) -> anyhow::Result<()> {
     fs::create_dir_all(&output)?;
@@ -262,8 +326,8 @@ pub fn generate(input: PathBuf, output: PathBuf, metadata: StatsMetadata) -> any
         metadata,
         table,
     };
-    let output = output.join("summary.json");
-    let file = fs::File::create(&output)?;
+    let file = fs::File::create(output.join("summary.json"))?;
     serde_json::to_writer(file, &summary)?;
+    svg(&output, summary)?;
     Ok(())
 }
