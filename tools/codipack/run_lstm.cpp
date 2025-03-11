@@ -19,19 +19,13 @@ public:
     state_d(_input.state.size()),
     sequence_d(_input.sequence.size()) {
 
-    Tape& tape = Real::getTape();
-    tape.setActive();
-
     for (size_t i = 0; i < main_params_d.size(); i++) {
       main_params_d[i] = _input.main_params[i];
-      tape.registerInput(main_params_d[i]);
     }
 
     for (size_t i = 0; i < extra_params_d.size(); i++) {
       extra_params_d[i] = _input.extra_params[i];
-      tape.registerInput(extra_params_d[i]);
     }
-
 
     for (size_t i = 0; i < state_d.size(); i++) {
       state_d[i] = _input.state[i];
@@ -47,6 +41,16 @@ public:
 
     Real loss;
     Tape& tape = Real::getTape();
+    tape.reset();
+    tape.setActive();
+
+    for (size_t i = 0; i < main_params_d.size(); i++) {
+      tape.registerInput(main_params_d[i]);
+    }
+
+    for (size_t i = 0; i < extra_params_d.size(); i++) {
+      tape.registerInput(extra_params_d[i]);
+    }
 
     lstm::objective(_input.l, _input.c, _input.b,
                     main_params_d.data(), extra_params_d.data(),
