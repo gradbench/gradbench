@@ -10,6 +10,7 @@ use std::{
     mem::take,
     path::{Path, PathBuf},
     process::{Command, ExitCode, ExitStatus, Output, Stdio},
+    rc::Rc,
     str::FromStr,
     time::Duration,
 };
@@ -467,10 +468,11 @@ fn github_output(name: &str, value: impl Serialize) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// A map from eval names to the tools that support them.
+type Matrix = BTreeMap<String, BTreeMap<Rc<str>, Option<BadOutcome>>>;
+
 /// Return a map from eval names to the tools that support them.
-fn evals_to_tools(
-    evals: Vec<String>,
-) -> anyhow::Result<BTreeMap<String, BTreeMap<String, &'static str>>> {
+fn evals_to_tools(evals: Vec<String>) -> anyhow::Result<Matrix> {
     let mut map = BTreeMap::new();
     for eval in evals {
         map.insert(eval, BTreeMap::new());
@@ -484,21 +486,18 @@ fn evals_to_tools(
         let path = entry.path().join("evals.txt");
         let evals = fs::read_to_string(&path).unwrap_or_default();
         for line in evals.lines() {
-            let (eval, outcome) = match line.split(' ').collect::<Vec<_>>()[..] {
-                [eval] => (eval, "success"),
-                [eval, o] => match BadOutcome::from_str(o) {
-                    Ok(bad_outcome) => (eval, bad_outcome.into()),
-                    Err(_) => {
-                        return Err(anyhow!("{path:?}: Unknown outcome for {eval}: {o}"));
-                    }
-                },
-                _ => {
-                    return Err(anyhow!("{path:?}: invalid line: {line}"));
+            let (eval, outcome) = match line.split_once(' ') {
+                None => (line, None),
+                Some((eval, outcome)) => {
+                    let bad_outcome = BadOutcome::from_str(outcome).with_context(|| {
+                        format!("{path:?}: invalid outcome {outcome:?} for eval {eval:?}")
+                    })?;
+                    (eval, Some(bad_outcome))
                 }
             };
             map.get_mut(eval)
                 .ok_or_else(|| anyhow!("eval {eval:?} not found"))?
-                .insert(tool.to_string(), outcome);
+                .insert(Rc::from(tool.as_str()), outcome);
         }
     }
     Ok(map)
@@ -554,8 +553,9 @@ fn matrix() -> anyhow::Result<()> {
                 eval,
                 tool,
                 outcome: match supported.get(tool.as_str()) {
-                    Some(o) => o,
                     None => BadOutcome::Undefined.into(),
+                    Some(None) => "success",
+                    Some(Some(bad_outcome)) => bad_outcome.into(),
                 },
             });
         }
