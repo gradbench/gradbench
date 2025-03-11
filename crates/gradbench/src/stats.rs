@@ -69,16 +69,36 @@ struct LoggedResponse<T> {
 #[derive(Clone, Copy, Default, Serialize)]
 struct DurationPair {
     /// The average duration to compute the primal value for this workload.
-    primal: Duration,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    primal: Option<Duration>,
 
     /// The average duration to compute the derivative for this workload.
-    derivative: Duration,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    derivative: Option<Duration>,
 }
 
 impl DurationPair {
+    /// Attempt to set the primal duration.
+    fn set_primal(&mut self, primal: Duration) -> anyhow::Result<()> {
+        if self.primal.is_some() {
+            bail!("primal already set");
+        }
+        self.primal = Some(primal);
+        Ok(())
+    }
+
+    /// Attempt to set the derivative duration.
+    fn set_derivative(&mut self, derivative: Duration) -> anyhow::Result<()> {
+        if self.derivative.is_some() {
+            bail!("derivative already set");
+        }
+        self.derivative = Some(derivative);
+        Ok(())
+    }
+
     /// Sum the average duration for the primal with the average duration for the derivative.
     fn sum(self) -> Duration {
-        self.primal + self.derivative
+        self.primal.unwrap_or(Duration::ZERO) + self.derivative.unwrap_or(Duration::ZERO)
     }
 }
 
@@ -152,9 +172,9 @@ impl<R: BufRead, F: CreateFile> Scorer<R, F> for ScorerClassic {
                 }
                 let pair = workloads.entry(Rc::from(desc)).or_default();
                 if function == self.primal {
-                    pair.primal += duration / count;
+                    pair.set_primal(duration / count)?;
                 } else if function == self.derivative {
-                    pair.derivative += duration / count;
+                    pair.set_derivative(duration / count)?;
                 } else {
                     bail!("unknown function {function:?}");
                 }
