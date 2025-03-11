@@ -49,12 +49,14 @@ pkgs.stdenv.mkDerivation {
     [my-python
      pkgs.niv
      pkgs.gh
+     pkgs.bun
 
      pkgs.futhark
      pkgs.enzyme
      pkgs.pkg-config
      pkgs.llvmPackages_19.lld
      pkgs.llvmPackages_19.clang
+     pkgs.ruff
      pkgs.blas
      pkgs.lapack
      pkgs.openblas
