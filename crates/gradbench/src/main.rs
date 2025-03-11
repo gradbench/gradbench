@@ -210,10 +210,9 @@ enum RepoCommands {
 }
 
 /// Print `error` to stderr, then return [`ExitCode::FAILURE`].
-fn err_fail(error: impl Into<anyhow::Error>) -> ExitCode {
-    let err = error.into();
-    eprintln!("{err:#}");
-    let backtrace = err.backtrace();
+fn err_fail(error: anyhow::Error) -> ExitCode {
+    eprintln!("{error:#}");
+    let backtrace = error.backtrace();
     match backtrace.status() {
         BacktraceStatus::Disabled => eprintln!(
             "note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace"
@@ -595,12 +594,10 @@ fn cli() -> Result<(), ExitCode> {
             };
             let timeout = timeout.map(Duration::from_secs);
             let outcome = match output {
-                Some(path) => match fs::File::create(&path) {
-                    Ok(mut file) => {
-                        intermediary::run(&mut file, &mut eval_child, &mut tool_child, timeout)
-                    }
-                    Err(err) => return Err(err_fail(err)),
-                },
+                Some(path) => {
+                    let mut file = fs::File::create(&path).map_err(|err| err_fail(anyhow!(err)))?;
+                    intermediary::run(&mut file, &mut eval_child, &mut tool_child, timeout)
+                }
                 None => {
                     intermediary::run(&mut io::sink(), &mut eval_child, &mut tool_child, timeout)
                 }
