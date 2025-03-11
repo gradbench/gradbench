@@ -379,7 +379,8 @@ fn build_tool(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Resul
 }
 
 /// An imperfect outcome from running the intermediary.
-#[derive(Clone, Copy, Debug, EnumIter, EnumString, Eq, IntoStaticStr, PartialEq)]
+#[derive(Clone, Copy, Debug, EnumIter, EnumString, Eq, IntoStaticStr, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 enum BadOutcome {
     /// The user sent an interrupt signal.

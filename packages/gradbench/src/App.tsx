@@ -37,7 +37,13 @@ const urlPrefix = (params: {
 
 interface Cell {
   tool: string;
-  defined?: boolean;
+  outcome?:
+    | "interrupt"
+    | "timeout"
+    | "invalid"
+    | "failure"
+    | "undefined"
+    | "error";
   score?: number;
   status?: "unimplemented" | "incorrect" | "correct";
 }
@@ -67,7 +73,7 @@ const ScoredRow = ({ tools }: Row) => {
   const maxScore = Math.max(
     ...tools.flatMap(({ score }) => (score === undefined ? [] : [score])),
   );
-  return tools.map(({ tool, defined, score, status }) => {
+  return tools.map(({ tool, outcome, score, status }) => {
     if (score !== undefined) {
       const lightness = 100 - 50 * (score / maxScore);
       return (
@@ -77,7 +83,9 @@ const ScoredRow = ({ tools }: Row) => {
           style={{ backgroundColor: `hsl(240 100% ${lightness}%)` }}
         />
       );
-    } else if (defined === true) {
+    } else if (outcome !== undefined && outcome !== "undefined") {
+      // This means the tool was defined for this eval but had an unsuccessful
+      // outcome, like `timeout`.
       const alpha = 50;
       return (
         <div

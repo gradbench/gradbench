@@ -15,6 +15,7 @@ use crate::{
     evals_to_tools, ls,
     protocol::{EvaluateResponse, Message},
     util::nanos_duration,
+    BadOutcome,
 };
 
 /// Simple trait for creating files inside of an existing directory.
@@ -209,8 +210,9 @@ struct Col<'a> {
     /// The name of the tool for this column.
     tool: &'a str,
 
-    /// Whether the tool is defined for this eval.
-    defined: bool,
+    /// The outcome of the tool for this eval.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    outcome: Option<BadOutcome>,
 
     /// The score of the tool for this eval, or `None` if the tool was unsuccessful.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -301,7 +303,7 @@ fn svg(output: &Path, summary: Summary) -> anyhow::Result<()> {
             .max_by(|a, b| a.partial_cmp(b).unwrap())
             .unwrap();
         for (j, col) in row.tools.iter().enumerate() {
-            if col.defined {
+            if col.outcome != Some(BadOutcome::Undefined) {
                 let color = match col.score {
                     None => {
                         let alpha = 50;
@@ -340,21 +342,21 @@ pub fn generate(input: PathBuf, output: PathBuf, metadata: StatsMetadata) -> any
         let mut row = Vec::new();
         let mut scorer = scorer(eval);
         for tool in &tools {
-            let (defined, score) = match supported.get(tool.as_str()) {
-                None => (false, None),
-                Some(outcome) => {
+            let (outcome, score) = match supported.get(tool.as_str()) {
+                None => (Some(BadOutcome::Undefined), None),
+                Some(&outcome) => {
                     let path = input.join(format!("run-{eval}-{tool}/log.jsonl"));
                     println!("  {}", path.display());
                     let reader = io::BufReader::new(fs::File::open(&path)?);
                     // Always run the `score` method, to gather fine-grained data.
                     let score = scorer.score(tool, reader)?;
                     // Only give the tool an overall score if it successfully completed the eval.
-                    (true, if outcome.is_none() { Some(score) } else { None })
+                    (outcome, if outcome.is_none() { Some(score) } else { None })
                 }
             };
             row.push(Col {
                 tool,
-                defined,
+                outcome,
                 score,
             });
         }
