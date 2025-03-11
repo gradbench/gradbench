@@ -16,20 +16,15 @@ public:
     alphas_d(_input.k),
     means_d(_input.d*_input.k),
     icf_d((_input.d*(_input.d + 1) / 2)*_input.k) {
-    Tape& tape = Real::getTape();
-    tape.setActive();
 
     for (size_t i = 0; i < alphas_d.size(); i++) {
       alphas_d[i] = _input.alphas[i];
-      tape.registerInput(alphas_d[i]);
     }
     for (size_t i = 0; i < means_d.size(); i++) {
       means_d[i] = _input.means[i];
-      tape.registerInput(means_d[i]);
     }
     for (size_t i = 0; i < icf_d.size(); i++) {
       icf_d[i] = _input.icf[i];
-      tape.registerInput(icf_d[i]);
     }
   }
 
@@ -38,6 +33,18 @@ public:
     output.resize(Jcols);
 
     Tape& tape = Real::getTape();
+    tape.reset();
+    tape.setActive();
+
+    for (size_t i = 0; i < alphas_d.size(); i++) {
+      tape.registerInput(alphas_d[i]);
+    }
+    for (size_t i = 0; i < means_d.size(); i++) {
+      tape.registerInput(means_d[i]);
+    }
+    for (size_t i = 0; i < icf_d.size(); i++) {
+      tape.registerInput(icf_d[i]);
+    }
 
     Real error;
     gmm::objective(_input.d, _input.k, _input.n,
