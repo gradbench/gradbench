@@ -189,7 +189,10 @@ struct Col<'a> {
     /// The name of the tool for this column.
     tool: &'a str,
 
-    /// The score of the tool for this eval.
+    /// Whether the tool is defined for this eval.
+    defined: bool,
+
+    /// The score of the tool for this eval, or `None` if the tool was unsuccessful.
     #[serde(skip_serializing_if = "Option::is_none")]
     score: Option<f64>,
 }
@@ -230,6 +233,7 @@ struct Summary<'a> {
     table: Vec<Row<'a>>,
 }
 
+/// Generate a SVG chart for `summary` in the given `output` directory.
 fn svg(output: &Path, summary: Summary) -> anyhow::Result<()> {
     let mut file = fs::File::create(output.join("summary.svg"))?;
     let num_evals = summary.table.len() as f64;
@@ -277,9 +281,17 @@ fn svg(output: &Path, summary: Summary) -> anyhow::Result<()> {
             .max_by(|a, b| a.partial_cmp(b).unwrap())
             .unwrap();
         for (j, col) in row.tools.iter().enumerate() {
-            if let Some(score) = col.score {
-                let lightness = 100. - 50. * (score / max_score);
-                let color = format!("hsl(240 100% {lightness}%)");
+            if col.defined {
+                let color = match col.score {
+                    None => {
+                        let alpha = 50;
+                        format!("rgb(255 255 255 / {alpha}%)")
+                    }
+                    Some(score) => {
+                        let lightness = 100. - 50. * (score / max_score);
+                        format!("hsl(240 100% {lightness}%)")
+                    }
+                };
                 let x = eval_text_length + gap + j as f64 * (cell_size + gap);
                 let y = tool_text_length + gap + i as f64 * (cell_size + gap);
                 writeln!(
@@ -308,15 +320,23 @@ pub fn generate(input: PathBuf, output: PathBuf, metadata: StatsMetadata) -> any
         let mut row = Vec::new();
         let mut scorer = scorer(eval);
         for tool in &tools {
-            let score = if supported.contains_key(tool.as_str()) {
-                let path = input.join(format!("run-{eval}-{tool}/log.jsonl"));
-                println!("  {}", path.display());
-                let reader = io::BufReader::new(fs::File::open(&path)?);
-                Some(scorer.score(tool, reader)?)
-            } else {
-                None
+            let (defined, score) = match supported.get(tool.as_str()) {
+                None => (false, None),
+                Some(outcome) => {
+                    let path = input.join(format!("run-{eval}-{tool}/log.jsonl"));
+                    println!("  {}", path.display());
+                    let reader = io::BufReader::new(fs::File::open(&path)?);
+                    // Always run the `score` method, to gather fine-grained data.
+                    let score = scorer.score(tool, reader)?;
+                    // Only give the tool an overall score if it successfully completed the eval.
+                    (true, if outcome.is_none() { Some(score) } else { None })
+                }
             };
-            row.push(Col { tool, score });
+            row.push(Col {
+                tool,
+                defined,
+                score,
+            });
         }
         scorer.finish(output.join("evals").join(eval))?;
         table.push(Row { eval, tools: row });

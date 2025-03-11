@@ -4,7 +4,11 @@
 
 **GradBench** is a benchmark suite for differentiable programming across languages and domains.
 
-See <https://gradben.ch> for interactive performance charts generated from our latest nightly build. Here's a static preview of the overview table on the website, where rows are [evals](evals) and columns are [tools](tools). A _white_ cell means the tool is **slow** for that eval; a _blue_ cell means the tool is **fast** for that eval.
+See <https://gradben.ch> for interactive performance charts generated from our latest nightly build. Here's a static preview of the overview table on the website, where rows are [evals](evals) and columns are [tools](tools).
+
+- A _grey_ cell means the tool did not successfully complete that eval.
+- A _white_ cell means the tool is **slow** for that eval.
+- A _blue_ cell means the tool is **fast** for that eval.
 
 ![summary][svg]
 
