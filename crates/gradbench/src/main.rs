@@ -5,7 +5,7 @@ mod util;
 
 use std::{
     backtrace::BacktraceStatus,
-    collections::{BTreeMap, BTreeSet},
+    collections::BTreeMap,
     env, fs,
     io::{self, BufRead},
     mem::take,
@@ -379,7 +379,8 @@ fn build_tool(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Resul
 }
 
 /// An imperfect outcome from running the intermediary.
-#[derive(Clone, Copy, Debug, EnumIter, EnumString, Eq, IntoStaticStr, PartialEq)]
+#[derive(Clone, Copy, Debug, EnumIter, EnumString, Eq, IntoStaticStr, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 enum BadOutcome {
     /// The user sent an interrupt signal.
@@ -472,11 +473,14 @@ fn github_output(name: &str, value: impl Serialize) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// A map from eval names to the tools that support them.
+type Matrix = BTreeMap<String, BTreeMap<Rc<str>, Option<BadOutcome>>>;
+
 /// Return a map from eval names to the tools that support them.
-fn evals_to_tools(evals: Vec<String>) -> anyhow::Result<BTreeMap<String, BTreeSet<Rc<str>>>> {
+fn evals_to_tools(evals: Vec<String>) -> anyhow::Result<Matrix> {
     let mut map = BTreeMap::new();
     for eval in evals {
-        map.insert(eval, BTreeSet::new());
+        map.insert(eval, BTreeMap::new());
     }
     for result in fs::read_dir("tools")? {
         let entry = result?;
@@ -484,11 +488,21 @@ fn evals_to_tools(evals: Vec<String>) -> anyhow::Result<BTreeMap<String, BTreeSe
             .file_name()
             .into_string()
             .map_err(|name| anyhow!("invalid file name {name:?}"))?;
-        let evals = fs::read_to_string(entry.path().join("evals.txt")).unwrap_or_default();
-        for eval in evals.lines() {
+        let path = entry.path().join("evals.txt");
+        let evals = fs::read_to_string(&path).unwrap_or_default();
+        for line in evals.lines() {
+            let (eval, outcome) = match line.split_once(' ') {
+                None => (line, None),
+                Some((eval, outcome)) => {
+                    let bad_outcome = BadOutcome::from_str(outcome).with_context(|| {
+                        format!("{path:?}: invalid outcome {outcome:?} for eval {eval:?}")
+                    })?;
+                    (eval, Some(bad_outcome))
+                }
+            };
             map.get_mut(eval)
                 .ok_or_else(|| anyhow!("eval {eval:?} not found"))?
-                .insert(Rc::from(tool.as_str()));
+                .insert(Rc::from(tool.as_str()), outcome);
         }
     }
     Ok(map)
@@ -543,10 +557,10 @@ fn matrix() -> anyhow::Result<()> {
             run.push(RunEntry {
                 eval,
                 tool,
-                outcome: if supported.contains(tool.as_str()) {
-                    "success"
-                } else {
-                    BadOutcome::Undefined.into()
+                outcome: match supported.get(tool.as_str()) {
+                    None => BadOutcome::Undefined.into(),
+                    Some(None) => "success",
+                    Some(Some(bad_outcome)) => bad_outcome.into(),
                 },
             });
         }

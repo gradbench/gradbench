@@ -162,7 +162,7 @@ jobs:
         run: docker load --input tool-${{ matrix.tool }}.tar
       - name: Run tool on eval
         continue-on-error: true
-        run: gradbench run --eval "gradbench eval ${{ matrix.eval }}" --tool "gradbench tool ${{ matrix.tool }}" --output log.jsonl
+        run: gradbench run --eval "gradbench eval ${{ matrix.eval }}" --tool "gradbench tool ${{ matrix.tool }}" --output log.jsonl --timeout 600
       - name: Upload log as artifact
         uses: actions/upload-artifact@v4
         with:

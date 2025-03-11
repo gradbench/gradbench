@@ -15,6 +15,7 @@ use crate::{
     evals_to_tools, ls,
     protocol::{EvaluateResponse, Message},
     util::nanos_duration,
+    BadOutcome,
 };
 
 /// Simple trait for creating files inside of an existing directory.
@@ -69,16 +70,36 @@ struct LoggedResponse<T> {
 #[derive(Clone, Copy, Default, Serialize)]
 struct DurationPair {
     /// The average duration to compute the primal value for this workload.
-    primal: Duration,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    primal: Option<Duration>,
 
     /// The average duration to compute the derivative for this workload.
-    derivative: Duration,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    derivative: Option<Duration>,
 }
 
 impl DurationPair {
+    /// Attempt to set the primal duration.
+    fn set_primal(&mut self, primal: Duration) -> anyhow::Result<()> {
+        if self.primal.is_some() {
+            bail!("primal already set");
+        }
+        self.primal = Some(primal);
+        Ok(())
+    }
+
+    /// Attempt to set the derivative duration.
+    fn set_derivative(&mut self, derivative: Duration) -> anyhow::Result<()> {
+        if self.derivative.is_some() {
+            bail!("derivative already set");
+        }
+        self.derivative = Some(derivative);
+        Ok(())
+    }
+
     /// Sum the average duration for the primal with the average duration for the derivative.
     fn sum(self) -> Duration {
-        self.primal + self.derivative
+        self.primal.unwrap_or(Duration::ZERO) + self.derivative.unwrap_or(Duration::ZERO)
     }
 }
 
@@ -152,9 +173,9 @@ impl<R: BufRead, F: CreateFile> Scorer<R, F> for ScorerClassic {
                 }
                 let pair = workloads.entry(Rc::from(desc)).or_default();
                 if function == self.primal {
-                    pair.primal += duration / count;
+                    pair.set_primal(duration / count)?;
                 } else if function == self.derivative {
-                    pair.derivative += duration / count;
+                    pair.set_derivative(duration / count)?;
                 } else {
                     bail!("unknown function {function:?}");
                 }
@@ -189,7 +210,11 @@ struct Col<'a> {
     /// The name of the tool for this column.
     tool: &'a str,
 
-    /// The score of the tool for this eval.
+    /// The outcome of the tool for this eval.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    outcome: Option<BadOutcome>,
+
+    /// The score of the tool for this eval, or `None` if the tool was unsuccessful.
     #[serde(skip_serializing_if = "Option::is_none")]
     score: Option<f64>,
 }
@@ -230,6 +255,7 @@ struct Summary<'a> {
     table: Vec<Row<'a>>,
 }
 
+/// Generate a SVG chart for `summary` in the given `output` directory.
 fn svg(output: &Path, summary: Summary) -> anyhow::Result<()> {
     let mut file = fs::File::create(output.join("summary.svg"))?;
     let num_evals = summary.table.len() as f64;
@@ -277,9 +303,17 @@ fn svg(output: &Path, summary: Summary) -> anyhow::Result<()> {
             .max_by(|a, b| a.partial_cmp(b).unwrap())
             .unwrap();
         for (j, col) in row.tools.iter().enumerate() {
-            if let Some(score) = col.score {
-                let lightness = 100. - 50. * (score / max_score);
-                let color = format!("hsl(240 100% {lightness}%)");
+            if col.outcome != Some(BadOutcome::Undefined) {
+                let color = match col.score {
+                    None => {
+                        let alpha = 50;
+                        format!("rgb(255 255 255 / {alpha}%)")
+                    }
+                    Some(score) => {
+                        let lightness = 100. - 50. * (score / max_score);
+                        format!("hsl(240 100% {lightness}%)")
+                    }
+                };
                 let x = eval_text_length + gap + j as f64 * (cell_size + gap);
                 let y = tool_text_length + gap + i as f64 * (cell_size + gap);
                 writeln!(
@@ -308,15 +342,23 @@ pub fn generate(input: PathBuf, output: PathBuf, metadata: StatsMetadata) -> any
         let mut row = Vec::new();
         let mut scorer = scorer(eval);
         for tool in &tools {
-            let score = if supported.contains(tool.as_str()) {
-                let path = input.join(format!("run-{eval}-{tool}/log.jsonl"));
-                println!("  {}", path.display());
-                let reader = io::BufReader::new(fs::File::open(&path)?);
-                Some(scorer.score(tool, reader)?)
-            } else {
-                None
+            let (outcome, score) = match supported.get(tool.as_str()) {
+                None => (Some(BadOutcome::Undefined), None),
+                Some(&outcome) => {
+                    let path = input.join(format!("run-{eval}-{tool}/log.jsonl"));
+                    println!("  {}", path.display());
+                    let reader = io::BufReader::new(fs::File::open(&path)?);
+                    // Always run the `score` method, to gather fine-grained data.
+                    let score = scorer.score(tool, reader)?;
+                    // Only give the tool an overall score if it successfully completed the eval.
+                    (outcome, if outcome.is_none() { Some(score) } else { None })
+                }
             };
-            row.push(Col { tool, score });
+            row.push(Col {
+                tool,
+                outcome,
+                score,
+            });
         }
         scorer.finish(output.join("evals").join(eval))?;
         table.push(Row { eval, tools: row });
