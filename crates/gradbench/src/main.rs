@@ -218,7 +218,7 @@ fn err_fail(error: impl Into<anyhow::Error>) -> ExitCode {
         BacktraceStatus::Disabled => eprintln!(
             "note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace"
         ),
-        BacktraceStatus::Captured => eprintln!("{backtrace}"),
+        BacktraceStatus::Captured => eprint!("{backtrace}"),
         _ => {}
     }
     ExitCode::FAILURE
