@@ -22,7 +22,7 @@ jobs:
         uses: houseabsolute/actions-rust-cross@v1
         with:
           target: x86_64-unknown-linux-musl
-          args: --package gradbench --release
+          args: --package=gradbench --profile=release-with-debug
       - name: Upload CLI as artifact
         uses: actions/upload-artifact@v4
         with:

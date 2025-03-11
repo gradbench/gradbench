@@ -11,6 +11,7 @@ use indexmap::IndexMap;
 use serde::Deserialize;
 
 use crate::{
+    err_fail,
     protocol::{
         AnalysisResponse, DefineResponse, EvaluateResponse, Id, Message, StartResponse, Timing,
     },
@@ -399,7 +400,7 @@ pub fn run(
     match handle_ctrlc(eval, tool, Arc::clone(&outcome)) {
         Ok(()) => {}
         Err(err) => {
-            println!("{err:#}");
+            err_fail(err);
             return Err(BadOutcome::Error);
         }
     }
