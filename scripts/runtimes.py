@@ -32,7 +32,7 @@ def on_json(j):
             stddev = np.std(ts)
             max = np.max(ts)
             min = np.min(ts)
-            print(f"  {t}")
+            print(f"  {t} (runs: {ts.shape[0]})")
             print(f"    avg: {mean}")
             print(f"    max: {max} (run {np.where(ts==max)[0]})")
             print(f"    min: {min} (run {np.where(ts==min)[0]})")
