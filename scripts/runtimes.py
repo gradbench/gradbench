@@ -27,12 +27,15 @@ def on_json(j):
                 timings[x["name"]] = []
             timings[x["name"]].append(x["nanoseconds"]/1000)
         for t in timings:
-            mean = np.mean(timings[t])
-            stddev = np.std(timings[t])
+            ts = np.array(timings[t])
+            mean = np.mean(ts)
+            stddev = np.std(ts)
+            max = np.max(ts)
+            min = np.min(ts)
             print(f"  {t}")
             print(f"    avg: {mean}")
-            print(f"    max: {np.max(timings[t])}")
-            print(f"    min: {np.min(timings[t])}")
+            print(f"    max: {max} (run {np.where(ts==max)[0]})")
+            print(f"    min: {min} (run {np.where(ts==min)[0]})")
             print(f"    dev: {stddev / mean}")
 
 
