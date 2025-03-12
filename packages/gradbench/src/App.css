@@ -6,25 +6,40 @@ a:link {
   text-decoration: none;
 }
 
+.table {
+  background-color: #ccc;
+  padding: 5px;
+  width: fit-content;
+}
+
 .column-header {
   align-items: center;
   display: flex;
+  padding: 5px;
   writing-mode: vertical-lr;
 }
 
 .row-header {
   align-items: center;
   display: flex;
+  font-weight: bold;
+  padding: 5px;
+}
+
+.header-clickable {
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.header-clickable:hover {
+  background-color: #bbb;
+  text-decoration: none;
 }
 
 .cell {
   align-items: center;
   display: flex;
   justify-content: center;
-}
-
-.unimplemented {
-  background-color: lightgrey;
 }
 
 .incorrect {
