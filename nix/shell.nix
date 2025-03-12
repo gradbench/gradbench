@@ -49,6 +49,7 @@ pkgs.stdenv.mkDerivation {
     [my-python
      pkgs.niv
      pkgs.gh
+     pkgs.ruff
 
      pkgs.futhark
      pkgs.enzyme
