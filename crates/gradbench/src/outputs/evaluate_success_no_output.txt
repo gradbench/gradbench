@@ -1,4 +1,4 @@
   [0] start
-  [1] def   foo                                     0ms ✓
-  [2] eval  foo::bar        42                      0ms
+  [1] def   foo                                     0μs ✓
+  [2] eval  foo::bar        42                      0μs
 tool reported success but gave no output
