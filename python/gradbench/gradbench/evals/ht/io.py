@@ -11,7 +11,6 @@ Changes made:
 import os
 
 import numpy as np
-
 from gradbench.adbench.ht_data import HandData, HandInput, HandModel
 
 DELIM = ":"

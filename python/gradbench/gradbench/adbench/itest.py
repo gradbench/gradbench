@@ -3,6 +3,8 @@
 
 # https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/shared/ITest.py
 
+# Changes made: removed 'times' parameter and 'output' method.
+
 from abc import ABC, abstractmethod
 
 
@@ -13,13 +15,9 @@ class ITest(ABC):
         pass
 
     @abstractmethod
-    def calculate_objective(self, times):
+    def calculate_objective(self):
         pass
 
     @abstractmethod
-    def calculate_jacobian(self, times):
-        pass
-
-    @abstractmethod
-    def output(self):
+    def calculate_jacobian(self):
         pass

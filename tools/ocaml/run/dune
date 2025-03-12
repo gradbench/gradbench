@@ -1,0 +1,6 @@
+(executable
+ (public_name gradbench)
+ (modes (native exe))
+ (name main)
+ (modules Main)
+ (libraries gradbench_evals gradbench_shared unix owl yojson))

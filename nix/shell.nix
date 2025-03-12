@@ -40,6 +40,7 @@ let
   my-python = pkgs.python3.withPackages my-python-packages;
   cppad = pkgs.callPackage ./cppad.nix {};
   adept = pkgs.callPackage ./adept.nix {};
+  codipack = pkgs.callPackage ./codipack.nix {};
   GRADBENCH_PATH = builtins.getEnv "PWD";
 in
 pkgs.stdenv.mkDerivation {
@@ -48,17 +49,33 @@ pkgs.stdenv.mkDerivation {
     [my-python
      pkgs.niv
      pkgs.gh
-     pkgs.cargo
-     pkgs.rustc
-     pkgs.rustfmt
+
      pkgs.futhark
      pkgs.enzyme
-     pkgs.adolc
      pkgs.pkg-config
      pkgs.llvmPackages_19.lld
      pkgs.llvmPackages_19.clang
+     pkgs.blas
+     pkgs.lapack
+     pkgs.openblas
+     pkgs.zlib
+     pkgs.adolc
      adept
      cppad
+     codipack
+
+     # Rust
+     pkgs.cargo
+     pkgs.rustc
+     pkgs.rustfmt
+
+     # OCaml
+     pkgs.opam
+     pkgs.ocamlPackages.dune_3
+     pkgs.ocamlPackages.ocaml
+     pkgs.ocamlPackages.owl
+     pkgs.ocamlPackages.yojson
+     pkgs.ocamlPackages.findlib
     ];
 
   # The following are environment variables used by various tools.

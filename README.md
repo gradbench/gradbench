@@ -1,203 +1,121 @@
-<div align="center"><img height="256" src="packages/gradbench/src/logo.svg" /></div>
+<div align="center"><img height="192" src="packages/gradbench/src/logo.svg" /></div>
 <h1 align="center">GradBench</h1>
 <p align="center"><a href="LICENSE"><img src="https://img.shields.io/github/license/rose-lang/rose" alt="license" /></a> <a href="https://github.com/gradbench/gradbench/actions/workflows/nightly.yml"><img src="https://github.com/gradbench/gradbench/actions/workflows/nightly.yml/badge.svg" alt="Nightly" /></a> <a href="https://discord.gg/nPXmPzeykS"><img src="https://dcbadge.vercel.app/api/server/nPXmPzeykS?style=flat" alt="Discord" /></a></p>
 
 **GradBench** is a benchmark suite for differentiable programming across languages and domains.
 
-See https://gradben.ch for a daily overview of all the tools (columns) and benchmarks (rows). The website is a work in progress and currently pretty bare-bones, but soon it will provide more detailed information, such as charts of tools' relative performance for each individual benchmark.
+See <https://gradben.ch> for interactive performance charts generated from our latest nightly build. Here's a static preview of the overview table on the website, where rows are [evals](evals) and columns are [tools](tools).
+
+- A _grey_ cell means the tool did not successfully complete that eval.
+- A _white_ cell means the tool is **slow** for that eval.
+- A _blue_ cell means the tool is **fast** for that eval.
+
+![summary][svg]
+
+## Contents
 
 <!-- toc -->
 
+- [Motivation](#motivation)
 - [Usage](#usage)
-- [Protocol](#protocol)
-  - [Example](#example)
-  - [Specification](#specification)
-  - [Types](#types)
-- [Contributing](#contributing)
+  - [Running GradBench locally](#running-gradbench-locally)
+  - [Without cloning this repository](#without-cloning-this-repository)
 - [License](#license)
 
 <!-- tocstop -->
 
+## Motivation
+
+[Automatic differentiation][] (often shortened as "AD" or "autodiff") and [differentiable programming][] allow a programmer to write code to compute a mathematical function, and then automatically provide code to compute the _derivative_ of that function. These techniques are currently ubiquitous in machine learning, but are broadly applicable in a much larger set of domains in scientific computing and beyond. Many autodiff tools exist, for many different programming languages, with varying feature sets and performance characteristics.
+
+This project exists to facilitate quantitative comparison of the absolute and relative performance of different autodiff tools. There is some related work in this space:
+
+- The 2016 paper ["Efficient Implementation of a Higher-Order Language with Built-In AD"][ad2016] by Siskind and Pearlmutter includes some benchmarks implemented for a variety of tools.
+- [ADBench][] was an autodiff benchmark suite, active around 2018-2019, but is now archived as of summer 2024. The benchmarks from ADBench are a strict subset of the evals in GradBench.
+- [cmpad][] is an autodiff comparison package for C++ and Python.
+
+What sets GradBench apart is the focus on supporting tools for many different programming languages in an easily extensible way. We achieve this by packaging each eval and tool into its own Docker image, and running benchmarks by having the eval and tool talk to each other over a common JSON-based protocol. We also make our benchmarks and data as easily accessible as possible, via nightly builds that publish our Docker images and run every eval against every tool to generate performance charts on the GradBench website.
+
 ## Usage
 
-If you have [Rust][] installed, you can download and install the GradBench CLI:
+If you haven't already, take a look at the [website][]! We generate daily charts visualizing the performance of all the different tools (columns) on all the different evals (rows). You can click on the name of a specific eval to see more detailed charts plotting the performance of each tool on that eval across a variety of different workload sizes.
+
+To go beyond just the data that has already been generated, here are instructions on how to run the benchmarks yourself.
+
+### Running GradBench locally
+
+If you'd like to run GradBench locally using this Git repository, first clone it; for instance, if you have the [GitHub CLI][] installed:
 
 ```sh
-cargo install --locked --git https://github.com/gradbench/gradbench
+gh repo clone gradbench/gradbench
+cd gradbench
 ```
 
-Then if you have [Docker][] installed, you can use the GradBench CLI to run any of our [evals](evals) against any of our [tools](tools):
+Make sure you have the following tools available on your system:
+
+- [Python][]
+- [Rust][]
+- [Docker][]
+
+All the command-line scripts for working with GradBench are packaged into the _GradBench CLI_, which you can run using the [`./gradbench`](gradbench) script at the root of this repository. For example, you can use the following command to run [PyTorch][] on our simplest eval:
 
 ```sh
-gradbench run --eval 'gradbench eval hello' --tool 'gradbench tool pytorch'
+./gradbench run --eval "./gradbench repo eval hello" --tool "./gradbench repo tool pytorch"
 ```
 
-This will first automatically download our latest nightly Docker images for the given eval and tool, and then run the eval against the tool while printing a summary of the communication log to the terminal. To save the full log to a file, use the `--output` flag. Or, to see a list of all possible subcommands:
+You should see a bunch of green and blue and magenta build output, followed by something like this:
+
+```
+  [0] start hello (pytorch)
+  [1] def   hello                               1.122 s ✓
+  [2] eval  hello::square   1.0                     8ms ~         2ms evaluate ✓
+  [4] eval  hello::double   1.0                     4ms ~         3ms evaluate ✓
+  [6] eval  hello::square   2.0                     0ms ~         0ms evaluate ✓
+  [8] eval  hello::double   4.0                     0ms ~         0ms evaluate ✓
+ [10] eval  hello::square   8.0                     0ms ~         0ms evaluate ✓
+ [12] eval  hello::double   64.0                    1ms ~         0ms evaluate ✓
+ [14] eval  hello::square   128.0                   0ms ~         0ms evaluate ✓
+ [16] eval  hello::double   16384.0                 0ms ~         0ms evaluate ✓
+```
+
+Congrats, this means everything worked correctly! Now you can try running other combinations from our set of available [evals](evals) and [tools](tools).
+
+This was just a quickstart summary; see [`CONTRIBUTING.md`](CONTRIBUTING.md) for more details.
+
+### Without cloning this repository
+
+> [!WARNING]
+> Only use this method if you have a specific reason not to use the primary method documented above.
+
+It's also possible to install and run the GradBench CLI without cloning this repository, if you'd prefer. In this case you don't need Python but you still need Rust and Docker. Use [`cargo install`][] with the `--git` flag (note that this command only installs GradBench once; to update, you'll need to re-run it):
 
 ```sh
-gradbench --help
+cargo install --locked gradbench --git https://github.com/gradbench/gradbench --branch nightly
 ```
 
-## Protocol
+Then, you can use the newly installed `gradbench` CLI to download and run our [nightly Docker images][packages]. For instance, if you have [jq][] installed, you can run these commands to grab the date of the most recent successful nightly build, then download and run those images for the `hello` eval and the `pytorch` tool:
 
-GradBench decouples benchmarks from tools via a [JSON][]-based protocol. In this protocol, there is an _intermediary_ (the `run` subcommand of our `gradbench` CLI), an _eval_, and a _tool_. The eval and the tool communicate with each other by sending and receiving messages over stdout and stdin, which are intercepted and forwarded by the intermediary.
-
-### Example
-
-To illustrate, here is a hypothetical example of a complete session of the protocol, as captured and reported by the intermediary:
-
-```jsonl
-{ "elapsed": { "nanoseconds": 100000 }, "message": { "id": 0, "kind": "start" } }
-{ "elapsed": { "nanoseconds": 150000 }, "response": { "id": 0 } }
-{ "elapsed": { "nanoseconds": 200000 }, "message": { "id": 1, "kind": "define", "module": "foo" } }
-{ "elapsed": { "nanoseconds": 250000 }, "response": { "id": 1, "success": true } }
-{ "elapsed": { "nanoseconds": 300000 }, "message": { "id": 2, "kind": "evaluate", "module": "foo", "function": "bar", "input": 3.14159 } }
-{ "elapsed": { "nanoseconds": 350000 }, "response": { "id": 2, "success": true, "output": 2.71828, "timings": [{ "name": "evaluate", "nanoseconds": 45678 }] } }
-{ "elapsed": { "nanoseconds": 400000 }, "message": { "id": 3, "kind": "analysis", "of": 2, "valid": false, "message": "Expected tau, got e." } }
-{ "elapsed": { "nanoseconds": 450000 }, "response": { "id": 3 } }
-{ "elapsed": { "nanoseconds": 500000 }, "message": { "id": 4, "kind": "evaluate", "module": "foo", "function": "baz", "input": { "mynumber": 121 } } }
-{ "elapsed": { "nanoseconds": 550000 }, "response": { "id": 4, "success": true, "output": { "yournumber": 342 }, "timings": [{ "name": "evaluate", "nanoseconds": 23456 }] } }
-{ "elapsed": { "nanoseconds": 600000 }, "message": { "id": 5, "kind": "analysis", "of": 4, "valid": true } }
-{ "elapsed": { "nanoseconds": 650000 }, "response": { "id": 5 } }
+```sh
+DATE=$(curl https://raw.githubusercontent.com/gradbench/gradbench/refs/heads/ci/refs/heads/nightly/summary.json | jq --raw-output .date)
+gradbench run --eval "gradbench eval hello --tag $DATE" --tool "gradbench tool pytorch --tag $DATE"
 ```
-
-Here is that example from the perspectives of the eval and the tool.
-
-- Output from the eval, or equivalently, input to the tool:
-  ```jsonl
-  { "id": 0, "kind": "start" }
-  { "id": 1, "kind": "define", "module": "foo" }
-  { "id": 2, "kind": "evaluate", "module": "foo", "function": "bar", "input": 3.14159 }
-  { "id": 3, "kind": "analysis", "of": 2, "valid": false, "message": "Expected tau, got e." }
-  { "id": 4, "kind": "evaluate", "module": "foo", "function": "baz", "input": { "mynumber": 121 } }
-  { "id": 5, "kind": "analysis", "of": 4, "valid": true }
-  ```
-- Output from the tool, or equivalently, input to the eval:
-  ```jsonl
-  { "id": 0 }
-  { "id": 1, "success": true }
-  { "id": 2, "success": true, "output": 2.71828, "timings": [{ "name": "evaluate", "nanoseconds": 45678 }] }
-  { "id": 3 }
-  { "id": 4, "success": true, "output": { "yournumber": 342 }, "timings": [{ "name": "evaluate", "nanoseconds": 23456 }] }
-  { "id": 5 }
-  ```
-
-As shown by this example, the intermediary forwards every message from the eval to the tool, and vice versa. The tool only provides substantive responses for `"define"` and `"evaluate"` messages; for all others, it simply gives a response acknowledging the `"id"` of the original message.
-
-### Specification
-
-The session proceeds over a series of _rounds_, driven by the eval. In each round, the eval sends a _message_ with a unique `"id"`, and the tool sends a _response_ with that same `"id"`. The message also includes a `"kind"`, which has four possibilities:
-
-1. `"kind": "start"` - the eval always sends this message first, waiting for the tool's response to ensure that it is ready to receive further messages. This message may optionally contain the `"eval"` name, and the response may optionally contain the `"tool"` name and/or a `"config"` field that contains arbitrary information about how the tool or eval has been configured. This information can be used by programs that do offline processing of log files, but is not otherwise significant to the protocol.
-
-2. `"kind": "define"` - the eval provides the name of a `"module"` which the tool will need in order to proceed further with this particular benchmark. This will allow the tool to respond saying whether or not it knows of and has an implementation for the module of that name.
-
-   - The tool responds with the `"id"` and either `"success": true` or `"success": false`. In the former case, the benchmark proceeds normally. In the latter case, the tool is indicating that it does not have an implementation for the requested module, and the eval should stop and not send any further messages; the tool may also optionally include an `"error"` string. In either case, the tool may optionally provide a list of `"timings"` for subtasks of preparing the requested module.
-
-3. `"kind": "evaluate"` - the eval again provides a `"module"` name, as well as the name of a `"function"` in that module. Currently there is no formal process for registering module names or specifying the functions available in those modules; those are specified informally via documentation in the evals themselves. An `"input"` to that function is also provided; the tool will be expected to evaluate that function at that input, and return the result. Optionally, the eval may also provide a short human-readable `"description"` of the input. The precise form of the `"input"` depends on the eval in question. However, many evals require `"input"` to be an object with (among others) the fields `"min_runs"` and `"min_seconds`". The tool must then evaluate the function a minimum of `"min_runs"` times or until the accumulated runtime exceeds `"min_seconds"`, whichever is longer. The runtime measurements of each function evaluation must be returned as a separate timing, as described below.
-
-   - The tool responds with the `"id"` and whether or not it had `"success"` evaluating the function on the given input. If `"success": true` then the response must also include the resulting `"output"`; otherwise, the response may optionally include an `"error"` string. Optionally, the tool may also provide a list of `"timings"` for subtasks of the computation it performed. Each timing must include a `"name"` that does not need to be unique, and a number of `"nanoseconds"`. Currently, most tools only provide one entry in `"timings"`: an `"evaluate"` entry, which by convention means the amount of time that tool spent evaluating the function itself, not including other time such as JSON encoding/decoding.
-
-4. `"kind": "analysis"` - the eval provides the ID of a prior `"evaluate"` message it performed analysis `"of"`, along with a boolean saying whether the tool's output was `"valid"`. If the output was invalid, the eval can also provide an `"error"` string explaining why.
-
-If the tool receives any message whose `"kind"` is neither `"define"` nor `"evaluate"`, it must always respond, but does not need to include anything other than the `"id"`.
-
-### Types
-
-Here is a somewhat more formal description of the protocol using [TypeScript][] types. Some of the types are not used directly, or in all evals, but may be referenced by eval-specific protocol descriptions. In particular, the value expected in the `"input"` field of an `"EvaluateMessage"` is specific to each eval.
-
-```typescript
-type Id = number;
-
-interface Base {
-  id: Id;
-}
-
-interface Duration {
-  nanoseconds: number;
-}
-
-interface Timing extends Duration {
-  name: string;
-}
-
-interface Runs {
-  min_runs: number;
-  min_seconds: number;
-}
-
-interface StartMessage extends Base {
-  kind: "start";
-  eval?: string;
-  config?: any;
-}
-
-interface DefineMessage extends Base {
-  kind: "define";
-  module: string;
-}
-
-interface EvaluateMessage extends Base {
-  kind: "evaluate";
-  module: string;
-  function: string;
-  input: any;
-  description?: string;
-}
-
-interface AnalysisMessage extends Base {
-  kind: "analysis";
-  of: Id;
-  valid: boolean;
-  error?: string;
-}
-
-type Message = StartMessage | DefineMessage | EvaluateMessage | AnalysisMessage;
-
-interface StartResponse extends Base {
-  tool?: string;
-  config?: any;
-}
-
-interface DefineResponse extends Base {
-  success: boolean;
-  timings?: Timing[];
-  error?: string;
-}
-
-interface EvaluateResponse extends Base {
-  success: boolean;
-  output?: any;
-  timings?: Timing[];
-  error?: string;
-}
-
-type Response = Base | StartResponse | DefineResponse | EvaluateResponse;
-
-interface Line {
-  elapsed: Duration;
-}
-
-interface MessageLine extends Line {
-  message: Message;
-}
-
-interface ResponseLine extends Line {
-  response: Response;
-}
-
-type Session = (MessageLine | ResponseLine)[];
-```
-
-## Contributing
-
-See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## License
 
 GradBench is licensed under the [MIT License](LICENSE).
 
-[docker]: https://docs.docker.com/engine/install/
-[json]: https://json.org/
+[`cargo install`]: https://doc.rust-lang.org/cargo/commands/cargo-install.html
+[ad2016]: https://arxiv.org/abs/1611.03416
+[adbench]: https://github.com/microsoft/ADBench
+[automatic differentiation]: https://en.wikipedia.org/wiki/Automatic_differentiation
+[cmpad]: https://cmpad.readthedocs.io/
+[differentiable programming]: https://en.wikipedia.org/wiki/Differentiable_programming
+[docker]: https://docs.docker.com/desktop/
+[github cli]: https://github.com/cli/cli#installation
+[jq]: https://jqlang.org/
+[packages]: https://github.com/orgs/gradbench/packages
+[python]: https://docs.astral.sh/uv/guides/install-python/
+[pytorch]: https://pytorch.org/
 [rust]: https://www.rust-lang.org/tools/install
-[typescript]: https://www.typescriptlang.org/
+[svg]: https://raw.githubusercontent.com/gradbench/gradbench/refs/heads/ci/refs/heads/nightly/summary.svg
+[website]: https://gradben.ch/
