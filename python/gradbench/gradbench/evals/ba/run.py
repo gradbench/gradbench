@@ -49,7 +49,7 @@ def check(function: str, input: Any, output: Any) -> None:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--min", type=int, default=1)
-    parser.add_argument("--max", type=int, default=20)
+    parser.add_argument("--max", type=int, default=14)  # Can go up to 20
     parser.add_argument("--min-runs", type=int, default=1)
     parser.add_argument("--min-seconds", type=float, default=1)
     parser.add_argument("--no-validation", action="store_true", default=False)
