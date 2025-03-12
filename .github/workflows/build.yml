@@ -228,6 +228,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Increase disk space
+        uses: ./.github/actions/space
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Download all log artifacts
