@@ -5,11 +5,9 @@ import json
 import os
 import subprocess
 import sys
-import time
 from importlib import import_module
 
 import futhark_server
-import numpy as np
 
 
 def server_prog_source(prog):
@@ -53,7 +51,7 @@ def main():
             response = run(message)
         elif message["kind"] == "define":
             try:
-                c = subprocess.check_output(
+                subprocess.check_output(
                     [
                         "futhark",
                         args.backend,

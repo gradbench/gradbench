@@ -91,7 +91,7 @@ class SingleModuleValidatedEval:
         print(flush=True)
         if message["kind"] == "end":
             return
-        l = sys.stdin.readline()
+        l = sys.stdin.readline()  # noqa: E741
         if l == "":
             raise EOFError
         response = json.loads(l)

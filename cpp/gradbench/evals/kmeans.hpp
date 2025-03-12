@@ -17,8 +17,8 @@ T euclid_dist_2(int d, T const *a, T const *b) {
 
 template<typename T>
 void objective(int n, int k, int d,
-               T const *points, T const *centroids,
-               T* err) {
+               T const * __restrict__ points, T const * __restrict__ centroids,
+               T* __restrict__ err) {
   T cost = 0;
   for (int i = 0; i < n; i++) {
     T const *a = &points[i*d];

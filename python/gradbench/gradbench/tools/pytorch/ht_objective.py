@@ -3,7 +3,6 @@
 
 # https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/modules/PyTorch/hand_objective.py
 
-import sys
 
 import torch
 
@@ -75,7 +74,6 @@ def get_posed_relatives(pose_params, base_relatives):
 
 
 def relatives_to_absolutes(relatives, parents):
-
     absolutes = []
     for i in range(relatives.shape[0]):
         if parents[i] == -1:
@@ -151,7 +149,7 @@ def get_skinned_vertex_positions(
         .transpose(1, 2)
     )
 
-    positions2 = torch.sum(positions * weights.reshape(weights.shape + (1,)), 1)[:, :3]
+    positions2 = torch.sum(positions * weights.reshape((*weights.shape, 1)), 1)[:, :3]
 
     positions3 = apply_global_transform(pose_params, positions2)
 

@@ -2,9 +2,8 @@ from functools import partial
 
 import numpy as np
 import torch
-from torch.autograd.functional import vhp, vjp
-
 from gradbench import wrap
+from torch.autograd.functional import vhp, vjp
 
 
 def all_pairs_norm(a, b):

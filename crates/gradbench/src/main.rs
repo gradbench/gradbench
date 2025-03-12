@@ -4,9 +4,12 @@ mod stats;
 mod util;
 
 use std::{
-    collections::{BTreeMap, BTreeSet},
-    env, fs, io,
-    path::PathBuf,
+    backtrace::BacktraceStatus,
+    collections::BTreeMap,
+    env, fs,
+    io::{self, BufRead},
+    mem::take,
+    path::{Path, PathBuf},
     process::{Command, ExitCode, ExitStatus, Output, Stdio},
     rc::Rc,
     str::FromStr,
@@ -15,6 +18,8 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use clap::{Parser, Subcommand};
+use colored::{Color, Colorize};
+use regex::Regex;
 use serde::Serialize;
 use stats::StatsMetadata;
 use strum::{EnumIter, EnumString, IntoStaticStr};
@@ -49,6 +54,10 @@ enum Commands {
         #[clap(short, long)]
         tag: Option<String>,
 
+        /// Docker platform, e.g. `linux/amd64` or `linux/arm64`
+        #[clap(long)]
+        platform: Option<String>,
+
         /// Arguments for the eval itself
         args: Vec<String>,
     },
@@ -66,13 +75,17 @@ enum Commands {
         #[clap(short, long)]
         tag: Option<String>,
 
+        /// Docker platform, e.g. `linux/amd64` or `linux/arm64`
+        #[clap(long)]
+        platform: Option<String>,
+
         /// Arguments for the tool itself
         args: Vec<String>,
     },
 
     /// Run a given tool on a given eval. For example:
     ///
-    ///     gradbench run -o log.jsonl --eval 'gradbench eval hello' --tool 'gradbench tool pytorch'
+    ///     gradbench run -o log.jsonl --eval "gradbench eval hello" --tool "gradbench tool pytorch"
     #[clap(about = "Run a given tool on a given eval", verbatim_doc_comment)]
     Run {
         /// A shell script to run the eval. For example: `gradbench eval hello`
@@ -112,10 +125,16 @@ enum Commands {
 enum RepoCommands {
     /// Build and run an eval using Docker.
     ///
+    /// If the build is not already cached, any output will be printed in blue.
+    ///
     /// The Docker image name is `ghcr.io/gradbench/eval-<EVAL>:latest`.
     Eval {
         /// The name of the eval to run
         eval: String,
+
+        /// Docker platform, e.g. `linux/amd64` or `linux/arm64`
+        #[clap(long)]
+        platform: Option<String>,
 
         /// Arguments for the eval itself
         args: Vec<String>,
@@ -123,10 +142,16 @@ enum RepoCommands {
 
     /// Build and run a tool using Docker.
     ///
+    /// If the build is not already cached, any output will be printed in magenta.
+    ///
     /// The Docker image name is `ghcr.io/gradbench/tool-<TOOL>:latest`.
     Tool {
         /// The name of the tool to run
         tool: String,
+
+        /// Docker platform, e.g. `linux/amd64` or `linux/arm64`
+        #[clap(long)]
+        platform: Option<String>,
 
         /// Arguments for the tool itself
         args: Vec<String>,
@@ -139,9 +164,9 @@ enum RepoCommands {
         /// The name of the eval to build
         eval: String,
 
-        /// Build for both `linux/amd64` and `linux/arm64`, instead of just the current architecture
+        /// Comma-separated list of Docker platforms to build for, e.g. `linux/amd64,linux/arm64`
         #[clap(long)]
-        cross: bool,
+        platform: Option<String>,
     },
 
     /// Build the Docker image for a tool.
@@ -151,25 +176,9 @@ enum RepoCommands {
         /// The name of the tool to build
         tool: String,
 
-        /// Build for both `linux/amd64` and `linux/arm64`, instead of just the current architecture
+        /// Comma-separated list of Docker platforms to build for, e.g. `linux/amd64,linux/arm64`
         #[clap(long)]
-        cross: bool,
-    },
-
-    /// Manually build and push a base Docker image. For example:
-    ///
-    ///     gradbench repo manual mathlib4
-    #[clap(
-        about = "Manually build and push a base Docker image",
-        verbatim_doc_comment
-    )]
-    Manual {
-        /// The image to build and push
-        image: String,
-
-        /// Don't push the image to the container registry
-        #[clap(long)]
-        dry_run: bool,
+        platform: Option<String>,
     },
 
     /// Print JSON values for consumption in GitHub Actions.
@@ -200,6 +209,20 @@ enum RepoCommands {
     },
 }
 
+/// Print `error` to stderr, then return [`ExitCode::FAILURE`].
+fn err_fail(error: anyhow::Error) -> ExitCode {
+    eprintln!("{error:#}");
+    let backtrace = error.backtrace();
+    match backtrace.status() {
+        BacktraceStatus::Disabled => eprintln!(
+            "note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace"
+        ),
+        BacktraceStatus::Captured => eprint!("{backtrace}"),
+        _ => {}
+    }
+    ExitCode::FAILURE
+}
+
 /// Return `Err` if the status is not successful, preserving its exit code whenever possible.
 fn status_code(status: ExitStatus) -> Result<(), ExitCode> {
     if status.success() {
@@ -220,52 +243,50 @@ fn run(command: &mut Command) -> Result<Output, ExitCode> {
     let output = command
         .spawn()
         .and_then(|child| child.wait_with_output())
-        .map_err(|err| {
-            eprintln!("error running {:?}: {err}", command.get_program());
-            ExitCode::FAILURE
-        })?;
+        .with_context(|| format!("error running {:?}", command.get_program()))
+        .map_err(err_fail)?;
     status_code(output.status)?;
     Ok(output)
 }
 
 /// Run an eval using Docker.
-fn run_eval(name: &str, tag: Option<&str>, args: &[String]) -> Result<(), ExitCode> {
+fn run_eval(
+    name: &str,
+    tag: Option<&str>,
+    platform: Option<&str>,
+    args: &[String],
+) -> Result<(), ExitCode> {
     let t = tag.unwrap_or("latest");
-    run(Command::new("docker")
-        .args(["run", "--rm", "--interactive"])
+    let mut cmd = Command::new("docker");
+    cmd.arg("run");
+    if let Some(platform) = platform {
+        cmd.args(["--platform", platform]);
+    }
+    cmd.args(["--rm", "--interactive"])
         .arg(format!("ghcr.io/gradbench/eval-{name}:{t}"))
-        .args(args))?;
+        .args(args);
+    run(&mut cmd)?;
     Ok(())
 }
 
 /// Run a tool using Docker.
-fn run_tool(name: &str, tag: Option<&str>, args: &[String]) -> Result<(), ExitCode> {
+fn run_tool(
+    name: &str,
+    tag: Option<&str>,
+    platform: Option<&str>,
+    args: &[String],
+) -> Result<(), ExitCode> {
     let t = tag.unwrap_or("latest");
-    run(Command::new("docker")
-        .args(["run", "--rm", "--interactive"])
-        .arg(format!("ghcr.io/gradbench/tool-{name}:{t}"))
-        .args(args))?;
-    Ok(())
-}
-
-/// A set of platforms to build a Docker image for.
-enum Platforms {
-    /// Build only for the current platform.
-    Native,
-
-    /// Build for both x86 and ARM.
-    Cross,
-}
-
-impl Platforms {
-    /// Return a configuration which is cross-platform only if `cross` is `true``.
-    fn cross(cross: bool) -> Self {
-        if cross {
-            Platforms::Cross
-        } else {
-            Platforms::Native
-        }
+    let mut cmd = Command::new("docker");
+    cmd.arg("run");
+    if let Some(platform) = platform {
+        cmd.args(["--platform", platform]);
     }
+    cmd.args(["--rm", "--interactive"])
+        .arg(format!("ghcr.io/gradbench/tool-{name}:{t}"))
+        .args(args);
+    run(&mut cmd)?;
+    Ok(())
 }
 
 /// A level of verbosity for building a Docker image.
@@ -277,58 +298,89 @@ enum Verbosity {
     Quiet,
 }
 
+/// Run a `docker build` command but don't print output if everything is cached.
+fn docker_build_quiet(color: Color, mut cmd: Command) -> anyhow::Result<ExitStatus> {
+    let mut child = cmd.arg("--progress=plain").stderr(Stdio::piped()).spawn()?;
+    // A digit mean the start of a number of seconds for an output line for a `RUN` command. The
+    // string `sha256` is the start of a line for downloading in a `FROM` command.
+    let re = Regex::new(r"^#\d+ (\d|sha256)").unwrap();
+    let mut cached = true;
+    let mut buffer = String::new();
+    colored::control::set_override(true);
+    for result in io::BufReader::new(child.stderr.take().unwrap()).lines() {
+        let line = result?;
+        if cached {
+            buffer.push_str(&line);
+            buffer.push('\n');
+            if re.is_match(&line) {
+                cached = false;
+                eprint!("{}", take(&mut buffer).color(color));
+            }
+        } else {
+            eprintln!("{}", line.color(color));
+        }
+    }
+    Ok(child.wait()?)
+}
+
 /// Build the Docker image for an eval.
-fn build_eval(name: &str, platforms: Platforms, verbosity: Verbosity) -> Result<(), ExitCode> {
+fn build_eval(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Result<(), ExitCode> {
+    if name.is_empty() || !fs::exists(Path::new("evals").join(name)).unwrap_or(false) {
+        return Err(err_fail(anyhow!("can't find eval to build: {name:?}")));
+    }
     let mut cmd = Command::new("docker");
     cmd.arg("build");
-    match platforms {
-        Platforms::Native => {}
-        Platforms::Cross => {
-            cmd.args(["--platform", "linux/amd64,linux/arm64"]);
-        }
+    if let Some(platform) = platform {
+        cmd.args(["--platform", platform]);
     }
     cmd.args([".", "--file"])
         .arg(format!("evals/{name}/Dockerfile"))
         .arg("--tag")
         .arg(format!("ghcr.io/gradbench/eval-{name}"));
     match verbosity {
-        Verbosity::Normal => {}
-        Verbosity::Quiet => {
-            cmd.arg("--quiet");
-            cmd.stdout(Stdio::null()); // Suppress the printed image ID.
+        Verbosity::Normal => {
+            run(&mut cmd)?;
+            Ok(())
         }
+        Verbosity::Quiet => status_code(
+            docker_build_quiet(Color::Blue, cmd)
+                .with_context(|| format!("error building eval {name}"))
+                .map_err(err_fail)?,
+        ),
     }
-    run(&mut cmd)?;
-    Ok(())
 }
 
 /// Build the Docker image for a tool.
-fn build_tool(name: &str, platforms: Platforms, verbosity: Verbosity) -> Result<(), ExitCode> {
+fn build_tool(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Result<(), ExitCode> {
+    if name.is_empty() || !fs::exists(Path::new("tools").join(name)).unwrap_or(false) {
+        return Err(err_fail(anyhow!("can't find tool to build: {name:?}")));
+    }
     let mut cmd = Command::new("docker");
     cmd.arg("build");
-    match platforms {
-        Platforms::Native => {}
-        Platforms::Cross => {
-            cmd.args(["--platform", "linux/amd64,linux/arm64"]);
-        }
+    if let Some(platform) = platform {
+        cmd.args(["--platform", platform]);
     }
     cmd.args([".", "--file"])
         .arg(format!("tools/{name}/Dockerfile"))
         .arg("--tag")
         .arg(format!("ghcr.io/gradbench/tool-{name}"));
     match verbosity {
-        Verbosity::Normal => {}
-        Verbosity::Quiet => {
-            cmd.arg("--quiet");
-            cmd.stdout(Stdio::null()); // Suppress the printed image ID.
+        Verbosity::Normal => {
+            cmd.arg("--progress=plain");
+            run(&mut cmd)?;
+            Ok(())
         }
+        Verbosity::Quiet => status_code(
+            docker_build_quiet(Color::Magenta, cmd)
+                .with_context(|| format!("error building tool {name}"))
+                .map_err(err_fail)?,
+        ),
     }
-    run(&mut cmd)?;
-    Ok(())
 }
 
 /// An imperfect outcome from running the intermediary.
-#[derive(Clone, Copy, Debug, EnumIter, EnumString, Eq, IntoStaticStr, PartialEq)]
+#[derive(Clone, Copy, Debug, EnumIter, EnumString, Eq, IntoStaticStr, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 enum BadOutcome {
     /// The user sent an interrupt signal.
@@ -366,19 +418,16 @@ impl From<BadOutcome> for ExitCode {
 /// Return a command's stdout as a string, preserving its exit code whenever possible.
 fn stdout(command: &mut Command) -> Result<String, ExitCode> {
     let output = run(command.stdout(Stdio::piped()))?;
-    String::from_utf8(output.stdout).map_err(|err| {
-        let program = command.get_program();
-        eprintln!("error processing output from {program:?}: {err}");
-        ExitCode::FAILURE
-    })
+    String::from_utf8(output.stdout)
+        .with_context(|| format!("error processing output from {:?}", command.get_program()))
+        .map_err(err_fail)
 }
 
 /// Check that the current working directory is the root of a Git repository.
 fn check_git() -> Result<(), ExitCode> {
-    let cwd = env::current_dir().map_err(|err| {
-        eprintln!("error getting current working directory: {err}");
-        ExitCode::FAILURE
-    })?;
+    let cwd = env::current_dir()
+        .context("error getting current working directory")
+        .map_err(err_fail)?;
     if let Ok(dir) = stdout(Command::new("git").args(["rev-parse", "--show-toplevel"])) {
         if dir.strip_suffix('\n').map(PathBuf::from) == Some(cwd) {
             return Ok(());
@@ -424,11 +473,14 @@ fn github_output(name: &str, value: impl Serialize) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// A map from eval names to the tools that support them.
+type Matrix = BTreeMap<String, BTreeMap<Rc<str>, Option<BadOutcome>>>;
+
 /// Return a map from eval names to the tools that support them.
-fn evals_to_tools(evals: Vec<String>) -> anyhow::Result<BTreeMap<String, BTreeSet<Rc<str>>>> {
+fn evals_to_tools(evals: Vec<String>) -> anyhow::Result<Matrix> {
     let mut map = BTreeMap::new();
     for eval in evals {
-        map.insert(eval, BTreeSet::new());
+        map.insert(eval, BTreeMap::new());
     }
     for result in fs::read_dir("tools")? {
         let entry = result?;
@@ -436,14 +488,34 @@ fn evals_to_tools(evals: Vec<String>) -> anyhow::Result<BTreeMap<String, BTreeSe
             .file_name()
             .into_string()
             .map_err(|name| anyhow!("invalid file name {name:?}"))?;
-        let evals = fs::read_to_string(entry.path().join("evals.txt")).unwrap_or_default();
-        for eval in evals.lines() {
+        let path = entry.path().join("evals.txt");
+        let evals = fs::read_to_string(&path).unwrap_or_default();
+        for line in evals.lines() {
+            let (eval, outcome) = match line.split_once(' ') {
+                None => (line, None),
+                Some((eval, outcome)) => {
+                    let bad_outcome = BadOutcome::from_str(outcome).with_context(|| {
+                        format!("{path:?}: invalid outcome {outcome:?} for eval {eval:?}")
+                    })?;
+                    (eval, Some(bad_outcome))
+                }
+            };
             map.get_mut(eval)
                 .ok_or_else(|| anyhow!("eval {eval:?} not found"))?
-                .insert(Rc::from(tool.as_str()));
+                .insert(Rc::from(tool.as_str()), outcome);
         }
     }
     Ok(map)
+}
+
+/// A single entry in the `tool` matrix for GitHub Actions.
+#[derive(Serialize)]
+struct ToolEntry<'a> {
+    /// The name of the tool.
+    tool: &'a str,
+
+    /// Whether the tool can be built for `linux/arm64`, as opposed to just `linux/amd64`.
+    cross: bool,
 }
 
 /// A single entry in the `run` matrix for GitHub Actions.
@@ -468,7 +540,16 @@ fn matrix() -> anyhow::Result<()> {
     github_output("eval", &evals)?;
     let mut tools = ls("tools")?;
     tools.sort();
-    github_output("tool", &tools)?;
+    github_output(
+        "tool",
+        tools
+            .iter()
+            .map(|tool| ToolEntry {
+                tool,
+                cross: tool != "scilean",
+            })
+            .collect::<Vec<_>>(),
+    )?;
     let mut run = Vec::new();
     let map = evals_to_tools(evals)?;
     for (eval, supported) in &map {
@@ -476,10 +557,10 @@ fn matrix() -> anyhow::Result<()> {
             run.push(RunEntry {
                 eval,
                 tool,
-                outcome: if supported.contains(tool.as_str()) {
-                    "success"
-                } else {
-                    BadOutcome::Undefined.into()
+                outcome: match supported.get(tool.as_str()) {
+                    None => BadOutcome::Undefined.into(),
+                    Some(None) => "success",
+                    Some(Some(bad_outcome)) => bad_outcome.into(),
                 },
             });
         }
@@ -491,8 +572,18 @@ fn matrix() -> anyhow::Result<()> {
 /// Run the GradBench CLI, returning a `Result`.
 fn cli() -> Result<(), ExitCode> {
     match Cli::parse().command {
-        Commands::Eval { eval, tag, args } => run_eval(&eval, tag.as_deref(), &args),
-        Commands::Tool { tool, tag, args } => run_tool(&tool, tag.as_deref(), &args),
+        Commands::Eval {
+            eval,
+            tag,
+            platform,
+            args,
+        } => run_eval(&eval, tag.as_deref(), platform.as_deref(), &args),
+        Commands::Tool {
+            tool,
+            tag,
+            platform,
+            args,
+        } => run_tool(&tool, tag.as_deref(), platform.as_deref(), &args),
         Commands::Run {
             eval,
             tool,
@@ -513,20 +604,14 @@ fn cli() -> Result<(), ExitCode> {
                     cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn()
                 },
             ) else {
-                eprintln!("error starting eval and tool commands");
-                return Err(ExitCode::FAILURE);
+                return Err(err_fail(anyhow!("error starting eval and tool commands")));
             };
             let timeout = timeout.map(Duration::from_secs);
             let outcome = match output {
-                Some(path) => match fs::File::create(&path) {
-                    Ok(mut file) => {
-                        intermediary::run(&mut file, &mut eval_child, &mut tool_child, timeout)
-                    }
-                    Err(err) => {
-                        println!("{err:#}");
-                        return Err(ExitCode::FAILURE);
-                    }
-                },
+                Some(path) => {
+                    let mut file = fs::File::create(&path).map_err(|err| err_fail(anyhow!(err)))?;
+                    intermediary::run(&mut file, &mut eval_child, &mut tool_child, timeout)
+                }
                 None => {
                     intermediary::run(&mut io::sink(), &mut eval_child, &mut tool_child, timeout)
                 }
@@ -550,62 +635,45 @@ fn cli() -> Result<(), ExitCode> {
                 if outcome == "success" {
                     Ok(())
                 } else {
-                    eprintln!("unknown outcome name {outcome:?}");
-                    Err(ExitCode::FAILURE)
+                    Err(err_fail(anyhow!("unknown outcome name {outcome:?}")))
                 }
             }
         },
         Commands::Repo { command } => {
             check_git()?;
             match command {
-                RepoCommands::Eval { eval, args } => {
-                    build_eval(&eval, Platforms::Native, Verbosity::Quiet)?;
-                    run_eval(&eval, None, &args)?;
+                RepoCommands::Eval {
+                    eval,
+                    platform,
+                    args,
+                } => {
+                    build_eval(&eval, platform.as_deref(), Verbosity::Quiet)?;
+                    run_eval(&eval, None, platform.as_deref(), &args)?;
                     Ok(())
                 }
-                RepoCommands::Tool { tool, args } => {
-                    build_tool(&tool, Platforms::Native, Verbosity::Quiet)?;
-                    run_tool(&tool, None, &args)?;
+                RepoCommands::Tool {
+                    tool,
+                    platform,
+                    args,
+                } => {
+                    build_tool(&tool, platform.as_deref(), Verbosity::Quiet)?;
+                    run_tool(&tool, None, platform.as_deref(), &args)?;
                     Ok(())
                 }
-                RepoCommands::BuildEval { eval, cross } => {
-                    build_eval(&eval, Platforms::cross(cross), Verbosity::Normal)
+                RepoCommands::BuildEval { eval, platform } => {
+                    build_eval(&eval, platform.as_deref(), Verbosity::Normal)
                 }
-                RepoCommands::BuildTool { tool, cross } => {
-                    build_tool(&tool, Platforms::cross(cross), Verbosity::Normal)
+                RepoCommands::BuildTool { tool, platform } => {
+                    build_tool(&tool, platform.as_deref(), Verbosity::Normal)
                 }
-                RepoCommands::Manual { image, dry_run } => {
-                    let name = format!("ghcr.io/gradbench/{image}");
-                    run(Command::new("docker")
-                        .args(["build", "--platform", "linux/amd64,linux/arm64"])
-                        .arg(format!("docker/{image}"))
-                        .args(["--tag", &name]))?;
-                    let output = stdout(Command::new("docker").args(["run", "--rm", &name]))?;
-                    let tag = output.trim();
-                    run(Command::new("docker")
-                        .args(["tag", &name])
-                        .arg(format!("{name}:{tag}")))?;
-                    if !dry_run {
-                        run(Command::new("docker")
-                            .arg("push")
-                            .arg(format!("{name}:{tag}")))?;
-                    }
-                    Ok(())
-                }
-                RepoCommands::Matrix => matrix().map_err(|err| {
-                    eprintln!("{err:#}");
-                    ExitCode::FAILURE
-                }),
+                RepoCommands::Matrix => matrix().map_err(err_fail),
                 RepoCommands::Stats {
                     input,
                     output,
                     date,
                     commit,
                 } => {
-                    stats::generate(input, output, StatsMetadata { date, commit }).map_err(|err| {
-                        eprintln!("{err:#}");
-                        ExitCode::FAILURE
-                    })
+                    stats::generate(input, output, StatsMetadata { date, commit }).map_err(err_fail)
                 }
             }
         }

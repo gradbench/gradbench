@@ -34,6 +34,7 @@ const makeSpec = ({
       x: {
         field: "workload",
         type: "nominal",
+        sort: null,
         axis: { labelAngle: -45 },
       },
       y: {
@@ -52,12 +53,18 @@ interface Duration {
   nanos: number;
 }
 
-const seconds = (duration: Duration): number =>
-  duration.secs + duration.nanos / 1e9;
+const seconds = (duration: Duration | undefined): number | undefined =>
+  duration !== undefined ? duration.secs + duration.nanos / 1e9 : undefined;
+
+const divide = (
+  a: number | undefined,
+  b: number | undefined,
+): number | undefined =>
+  a !== undefined && b !== undefined ? a / b : undefined;
 
 interface Durations {
-  primal: Duration;
-  derivative: Duration;
+  primal?: Duration;
+  derivative?: Duration;
 }
 
 interface Stats {
@@ -66,14 +73,13 @@ interface Stats {
 
 const makeData = (
   stats: Stats,
-  amount: (durations: Durations) => number,
+  getAmount: (durations: Durations) => number | undefined,
 ): PlainObject => ({
   table: Object.entries(stats.tools).flatMap(([tool, toolStats]) =>
-    Object.entries(toolStats).map(([workload, evalStats]) => ({
-      tool,
-      workload: workload,
-      amount: amount(evalStats),
-    })),
+    Object.entries(toolStats).flatMap(([workload, evalStats]) => {
+      const amount = getAmount(evalStats);
+      return amount !== undefined ? [{ tool, workload, amount }] : [];
+    }),
   ),
 });
 
@@ -109,9 +115,8 @@ export const Stats = ({ url }: { url: string }) => {
             yaxis: "derivative / primal",
             tools,
           })}
-          data={makeData(
-            stats,
-            ({ primal, derivative }) => seconds(derivative) / seconds(primal),
+          data={makeData(stats, ({ primal, derivative }) =>
+            divide(seconds(derivative), seconds(primal)),
           )}
         />
       </div>

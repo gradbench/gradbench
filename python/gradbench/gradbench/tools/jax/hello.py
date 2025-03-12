@@ -1,7 +1,6 @@
 import jax.numpy as jnp
-from jax import grad
-
 from gradbench import wrap
+from jax import grad
 
 
 def to_tensor(x):

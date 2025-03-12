@@ -37,6 +37,13 @@ const urlPrefix = (params: {
 
 interface Cell {
   tool: string;
+  outcome?:
+    | "interrupt"
+    | "timeout"
+    | "invalid"
+    | "failure"
+    | "undefined"
+    | "error";
   score?: number;
   status?: "unimplemented" | "incorrect" | "correct";
 }
@@ -66,7 +73,7 @@ const ScoredRow = ({ tools }: Row) => {
   const maxScore = Math.max(
     ...tools.flatMap(({ score }) => (score === undefined ? [] : [score])),
   );
-  return tools.map(({ tool, score, status }) => {
+  return tools.map(({ tool, outcome, score, status }) => {
     if (score !== undefined) {
       const lightness = 100 - 50 * (score / maxScore);
       return (
@@ -74,6 +81,17 @@ const ScoredRow = ({ tools }: Row) => {
           key={tool}
           className="cell"
           style={{ backgroundColor: `hsl(240 100% ${lightness}%)` }}
+        />
+      );
+    } else if (outcome !== undefined && outcome !== "undefined") {
+      // This means the tool was defined for this eval but had an unsuccessful
+      // outcome, like `timeout`.
+      const alpha = 50;
+      return (
+        <div
+          key={tool}
+          className="cell"
+          style={{ backgroundColor: `rgb(255 255 255 / ${alpha}%)` }}
         />
       );
     }
@@ -115,11 +133,20 @@ const Viz = ({ prefix, summary }: { prefix: string; summary: Summary }) => {
         : undefined;
   return (
     <>
-      <p>
-        A <em>white</em> cell means the tool is <strong>slow</strong> for that
-        eval, a <em>blue</em> cell means the tool is <strong>fast</strong> for
-        that eval.
-      </p>
+      <ul>
+        <li>
+          A <em>grey</em> cell means the tool did not successfully complete that
+          eval.
+        </li>
+        <li>
+          A <em>white</em> cell means the tool is <strong>slow</strong> for that
+          eval.
+        </li>
+        <li>
+          A <em>blue</em> cell means the tool is <strong>fast</strong> for that
+          eval.
+        </li>
+      </ul>
       <div
         className="table"
         style={{
