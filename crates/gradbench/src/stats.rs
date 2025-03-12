@@ -171,18 +171,16 @@ impl<R: BufRead, F: CreateFile> Scorer<R, F> for ScorerClassic {
                         duration += nanos_duration(timing.nanoseconds)?;
                     }
                 }
-                // Avoid division by zero in pathological case where
-                // there are no runs.
-                if count == 0 {
-                    count = 1;
-                }
-                let pair = workloads.entry(Rc::from(desc)).or_default();
-                if function == self.primal {
-                    pair.set_primal(duration / count)?;
-                } else if function == self.derivative {
-                    pair.set_derivative(duration / count)?;
-                } else {
-                    bail!("unknown function {function:?}");
+                // If there are no runs, there's nothing to record here.
+                if count > 0 {
+                    let pair = workloads.entry(Rc::from(desc)).or_default();
+                    if function == self.primal {
+                        pair.set_primal(duration / count)?;
+                    } else if function == self.derivative {
+                        pair.set_derivative(duration / count)?;
+                    } else {
+                        bail!("unknown function {function:?}");
+                    }
                 }
             }
         }
