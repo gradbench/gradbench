@@ -8,7 +8,7 @@ module GradBench.Hello
 where
 
 import Data.Tuple (Solo (..))
-import Numeric.AD.Mode.Forward (grad)
+import Numeric.AD.Double (grad)
 
 type Input = Double
 
