@@ -256,12 +256,6 @@ impl<
             }
             let response_time = (self.clock)();
             let nanos = (response_time - message_time).as_nanos();
-            writeln!(
-                self.log,
-                r#"{{ "elapsed": {{ "nanoseconds": {} }}, "response": {} }}"#,
-                response_time.as_nanos(),
-                tool_line.trim(),
-            )?;
             match message {
                 Message::Start { id, eval } => {
                     let response: StartResponse = self.parse_response(&tool_line)?;
@@ -322,6 +316,12 @@ impl<
             }
             self.out.flush()?;
             // Send the tool's response to the eval only after we've checked that it's valid JSON.
+            writeln!(
+                self.log,
+                r#"{{ "elapsed": {{ "nanoseconds": {} }}, "response": {} }}"#,
+                response_time.as_nanos(),
+                tool_line.trim(),
+            )?;
             self.eval_in.write_all(tool_line.as_bytes())?;
             self.eval_in.flush()?;
         }
