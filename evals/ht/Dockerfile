@@ -6,17 +6,17 @@ RUN apt-get update && apt-get install -y \
 
 RUN pip install numpy==1.26.0 pydantic dataclasses-json
 
-WORKDIR /home/gradbench
+WORKDIR /gradbench
 
-COPY python /home/gradbench/python
+COPY python /gradbench/python
 
-COPY cpp /home/gradbench/cpp
+COPY cpp /gradbench/cpp
 RUN make -C cpp
-COPY tools/manual/ /home/gradbench/tools/manual
-RUN make -C /home/gradbench/tools/manual -Bj
+COPY tools/manual/ /gradbench/tools/manual
+RUN make -C /gradbench/tools/manual -Bj
 
-COPY evals/ht/data /home/gradbench/evals/ht/data
+COPY evals/ht/data /gradbench/evals/ht/data
 
-ENV PYTHONPATH=/home/gradbench/python/gradbench:/home/gradbench/tools/
-ENTRYPOINT ["python", "/home/gradbench/python/gradbench/gradbench/evals/ht/run.py"]
+ENV PYTHONPATH=/gradbench/python/gradbench:/gradbench/tools/
+ENTRYPOINT ["python", "/gradbench/python/gradbench/gradbench/evals/ht/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench

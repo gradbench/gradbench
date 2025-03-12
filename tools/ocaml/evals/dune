@@ -1,0 +1,5 @@
+(copy_files# effect_handlers/*)
+
+(library
+ (name gradbench_evals)
+ (libraries gradbench_shared unix owl yojson))

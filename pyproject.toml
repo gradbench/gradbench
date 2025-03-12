@@ -4,15 +4,14 @@ version = "0.0.0"
 requires-python = ">=3.11"
 dependencies = [
   "autograd~=1.0",
-  "black~=24.0",
   "dataclasses-json~=0.6",
   "futhark-server~=1.0",
   "gradbench",
-  "isort~=5.0",
   "jax~=0.4",
   "mygrad~=2.0",
   "numpy~=1.0",
   "pydantic~=2.0",
+  "ruff~=0.9",
   "scipy~=1.0",
   "tensorflow~=2.0",
   "torch~=2.0",
@@ -24,6 +23,5 @@ gradbench = { workspace = true }
 [tool.uv.workspace]
 members = ["python/*"]
 
-[tool.isort]
-profile = "black"
-skip_gitignore = true
+[tool.ruff.lint]
+extend-select = ["I", "RUF"]
