@@ -27,8 +27,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--min", type=int, default=1)
     parser.add_argument("--max", type=int, default=12)
-    parser.add_argument("--model", type=str, choices=['small', 'big'], default='big')
-    parser.add_argument("--variant", type=str, choices=['complicated', 'simple'], default='complicated')
+    parser.add_argument("--model", type=str, choices=["small", "big"], default="big")
+    parser.add_argument(
+        "--variant", type=str, choices=["complicated", "simple"], default="complicated"
+    )
     parser.add_argument("--min-runs", type=int, default=1)
     parser.add_argument("--min-seconds", type=float, default=1)
     parser.add_argument("--no-validation", action="store_true", default=False)
@@ -45,7 +47,9 @@ def main():
         for i in range(args.min, args.max + 1):
             fn = next(data_dir.glob(f"hand{i}_*.txt"), None)
             model_dir = data_dir / "model"
-            input = io.read_hand_instance(model_dir, fn, args.variant == 'complicated').to_dict()
+            input = io.read_hand_instance(
+                model_dir, fn, args.variant == "complicated"
+            ).to_dict()
             e.evaluate(
                 function="objective",
                 input=input
