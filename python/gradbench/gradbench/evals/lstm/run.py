@@ -1,12 +1,55 @@
 import argparse
 import json
-from pathlib import Path
+import math
 from typing import Any
 
 import manual.lstm as golden
+import numpy as np
+from gradbench.adbench.lstm_data import LSTMInput
 from gradbench.comparison import compare_json_objects
 from gradbench.eval import Analysis, SingleModuleValidatedEval, approve, mismatch
-from gradbench.evals.lstm import io
+
+
+def get_char_bits(text):
+    return math.ceil(math.log2(max([ord(c) for c in text])))
+
+
+def text_to_matrix(text, bits):
+    return np.array(
+        list(
+            map(
+                lambda c: list(map(lambda b: int(b), bin(ord(c))[2:].zfill(bits))), text
+            )
+        )
+    )
+
+
+def f_write_mat(fid, matrix):
+    for row in matrix:
+        fid.write(" ".join([str(n) for n in row]))
+        fid.write("\n")
+    fid.write("\n")
+
+
+def gen_lstm(full_text, layer_count, char_count):
+    # Get text extract
+    use_text = full_text[:char_count]
+    char_bits = get_char_bits(use_text)
+    text_mat = text_to_matrix(use_text, char_bits)
+
+    # Randomly generate past state, and parameters
+    state = np.random.random((2 * layer_count, char_bits))
+    main_params = np.random.random((2 * layer_count, char_bits * 4))
+    extra_params = np.random.random((3, char_bits))
+
+    return LSTMInput(main_params, extra_params, state, text_mat)
+
+
+def read_full_text(filename, char_count):
+    full_text_file = open(filename, encoding="utf8")
+    full_text = full_text_file.read(char_count)
+    full_text_file.close()
+    return full_text
 
 
 def check(function: str, input: Any, output: Any) -> None:
@@ -25,8 +68,8 @@ def check(function: str, input: Any, output: Any) -> None:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-l", nargs="+", type=int, default=[2, 4])
-    parser.add_argument("-c", nargs="+", type=int, default=[1024, 4096])
+    parser.add_argument("-l", nargs="+", type=int, default=[2, 4, 6])
+    parser.add_argument("-c", nargs="+", type=int, default=[1024, 4096, 8192])
     parser.add_argument("--min-runs", type=int, default=1)
     parser.add_argument("--min-seconds", type=float, default=1)
     parser.add_argument("--no-validation", action="store_true", default=False)
@@ -37,24 +80,28 @@ def main():
     )
     e.start(config=vars(args))
     if e.define().success:
-        data_root = Path("evals/lstm/data")  # assumes cwd is set correctly
+        text_file = "evals/lstm/data/lstm_full.txt"
+        full_text = read_full_text(text_file, max(args.c))
 
-        for l in args.l:  # noqa: E741
-            for c in args.c:
-                fn = next(data_root.glob(f"lstm_l{l}_c{c}.txt"), None)
-                input = io.read_lstm_instance(fn).to_dict()
-                e.evaluate(
-                    function="objective",
-                    input=input
-                    | {"min_runs": args.min_runs, "min_seconds": args.min_seconds},
-                    description=fn.stem,
-                )
-                e.evaluate(
-                    function="jacobian",
-                    input=input
-                    | {"min_runs": args.min_runs, "min_seconds": args.min_seconds},
-                    description=fn.stem,
-                )
+        combinations = sorted(
+            [(l, c) for l in args.l for c in args.c],  # noqa: E741
+            key=lambda v: v[0] * v[1],
+        )
+
+        for l, c in combinations:  # noqa: E741
+            input = gen_lstm(full_text, l, c).to_dict()
+            e.evaluate(
+                function="objective",
+                input=input
+                | {"min_runs": args.min_runs, "min_seconds": args.min_seconds},
+                description=f"l={l},c={c}",
+            )
+            e.evaluate(
+                function="jacobian",
+                input=input
+                | {"min_runs": args.min_runs, "min_seconds": args.min_seconds},
+                description=f"l={l},c={c}",
+            )
 
 
 if __name__ == "__main__":
