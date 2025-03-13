@@ -1,6 +1,5 @@
 import argparse
 import json
-import os.path
 from pathlib import Path
 from typing import Any
 
@@ -43,7 +42,6 @@ def main():
         data_root = Path("evals/ht/data")  # assumes cwd is set correctly
         data_dir = data_root / f"{args.variant}_{args.model}"
 
-        c = os.path.basename(os.path.normpath(data_dir)) + "/"
         for i in range(args.min, args.max + 1):
             fn = next(data_dir.glob(f"hand{i}_*.txt"), None)
             model_dir = data_dir / "model"
