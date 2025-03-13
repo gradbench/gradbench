@@ -62,8 +62,8 @@ def jacobian(server, input):
     )
 
     def dedup(A):
-        l = A.tolist()
-        return l[0:30] + [l[-1]]
+        L = A.tolist()
+        return L[0:30] + [L[-1]]
 
     return (
         {
