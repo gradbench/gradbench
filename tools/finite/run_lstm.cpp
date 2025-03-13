@@ -18,12 +18,12 @@ public:
   void compute(lstm::JacOutput& output) {
     output.resize(8 * _input.l * _input.b + 3 * _input.b);
 
-    _engine.finite_differences([&](double* main_params_in, double* loss) {
+    _engine.finite_differences(1, [&](double* main_params_in, double* loss) {
       lstm::objective(_input.l, _input.c, _input.b, main_params_in,
                       _input.extra_params.data(), _input.state.data(), _input.sequence.data(), loss);
     }, _input.main_params.data(), _input.main_params.size(), 1, output.data());
 
-    _engine.finite_differences([&](double* extra_params_in, double* loss) {
+    _engine.finite_differences(1, [&](double* extra_params_in, double* loss) {
       lstm::objective(_input.l, _input.c, _input.b, _input.main_params.data(),
                       extra_params_in, _input.state.data(), _input.sequence.data(), loss);
     }, _input.extra_params.data(), _input.extra_params.size(), 1, &output.data()[2 * _input.l * 4 * _input.b]);

@@ -26,11 +26,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-n", type=int, default=1000)
     parser.add_argument(
-        "-k", nargs="+", type=int, default=[5, 10, 25, 50]
-    )  # misses 100 200
+        "-k", nargs="+", type=int, default=[5, 10, 25, 50, 100]
+    )  # misses 200
     parser.add_argument(
-        "-d", nargs="+", type=int, default=[2, 10, 20, 32]
-    )  # misses 64 128
+        "-d", nargs="+", type=int, default=[2, 10, 20, 32, 64]
+    )  # misses 128
     parser.add_argument("--min-runs", type=int, default=1)
     parser.add_argument("--min-seconds", type=float, default=1)
     parser.add_argument("--no-validation", action="store_true", default=False)

@@ -59,10 +59,13 @@ def compare_json_objects(expected, actual, tolerance=1e-4, path=""):
             mismatches.append(
                 f"{path}: Expected array of length {expected_len}, got array of length {actual_len}."
             )
-        for i in range(expected_len):
-            mismatches.extend(
-                compare_json_objects(expected[i], actual[i], tolerance, f"{path}[{i}]")
-            )
+        else:
+            for i in range(expected_len):
+                mismatches.extend(
+                    compare_json_objects(
+                        expected[i], actual[i], tolerance, f"{path}[{i}]"
+                    )
+                )
 
     elif isinstance(expected, float) and isinstance(actual, float):
         if difference(np.array(actual), np.array(expected)) > tolerance:
