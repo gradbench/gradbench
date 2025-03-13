@@ -49,7 +49,7 @@ def check(function: str, input: Any, output: Any) -> None:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--min", type=int, default=1)
-    parser.add_argument("--max", type=int, default=2)
+    parser.add_argument("--max", type=int, default=14)  # Can go up to 20
     parser.add_argument("--min-runs", type=int, default=1)
     parser.add_argument("--min-seconds", type=float, default=1)
     parser.add_argument("--no-validation", action="store_true", default=False)
@@ -61,7 +61,6 @@ def main():
     e.start()
     if e.define().success:
         # NOTE: data files are taken directly from ADBench. See README for more information.
-        # Currently set to run on the smallest two data files. To run on all 20 set loop range to be: range(1,21)
         for i in range(args.min, args.max + 1):
             datafile = next(Path("evals/ba/data").glob(f"ba{i}_*.txt"), None)
             if datafile:
