@@ -364,10 +364,30 @@ void to_json(nlohmann::json& j, const ObjOutput& p) {
 }
 
 void to_json(nlohmann::json& j, const JacOutput& p) {
+  int num_reproj_err_elems = 2*(BA_NCAMPARAMS+4);
+
+  std::vector<double> repeated_vals(num_reproj_err_elems+1);
+  std::copy(p.vals.begin(),
+            p.vals.begin()+num_reproj_err_elems,
+            repeated_vals.begin());
+  repeated_vals[num_reproj_err_elems] = p.vals.back();
+
+  std::vector<int> repeated_rows(num_reproj_err_elems+1);
+  std::copy(p.rows.begin(),
+            p.rows.begin()+num_reproj_err_elems,
+            repeated_rows.begin());
+  repeated_rows[num_reproj_err_elems] = p.rows.back();
+
+  std::vector<int> repeated_cols(num_reproj_err_elems+1);
+  std::copy(p.cols.begin(),
+            p.cols.begin()+num_reproj_err_elems,
+            repeated_cols.begin());
+  repeated_cols[num_reproj_err_elems] = p.cols.back();
+
   j = {
-    {"rows", p.rows},
-    {"cols", p.cols},
-    {"vals", p.vals}
+    {"rows", repeated_rows},
+    {"cols", repeated_cols},
+    {"vals", repeated_vals}
   };
 }
 

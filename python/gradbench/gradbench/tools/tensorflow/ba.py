@@ -197,10 +197,12 @@ def objective_output(errors):
 
 
 def jacobian_output(ba_mat):
+    def dedup(A):
+        return A[0:30] + [A[-1]]
     return {
-        "rows": list(map(int, list(ba_mat.rows))),
-        "cols": list(map(int, list(ba_mat.cols))),
-        "vals": list(map(float, list(ba_mat.vals))),
+        "rows": list(map(int, dedup(list(ba_mat.rows)))),
+        "cols": list(map(int, dedup(list(ba_mat.cols)))),
+        "vals": list(map(float, dedup(list(ba_mat.vals)))),
     }
 
 
