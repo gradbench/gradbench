@@ -20,15 +20,9 @@ def text_to_matrix(text, bits):
             map(
                 lambda c: list(map(lambda b: int(b), bin(ord(c))[2:].zfill(bits))), text
             )
-        )
+        ),
+        dtype=np.double,
     )
-
-
-def f_write_mat(fid, matrix):
-    for row in matrix:
-        fid.write(" ".join([str(n) for n in row]))
-        fid.write("\n")
-    fid.write("\n")
 
 
 def gen_lstm(full_text, layer_count, char_count):
@@ -46,10 +40,7 @@ def gen_lstm(full_text, layer_count, char_count):
 
 
 def read_full_text(filename, char_count):
-    full_text_file = open(filename, encoding="utf8")
-    full_text = full_text_file.read(char_count)
-    full_text_file.close()
-    return full_text
+    return open(filename, encoding="utf8").read(char_count)
 
 
 def check(function: str, input: Any, output: Any) -> None:
