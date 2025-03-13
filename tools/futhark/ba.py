@@ -60,9 +60,11 @@ def jacobian(server, input):
         input["min_runs"],
         input["min_seconds"],
     )
+
     def dedup(A):
         l = A.tolist()
         return l[0:30] + [l[-1]]
+
     return (
         {
             "rows": dedup(rows),
