@@ -1,0 +1,52 @@
+import "solver"
+
+type p = (f64, f64)
+
+def pplus (u: p) (v: p) = (u.0 + v.0, u.1 + v.1)
+
+def ktimesp k (u: p) = (k * u.0, k * u.1)
+
+def pdistance (u: p) (v: p) = f64.sqrt (((u.0 - v.0) ** 2 + (u.1 - v.1) ** 2))
+
+def naive_euler grad (w: f64) =
+  let charges = [(10, 10 - w), (10, 0)]
+  let x_initial = (0, 8)
+  let xdot_initial = (0.75, 0)
+  let delta_t = 1e-1
+  let p x = f64.sum (map (f64.recip <-< pdistance x) charges)
+  let (x, xdot, _) =
+    loop (x, xdot, go) = (x_initial, xdot_initial, true)
+    while go do
+      let xddot = -1 `ktimesp` grad p x
+      let x_new = x `pplus` (delta_t `ktimesp` xdot)
+      in if x_new.1 > 0
+         then (x_new, xdot `pplus` (delta_t `ktimesp` xddot), true)
+         else (x, xdot, false)
+  let delta_t_f = -x.1 / xdot.1
+  let x_t_f = x `pplus` (delta_t_f `ktimesp` xdot)
+  in x_t_f.0 ** 2
+
+def particle grad0 grad1 w0 =
+  solver.multivariate_argmin grad0 (\w -> naive_euler grad1 w[0]) [w0]
+
+def saddle grad0 grad1 (start: [2]f64) : [2][2]f64 =
+  let f x1 y1 x2 y2 = (x1 ** 2 + y1 ** 2) - (x2 ** 2 + y2 ** 2)
+  let r1 =
+    solver.multivariate_argmin grad0
+                               (\p1 ->
+                                  solver.multivariate_max grad1
+                                                          (\p2 -> f p1[0] p1[1] p2[0] p2[1])
+                                                          start)
+                               start
+  let r2 =
+    solver.multivariate_argmax grad0 (\p -> f r1[0] r1[1] p[0] p[1]) start
+  in [r1, r2]
+
+def grad_r f x = vjp f x 1f64
+def grad_f f x = map (\i -> jvp f x (map (const 0) x with [i] = 1f64)) (indices x)
+def pgrad_f f (x, y) = (jvp f (x, y) (1, 0), jvp f (x, y) (0f64, 1f64))
+
+entry particle_ff = particle grad_f pgrad_f
+entry particle_fr = particle grad_f grad_r
+entry particle_rr = particle grad_r grad_r
+entry particle_rf = particle grad_r pgrad_f
