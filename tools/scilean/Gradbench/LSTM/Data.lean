@@ -29,14 +29,14 @@ def LSTMInputRaw.toLSTMInput (data : LSTMInputRaw) : LSTMInput :=
     d := d
     stlen := stlen
     lenseq := lenseq
-    mainParams := ⊞ (i : Fin stlen × Fin 2) => ⊞ (j : Fin 4 × Fin d) =>
-      (data.main_params.get! (toFin i))[(toFin j)]!
-    extraParams := ⊞ (i : Fin 3) (j : Fin d) =>
-      (data.extra_params.get! i)[j]!
-    state := ⊞ (i : Fin stlen × Fin 2) => ⊞ (j : Fin d) =>
-      (data.state.get! (toFin i))[(toFin j)]!
-    sequence := ⊞ (i : Fin lenseq) => ⊞ (j : Fin d) =>
-      (data.sequence.get! i)[j]!
+    mainParams := ⊞ (i : Idx stlen × Idx 2) => ⊞ (j : Idx 4 × Idx d) =>
+      (data.main_params.get! (toIdx i).toFin)[(toIdx j).toFin]!
+    extraParams := ⊞ (i : Idx 3) (j : Idx d) =>
+      (data.extra_params.get! i.toFin)[j.toFin]!
+    state := ⊞ (i : Idx stlen × Idx 2) => ⊞ (j : Idx d) =>
+      (data.state.get! (toIdx i).toFin)[(toIdx j).toFin]!
+    sequence := ⊞ (i : Idx lenseq) => ⊞ (j : Idx d) =>
+      (data.sequence.get! i.toFin)[j.toFin]!
   }
 
 instance : FromJson LSTMInput where
@@ -53,10 +53,10 @@ structure LSTMOutput where
 open IndexType in
 def LSTMOutput.toArray (data : LSTMOutput) : Array Float :=
   let a₁ := Array.ofFn (fun i =>
-     let (i₁,i₂,j₁,j₂) := fromFin i
+     let (i₁,i₂,j₁,j₂) := fromIdx i.toIdx
      MatrixType.toMatrix data.mainParams[i₁,i₂] j₁ j₂)
   let a₂ := Array.ofFn (fun i =>
-     let (i,j) := fromFin i
+     let (i,j) := fromIdx i.toIdx
      MatrixType.toMatrix data.extraParams i j)
   a₁ ++ a₂
 

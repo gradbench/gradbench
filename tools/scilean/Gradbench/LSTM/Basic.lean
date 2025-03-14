@@ -69,12 +69,12 @@ def lstmPredict {slen d : ℕ}
   let x₀ := mul input (row extraParams 0)
   let state₀ : (Float^[d])^[slen,2] := 0
 
-  let' (state',x') := IndexType.foldl (init:=(state₀,x₀))
-    (fun sx (i : Fin slen) =>
+  let' (state',x') := IdxType.fold .full (init:=(state₀,x₀))
+    (fun (i : Idx slen) sx =>
       let' (s,x) := sx
       let' (h,c) := lstmModel mainParams[i,0] mainParams[i,1] state[i,0] state[i,1] x
-      let s := setElem s (i,(0:Fin 2)) h .intro
-      let s := setElem s (i,(1:Fin 2)) c .intro
+      let s := setElem s (i,(0:Idx 2)) h .intro
+      let s := setElem s (i,(1:Idx 2)) c .intro
       (s,h))
 
   let v' := mul x' (row extraParams 1) + (row extraParams 2)
@@ -103,8 +103,8 @@ def lstmObjective {slen lenSeq d : ℕ}
                   (state : (Float^[d])^[slen, 2])
                   (sequence : Float^[d]^[lenSeq]) : Float :=
   -- state : [stlen][2][d]f64
-  let' (_a, total) := IndexType.foldl (init:=(state, (0:Float)))
-    fun st (i : Fin (lenSeq - 1)) =>
+  let' (_a, total) := IdxType.fold .full (init:=(state, (0:Float)))
+    fun (i : Idx (lenSeq - 1)) st =>
       let' (oldState, oldTotal) := st
       let' (y_pred, newState) := lstmPredict mainParams extraParams oldState sequence[⟨i.1,sorry_proof⟩]
       -- y_pred: DV [d]f64, newState: DM
@@ -116,16 +116,6 @@ def lstmObjective {slen lenSeq d : ℕ}
 
   let count := d * (lenSeq - 1) |>.toFloat
   (-total * count⁻¹)
-
-open VectorType in
-abbrev_data_synth scalAdd in beta x [InjectiveGetElem X n] : HasRevFDeriv K by
-  simp only [blas_to_module]
-  data_synth => enter[3]; simp[vector_optimize]; to_ssa; to_ssa; lsimp
-
-open VectorType in
-abbrev_data_synth scalAdd in beta x [InjectiveGetElem X n] : HasRevFDerivUpdate K by
-  simp only [blas_to_module]
-  data_synth => enter[3]; simp[vector_optimize]; to_ssa; to_ssa; lsimp
 
 
 abbrev_data_synth lstmObjective in mainParams extraParams : HasRevFDeriv Float by
