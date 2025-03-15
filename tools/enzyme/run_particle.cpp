@@ -41,7 +41,7 @@ std::vector<double> multivariate_argmin(void (*f)(const std::vector<double>*,
                     enzyme_dupnoneed, &dummy, &unit);
 
   int i = 0;
-  double eta = 1e-5;
+  double eta = 1e-5 * 2; // ???
 
   while (true) {
     if (magnitude(gx) <= 1e-5) {
