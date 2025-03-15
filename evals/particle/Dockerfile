@@ -7,5 +7,5 @@ WORKDIR /gradbench
 COPY python /gradbench/python
 
 ENV PYTHONPATH=/gradbench/python/gradbench:/gradbench/tools/
-ENTRYPOINT ["python", "/gradbench/python/gradbench/gradbench/evals/saddle/run.py"]
+ENTRYPOINT ["python", "/gradbench/python/gradbench/gradbench/evals/particle/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
