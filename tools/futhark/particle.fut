@@ -6,7 +6,9 @@ def pplus (u: p) (v: p) = (u.0 + v.0, u.1 + v.1)
 
 def ktimesp k (u: p) = (k * u.0, k * u.1)
 
-def pdistance (u: p) (v: p) = f64.sqrt (((u.0 - v.0) ** 2 + (u.1 - v.1) ** 2))
+def sqr (x: f64) = x * x
+
+def pdistance (u: p) (v: p) = f64.sqrt ((sqr (u.0 - v.0) + sqr (u.1 - v.1)))
 
 def naive_euler grad (w: f64) =
   let charges = [(10, 10 - w), (10, 0)]
@@ -24,7 +26,7 @@ def naive_euler grad (w: f64) =
          else (x, xdot, false)
   let delta_t_f = -x.1 / xdot.1
   let x_t_f = x `pplus` (delta_t_f `ktimesp` xdot)
-  in x_t_f.0 ** 2
+  in sqr x_t_f.0
 
 def particle grad0 grad1 w0 =
   solver.multivariate_argmin grad0 (\w -> naive_euler grad1 w[0]) [w0]

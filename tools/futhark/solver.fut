@@ -1,5 +1,5 @@
 module solver = {
-  def magnitude_squared = map (** 2) >-> f64.sum
+  def magnitude_squared = map (\x -> x * x) >-> f64.sum
 
   def magnitude = magnitude_squared >-> f64.sqrt
 
