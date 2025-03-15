@@ -33,14 +33,11 @@ std::vector<double> multivariate_argmin(std::vector<double> x) {
   F::objective(x.data(), &fx);
   std::vector<double> gx(x.size());
   std::vector<double> x_prime(x.size());
-  double dummy, unit = 1;
 
-  __enzyme_autodiff(F::objective,
-                    enzyme_dup, x.data(), gx.data(),
-                    enzyme_dupnoneed, &dummy, &unit);
+  F::gradient(x.data(), gx.data());
 
   int i = 0;
-  double eta = 1e-5 * 2; // ???
+  double eta = 1e-5;
 
   while (true) {
     if (magnitude(gx) <= 1e-5) {
@@ -60,9 +57,7 @@ std::vector<double> multivariate_argmin(std::vector<double> x) {
         if (fx_prime < fx) {
           x = x_prime;
           fx = fx_prime;
-          __enzyme_autodiff(F::objective,
-                    enzyme_dup, x.data(), gx.data(),
-                    enzyme_dupnoneed, &dummy, &unit);
+          F::gradient(x.data(), gx.data());
           i++;
         } else {
           eta /= 2;
@@ -145,6 +140,14 @@ public:
     static void objective(const double* x, double* out) {
       *out = naive_euler_r(x[0]);
     }
+    static void gradient(const double* x, double* out) {
+      double dummy, unit = 1;
+      out[0] = 0;
+      __enzyme_autodiff(objective,
+                        enzyme_dup, x, out,
+                        enzyme_dupnoneed, &dummy, &unit);
+
+    }
   };
 
   RR(particle::Input& input) : Function(input) {}
@@ -159,6 +162,14 @@ public:
     static void objective(const double* x, double* out) {
       *out = naive_euler_f(x[0]);
     }
+    static void gradient(const double* x, double* out) {
+      double dummy, unit = 1;
+      out[0] = 0;
+      __enzyme_autodiff(objective,
+                        enzyme_dup, x, out,
+                        enzyme_dupnoneed, &dummy, &unit);
+
+    }
   };
 
   RF(particle::Input& input) : Function(input) {}
@@ -167,44 +178,55 @@ public:
   }
 };
 
-/*
-class RF : public Function<particle::Input, particle::Output> {
-public:
-  RF(particle::Input& input) : Function(input) {}
-  void compute(particle::Output& output) {
-    output = multivariate_argmin(naive_euler_f_wrap,
-                                 naive_euler_f_grad_r,
-                                 std::vector<double>{_input.w0})[0];
-  }
-};
-
-
 class FR : public Function<particle::Input, particle::Output> {
 public:
+  struct O {
+    static void objective(const double* x, double* out) {
+      *out = naive_euler_r(x[0]);
+    }
+    static void gradient(const double* x, double* out) {
+      double dummy, unit = 1;
+      out[0] = 0;
+      __enzyme_fwddiff(objective,
+                       enzyme_dup, x, &unit,
+                       enzyme_dupnoneed, &dummy, out);
+
+    }
+  };
+
   FR(particle::Input& input) : Function(input) {}
   void compute(particle::Output& output) {
-    output = multivariate_argmin(naive_euler_r_wrap,
-                                 naive_euler_r_grad_f,
-                                 std::vector<double>{_input.w0})[0];
+    output = multivariate_argmin<O>(std::vector<double>{_input.w0})[0];
   }
 };
 
 class FF : public Function<particle::Input, particle::Output> {
 public:
+  struct O {
+    static void objective(const double* x, double* out) {
+      *out = naive_euler_f(x[0]);
+    }
+    static void gradient(const double* x, double* out) {
+      double dummy, unit = 1;
+      out[0] = 0;
+      __enzyme_fwddiff(objective,
+                        enzyme_dup, x, &unit,
+                        enzyme_dupnoneed, &dummy, out);
+
+    }
+  };
+
   FF(particle::Input& input) : Function(input) {}
   void compute(particle::Output& output) {
-    output = multivariate_argmin(naive_euler_f_wrap,
-                                 naive_euler_f_grad_f,
-                                 std::vector<double>{_input.w0})[0];
+    output = multivariate_argmin<O>(std::vector<double>{_input.w0})[0];
   }
 };
-*/
 
 int main(int argc, char* argv[]) {
   return generic_main(argc, argv, {
       {"rr", function_main<RR>},
-      {"rf", function_main<RF>}/*,
+      {"rf", function_main<RF>},
       {"ff", function_main<FF>},
-      {"fr", function_main<FF>}*/
+      {"fr", function_main<FR>}
     });
 }
