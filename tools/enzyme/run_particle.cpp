@@ -5,7 +5,7 @@
 using particle::Point, particle::accel;
 
 template <typename T>
-T magnitude_squared(std::vector<T>& v) {
+T magnitude_squared(const std::vector<T>& v) {
   T acc = 0.0;
   for (auto x : v) {
     acc += x*x;
@@ -14,7 +14,7 @@ T magnitude_squared(std::vector<T>& v) {
 }
 
 template <typename T>
-T magnitude(std::vector<T>& v) {
+T magnitude(const std::vector<T>& v) {
   return sqrt(magnitude_squared(v));
 }
 
