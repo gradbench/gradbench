@@ -25,10 +25,10 @@ def KMeansInputRaw.toKMeansInput (data : KMeansInputRaw) : KMeansInput :=
     d := d
     n := n
     k := k
-    points := ⊞ (i : Fin n) => ⊞ (j : Fin d) =>
-      (data.points.get! i)[j]!
-    centroids := ⊞ (i : Fin k) => ⊞ (j : Fin d) =>
-      (data.centroids.get! i)[j]!
+    points := ⊞ (i : Idx n) => ⊞ (j : Idx d) =>
+      (data.points.get! i.toFin)[j.toFin]!
+    centroids := ⊞ (i : Idx k) => ⊞ (j : Idx d) =>
+      (data.centroids.get! i.toFin)[j.toFin]!
   }
 
 instance : FromJson KMeansInput where
@@ -44,7 +44,7 @@ open IndexType in
 def KMeansOutput.toArray (data : KMeansOutput) : Array (Array Float) :=
   Array.ofFn (fun (i : Fin data.k) =>
     Array.ofFn (fun (j : Fin data.d) =>
-      data.output[i,j]))
+      data.output[i.toIdx,j.toIdx]))
 
 instance : ToJson (KMeansOutput) where
   toJson x := toJson x.toArray
