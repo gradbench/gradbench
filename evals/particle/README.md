@@ -8,18 +8,18 @@ Programming Language Theory to Make Automatic Differentiation Sound
 and
 Efficient](https://link.springer.com/chapter/10.1007/978-3-540-68942-3_8).
 
-Specifically, the particle is modeled by position $x(t)$ and velocity
-$\dot{x}(t)$, and the acceleration is given by
+Specifically, the particle is modeled by position $\mathbf{x}(t)$ and velocity
+$\dot{\mathbf{x}}(t)$, and the acceleration is given by
 
 ```math
-p(x;w) = ||x-(10,10-w)||^{-1} + ||x-(10,0)||^{-1}
+p(\mathbf{x};w) = \Vert\mathbf{x}-(10,10-w)\Vert^{-1} + \Vert\mathbf{x}-(10,0)\Vert^{-1}
 ```
 
 where $w$ is a control parameter that we can adjust. The particle hits
 the $x$-axis at position $x(t_f)$, and the goal is to compute
 
 ```math
-\text{min}_w x_0(t_f)^2
+\text{min}_w\ x_0(t_f)^2
 ```
 
 which makes the particle intersect the origin.
