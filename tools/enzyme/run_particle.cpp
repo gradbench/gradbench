@@ -27,17 +27,16 @@ T vector_dist(const std::vector<T>& u, const std::vector<T>& v) {
   return sqrt(acc);
 }
 
-std::vector<double> multivariate_argmin(void (*f)(const std::vector<double>*,
-                                                  double*),
+std::vector<double> multivariate_argmin(void (*f)(const double*, double*),
                                         std::vector<double> x) {
   double fx;
-  f(&x, &fx);
+  f(x.data(), &fx);
   std::vector<double> gx(x.size());
   std::vector<double> x_prime(x.size());
   double dummy, unit = 1;
 
   __enzyme_autodiff(f,
-                    enzyme_dup, &x, &gx,
+                    enzyme_dup, x.data(), gx.data(),
                     enzyme_dupnoneed, &dummy, &unit);
 
   int i = 0;
@@ -57,12 +56,12 @@ std::vector<double> multivariate_argmin(void (*f)(const std::vector<double>*,
         return x;
       } else {
         double fx_prime;
-        f(&x_prime, &fx_prime);
+        f(x_prime.data(), &fx_prime);
         if (fx_prime < fx) {
           x = x_prime;
           fx = fx_prime;
           __enzyme_autodiff(f,
-                            enzyme_dup, &x, &gx,
+                            enzyme_dup, x.data(), gx.data(),
                             enzyme_dupnoneed, &dummy, &unit);
           i++;
         } else {
@@ -104,8 +103,8 @@ double naive_euler(double w) {
   }
 }
 
-void naive_euler_wrap(const std::vector<double>* v, double* out) {
-  *out = naive_euler((*v)[0]);
+void naive_euler_wrap(const double* v, double* out) {
+  *out = naive_euler(v[0]);
 }
 
 class FF : public Function<particle::Input, particle::Output> {
