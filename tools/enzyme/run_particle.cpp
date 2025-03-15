@@ -27,15 +27,15 @@ T vector_dist(const std::vector<T>& u, const std::vector<T>& v) {
   return sqrt(acc);
 }
 
-std::vector<double> multivariate_argmin(void (*f)(const double*, double*),
-                                        std::vector<double> x) {
+template <typename F>
+std::vector<double> multivariate_argmin(std::vector<double> x) {
   double fx;
-  f(x.data(), &fx);
+  F::objective(x.data(), &fx);
   std::vector<double> gx(x.size());
   std::vector<double> x_prime(x.size());
   double dummy, unit = 1;
 
-  __enzyme_autodiff(f,
+  __enzyme_autodiff(F::objective,
                     enzyme_dup, x.data(), gx.data(),
                     enzyme_dupnoneed, &dummy, &unit);
 
@@ -56,13 +56,13 @@ std::vector<double> multivariate_argmin(void (*f)(const double*, double*),
         return x;
       } else {
         double fx_prime;
-        f(x_prime.data(), &fx_prime);
+        F::objective(x_prime.data(), &fx_prime);
         if (fx_prime < fx) {
           x = x_prime;
           fx = fx_prime;
-          __enzyme_autodiff(f,
-                            enzyme_dup, x.data(), gx.data(),
-                            enzyme_dupnoneed, &dummy, &unit);
+          __enzyme_autodiff(F::objective,
+                    enzyme_dup, x.data(), gx.data(),
+                    enzyme_dupnoneed, &dummy, &unit);
           i++;
         } else {
           eta /= 2;
@@ -79,7 +79,7 @@ void accel_wrap(const std::vector<Point<double>>* charges,
   *out = accel(*charges, *px);
 }
 
-double naive_euler(double w) {
+double naive_euler_r(double w) {
   std::vector<Point<double>> charges = { Point(10.0,10.0-w), Point(10.0,0.0) };
   Point<double> x = Point(0.0, 8.0);
   Point<double> xdot = Point(0.75, 0.0);
@@ -103,22 +103,108 @@ double naive_euler(double w) {
   }
 }
 
-void naive_euler_wrap(const double* v, double* out) {
-  *out = naive_euler(v[0]);
+double naive_euler_f(double w) {
+  std::vector<Point<double>> charges = { Point(10.0,10.0-w), Point(10.0,0.0) };
+  Point<double> x = Point(0.0, 8.0);
+  Point<double> xdot = Point(0.75, 0.0);
+  double delta_t = 1e-1;
+
+  while (true) {
+    Point<double> xddot;
+    double dummy = 1;
+
+    {
+      Point<double> xdtan(1,0);
+    __enzyme_fwddiff(accel_wrap,
+                     enzyme_const, &charges,
+                     enzyme_dup, &x, &xdtan,
+                     enzyme_dupnoneed, &dummy, &xddot.x);
+    }
+    {
+      Point<double> xdtan(0,1);
+      __enzyme_fwddiff(accel_wrap,
+                       enzyme_const, &charges,
+                       enzyme_dup, &x, &xdtan,
+                       enzyme_dupnoneed, &dummy, &xddot.y);
+    }
+
+    xddot = -1.0 * xddot;
+    x += delta_t * xdot;
+    if (x.y <= 0) {
+      auto delta_t_f = -x.y / xdot.y;
+      auto x_t_f = x + delta_t_f * xdot;
+      return x_t_f.x * x_t_f.x;
+    }
+    xdot += delta_t * xddot;
+  }
 }
 
-class FF : public Function<particle::Input, particle::Output> {
+class RR : public Function<particle::Input, particle::Output> {
 public:
-  FF(particle::Input& input) : Function(input) {}
+  struct O {
+    static void objective(const double* x, double* out) {
+      *out = naive_euler_r(x[0]);
+    }
+  };
 
+  RR(particle::Input& input) : Function(input) {}
   void compute(particle::Output& output) {
-    output = multivariate_argmin(naive_euler_wrap,
+    output = multivariate_argmin<O>(std::vector<double>{_input.w0})[0];
+  }
+};
+
+class RF : public Function<particle::Input, particle::Output> {
+public:
+  struct O {
+    static void objective(const double* x, double* out) {
+      *out = naive_euler_f(x[0]);
+    }
+  };
+
+  RF(particle::Input& input) : Function(input) {}
+  void compute(particle::Output& output) {
+    output = multivariate_argmin<O>(std::vector<double>{_input.w0})[0];
+  }
+};
+
+/*
+class RF : public Function<particle::Input, particle::Output> {
+public:
+  RF(particle::Input& input) : Function(input) {}
+  void compute(particle::Output& output) {
+    output = multivariate_argmin(naive_euler_f_wrap,
+                                 naive_euler_f_grad_r,
                                  std::vector<double>{_input.w0})[0];
   }
 };
 
+
+class FR : public Function<particle::Input, particle::Output> {
+public:
+  FR(particle::Input& input) : Function(input) {}
+  void compute(particle::Output& output) {
+    output = multivariate_argmin(naive_euler_r_wrap,
+                                 naive_euler_r_grad_f,
+                                 std::vector<double>{_input.w0})[0];
+  }
+};
+
+class FF : public Function<particle::Input, particle::Output> {
+public:
+  FF(particle::Input& input) : Function(input) {}
+  void compute(particle::Output& output) {
+    output = multivariate_argmin(naive_euler_f_wrap,
+                                 naive_euler_f_grad_f,
+                                 std::vector<double>{_input.w0})[0];
+  }
+};
+*/
+
 int main(int argc, char* argv[]) {
   return generic_main(argc, argv, {
-      {"rr", function_main<FF>}
+      {"rr", function_main<RR>},
+      {"rf", function_main<RF>}/*,
+      {"ff", function_main<FF>},
+      {"fr", function_main<FF>}*/
     });
 }
