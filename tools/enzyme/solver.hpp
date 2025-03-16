@@ -73,10 +73,10 @@ std::vector<double> multivariate_argmin(std::vector<double> x) {
 template <typename F>
 std::vector<double> multivariate_argmax(std::vector<double> x) {
   struct C {
-    double cost(std::vector<double> x) {
+    double cost(const std::vector<double>& x) {
       return -F::cost(x);
     }
-    std::vector<double> gradient(std::vector<double> x) {
+    std::vector<double> gradient(const std::vector<double>& x) {
       std::vector<double> r = F::gradient(x);
       for (auto &x : r) {
         x = -x;
@@ -88,6 +88,6 @@ std::vector<double> multivariate_argmax(std::vector<double> x) {
 }
 
 template <typename F>
-std::vector<double> multivariate_max(std::vector<double> x) {
+std::vector<double> multivariate_max(const std::vector<double>& x) {
   return F::cost(multivariate_argmax<F>(x));
 }

@@ -14,4 +14,4 @@ run_%: run_%.cpp
 	$(CXX) -o $@ $^ $(LDFLAGS) $(CXXFLAGS)
 
 clean:
-	rm -f $(UTIL_OBJECTS) $(HT_OBJECTS) $(EXECUTABLES)
+	rm -f $(EXECUTABLES)
