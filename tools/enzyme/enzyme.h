@@ -11,3 +11,6 @@ void __enzyme_fwddiff(... ) noexcept;
 
 template<typename return_type, typename ... T>
 return_type __enzyme_autodiff_template(void*, T ... );
+
+template<typename return_type, typename ... T>
+return_type __enzyme_fwddiff_template(void*, T ... );
