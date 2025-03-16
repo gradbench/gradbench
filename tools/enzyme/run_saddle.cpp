@@ -82,12 +82,12 @@ struct R1CostRR {
   }
 
   void gradient(const double* p1, double* out) const {
-    auto [p1x, p1y] =
-      __enzyme_autodiff_template<double2>((void*)max_primal_r,
-                                          enzyme_out, p1[0],
-                                          enzyme_out, p1[1],
-                                          enzyme_const, _start[0],
-                                          enzyme_const, _start[1]);
+    auto [p1x, p1y] = __enzyme_autodiff_template<double2>
+      ((void*)max_primal_r,
+       enzyme_out, p1[0],
+       enzyme_out, p1[1],
+       enzyme_const, _start[0],
+       enzyme_const, _start[1]);
     out[0] = p1x;
     out[1] = p1y;
   }
@@ -108,12 +108,12 @@ struct R1CostRF {
   }
 
   void gradient(const double* p1, double* out) const {
-    auto [p1x, p1y] =
-      __enzyme_autodiff_template<double2>((void*)max_primal_f,
-                                          enzyme_out, p1[0],
-                                          enzyme_out, p1[1],
-                                          enzyme_const, _start[0],
-                                          enzyme_const, _start[1]);
+    auto [p1x, p1y] = __enzyme_autodiff_template
+      <double2>((void*)max_primal_f,
+                enzyme_out, p1[0],
+                enzyme_out, p1[1],
+                enzyme_const, _start[0],
+                enzyme_const, _start[1]);
     out[0] = p1x;
     out[1] = p1y;
   }
