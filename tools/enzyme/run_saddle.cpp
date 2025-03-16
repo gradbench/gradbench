@@ -35,10 +35,11 @@ void max_primal_r(const double *p1,
 }
 
 struct R1Cost {
-  const double *_start;
+  double _start[2];
 
   R1Cost(const saddle::Input& input) {
-    _start = &input.start[0];
+    _start[0] = input.start[0];
+    _start[1] = input.start[1];
   }
 
   void objective(const double* v, double* out) const {
