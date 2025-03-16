@@ -30,12 +30,15 @@ T vector_dist(const std::vector<T>& u, const std::vector<T>& v) {
 }
 
 template <typename F>
-std::vector<double> multivariate_argmin(const F f, std::vector<double> x) {
+std::vector<double> multivariate_argmin(const F f, const double* xp) {
   double fx;
-  F::objective(x.data(), &fx);
-  std::vector<double> gx(x.size());
-  std::vector<double> x_prime(x.size());
+  std::vector<double> x(f.input_size());
+  std::vector<double> gx(f.input_size());
+  std::vector<double> x_prime(f.input_size());
 
+  x.assign(xp, xp+f.input_size());
+
+  f.objective(xp, &fx);
   f.gradient(x.data(), gx.data());
 
   int i = 0;
@@ -48,7 +51,7 @@ std::vector<double> multivariate_argmin(const F f, std::vector<double> x) {
       eta *= 2;
       i = 0;
     } else {
-      for (int j = 0; j < x.size(); j++) {
+      for (int j = 0; j < f.input_size(); j++) {
         x_prime[j] = x[j] - eta * gx[j];
       }
       if (vector_dist(x, x_prime) <= 1e-5) {
@@ -71,23 +74,33 @@ std::vector<double> multivariate_argmin(const F f, std::vector<double> x) {
 }
 
 template <typename F>
-std::vector<double> multivariate_argmax(std::vector<double> x) {
+std::vector<double> multivariate_argmax(const F& f, const double* x) {
   struct C {
-    double cost(const std::vector<double>& x) {
-      return -F::cost(x);
+    const F& _f;
+    int _n;
+
+    C(const F& f, int i) : _f(f), _n(i) {}
+
+    void objective(const double* x, double* out) const {
+      double tmp;
+      _f.objective(x, &tmp);
+      *out = -tmp;
     }
-    std::vector<double> gradient(const std::vector<double>& x) {
-      std::vector<double> r = F::gradient(x);
-      for (auto &x : r) {
-        x = -x;
+    void gradient(const double* x, double* out) const {
+      _f.gradient(x, out);
+      for (int i = 0; i < _n; i++) {
+        out[i] *= -1;
       }
-      return r;
     }
+    size_t input_size() const { return _f.input_size(); }
   };
-  return multivariate_argmin<C>(C(), x);
+  return multivariate_argmin<C>(C(f, f.input_size()), x);
 }
 
 template <typename F>
-std::vector<double> multivariate_max(const std::vector<double>& x) {
-  return F::cost(multivariate_argmax<F>(x));
+double multivariate_max(const F& f, const double* x) {
+  double res;
+  std::vector<double> xmax = multivariate_argmax(f,x);
+  f.objective(xmax.data(), &res);
+  return res;
 }

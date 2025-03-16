@@ -77,7 +77,7 @@ public:
     static void objective(const double* x, double* out) {
       *out = naive_euler_r(x[0]);
     }
-    static void gradient(const double* x, double* out) {
+    void gradient(const double* x, double* out) const {
       double dummy, unit = 1;
       out[0] = 0;
       __enzyme_autodiff(objective,
@@ -85,11 +85,13 @@ public:
                         enzyme_dupnoneed, &dummy, &unit);
 
     }
+
+    size_t input_size() const { return 1; }
   };
 
   RR(particle::Input& input) : Function(input) {}
   void compute(particle::Output& output) {
-    output = multivariate_argmin(O(), std::vector<double>{_input.w0})[0];
+    output = multivariate_argmin(O(), &_input.w0)[0];
   }
 };
 
@@ -99,7 +101,7 @@ public:
     static void objective(const double* x, double* out) {
       *out = naive_euler_f(x[0]);
     }
-    static void gradient(const double* x, double* out) {
+    void gradient(const double* x, double* out) const {
       double dummy, unit = 1;
       out[0] = 0;
       __enzyme_autodiff(objective,
@@ -107,11 +109,13 @@ public:
                         enzyme_dupnoneed, &dummy, &unit);
 
     }
+
+    size_t input_size() const { return 1; }
   };
 
   RF(particle::Input& input) : Function(input) {}
   void compute(particle::Output& output) {
-    output = multivariate_argmin(O(), std::vector<double>{_input.w0})[0];
+    output = multivariate_argmin(O(), &_input.w0)[0];
   }
 };
 
@@ -121,7 +125,7 @@ public:
     static void objective(const double* x, double* out) {
       *out = naive_euler_r(x[0]);
     }
-    static void gradient(const double* x, double* out) {
+    void gradient(const double* x, double* out) const {
       double dummy, unit = 1;
       out[0] = 0;
       __enzyme_fwddiff(objective,
@@ -129,11 +133,13 @@ public:
                        enzyme_dupnoneed, &dummy, out);
 
     }
+
+    size_t input_size() const { return 1; }
   };
 
   FR(particle::Input& input) : Function(input) {}
   void compute(particle::Output& output) {
-    output = multivariate_argmin(O(), std::vector<double>{_input.w0})[0];
+    output = multivariate_argmin(O(), &_input.w0)[0];
   }
 };
 
@@ -143,19 +149,21 @@ public:
     static void objective(const double* x, double* out) {
       *out = naive_euler_f(x[0]);
     }
-    static void gradient(const double* x, double* out) {
+    void gradient(const double* x, double* out) const {
       double dummy, unit = 1;
       out[0] = 0;
       __enzyme_fwddiff(objective,
-                        enzyme_dup, x, &unit,
-                        enzyme_dupnoneed, &dummy, out);
+                       enzyme_dup, x, &unit,
+                       enzyme_dupnoneed, &dummy, out);
 
     }
+
+    size_t input_size() const { return 1; }
   };
 
   FF(particle::Input& input) : Function(input) {}
   void compute(particle::Output& output) {
-    output = multivariate_argmin(O(), std::vector<double>{_input.w0})[0];
+    output = multivariate_argmin(O(), &_input.w0)[0];
   }
 };
 
