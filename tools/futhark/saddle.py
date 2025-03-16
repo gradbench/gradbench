@@ -3,7 +3,7 @@ import numpy as np
 
 
 def prepare(server, input):
-    server.put_value("w", np.float64(input["w"]))
+    server.put_value("start", np.float64(input["start"]))
 
 
 def entry(server, input, variant):
@@ -11,7 +11,7 @@ def entry(server, input, variant):
         server,
         f"saddle_{variant}",
         ("output",),
-        ("w",),
+        ("start",),
         input["min_runs"],
         input["min_seconds"],
     )

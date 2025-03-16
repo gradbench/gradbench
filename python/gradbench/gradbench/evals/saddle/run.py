@@ -26,7 +26,7 @@ def main():
     e = SingleModuleValidatedEval(module="saddle", validator=mismatch(check))
     e.start()
     if e.define().success:
-        input = {"w": [1.0, 1.0]}
+        input = {"start": [1.0, 1.0]}
         e.evaluate(
             function="rr",
             input=input | {"min_runs": args.min_runs, "min_seconds": args.min_seconds},

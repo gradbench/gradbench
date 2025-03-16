@@ -9,44 +9,47 @@ void primal(const double* v, double* out) {
   *out = saddle::objective(v[0], v[1], v[2], v[3]);
 }
 
+struct MaxPrimalR {
+  void objective(const double* v, double* out) const {
+    primal(v, out);
+  }
+
+  void gradient(const double* v, double* out) const {
+    double dummy, unit = 1;
+    __enzyme_autodiff(primal,
+                      enzyme_dup, v, out,
+                      enzyme_dupnoneed, &dummy, &unit);
+  }
+
+  size_t input_size() const { return 4; }
+};
+
+void max_primal_r(size_t n,
+                  const double* start,
+                  const double* v,
+                  double* out) {
+
+  *out = multivariate_max(MaxPrimalR(), start);
+}
+
 class RR : public Function<saddle::Input, saddle::Output> {
-  struct Inner {
-
-    void objective(const double* v, double* out) const {
-      primal(v, out);
-    }
-
-    void gradient(const double* v, double* out) const {
-      double dummy, unit = 1;
-      __enzyme_autodiff(primal,
-                        enzyme_dup, v, out,
-                        enzyme_dupnoneed, &dummy, &unit);
-    }
-
-    size_t input_size() const { return 4; }
-  };
-
   struct Outer {
-    std::vector<double> start;
+    double _start[2];
 
-    Outer(const std::vector<double>& v) : start(v) {}
-
-    static void objective_static(size_t n,
-                                 const double* start,
-                                 const double* v,
-                                 double* out) {
-      *out = multivariate_max(Inner(), start);
+    Outer(const saddle::Input& input) {
+      _start[0] = input.start[0];
+      _start[1] = input.start[1];
     }
 
     void objective(const double* v, double* out) const {
-      objective_static(2, start.data(), v, out);
+      max_primal_r(2, _start, v, out);
     }
 
     void gradient(const double* v, double* out) const {
       double dummy, unit = 1;
-      __enzyme_autodiff(objective_static,
+      __enzyme_autodiff(max_primal_r,
                         enzyme_const, (size_t)2,
-                        enzyme_const, start.data(),
+                        enzyme_const, _start,
                         enzyme_dup, v, out,
                         enzyme_dupnoneed, &dummy, &unit);
     }
@@ -54,10 +57,15 @@ class RR : public Function<saddle::Input, saddle::Output> {
     size_t input_size() const { return 2; }
   };
 
+  std::vector<double> _start;
+
 public:
-  RR(saddle::Input& input) : Function(input) {}
+  RR(saddle::Input& input) : Function(input), _start(2) {
+    _start[0] = input.start[0];
+    _start[1] = input.start[1];
+  }
   void compute(saddle::Output& output) {
-    multivariate_argmin<Outer>(Outer(_input), _input.data());
+    output = multivariate_argmin<Outer>(Outer(_input), _input.start);
   }
 };
 
