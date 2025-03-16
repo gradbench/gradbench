@@ -32,8 +32,8 @@ int function_main(const std::string& input_file) {
   json j = json::parse(f);
   typename Benchmark::Input input = j.template get<typename Benchmark::Input>();
 
-  int min_runs = j.is_object() ? int(j["min_runs"]) : 1;
-  double min_seconds = j.is_object() ? double(j["min_seconds"]) : 0;
+  int min_runs = j.contains("min_runs") ? int(j["min_runs"]) : 1;
+  double min_seconds = j.contains("min_seconds") ? double(j["min_seconds"]) : 0;
   assert(min_runs > 0);
 
   auto prepare_start = steady_clock::now();
