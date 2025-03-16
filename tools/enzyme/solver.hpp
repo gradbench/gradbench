@@ -36,7 +36,9 @@ std::vector<double> multivariate_argmin(const F f, const double* xp) {
   std::vector<double> gx(f.input_size());
   std::vector<double> x_prime(f.input_size());
 
-  x.assign(xp, xp+f.input_size());
+  for (int j = 0; j < f.input_size(); j++) {
+    x[j] = xp[j];
+  }
 
   f.objective(xp, &fx);
   f.gradient(x.data(), gx.data());
