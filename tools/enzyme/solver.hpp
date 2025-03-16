@@ -30,13 +30,13 @@ T vector_dist(const std::vector<T>& u, const std::vector<T>& v) {
 }
 
 template <typename F>
-std::vector<double> multivariate_argmin(std::vector<double> x) {
+std::vector<double> multivariate_argmin(const F f, std::vector<double> x) {
   double fx;
   F::objective(x.data(), &fx);
   std::vector<double> gx(x.size());
   std::vector<double> x_prime(x.size());
 
-  F::gradient(x.data(), gx.data());
+  f.gradient(x.data(), gx.data());
 
   int i = 0;
   double eta = 1e-5;
@@ -55,11 +55,11 @@ std::vector<double> multivariate_argmin(std::vector<double> x) {
         return x;
       } else {
         double fx_prime;
-        F::objective(x_prime.data(), &fx_prime);
+        f.objective(x_prime.data(), &fx_prime);
         if (fx_prime < fx) {
           x = x_prime;
           fx = fx_prime;
-          F::gradient(x.data(), gx.data());
+          f.gradient(x.data(), gx.data());
           i++;
         } else {
           eta /= 2;
@@ -84,7 +84,7 @@ std::vector<double> multivariate_argmax(std::vector<double> x) {
       return r;
     }
   };
-  return multivariate_argmin<C>(x);
+  return multivariate_argmin<C>(C(), x);
 }
 
 template <typename F>

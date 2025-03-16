@@ -89,7 +89,7 @@ public:
 
   RR(particle::Input& input) : Function(input) {}
   void compute(particle::Output& output) {
-    output = multivariate_argmin<O>(std::vector<double>{_input.w0})[0];
+    output = multivariate_argmin(O(), std::vector<double>{_input.w0})[0];
   }
 };
 
@@ -111,7 +111,7 @@ public:
 
   RF(particle::Input& input) : Function(input) {}
   void compute(particle::Output& output) {
-    output = multivariate_argmin<O>(std::vector<double>{_input.w0})[0];
+    output = multivariate_argmin(O(), std::vector<double>{_input.w0})[0];
   }
 };
 
@@ -133,7 +133,7 @@ public:
 
   FR(particle::Input& input) : Function(input) {}
   void compute(particle::Output& output) {
-    output = multivariate_argmin<O>(std::vector<double>{_input.w0})[0];
+    output = multivariate_argmin(O(), std::vector<double>{_input.w0})[0];
   }
 };
 
@@ -155,7 +155,7 @@ public:
 
   FF(particle::Input& input) : Function(input) {}
   void compute(particle::Output& output) {
-    output = multivariate_argmin<O>(std::vector<double>{_input.w0})[0];
+    output = multivariate_argmin(O(), std::vector<double>{_input.w0})[0];
   }
 };
 
