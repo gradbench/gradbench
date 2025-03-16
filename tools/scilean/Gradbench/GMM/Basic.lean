@@ -14,12 +14,12 @@ set_default_scalar Float
 open VectorType in
 /-- unlack `logdiag` and `lt` to lower triangular matrix -/
 def unpackQ {d : Nat} (logdiag : Float^[d]) (lt : Float^[((d-1)*d/2)]) : Float^[d,d]  :=
-  ⊞ (ij : Fin d × Fin d) =>
+  ⊞ (ij : Idx d × Idx d) =>
     let' (i,j) := ij
     if h : i < j then 0
        else if h' : i == j then exp (logdiag[i])
        else
-         let idx : Fin ((d-1)*d/2) := ⟨d*j.1 + i.1 - j.1 - 1 - (j.1 * (j.1+1))/2,
+         let idx : Idx ((d-1)*d/2) := ⟨d.toUSize*j.1 + i.1 - j.1 - 1 - (j.1 * (j.1+1))/2,
                                        have := h; have := h'; sorry_proof⟩
          (lt[idx])
 
@@ -54,8 +54,8 @@ def gmmObjective {d k n : Nat}
     let qsums := ⊞ i => VectorType.sum (MatrixType.row logdiag i)
 
     let slse : Float :=
-      ∑ (i : Fin n), logsumexp (VectorType.fromVec (X:=Float^[k])
-        fun (j : Fin k) =>
+      ∑ᴵ (i : Idx n), logsumexp (VectorType.fromVec (X:=Float^[k])
+        fun (j : Idx k) =>
           alphas[j]
           +
           qsums[j]

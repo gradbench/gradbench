@@ -1,5 +1,5 @@
 FROM python:3.11-slim
-ARG ENZYME_VER=0.0.168
+ARG ENZYME_VER=0.0.172
 
 WORKDIR /gradbench
 
