@@ -77,9 +77,8 @@ template <typename F>
 std::vector<double> multivariate_argmax(const F& f, const double* x) {
   struct C {
     const F& _f;
-    int _n;
 
-    C(const F& f, int i) : _f(f), _n(i) {}
+    C(const F& f) : _f(f) {}
 
     void objective(const double* x, double* out) const {
       double tmp;
@@ -88,13 +87,13 @@ std::vector<double> multivariate_argmax(const F& f, const double* x) {
     }
     void gradient(const double* x, double* out) const {
       _f.gradient(x, out);
-      for (int i = 0; i < _n; i++) {
+      for (int i = 0; i < _f.input_size(); i++) {
         out[i] *= -1;
       }
     }
     size_t input_size() const { return _f.input_size(); }
   };
-  return multivariate_argmin<C>(C(f, f.input_size()), x);
+  return multivariate_argmin(C(f), x);
 }
 
 template <typename F>
