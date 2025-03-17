@@ -38,6 +38,8 @@ Other tools that are optional but useful:
 - [uv][]
 - [Make][]
 
+If you're using [Nix][] and [direnv][], everything you need is in the `shell.nix` file at the root of this repo, which will be automatically activated once you've entered the directory if you've run `direnv allow` at least once.
+
 ## Setup
 
 Once you've installed all prerequisites, clone this repo, e.g. with GitHub CLI:
@@ -311,6 +313,7 @@ type Session = (MessageLine | ResponseLine)[];
 
 [bun]: https://bun.sh/
 [containerd]: https://docs.docker.com/storage/containerd/
+[direnv]: https://direnv.net/
 [docker]: https://docs.docker.com/engine/install/
 [git]: https://git-scm.com/downloads
 [github cli]: https://github.com/cli/cli#installation
@@ -318,6 +321,7 @@ type Session = (MessageLine | ResponseLine)[];
 [make]: https://en.wikipedia.org/wiki/Make_(software)
 [markdown-toc]: https://www.npmjs.com/package/markdown-toc
 [multi-platform images]: https://docs.docker.com/build/building/multi-platform/
+[nix]: https://nixos.org/
 [python]: https://docs.astral.sh/uv/guides/install-python/
 [qemu]: https://docs.docker.com/build/building/multi-platform/#install-qemu-manually
 [ruff]: https://docs.astral.sh/ruff/
