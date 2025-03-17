@@ -60,6 +60,7 @@ in pkgs.stdenv.mkDerivation {
   name = "gradbench";
   buildInputs = [
     gradbench-python
+    pkgs.bun
     pkgs.niv
     pkgs.gh
     pkgs.ruff
@@ -81,6 +82,7 @@ in pkgs.stdenv.mkDerivation {
 
     # Rust
     pkgs.cargo
+    pkgs.clippy
     pkgs.rustc
     pkgs.rustfmt
 
@@ -95,6 +97,7 @@ in pkgs.stdenv.mkDerivation {
 
   # The following are environment variables used by various tools.
   PYTHONPATH = "${GRADBENCH_PATH}/python/gradbench";
+  RUST_SRC_PATH = pkgs.rustPlatform.rustLibSrc;
   ENZYME_LIB = "${pkgs.enzyme}/lib";
   LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib";
 }

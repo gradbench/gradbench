@@ -5,6 +5,7 @@ __pycache__/
 *.vsix
 *~
 /.config/dotnet-tools.json
+/.direnv/
 /log.jsonl
 /packages/vscode/bin/
 /run/
