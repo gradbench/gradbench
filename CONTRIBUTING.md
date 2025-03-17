@@ -36,7 +36,7 @@ cd gradbench
 
 ## Dependencies
 
-If you're using [Nix][] and [direnv][], pretty much everything you need is in the `shell.nix` file at the root of this repo, which will be automatically activated when you entered this directory if you've run `direnv allow` here at least once.
+If you're using [Nix][] and [direnv][], pretty much everything you need is in the `shell.nix` file at the root of this repo, which will be automatically activated when you enter this directory if you've run `direnv allow` here at least once.
 
 Otherwise, make sure you have the following tools installed:
 
