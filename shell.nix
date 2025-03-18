@@ -80,6 +80,10 @@ in pkgs.stdenv.mkDerivation {
     cppad
     codipack
 
+    # Haskell
+    pkgs.cabal-install
+    pkgs.ghc
+
     # Rust
     pkgs.cargo
     pkgs.clippy
