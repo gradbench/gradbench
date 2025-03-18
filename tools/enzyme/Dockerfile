@@ -20,9 +20,6 @@ RUN apt-get install -y \
     libclang-19-dev \
     lld-19
 
-COPY python /gradbench/python
-ENV PYTHONPATH=/gradbench/python/gradbench
-
 # Set clang
 RUN update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 100
 RUN update-alternatives --install /usr/bin/lld lld /usr/bin/lld-19 100
@@ -36,6 +33,9 @@ RUN ninja -C enzyme-build
 
 COPY cpp /gradbench/cpp
 RUN make -C cpp
+
+COPY python /gradbench/python
+ENV PYTHONPATH=/gradbench/python/gradbench
 
 COPY tools/enzyme/ /gradbench/tools/enzyme
 
