@@ -76,6 +76,7 @@ in pkgs.stdenv.mkDerivation {
     pkgs.openblas
     pkgs.zlib
     pkgs.adolc
+    pkgs.eigen
     adept
     cppad
     codipack
