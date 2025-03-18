@@ -76,9 +76,14 @@ in pkgs.stdenv.mkDerivation {
     pkgs.openblas
     pkgs.zlib
     pkgs.adolc
+    pkgs.eigen
     adept
     cppad
     codipack
+
+    # Haskell
+    pkgs.cabal-install
+    pkgs.ghc
 
     # Rust
     pkgs.cargo
@@ -90,9 +95,6 @@ in pkgs.stdenv.mkDerivation {
     pkgs.opam
     pkgs.ocamlPackages.dune_3
     pkgs.ocamlPackages.ocaml
-    pkgs.ocamlPackages.owl
-    pkgs.ocamlPackages.yojson
-    pkgs.ocamlPackages.findlib
   ];
 
   # The following are environment variables used by various tools.
