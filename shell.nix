@@ -64,7 +64,7 @@ in pkgs.stdenv.mkDerivation {
     pkgs.niv
     pkgs.gh
     pkgs.ruff
-    pkgs.nixfmt
+    pkgs.nixfmt-classic
 
     pkgs.futhark
     pkgs.enzyme
