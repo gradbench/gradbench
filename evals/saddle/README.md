@@ -57,9 +57,9 @@ inner and outer). The algorithm has two steps:
 
    that is, compute the argmax, but this time not in a nested case.
 
-The benchmark can be implemented in four variants, which at the
-GradBench level exist as four functions. They differ in which mode of
-AD is used for step 1 above:
+The benchmark can be implemented in four function variants, which at
+the GradBench level exist as four functions. They differ in which mode
+of AD is used for step 1 above:
 
 * `ff`, where the argmin uses forward mode and the argmax uses forward mode.
 * `fr`, where the argmin uses forward mode and the argmax uses reverse mode.
@@ -67,6 +67,9 @@ AD is used for step 1 above:
 * `rr`, where the argmin uses reverse mode and the argmax uses reverse mode.
 
 The argmax of step 2 must use the same mode of AD as the argmin of step 1.
+
+All function variants accept the same input and must produce the same
+results.
 
 ## Protocol
 
@@ -76,10 +79,12 @@ description][protocol].
 
 ### Inputs
 
-The eval sends a leading `DefineMessage` followed by
-`EvaluateMessages`. The `input` field of any `EvaluateMessage` will be
-an instance of the `SaddleInput` type defined below. The `function`
-field will one of the strings `"ff"`, `"fr"`, `"rr"`, `"rf"`.
+The eval sends a leading `DefineMessage` with a module named `saddle`,
+followed by `EvaluateMessages`. The `input` field of any
+`EvaluateMessage` will be an instance of the `SaddleInput` type
+defined below. The `function` field will one of the strings `"ff"`,
+`"fr"`, `"rr"`, `"rf"`, which all have the same input/output
+interface.
 
 ```typescript
 interface SaddleInput extends Runs {
