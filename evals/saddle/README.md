@@ -1,9 +1,13 @@
 # Finding Saddle Points with Gradient Descent
 
 The benchmark uses gradient descent to compute the saddle point of a
-simple function, and was originally proposed by Pearlmutter and
-Siskind in the paper [Using Programming Language Theory to Make
-Automatic Differentiation Sound and Efficient][paper].
+simple function. This benchmark, along with [saddle](../saddle/), was
+originally proposed by Pearlmutter and Siskind in the papers [Using
+Programming Language Theory to Make Automatic Differentiation Sound
+and
+Efficient](https://link.springer.com/chapter/10.1007/978-3-540-68942-3_8)
+and [Putting the Automatic Back into AD: Part I, What’s
+Wrong](https://docs.lib.purdue.edu/ecetr/368/).
 
 ## Specification
 
@@ -99,4 +103,3 @@ The output contains the points `x` and `y` concatenated.
 
 [protocol]: /CONTRIBUTING.md#types
 [typescript]: https://www.typescriptlang.org/
-[paper]: https://link.springer.com/chapter/10.1007/978-3-540-68942-3_8

@@ -3,10 +3,13 @@
 The benchmark models a charged particle accelerated by an electric
 field formed by a pair of repulsive bodies, with the goal being to
 find a control parameter that causes the movement of the particle to
-intersect the origin. The benchmark and was originally proposed by
-Pearlmutter and Siskind in the paper [Using Programming Language
-Theory to Make Automatic Differentiation Sound and
-Efficient](https://link.springer.com/chapter/10.1007/978-3-540-68942-3_8).
+intersect the origin. This benchmark, along with [saddle](../saddle/),
+was originally proposed by Pearlmutter and Siskind in the papers
+[Using Programming Language Theory to Make Automatic Differentiation
+Sound and
+Efficient](https://link.springer.com/chapter/10.1007/978-3-540-68942-3_8)
+and [Putting the Automatic Back into AD: Part I, What’s
+Wrong](https://docs.lib.purdue.edu/ecetr/368/).
 
 ## Specification
 
