@@ -39,23 +39,14 @@ Operationally, as input we are given a starting point $s$. This is
 used as the starting point for all instances of gradient descent (both
 inner and outer). The algorithm has two steps:
 
-1. Find the point $x$ that minimises
-
-   ```math
-   \text{max}_ {y\in\mathbb{R}^2} f(x,y)
-   ```
-
-   that is, compute the outer argmin. This is the part that requires
+1. Find the point $x$ that minimises $\text{max}_ {y\in\mathbb{R}^2}
+   f(x,y)$ that is, compute the argmin. This is the part that requires
    nested gradient descent, as we need to (repeatedly) compute the
    inner argmax.
 
 2. Now that $x$ is known, find the $y$ that maximises the function
-
-   ```math
-   f(x,y)
-   ```
-
-   that is, compute the argmax, but this time not in a nested case.
+   $f(x,y)$ that is, compute the argmax, but this time not in a nested
+   case.
 
 The benchmark can be implemented in four function variants, which at
 the GradBench level exist as four functions. They differ in which mode
