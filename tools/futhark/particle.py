@@ -9,7 +9,7 @@ def prepare(server, input):
 def entry(server, input, variant):
     (o,), times = futhark_utils.run(
         server,
-        f"particle_{variant}",
+        variant,
         ("output",),
         ("w",),
         input["min_runs"],

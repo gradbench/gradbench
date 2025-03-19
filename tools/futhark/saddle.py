@@ -9,7 +9,7 @@ def prepare(server, input):
 def entry(server, input, variant):
     (o,), times = futhark_utils.run(
         server,
-        f"saddle_{variant}",
+        variant,
         ("output",),
         ("start",),
         input["min_runs"],

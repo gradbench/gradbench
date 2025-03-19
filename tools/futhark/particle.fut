@@ -35,7 +35,7 @@ def grad_r f x = vjp f x 1f64
 def grad_f f x = map (\i -> jvp f x (map (const 0) x with [i] = 1f64)) (indices x)
 def pgrad_f f (x, y) = (jvp f (x, y) (1, 0), jvp f (x, y) (0f64, 1f64))
 
-entry particle_ff = particle grad_f pgrad_f
-entry particle_fr = particle grad_f grad_r
-entry particle_rr = particle grad_r grad_r
-entry particle_rf = particle grad_r pgrad_f
+entry ff = particle grad_f pgrad_f
+entry fr = particle grad_f grad_r
+entry rr = particle grad_r grad_r
+entry rf = particle grad_r pgrad_f

@@ -11,7 +11,7 @@ def saddle grad0 grad1 (start: [2]f64) : [2][2]f64 =
 def grad_r f x = vjp f x 1f64
 def grad_f f x = map (\i -> jvp f x (map (const 0) x with [i] = 1f64)) (indices x)
 
-entry saddle_ff = saddle grad_f grad_f
-entry saddle_fr = saddle grad_f grad_r
-entry saddle_rr = saddle grad_r grad_r
-entry saddle_rf = saddle grad_r grad_f
+entry ff = saddle grad_f grad_f
+entry fr = saddle grad_f grad_r
+entry rr = saddle grad_r grad_r
+entry rf = saddle grad_r grad_f
