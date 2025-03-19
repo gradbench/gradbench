@@ -36,13 +36,14 @@ cd gradbench
 
 ## Dependencies
 
-If you're using [Nix][] and [direnv][], pretty much everything you need is in the `shell.nix` file at the root of this repo, which will be automatically activated when you enter this directory if you've run `direnv allow` here at least once.
+You need [Docker][].
+
+If you use [Nix][], pretty much everything else you need is in the `shell.nix` file at the root of this repo.
 
 Otherwise, make sure you have the following tools installed:
 
 - [Python][]
 - [Rust][]
-- [Docker][]
 
 These other tools are optional but useful:
 
@@ -309,7 +310,6 @@ type Session = (MessageLine | ResponseLine)[];
 
 [bun]: https://bun.sh/
 [containerd]: https://docs.docker.com/storage/containerd/
-[direnv]: https://direnv.net/
 [docker]: https://docs.docker.com/engine/install/
 [github cli]: https://github.com/cli/cli#installation
 [json]: https://json.org/
