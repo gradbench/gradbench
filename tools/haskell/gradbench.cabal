@@ -17,6 +17,7 @@ executable gradbench
     other-modules:    GradBench.Hello
                       GradBench.KMeans
                       GradBench.Particle
+                      GradBench.Saddle
                       GradBench.GD
     build-depends:    ad, aeson, base, bytestring, text, vector, clock, deepseq
     hs-source-dirs:   src

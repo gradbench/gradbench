@@ -26,6 +26,7 @@ import Data.Text qualified as T
 import GradBench.Hello qualified
 import GradBench.KMeans qualified
 import GradBench.Particle qualified
+import GradBench.Saddle qualified
 import System.Clock (Clock (Monotonic), getTime, toNanoSecs)
 import System.Exit
 import System.IO
@@ -88,7 +89,11 @@ modules =
     (("particle", "rr"), wrap GradBench.Particle.rr),
     (("particle", "fr"), wrap GradBench.Particle.fr),
     (("particle", "rf"), wrap GradBench.Particle.rf),
-    (("particle", "ff"), wrap GradBench.Particle.ff)
+    (("particle", "ff"), wrap GradBench.Particle.ff),
+    (("saddle", "rr"), wrap GradBench.Saddle.rr),
+    (("saddle", "fr"), wrap GradBench.Saddle.fr),
+    (("saddle", "rf"), wrap GradBench.Saddle.rf),
+    (("saddle", "ff"), wrap GradBench.Saddle.ff)
   ]
 
 type Id = Int

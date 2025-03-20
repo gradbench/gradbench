@@ -58,21 +58,17 @@ naiveEuler accel' w =
             then loop x_new $ xdot `pplus` (delta_t `ktimesp` xddot)
             else (x, xdot)
 
-rr :: Input -> Output
+rr, rf, fr, ff :: Input -> Output
 rr (Input w0) = head $ multivariateArgmin (f, g) [w0]
   where
     accel' charges = R.grad (accel $ map (fmap R.auto) charges)
     f w = naiveEuler accel' (head w)
     g = R.grad f
-
-fr :: Input -> Output
 fr (Input w0) = head $ multivariateArgmin (f, g) [w0]
   where
     accel' charges = R.grad (accel $ map (fmap R.auto) charges)
     f w = naiveEuler accel' (head w)
     g = pure . F.diff (naiveEuler accel') . head
-
-ff :: Input -> Output
 ff (Input w0) = head $ multivariateArgmin (f, g) [w0]
   where
     accel' charges p =
@@ -81,8 +77,6 @@ ff (Input w0) = head $ multivariateArgmin (f, g) [w0]
         (F.du (accel $ map (fmap F.auto) charges) (Point (p.x, 0) (p.y, 1)))
     f w = naiveEuler accel' (head w)
     g = pure . F.diff (naiveEuler accel') . head
-
-rf :: Input -> Output
 rf (Input w0) = head $ multivariateArgmin (f, g) [w0]
   where
     accel' charges p =

@@ -50,7 +50,7 @@ multivariateArgmax ::
   ([a] -> a, [a] -> [a]) ->
   [a] ->
   [a]
-multivariateArgmax (f, g) x = multivariateArgmin (negate . f, g) x
+multivariateArgmax (f, g) x = multivariateArgmin (negate . f, map negate . g) x
 
 multivariateMax ::
   (Ord a, Floating a) =>
