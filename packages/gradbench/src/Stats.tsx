@@ -50,11 +50,13 @@ const makeSpec = ({
     transform: [{ filter: { param: "tool" } }],
     encoding: {
       color: {
-          field: "tool",
-          type: "nominal",
-          scale: {domain: colors.map(l => l[0]),
-                  range: colors.map(l => l[1])},
-          legend: { values: tools },
+        field: "tool",
+        type: "nominal",
+        scale: {
+          domain: colors.map((l) => l[0]),
+          range: colors.map((l) => l[1]),
+        },
+        legend: { values: tools },
       },
       x: {
         field: "workload",
