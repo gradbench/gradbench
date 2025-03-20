@@ -8,7 +8,7 @@ import "./Stats.css";
 // some are unfortunately a little close to each other.
 const colors = [
   ["adept", "#d8702f"],
-  ["adolc", "#0d1117"],
+  ["adol-c", "#0d1117"],
   ["codipack", "#d02718"],
   ["cppad", "#eeb10f"],
   ["enzyme", "#173559"],
