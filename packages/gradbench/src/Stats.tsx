@@ -3,6 +3,29 @@ import { PlainObject, VegaLite } from "react-vega";
 import { TopLevelSpec } from "vega-lite";
 import "./Stats.css";
 
+// These colors have been determined by sampling the tool websites.
+// They are not picked to make a particularly pleasing scheme, and
+// some are unfortunately a little close to each other.
+const colors = [
+  ["adept", "#d8702f"],
+  ["adolc", "#0d1117"],
+  ["codipack", "#d02718"],
+  ["cppad", "#eeb10f"],
+  ["enzyme", "#173559"],
+  ["finite", "#aaaaaa"],
+  ["floretta", "#f10537"],
+  ["futhark", "#5f021f"],
+  ["haskell", "#5e5086"],
+  ["jax", "#5e98f6"],
+  ["manual", "#000000"],
+  ["ocaml", "#c24f1e"],
+  ["pytorch", "#ee4c2c"],
+  ["scilean", "#5c123a"],
+  ["tapenade", "#047f01"],
+  ["tensorflow", "#ff8d00"],
+  ["zygote", "#6daa5e"],
+];
+
 const makeSpec = ({
   title,
   yaxis,
@@ -27,9 +50,11 @@ const makeSpec = ({
     transform: [{ filter: { param: "tool" } }],
     encoding: {
       color: {
-        field: "tool",
-        type: "nominal",
-        legend: { values: tools },
+          field: "tool",
+          type: "nominal",
+          scale: {domain: colors.map(l => l[0]),
+                  range: colors.map(l => l[1])},
+          legend: { values: tools },
       },
       x: {
         field: "workload",
