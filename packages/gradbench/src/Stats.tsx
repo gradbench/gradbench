@@ -139,6 +139,17 @@ export const Stats = ({ url }: { url: string }) => {
         <VegaLite
           renderer="svg"
           spec={makeSpec({
+            title: "derivative",
+            yaxis: "derivative (seconds)",
+            tools,
+          })}
+          data={makeData(stats, ({ derivative }) => seconds(derivative))}
+        />
+      </div>
+      <div className="chart-box">
+        <VegaLite
+          renderer="svg"
+          spec={makeSpec({
             title: "ratio",
             yaxis: "derivative / primal",
             tools,
@@ -146,17 +157,6 @@ export const Stats = ({ url }: { url: string }) => {
           data={makeData(stats, ({ primal, derivative }) =>
             divide(seconds(derivative), seconds(primal)),
           )}
-        />
-      </div>
-      <div className="chart-box">
-        <VegaLite
-          renderer="svg"
-          spec={makeSpec({
-            title: "derivative",
-            yaxis: "derivative (seconds)",
-            tools,
-          })}
-          data={makeData(stats, ({ derivative }) => seconds(derivative))}
         />
       </div>
       <div className="chart-box">
