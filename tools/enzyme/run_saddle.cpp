@@ -1,3 +1,6 @@
+// See the comment in run_particle.cpp, which is implemented
+// similarly.
+
 #include "gradbench/evals/saddle.hpp"
 #include "gradbench/main.hpp"
 #include "enzyme.h"

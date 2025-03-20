@@ -1,3 +1,11 @@
+// This implementation looks more awkward than is normally the case
+// for Enzyme, because we want to handle all the four variants (FF,
+// FR, RF, RR) without duplicating any core logic. This is largely
+// done through templates and an object that encapsulates both the
+// 'objective' and 'gradient' forms of a function - but note that
+// these gradients are *not* hand-written; they are produced by
+// Enzyme.
+
 #include "gradbench/evals/particle.hpp"
 #include "gradbench/main.hpp"
 #include "enzyme.h"
