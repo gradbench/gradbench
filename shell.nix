@@ -60,10 +60,11 @@ in pkgs.stdenv.mkDerivation {
   name = "gradbench";
   buildInputs = [
     gradbench-python
+    pkgs.bun
     pkgs.niv
     pkgs.gh
     pkgs.ruff
-    pkgs.nixfmt
+    pkgs.nixfmt-classic
 
     pkgs.futhark
     pkgs.enzyme
@@ -75,12 +76,18 @@ in pkgs.stdenv.mkDerivation {
     pkgs.openblas
     pkgs.zlib
     pkgs.adolc
+    pkgs.eigen
     adept
     cppad
     codipack
 
+    # Haskell
+    pkgs.cabal-install
+    pkgs.ghc
+
     # Rust
     pkgs.cargo
+    pkgs.clippy
     pkgs.rustc
     pkgs.rustfmt
 
@@ -88,13 +95,11 @@ in pkgs.stdenv.mkDerivation {
     pkgs.opam
     pkgs.ocamlPackages.dune_3
     pkgs.ocamlPackages.ocaml
-    pkgs.ocamlPackages.owl
-    pkgs.ocamlPackages.yojson
-    pkgs.ocamlPackages.findlib
   ];
 
   # The following are environment variables used by various tools.
   PYTHONPATH = "${GRADBENCH_PATH}/python/gradbench";
+  RUST_SRC_PATH = pkgs.rustPlatform.rustLibSrc;
   ENZYME_LIB = "${pkgs.enzyme}/lib";
   LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib";
 }

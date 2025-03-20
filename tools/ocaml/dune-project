@@ -2,12 +2,12 @@
 
 (name gradbench)
 
-(generate_opam_files false)
+(generate_opam_files true)
 
 (package
  (name gradbench)
  (synopsis "OCaml package for GradBench")
  (description "OCaml package for GradBench")
- (depends ocaml dune owl unix)
+ (depends ocaml dune owl yojson)
  (tags
   ()))

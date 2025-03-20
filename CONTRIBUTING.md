@@ -2,8 +2,8 @@
 
 <!-- toc -->
 
-- [Prerequisites](#prerequisites)
 - [Setup](#setup)
+- [Dependencies](#dependencies)
 - [CLI](#cli)
 - [Docker](#docker)
   - [Multi-platform images](#multi-platform-images)
@@ -20,27 +20,9 @@
 
 <!-- tocstop -->
 
-## Prerequisites
-
-Make sure to have these tools installed:
-
-- [Git][]
-- [Python][]
-- [Rust][]
-- [Docker][]
-
-We build [multi-platform images][] to support both x86 and ARM chips, so to build those, you need to enable [containerd][] in Docker. If you're running Docker Engine on Linux, without Docker Desktop, you also need to install [QEMU][].
-
-Other tools that are optional but useful:
-
-- [GitHub CLI][]
-- [Bun][]
-- [uv][]
-- [Make][]
-
 ## Setup
 
-Once you've installed all prerequisites, clone this repo, e.g. with GitHub CLI:
+First, clone this repo, e.g. with the [GitHub CLI][]:
 
 ```sh
 gh repo clone gradbench/gradbench
@@ -51,6 +33,23 @@ Then open a terminal in your clone of it; for instance, if you cloned it via the
 ```sh
 cd gradbench
 ```
+
+## Dependencies
+
+You need [Docker][].
+
+If you use [Nix][], pretty much everything else you need is in the `shell.nix` file at the root of this repo.
+
+Otherwise, make sure you have the following tools installed:
+
+- [Python][]
+- [Rust][]
+
+These other tools are optional but useful:
+
+- [Bun][]
+- [uv][]
+- [Make][]
 
 ## CLI
 
@@ -312,12 +311,12 @@ type Session = (MessageLine | ResponseLine)[];
 [bun]: https://bun.sh/
 [containerd]: https://docs.docker.com/storage/containerd/
 [docker]: https://docs.docker.com/engine/install/
-[git]: https://git-scm.com/downloads
 [github cli]: https://github.com/cli/cli#installation
 [json]: https://json.org/
 [make]: https://en.wikipedia.org/wiki/Make_(software)
 [markdown-toc]: https://www.npmjs.com/package/markdown-toc
 [multi-platform images]: https://docs.docker.com/build/building/multi-platform/
+[nix]: https://nixos.org/
 [python]: https://docs.astral.sh/uv/guides/install-python/
 [qemu]: https://docs.docker.com/build/building/multi-platform/#install-qemu-manually
 [ruff]: https://docs.astral.sh/ruff/
