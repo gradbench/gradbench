@@ -3,8 +3,8 @@
 
 #include "gradbench/evals/saddle.hpp"
 #include "gradbench/main.hpp"
+#include "gradbench/gd.hpp"
 #include "enzyme.h"
-#include "solver.hpp"
 
 struct double2{ double x, y; };
 

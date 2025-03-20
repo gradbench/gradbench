@@ -8,8 +8,8 @@
 
 #include "gradbench/evals/particle.hpp"
 #include "gradbench/main.hpp"
+#include "gradbench/gd.hpp"
 #include "enzyme.h"
-#include "solver.hpp"
 
 using particle::Point, particle::accel;
 

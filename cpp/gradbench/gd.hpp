@@ -1,7 +1,15 @@
-#pragma once
+// Multivariate gradient descent solver used for the particle and
+// saddle evals. Since this solver is used for multiple C++-based
+// tools, it has to live here.
+//
+// While you can use it for other evals, it may not be a particularly
+// good general-purpose solver - it was designed for the needs of
+// particle and eval. This also means that we should not make it more
+// sophisticated, as that might undermine its use in those evals. If
+// you find yourself in need of a better GD solver, then write a new
+// one.
 
-// This is the multivariate gradient descent solver used for the
-// particle and saddle evals.
+#pragma once
 
 #include <cmath>
 #include <vector>
