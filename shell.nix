@@ -23,10 +23,11 @@ in pkgs.stdenv.mkDerivation {
   name = "gradbench";
   buildInputs = [
     pkgs.bun
-    pkgs.niv
     pkgs.gh
-    pkgs.uv
+    pkgs.niv
     pkgs.nixfmt-classic
+    pkgs.python311
+    pkgs.uv
 
     pkgs.futhark
     pkgs.enzyme
