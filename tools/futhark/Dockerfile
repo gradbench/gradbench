@@ -22,5 +22,5 @@ RUN cd tools/futhark && futhark pkg sync
 # `COPY` the rest of the files.
 COPY python python
 
-ENTRYPOINT ["uv", "run", "--no-sync", "python/gradbench/gradbench/tools/futhark/run.py"]
+ENTRYPOINT ["uv", "run", "--no-sync", "python/gradbench/gradbench/cpp.py", "futhark"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
