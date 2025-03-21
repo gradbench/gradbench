@@ -9,12 +9,6 @@ RUN wget https://github.com/SciCompKL/CoDiPack/archive/refs/tags/v2.3.1.tar.gz
 RUN tar xvf v2.3.1.tar.gz
 ENV CPATH=/gradbench/CoDiPack-2.3.1/include
 
-# `COPY` the minimal set of files for `uv sync`.
-COPY pyproject.toml uv.lock ./
-COPY python/gradbench/pyproject.toml python/gradbench/
-COPY python/gradbench/gradbench/__init__.py python/gradbench/gradbench/
-RUN uv sync --no-default-groups --group gradbench
-
 # Download C++ dependencies.
 COPY cpp cpp
 RUN make -C cpp
