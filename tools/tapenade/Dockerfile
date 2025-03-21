@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim
 WORKDIR /gradbench
 
 # Install build dependencies.
@@ -11,6 +11,12 @@ RUN tar -xvzf tapenade_3.16.tar
 # Ensure Tapenade is accessible.
 RUN ln -s tapenade_3.16/bin/tapenade /usr/local/bin/tapenade
 
+# `COPY` the minimal set of files for `uv sync`.
+COPY pyproject.toml uv.lock ./
+COPY python/gradbench/pyproject.toml python/gradbench/
+COPY python/gradbench/gradbench/__init__.py python/gradbench/gradbench/
+RUN uv sync --no-default-groups --group gradbench
+
 # Download C++ dependencies.
 COPY cpp cpp
 RUN make -C cpp
@@ -19,5 +25,5 @@ RUN make -C cpp
 COPY python python
 COPY tools/tapenade tools/tapenade
 
-ENTRYPOINT ["python", "python/gradbench/gradbench/cpp.py", "tapenade"]
+ENTRYPOINT ["uv", "run", "--no-sync", "python/gradbench/gradbench/tools/tapenade/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench

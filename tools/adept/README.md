@@ -20,5 +20,5 @@ don't need to install it, but you do need to compile it). See the
 Then, to run the tool itself:
 
 ```sh
-python3 tools/adept/run.py
+python3 python/gradbench/gradbench/cpp.py adept
 ```

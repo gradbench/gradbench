@@ -7,28 +7,7 @@ import traceback
 from typing import Any
 
 
-def define(*, tool: str, module: str) -> Any:
-    try:
-        subprocess.check_output(
-            ["make", "-C", f"tools/{tool}", f"run_{module}", "-B"],
-            text=True,
-            stderr=subprocess.STDOUT,
-        )
-    except subprocess.CalledProcessError as e:
-        return {"success": False, "error": e.output}
-    else:
-        return {"success": True}
-
-
-def evaluate(*, tool: str, module: str, function: str, input: Any) -> Any:
-    with tempfile.NamedTemporaryFile("w") as tmp:
-        json.dump(input, tmp)
-        tmp.flush()
-        proc = subprocess.run(
-            [f"tools/{tool}/run_{module}", tmp.name, function],
-            text=True,
-            capture_output=True,
-        )
+def evaluate_completed_process(proc: subprocess.CompletedProcess[str]) -> Any:
     if proc.returncode == 0:
         ls = proc.stdout.splitlines()
         output = json.loads(ls[0])
@@ -38,19 +17,43 @@ def evaluate(*, tool: str, module: str, function: str, input: Any) -> Any:
         return {"success": False, "status": proc.returncode, "error": proc.stderr}
 
 
+def define(*, tool: str, module: str) -> Any:
+    try:
+        subprocess.check_output(
+            ["make", "-C", f"tools/{tool}", f"run_{module}", "-B"],
+            text=True,
+            stderr=subprocess.STDOUT,
+        )
+    except subprocess.CalledProcessError as e:
+        return {"success": False, "error": e.output}
+    except Exception as e:
+        return {"success": False, "error": "".join(traceback.format_exception(e))}
+    else:
+        return {"success": True}
+
+
+def evaluate(*, tool: str, module: str, function: str, input: Any) -> Any:
+    with tempfile.NamedTemporaryFile("w") as tmp:
+        json.dump(input, tmp)
+        tmp.flush()
+        return evaluate_completed_process(
+            subprocess.run(
+                [f"tools/{tool}/run_{module}", tmp.name, function],
+                text=True,
+                capture_output=True,
+            )
+        )
+
+
 def run(tool: str) -> None:
     for line in sys.stdin:
         message = json.loads(line)
-        response = {}
+        response = {"id": message["id"]}
         match message["kind"]:
             case "start":
                 response["tool"] = tool
             case "define":
-                try:
-                    response |= define(tool=tool, module=message["module"])
-                except Exception as e:
-                    response["success"] = False
-                    response["error"] = "".join(traceback.format_exception(e))
+                response |= define(tool=tool, module=message["module"])
             case "evaluate":
                 response |= evaluate(
                     tool=tool,
@@ -58,7 +61,7 @@ def run(tool: str) -> None:
                     function=message["function"],
                     input=message["input"],
                 )
-        print(json.dumps({"id": message["id"]} | response), flush=True)
+        print(json.dumps(response), flush=True)
 
 
 def main() -> None:
