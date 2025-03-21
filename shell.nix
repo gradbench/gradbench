@@ -40,6 +40,7 @@ in pkgs.stdenv.mkDerivation {
     pkgs.zlib
     pkgs.adolc
     pkgs.eigen
+    pkgs.wget
     adept
     cppad
     codipack
