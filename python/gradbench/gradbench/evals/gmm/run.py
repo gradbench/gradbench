@@ -8,7 +8,12 @@ from gradbench.evals.gmm import data_gen
 
 
 def check(function: str, input: Any, output: Any) -> None:
-    expected = cpp.evaluate(tool="manual", module="gmm", function=function, input=input)
+    expected = cpp.evaluate(
+        tool="manual",
+        module="gmm",
+        function=function,
+        input=input | {"min_runs": 1, "min_seconds": 0},
+    )
     if expected["success"]:
         return compare_json_objects(expected["output"], output)
     else:

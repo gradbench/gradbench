@@ -1,10 +1,9 @@
 import argparse
-import json
 import math
 from typing import Any
 
-import manual.lstm as golden
 import numpy as np
+from gradbench import cpp
 from gradbench.adbench.lstm_data import LSTMInput
 from gradbench.comparison import compare_json_objects
 from gradbench.eval import Analysis, SingleModuleValidatedEval, approve, mismatch
@@ -44,16 +43,18 @@ def read_full_text(filename, char_count):
 
 
 def check(function: str, input: Any, output: Any) -> None:
-    func = getattr(golden, function)
-    proc = func(input | {"min_runs": 1, "min_seconds": 0})
-    if proc.returncode == 0:
-        ls = proc.stdout.splitlines()
-        expected = json.loads(ls[0])
-        return compare_json_objects(expected, output)
+    expected = cpp.evaluate(
+        tool="manual",
+        module="lstm",
+        function=function,
+        input=input | {"min_runs": 1, "min_seconds": 0},
+    )
+    if expected["success"]:
+        return compare_json_objects(expected["output"], output)
     else:
         return Analysis(
             valid=False,
-            error=f"golden implementation failed with stderr:\n{proc.stderr}",
+            error=f"golden implementation failed with stderr:\n{expected['error']}",
         )
 
 
