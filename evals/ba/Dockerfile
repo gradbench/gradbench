@@ -18,7 +18,7 @@ RUN make -C tools/manual -Bj
 
 # `COPY` the rest of the files.
 COPY python python
-COPY evals/ba/data evals/ba/data
+COPY evals/ba evals/ba
 
 ENTRYPOINT ["uv", "run", "--no-sync", "python/gradbench/gradbench/evals/ba/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
