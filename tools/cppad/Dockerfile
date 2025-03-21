@@ -1,4 +1,4 @@
-FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim
+FROM python:3.11-slim
 WORKDIR /gradbench
 
 # Install build dependencies.
@@ -21,5 +21,5 @@ RUN make -C cpp
 COPY python python
 COPY tools/cppad tools/cppad
 
-ENTRYPOINT ["uv", "run", "--no-sync", "python/gradbench/gradbench/tools/cppad/run.py"]
+ENTRYPOINT ["python3", "python/gradbench/gradbench/cpp.py", "cppad"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
