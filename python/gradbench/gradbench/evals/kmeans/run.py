@@ -3,24 +3,20 @@ from typing import Any
 
 import numpy as np
 from gradbench import cpp
-from gradbench.comparison import compare_json_objects
-from gradbench.eval import Analysis, SingleModuleValidatedEval, mismatch
+from gradbench.eval import (
+    EvaluateResponse,
+    SingleModuleValidatedEval,
+    mismatch,
+)
 
 
-def check(function: str, input: Any, output: Any) -> None:
-    expected = cpp.evaluate(
+def expect(function: str, input: Any) -> EvaluateResponse:
+    return cpp.evaluate(
         tool="manual",
         module="gmm",
         function=function,
         input=input | {"min_runs": 1, "min_seconds": 0},
     )
-    if expected["success"]:
-        return compare_json_objects(expected["output"], output)
-    else:
-        return Analysis(
-            valid=False,
-            error=f"golden implementation failed with stderr:\n{expected['error']}",
-        )
 
 
 def main():
@@ -32,7 +28,7 @@ def main():
     parser.add_argument("--min-seconds", type=float, default=1)
     args = parser.parse_args()
 
-    e = SingleModuleValidatedEval(module="kmeans", validator=mismatch(check))
+    e = SingleModuleValidatedEval(module="kmeans", validator=mismatch(expect))
     e.start()
     if e.define().success:
         np.random.seed(31337)  # For determinism.

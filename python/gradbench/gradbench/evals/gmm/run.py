@@ -2,25 +2,22 @@ import argparse
 from typing import Any
 
 from gradbench import cpp
-from gradbench.comparison import compare_json_objects
-from gradbench.eval import Analysis, SingleModuleValidatedEval, approve, mismatch
+from gradbench.eval import (
+    EvaluateResponse,
+    SingleModuleValidatedEval,
+    approve,
+    mismatch,
+)
 from gradbench.evals.gmm import data_gen
 
 
-def check(function: str, input: Any, output: Any) -> None:
-    expected = cpp.evaluate(
+def expect(function: str, input: Any) -> EvaluateResponse:
+    return cpp.evaluate(
         tool="manual",
         module="gmm",
         function=function,
         input=input | {"min_runs": 1, "min_seconds": 0},
     )
-    if expected["success"]:
-        return compare_json_objects(expected["output"], output)
-    else:
-        return Analysis(
-            valid=False,
-            error=f"golden implementation failed with stderr:\n{expected['error']}",
-        )
 
 
 def main():
@@ -37,7 +34,7 @@ def main():
     parser.add_argument("--no-validation", action="store_true", default=False)
     args = parser.parse_args()
     e = SingleModuleValidatedEval(
-        module="gmm", validator=approve if args.no_validation else mismatch(check)
+        module="gmm", validator=approve if args.no_validation else mismatch(expect)
     )
     e.start(config=vars(args))
     if e.define().success:

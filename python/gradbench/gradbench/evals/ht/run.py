@@ -3,25 +3,22 @@ from pathlib import Path
 from typing import Any
 
 from gradbench import cpp
-from gradbench.comparison import compare_json_objects
-from gradbench.eval import Analysis, SingleModuleValidatedEval, approve, mismatch
+from gradbench.eval import (
+    EvaluateResponse,
+    SingleModuleValidatedEval,
+    approve,
+    mismatch,
+)
 from gradbench.evals.ht import io
 
 
-def check(function: str, input: Any, output: Any) -> None:
-    expected = cpp.evaluate(
+def expect(function: str, input: Any) -> EvaluateResponse:
+    return cpp.evaluate(
         tool="manual",
         module="ht",
         function=function,
         input=input | {"min_runs": 1, "min_seconds": 0},
     )
-    if expected["success"]:
-        return compare_json_objects(expected["output"], output)
-    else:
-        return Analysis(
-            valid=False,
-            error=f"golden implementation failed with stderr:\n{expected['error']}",
-        )
 
 
 def main():
@@ -38,7 +35,7 @@ def main():
     args = parser.parse_args()
 
     e = SingleModuleValidatedEval(
-        module="ht", validator=approve if args.no_validation else mismatch(check)
+        module="ht", validator=approve if args.no_validation else mismatch(expect)
     )
     e.start()
     if e.define().success:
