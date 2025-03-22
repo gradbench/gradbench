@@ -5,7 +5,7 @@ WORKDIR /gradbench
 COPY pyproject.toml uv.lock ./
 COPY python/gradbench/pyproject.toml python/gradbench/
 COPY python/gradbench/gradbench/__init__.py python/gradbench/gradbench/
-RUN uv sync --no-default-groups --group gradbench --group numpy --group scipy --group torch
+RUN uv sync --no-default-groups --group dataclasses-json --group gradbench --group numpy --group scipy --group torch
 
 # `COPY` the rest of the files.
 COPY python python
