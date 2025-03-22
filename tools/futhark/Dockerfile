@@ -13,7 +13,7 @@ RUN uv sync --no-default-groups --group dataclasses-json --group futhark-server 
 
 # Install Futhark.
 ADD https://futhark-lang.org/releases/futhark-${FUTHARK_VER}-linux-x86_64.tar.xz futhark-${FUTHARK_VER}-linux-x86_64.tar.xz
-RUN tar xvf futhark-${FUTHARK_VER}.tar.xz
+RUN tar xvf futhark-${FUTHARK_VER}-linux-x86_64.tar.xz
 RUN make -C futhark-${FUTHARK_VER}-linux-x86_64 install
 
 # Install Futhark packages.
