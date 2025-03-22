@@ -18,6 +18,7 @@ def primal(server, input):
     )
     return (o.tolist(), times)
 
+
 def gradient(server, input):
     (o,), times = futhark_utils.run(
         server,
