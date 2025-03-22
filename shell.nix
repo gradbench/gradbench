@@ -19,7 +19,7 @@ let
   adept = pkgs.callPackage ./nix/adept.nix { };
   codipack = pkgs.callPackage ./nix/codipack.nix { };
   GRADBENCH_PATH = builtins.getEnv "PWD";
-in pkgs.stdenv.mkDerivation {
+in pkgs.stdenv.mkDerivation rec {
   name = "gradbench";
   buildInputs = [
     pkgs.bun
@@ -64,5 +64,5 @@ in pkgs.stdenv.mkDerivation {
   # The following are environment variables used by various tools.
   RUST_SRC_PATH = pkgs.rustPlatform.rustLibSrc;
   ENZYME_LIB = "${pkgs.enzyme}/lib";
-  LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib";
+  LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath buildInputs}:${pkgs.stdenv.cc.cc.lib}/lib";
 }
