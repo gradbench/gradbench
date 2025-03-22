@@ -10,7 +10,7 @@ def difference(x, y):
     return absdiff / normCoef
 
 
-def compare_json_objects(expected, actual, tolerance=1e-4, path=""):
+def compare_json_objects(expected, actual, tolerance=1e-4, path="") -> list[str]:
     """Compare two Python objects corresponding to JSON objects and
     report mismatches.
 

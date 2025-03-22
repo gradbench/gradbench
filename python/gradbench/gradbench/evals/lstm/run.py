@@ -1,13 +1,16 @@
 import argparse
-import json
 import math
 from typing import Any
 
-import manual.lstm as golden
 import numpy as np
+from gradbench import cpp
 from gradbench.adbench.lstm_data import LSTMInput
-from gradbench.comparison import compare_json_objects
-from gradbench.eval import Analysis, SingleModuleValidatedEval, approve, mismatch
+from gradbench.eval import (
+    EvaluateResponse,
+    SingleModuleValidatedEval,
+    approve,
+    mismatch,
+)
 
 
 def get_char_bits(text):
@@ -43,18 +46,13 @@ def read_full_text(filename, char_count):
     return open(filename, encoding="utf8").read(char_count)
 
 
-def check(function: str, input: Any, output: Any) -> None:
-    func = getattr(golden, function)
-    proc = func(input | {"min_runs": 1, "min_seconds": 0})
-    if proc.returncode == 0:
-        ls = proc.stdout.splitlines()
-        expected = json.loads(ls[0])
-        return compare_json_objects(expected, output)
-    else:
-        return Analysis(
-            valid=False,
-            error=f"golden implementation failed with stderr:\n{proc.stderr}",
-        )
+def expect(function: str, input: Any) -> EvaluateResponse:
+    return cpp.evaluate(
+        tool="manual",
+        module="lstm",
+        function=function,
+        input=input | {"min_runs": 1, "min_seconds": 0},
+    )
 
 
 def main():
@@ -67,7 +65,7 @@ def main():
     args = parser.parse_args()
 
     e = SingleModuleValidatedEval(
-        module="lstm", validator=approve if args.no_validation else mismatch(check)
+        module="lstm", validator=approve if args.no_validation else mismatch(expect)
     )
     e.start(config=vars(args))
     if e.define().success:
