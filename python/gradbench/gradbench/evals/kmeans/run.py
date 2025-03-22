@@ -13,7 +13,7 @@ from gradbench.eval import (
 def expect(function: str, input: Any) -> EvaluateResponse:
     return cpp.evaluate(
         tool="manual",
-        module="gmm",
+        module="kmeans",
         function=function,
         input=input | {"min_runs": 1, "min_seconds": 0},
     )
