@@ -23,6 +23,7 @@ import Data.ByteString.Char8 qualified as BS
 import Data.List qualified as L
 import Data.Maybe (fromMaybe, isJust)
 import Data.Text qualified as T
+import GradBench.AnODE qualified
 import GradBench.Hello qualified
 import GradBench.KMeans qualified
 import GradBench.LLSqObj qualified
@@ -86,7 +87,9 @@ modules =
     (("kmeans", "cost"), wrap GradBench.KMeans.cost),
     (("kmeans", "dir"), wrap GradBench.KMeans.dir),
     (("llsq_obj", "primal"), wrap GradBench.LLSqObj.primal),
-    (("llsq_obj", "gradient"), wrap GradBench.LLSqObj.gradient)
+    (("llsq_obj", "gradient"), wrap GradBench.LLSqObj.gradient),
+    (("an_ode", "primal"), wrap GradBench.AnODE.primal),
+    (("an_ode", "gradient"), wrap GradBench.AnODE.gradient)
   ]
 
 type Id = Int
