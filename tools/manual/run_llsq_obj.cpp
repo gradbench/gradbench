@@ -31,7 +31,6 @@ public:
   }
 };
 
-
 int main(int argc, char* argv[]) {
   return generic_main(argc, argv, {
       {"primal", function_main<llsq_obj::Primal>},

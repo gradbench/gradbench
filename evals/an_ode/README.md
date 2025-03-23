@@ -3,7 +3,7 @@
 This benchmark is adapted from [cmpad][], for which the [original
 documentation][] is also available.
 
-The primal problem is to approximately solve an ODE of form
+The problem is to approximately solve an ODE of form
 
 ```math
 \begin{array}{llll}

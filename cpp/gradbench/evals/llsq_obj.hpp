@@ -24,7 +24,7 @@ template<typename T>
 void primal(size_t n,
             size_t m,
             const T* __restrict__ x,
-            T* out) {
+            T* __restrict__ out) {
   T sum = T(0);
   for (size_t i = 0; i < n; i++) {
     T ti = t(i, n);
