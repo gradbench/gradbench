@@ -1,10 +1,8 @@
 import argparse
-import json
 from typing import Any
 
 import numpy as np
 from gradbench import cpp
-from gradbench.comparison import compare_json_objects
 from gradbench.eval import (
     EvaluateResponse,
     SingleModuleValidatedEval,
