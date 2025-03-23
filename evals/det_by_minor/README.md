@@ -6,7 +6,7 @@ documentation][] is also available.
 The problem is to compute the determinant of a square matrix
 
 ```math
-A : \B{R}^{\ell \times \ell}.
+A : \mathbb{R}^{\ell \times \ell}.
 ```
 
 This is done through [expansion by minors][], which is not an
