@@ -25,6 +25,7 @@ import Data.Maybe (fromMaybe, isJust)
 import Data.Text qualified as T
 import GradBench.Hello qualified
 import GradBench.KMeans qualified
+import GradBench.LLSqObj qualified
 import System.Clock (Clock (Monotonic), getTime, toNanoSecs)
 import System.Exit
 import System.IO
@@ -83,7 +84,9 @@ modules =
   [ (("hello", "square"), wrap GradBench.Hello.square),
     (("hello", "double"), wrap GradBench.Hello.double),
     (("kmeans", "cost"), wrap GradBench.KMeans.cost),
-    (("kmeans", "dir"), wrap GradBench.KMeans.dir)
+    (("kmeans", "dir"), wrap GradBench.KMeans.dir),
+    (("llsq_obj", "primal"), wrap GradBench.LLSqObj.primal),
+    (("llsq_obj", "gradient"), wrap GradBench.LLSqObj.gradient)
   ]
 
 type Id = Int

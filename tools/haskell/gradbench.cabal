@@ -16,6 +16,7 @@ executable gradbench
     main-is:          Main.hs
     other-modules:    GradBench.Hello
                       GradBench.KMeans
+                      GradBench.LLSqObj
     build-depends:    ad, aeson, base, bytestring, text, vector, clock, deepseq
     hs-source-dirs:   src
     default-language: GHC2021

@@ -72,9 +72,6 @@ costGeneric d points centroids =
 cost :: Input -> CostOutput
 cost (Input d points centroids) = costGeneric d points centroids
 
-diagonal :: V.Vector (V.Vector a) -> V.Vector a
-diagonal x = V.zipWith (V.!) x (V.enumFromN 0 (V.length x))
-
 dir :: Input -> DirOutput
 dir (Input d points centroids) =
   let (cost', cost'') =
