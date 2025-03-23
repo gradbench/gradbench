@@ -19,7 +19,7 @@ namespace an_ode {
 
 struct Input {
   std::vector<double> x;
-  int s;
+  size_t s;
 };
 
 typedef std::vector<double> PrimalOutput;
@@ -75,7 +75,7 @@ using json = nlohmann::json;
 
 void from_json(const json& j, Input& p) {
   p.x = j["x"].get<std::vector<double>>();
-  p.s = j["s"].get<int>();
+  p.s = j["s"].get<size_t>();
 }
 
 class Primal : public Function<Input, PrimalOutput> {
