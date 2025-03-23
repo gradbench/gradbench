@@ -1,0 +1,76 @@
+# Linear Least Squares Objective
+
+This benchmark is adapted from [cmpad][], for which the [original
+documentation][] is also available.
+
+We are given an objective function defined by
+
+```math
+   y(x) = \frac{1}{2} \sum_{i=0}^{n-1} \left(
+      s_i - x_0 - x_1 t_i - x_2 t_i^2 - \cdots
+   \right)^2
+```
+
+where
+
+```math
+   t_i & = -1 + i * 2 / (n - 1)
+   \\
+   s_i & = \mathrm{sign} ( t_i )
+   =
+   \cases{
+      -1 & if $t_i < 0$ \\
+       0 & if $t_i = 0$ \\
+      +1 & if $t_i > 0$
+   }
+```
+
+We write $n$ for the size of $t$ and $s$, and $m$ for the size of $x$.
+
+This eval has two functions:
+
+* `primal`, where we are given *x* and *n* and must compute *y(x)*.
+
+* `gradient`, where we are given *x* and *n* and must compute the
+  gradient of *y(x)*.
+
+## Protocol
+
+The evaluation protocol is specified in terms of [TypeScript][] types
+and references [types defined in the GradBench protocol
+description][protocol].
+
+### Inputs
+
+The eval sends a leading `DefineMessage` followed by
+`EvaluateMessages`. The `input` field of any `EvaluateMessage` will be
+an instance of the `LLSQInput` type defined below. The `function`
+field will one of the strings `"primal"` or `"gradient"`.
+
+```typescript
+interface LLSQInput extends Runs {
+  x: double[];
+  n: int;
+}
+```
+
+Because the input extends `Runs`, the tool is expected to run the
+function some number of times. It should include one timing entry with
+the name `"evaluate"` for each time it ran the function.
+
+### Outputs
+
+The type of the output depends on the function.
+
+```typescript
+type PrimalOutput = double;
+type GradientOutput = double[];
+```
+
+The size of the `GradientOutput` is equal to the size of the input
+`x`.
+
+[cmpad]: https://github.com/bradbell/cmpad
+[original documentation]: https://cmpad.readthedocs.io/llsq_obj.html
+[protocol]: /CONTRIBUTING.md#types
+[typescript]: https://www.typescriptlang.org/

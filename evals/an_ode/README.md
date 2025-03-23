@@ -36,8 +36,8 @@ description][protocol].
 
 The eval sends a leading `DefineMessage` followed by
 `EvaluateMessages`. The `input` field of any `EvaluateMessage` will be
-an instance of the `KMeansInput` type defined below. The `function`
-field will one of the strings `"cost"` or `"dir"`.
+an instance of the `ODEInput` type defined below. The `function` field
+will one of the strings `"primal"` or `"gradient"`.
 
 ```typescript
 interface ODEInput extends Runs {
@@ -45,6 +45,10 @@ interface ODEInput extends Runs {
   s: int;
 }
 ```
+
+Because the input extends `Runs`, the tool is expected to run the
+function some number of times. It should include one timing entry with
+the name `"evaluate"` for each time it ran the function.
 
 ### Outputs
 
@@ -56,10 +60,6 @@ A tool must respond to an `EvaluateMessage` with an
 type PrimalOutput = double[];
 type GradientOutput = double[];
 ```
-
-Because the input extends `Runs`, the tool is expected to run the
-function some number of times. It should include one timing entry with
-the name `"evaluate"` for each time it ran the function.
 
 [cmpad]: https://github.com/bradbell/cmpad
 [original documentation]: https://cmpad.readthedocs.io/an_ode.html
