@@ -33,7 +33,7 @@ def main():
     if e.define().success:
         np.random.seed(31337)  # For determinism.
         for ell in args.l:
-            A = np.random.rand(ell*ell).tolist()
+            A = np.random.rand(ell * ell).tolist()
             input = {"A": A, "ell": ell}
             e.evaluate(
                 function="primal",

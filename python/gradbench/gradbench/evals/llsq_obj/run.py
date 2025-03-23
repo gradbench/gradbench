@@ -23,7 +23,12 @@ def expect(function: str, input: Any) -> EvaluateResponse:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-n", nargs="+", type=int, default=[16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8196, 16392])
+    parser.add_argument(
+        "-n",
+        nargs="+",
+        type=int,
+        default=[16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8196, 16392],
+    )
     parser.add_argument("-m", nargs="+", type=int, default=[128])
     parser.add_argument("--min-runs", type=int, default=1)
     parser.add_argument("--min-seconds", type=float, default=1)
