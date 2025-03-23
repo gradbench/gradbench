@@ -14,15 +14,11 @@ We are given an objective function defined by
 where
 
 ```math
+\begin{array}{ll}
    t_i & = -1 + i * 2 / (n - 1)
    \\
    s_i & = \mathrm{sign} ( t_i )
-   =
-   \cases{
-      -1 & if $t_i < 0$ \\
-       0 & if $t_i = 0$ \\
-      +1 & if $t_i > 0$
-   }
+\end{array}
 ```
 
 We write $n$ for the size of $t$ and $s$, and $m$ for the size of $x$.
