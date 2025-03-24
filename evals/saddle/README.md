@@ -35,8 +35,8 @@ f(x,y) = (x_1^2 + y_1^2) - (x_2^2 + y_1^2)
 
 We must produce the two points $x$ and $y$ as the results.
 
-The intent is that finding the minimum (*argmin*) and maximum
-(*argmax*), both via gradient descent. Since this results in an argmin
+The intent is that finding the minimum (_argmin_) and maximum
+(_argmax_), both via gradient descent. Since this results in an argmin
 containing an argmax, this means the occurrence of nested AD. An
 implementation of this benchmark must be written using nested AD.
 There are two instances of AD, and either can be implemented using
@@ -60,10 +60,10 @@ The benchmark can be implemented in four function variants, which at
 the GradBench level exist as four functions. They differ in which mode
 of AD is used for step 1 above:
 
-* `ff`, where the argmin uses forward mode and the argmax uses forward mode.
-* `fr`, where the argmin uses forward mode and the argmax uses reverse mode.
-* `rf`, where the argmin uses reverse mode and the argmax uses forward mode.
-* `rr`, where the argmin uses reverse mode and the argmax uses reverse mode.
+- `ff`, where the argmin uses forward mode and the argmax uses forward mode.
+- `fr`, where the argmin uses forward mode and the argmax uses reverse mode.
+- `rf`, where the argmin uses reverse mode and the argmax uses forward mode.
+- `rr`, where the argmin uses reverse mode and the argmax uses reverse mode.
 
 The argmax of step 2 must use the same mode of AD as the argmin of step 1.
 
@@ -91,7 +91,7 @@ interface SaddleInput extends Runs {
 }
 ```
 
-Here `start` encodes the point *s* listed in the specification.
+Here `start` encodes the point _s_ listed in the specification.
 
 ### Outputs
 

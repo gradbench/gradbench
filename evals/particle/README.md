@@ -32,7 +32,7 @@ the $x$-axis at position $\mathbf{x}(t_f)$. We desire to compute
 \text{min}_w\ x_0(t_f)^2
 ```
 
-which makes the particle intersect the origin (this is an *argmin*
+which makes the particle intersect the origin (this is an _argmin_
 operation).
 
 [Naive Euler ODE integration][] is used to compute the particle's
@@ -40,17 +40,17 @@ path, with linear interpolation to find the intersection with the $x$
 axis (see paper for the formula, or the code for one of the existing
 tools, this is not expressible with GitHub's math support). This ODE
 to find $x_0(t_f)^2$ involves taking the gradient of the $p$ function
-defined above. The *argmin* operation is solved with gradient descent.
+defined above. The _argmin_ operation is solved with gradient descent.
 Thus, we have an instance of nested AD.
 
 The benchmark can be implemented in four function variants, which at
 the GradBench level exist as four functions. They differ in which mode
 of AD is used for step 1 above:
 
-* `ff`, where the argmin uses forward mode and the Euler method uses forward mode.
-* `fr`, where the argmin uses forward mode and the Euler method uses reverse mode.
-* `rf`, where the argmin uses reverse mode and the Euler method uses forward mode.
-* `rr`, where the argmin uses reverse mode and the Euler method uses reverse mode.
+- `ff`, where the argmin uses forward mode and the Euler method uses forward mode.
+- `fr`, where the argmin uses forward mode and the Euler method uses reverse mode.
+- `rf`, where the argmin uses reverse mode and the Euler method uses forward mode.
+- `rr`, where the argmin uses reverse mode and the Euler method uses reverse mode.
 
 All function variants accept the same input and must produce the same
 results.
