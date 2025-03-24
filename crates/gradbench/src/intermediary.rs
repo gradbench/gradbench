@@ -405,7 +405,7 @@ pub fn run(
         }
     }
     let start = Instant::now();
-    Intermediary {
+    let outcome = Intermediary {
         outcome,
         eval_in: eval.stdin.take().unwrap(),
         tool_in: tool.stdin.take().unwrap(),
@@ -414,8 +414,22 @@ pub fn run(
         clock: || start.elapsed(),
         out: io::stdout(),
         log,
+    }.run();
+    // If fail due to a timeout, the tool may still be running. Kill
+    // its process group to ensure that we will not be hanging in a
+    // wait() call in main.rs.
+    if let Err(BadOutcome::Timeout) = outcome {
+        #[cfg(unix)] {
+            use nix::{sys::signal, unistd};
+            if let Ok(tool_id) = tool.id().try_into() {
+                let tool_pid = unistd::Pid::from_raw(tool_id);
+                if let Ok(pgid) = unistd::getpgid(Some(tool_pid)) {
+                    let _ = signal::killpg(pgid, signal::Signal::SIGKILL);
+                }
+            }
+        }
     }
-    .run()
+    return outcome;
 }
 
 #[cfg(test)]
