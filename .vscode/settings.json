@@ -1,7 +1,7 @@
 {
   "[python]": {
     "editor.codeActionsOnSave": { "source.organizeImports": "always" },
-    "editor.defaultFormatter": "ms-python.black-formatter"
+    "editor.defaultFormatter": "charliermarsh.ruff"
   },
   "editor.formatOnSave": true,
   "files.associations": {
@@ -9,5 +9,6 @@
   },
   "files.insertFinalNewline": true,
   "files.trimFinalNewlines": true,
-  "files.trimTrailingWhitespace": true
+  "files.trimTrailingWhitespace": true,
+  "rust-analyzer.check.command": "clippy"
 }

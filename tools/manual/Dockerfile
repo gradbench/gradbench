@@ -1,20 +1,16 @@
 FROM python:3.11-slim
+WORKDIR /gradbench
 
-WORKDIR /home/gradbench
+# Install build dependencies.
+RUN apt-get update && apt-get install -y build-essential wget
 
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    python3 \
-    wget
-
-COPY python /home/gradbench/python
-ENV PYTHONPATH=/home/gradbench/python/gradbench
-
-COPY cpp /home/gradbench/cpp
-
+# Download C++ dependencies.
+COPY cpp cpp
 RUN make -C cpp
 
-COPY tools/manual/ /home/gradbench/tools/manual
+# `COPY` the rest of the files.
+COPY python python
+COPY tools/manual tools/manual
 
-ENTRYPOINT ["python3", "/home/gradbench/tools/manual/run.py"]
+ENTRYPOINT ["python3", "python/gradbench/gradbench/cpp.py", "manual"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench

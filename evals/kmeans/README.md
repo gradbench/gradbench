@@ -49,5 +49,5 @@ type DirOutput = double[][];
 Because the input extends `Runs`, the tool is expected to run the function some number of times. It should include one timing entry with the name `"evaluate"` for each time it ran the function.
 
 [paper]: https://proceedings.neurips.cc/paper/1994/hash/a1140a3d0df1c81e24ae954d935e8926-Abstract.html
-[protocol]: https://github.com/gradbench/gradbench?tab=readme-ov-file#types
+[protocol]: /CONTRIBUTING.md#types
 [typescript]: https://www.typescriptlang.org/

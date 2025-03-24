@@ -10,7 +10,7 @@ public:
   }
 
   void compute(hello::DoubleOutput& output) {
-    engine.finite_differences([&](double* x, double *out) {
+    engine.finite_differences(1, [&](double* x, double *out) {
       *out = hello::square(*x);
     }, &_input, 1, 1, &output);
   }

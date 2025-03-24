@@ -54,5 +54,5 @@ Because the input extends `Runs`, the tool is expected to run the function some 
 
 [adbench]: https://github.com/microsoft/ADBench
 [paper]: https://arxiv.org/abs/1807.10129
-[protocol]: https://github.com/gradbench/gradbench?tab=readme-ov-file#types
+[protocol]: /CONTRIBUTING.md#types
 [typescript]: https://www.typescriptlang.org/

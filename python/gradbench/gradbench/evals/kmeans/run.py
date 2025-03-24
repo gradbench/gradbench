@@ -1,29 +1,22 @@
 import argparse
-import gzip
-import json
-from pathlib import Path
 from typing import Any
 
-import manual.kmeans as golden
 import numpy as np
+from gradbench import cpp
+from gradbench.eval import (
+    EvaluateResponse,
+    SingleModuleValidatedEval,
+    mismatch,
+)
 
-from gradbench.comparison import compare_json_objects
-from gradbench.eval import SingleModuleValidatedEval, mismatch
-from gradbench.wrap import Wrapped
 
-
-def check(function: str, input: Any, output: Any) -> None:
-    func = getattr(golden, function)
-    proc = func(input | {"min_runs": 1, "min_seconds": 0})
-    if proc.returncode == 0:
-        ls = proc.stdout.splitlines()
-        expected = json.loads(ls[0])
-        return compare_json_objects(expected, output)
-    else:
-        return Analysis(
-            valid=False,
-            error=f"golden implementation failed with stderr:\n{proc.stderr}",
-        )
+def expect(function: str, input: Any) -> EvaluateResponse:
+    return cpp.evaluate(
+        tool="manual",
+        module="kmeans",
+        function=function,
+        input=input | {"min_runs": 1, "min_seconds": 0},
+    )
 
 
 def main():
@@ -35,7 +28,7 @@ def main():
     parser.add_argument("--min-seconds", type=float, default=1)
     args = parser.parse_args()
 
-    e = SingleModuleValidatedEval(module="kmeans", validator=mismatch(check))
+    e = SingleModuleValidatedEval(module="kmeans", validator=mismatch(expect))
     e.start()
     if e.define().success:
         np.random.seed(31337)  # For determinism.

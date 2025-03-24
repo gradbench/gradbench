@@ -8,20 +8,18 @@ Changes made:
   * Use simplified ITest interface.
   * Add jacobian/objective top level functions.
 """
-import sys
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.python.framework.ops import disable_eager_execution
-
-disable_eager_execution()  # turn eager execution off
-
 from gradbench import wrap
 from gradbench.adbench.ba_data import BAInput
 from gradbench.adbench.ba_sparse_mat import BASparseMat
 from gradbench.adbench.itest import ITest
 from gradbench.tools.tensorflow.ba_objective import compute_reproj_err, compute_w_err
-from gradbench.tools.tensorflow.utils import flatten, to_tf_tensor
+from gradbench.tools.tensorflow.utils import flatten
+from tensorflow.python.framework.ops import disable_eager_execution
+
+disable_eager_execution()  # turn eager execution off
 
 
 class TensorflowBA(ITest):
@@ -199,10 +197,13 @@ def objective_output(errors):
 
 
 def jacobian_output(ba_mat):
+    def dedup(A):
+        return A[0:30] + [A[-1]]
+
     return {
-        "rows": list(map(int, list(ba_mat.rows))),
-        "cols": list(map(int, list(ba_mat.cols))),
-        "vals": list(map(float, list(ba_mat.vals))),
+        "rows": list(map(int, dedup(list(ba_mat.rows)))),
+        "cols": list(map(int, dedup(list(ba_mat.cols)))),
+        "vals": list(map(float, dedup(list(ba_mat.vals)))),
     }
 
 

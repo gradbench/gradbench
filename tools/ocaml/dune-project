@@ -1,0 +1,13 @@
+(lang dune 3.6)
+
+(name gradbench)
+
+(generate_opam_files true)
+
+(package
+ (name gradbench)
+ (synopsis "OCaml package for GradBench")
+ (description "OCaml package for GradBench")
+ (depends ocaml dune owl yojson)
+ (tags
+  ()))

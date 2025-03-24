@@ -1,11 +1,14 @@
-FROM python:3.11-slim
+FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim
+WORKDIR /gradbench
 
-RUN pip install jax jaxlib
+# `COPY` the minimal set of files for `uv sync`.
+COPY pyproject.toml uv.lock ./
+COPY python/gradbench/pyproject.toml python/gradbench/
+COPY python/gradbench/gradbench/__init__.py python/gradbench/gradbench/
+RUN uv sync --no-default-groups --group gradbench --group jax
 
-WORKDIR /home/gradbench
+# `COPY` the rest of the files.
+COPY python python
 
-COPY python /home/gradbench/python
-ENV PYTHONPATH=/home/gradbench/python/gradbench
-
-ENTRYPOINT ["taskset", "-c", "1", "python", "/home/gradbench/python/gradbench/gradbench/tools/jax/run.py"]
+ENTRYPOINT ["taskset", "-c", "1", "uv", "run", "--no-sync", "python/gradbench/gradbench/tools/jax/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench

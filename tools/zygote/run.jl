@@ -1,5 +1,4 @@
 include("hello.jl")
-include("gmm.jl")
 import JSON
 
 function resolve(mod, name)

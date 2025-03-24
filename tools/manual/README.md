@@ -12,5 +12,5 @@ make -C tools/manual
 Then, to run the tool itself:
 
 ```sh
-python3 tools/manual/run.py
+python3 python/gradbench/gradbench/cpp.py manual
 ```

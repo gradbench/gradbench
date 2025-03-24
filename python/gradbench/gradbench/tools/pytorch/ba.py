@@ -30,13 +30,10 @@ Changes Made:
 - Added a function to create BA input based on data provided in files
 """
 
-import signal
-
 import numpy as np
 import torch
-
 from gradbench import wrap
-from gradbench.adbench.ba_data import BAInput, BAOutput
+from gradbench.adbench.ba_data import BAInput
 from gradbench.adbench.ba_sparse_mat import BASparseMat
 from gradbench.adbench.itest import ITest
 from gradbench.tools.pytorch.ba_objective import compute_reproj_err, compute_w_err
@@ -120,10 +117,13 @@ def objective_output(errors):
 
 # Convert jacobian output to dictionary
 def jacobian_output(ba_mat):
+    def dedup(A):
+        return A[0:30] + [A[-1]]
+
     return {
-        "rows": list(map(int, list(ba_mat.rows))),
-        "cols": list(map(int, list(ba_mat.cols))),
-        "vals": list(map(float, list(ba_mat.vals))),
+        "rows": list(map(int, dedup(list(ba_mat.rows)))),
+        "cols": list(map(int, dedup(list(ba_mat.cols)))),
+        "vals": list(map(float, dedup(list(ba_mat.vals)))),
     }
 
 

@@ -1,14 +1,14 @@
 import argparse
-import json
 from pathlib import Path
 from typing import Any
 
-import manual.ba as golden
-import numpy as np
-
-from gradbench.comparison import compare_json_objects
-from gradbench.eval import SingleModuleValidatedEval, approve, mismatch
-from gradbench.wrap import Wrapped
+from gradbench import cpp
+from gradbench.eval import (
+    EvaluateResponse,
+    SingleModuleValidatedEval,
+    approve,
+    mismatch,
+)
 
 
 def parse(file):
@@ -35,36 +35,30 @@ def parse(file):
     }
 
 
-def check(function: str, input: Any, output: Any) -> None:
-    func = getattr(golden, function)
-    proc = func(input | {"min_runs": 1, "min_seconds": 0})
-    if proc.returncode == 0:
-        ls = proc.stdout.splitlines()
-        expected = json.loads(ls[0])
-        return compare_json_objects(expected, output)
-    else:
-        return Analysis(
-            valid=False,
-            error=f"golden implementation failed with stderr:\n{proc.stderr}",
-        )
+def expect(function: str, input: Any) -> EvaluateResponse:
+    return cpp.evaluate(
+        tool="manual",
+        module="ba",
+        function=function,
+        input=input | {"min_runs": 1, "min_seconds": 0},
+    )
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--min", type=int, default=1)
-    parser.add_argument("--max", type=int, default=2)
+    parser.add_argument("--max", type=int, default=14)  # Can go up to 20
     parser.add_argument("--min-runs", type=int, default=1)
     parser.add_argument("--min-seconds", type=float, default=1)
     parser.add_argument("--no-validation", action="store_true", default=False)
     args = parser.parse_args()
 
     e = SingleModuleValidatedEval(
-        module="ba", validator=approve if args.no_validation else mismatch(check)
+        module="ba", validator=approve if args.no_validation else mismatch(expect)
     )
     e.start()
     if e.define().success:
         # NOTE: data files are taken directly from ADBench. See README for more information.
-        # Currently set to run on the smallest two data files. To run on all 20 set loop range to be: range(1,21)
         for i in range(args.min, args.max + 1):
             datafile = next(Path("evals/ba/data").glob(f"ba{i}_*.txt"), None)
             if datafile:

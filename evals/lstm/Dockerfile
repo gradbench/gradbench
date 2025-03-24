@@ -1,22 +1,24 @@
-FROM python:3.11-slim
+FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim
+WORKDIR /gradbench
 
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    wget
+# Install build dependencies.
+RUN apt-get update && apt-get install -y build-essential wget
 
-RUN pip install numpy==1.26.0 pydantic dataclasses-json
+# `COPY` the minimal set of files for `uv sync`.
+COPY pyproject.toml uv.lock ./
+COPY python/gradbench/pyproject.toml python/gradbench/
+COPY python/gradbench/gradbench/__init__.py python/gradbench/gradbench/
+RUN uv sync --no-default-groups --group dataclasses-json --group gradbench --group numpy --group pydantic
 
-WORKDIR /home/gradbench
-
-COPY python /home/gradbench/python
-
-COPY cpp /home/gradbench/cpp
+# Build the `manual` tool.
+COPY cpp cpp
 RUN make -C cpp
-COPY tools/manual/ /home/gradbench/tools/manual
-RUN make -C /home/gradbench/tools/manual -Bj
+COPY tools/manual tools/manual
+RUN make -C tools/manual -Bj
 
-COPY evals/lstm/data /home/gradbench/evals/lstm/data
+# `COPY` the rest of the files.
+COPY python python
+COPY evals/lstm evals/lstm
 
-ENV PYTHONPATH=/home/gradbench/python/gradbench:/home/gradbench/tools/
-ENTRYPOINT ["python", "/home/gradbench/python/gradbench/gradbench/evals/lstm/run.py"]
+ENTRYPOINT ["uv", "run", "--no-sync", "python/gradbench/gradbench/evals/lstm/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
