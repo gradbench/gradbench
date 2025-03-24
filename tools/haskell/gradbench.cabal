@@ -18,6 +18,7 @@ executable gradbench
                       GradBench.KMeans
                       GradBench.LLSqObj
                       GradBench.AnODE
+                      GradBench.DetByMinor
     build-depends:    ad, aeson, base, bytestring, text, vector, clock, deepseq
     hs-source-dirs:   src
     default-language: GHC2021

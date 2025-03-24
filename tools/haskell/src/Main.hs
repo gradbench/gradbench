@@ -24,6 +24,7 @@ import Data.List qualified as L
 import Data.Maybe (fromMaybe, isJust)
 import Data.Text qualified as T
 import GradBench.AnODE qualified
+import GradBench.DetByMinor qualified
 import GradBench.Hello qualified
 import GradBench.KMeans qualified
 import GradBench.LLSqObj qualified
@@ -89,7 +90,9 @@ modules =
     (("llsq_obj", "primal"), wrap GradBench.LLSqObj.primal),
     (("llsq_obj", "gradient"), wrap GradBench.LLSqObj.gradient),
     (("an_ode", "primal"), wrap GradBench.AnODE.primal),
-    (("an_ode", "gradient"), wrap GradBench.AnODE.gradient)
+    (("an_ode", "gradient"), wrap GradBench.AnODE.gradient),
+    (("det_by_minor", "primal"), wrap GradBench.DetByMinor.primal),
+    (("det_by_minor", "gradient"), wrap GradBench.DetByMinor.gradient)
   ]
 
 type Id = Int
