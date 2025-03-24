@@ -45,4 +45,4 @@ actually want to pass this command as the `--tool` argument to
 `gradbench`.
 
 [opam]: https://opam.ocaml.org/
-[Dune](https://dune.build/)
+[Dune]: https://dune.build/
