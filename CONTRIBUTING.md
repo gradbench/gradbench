@@ -9,6 +9,7 @@
   - [Multi-platform images](#multi-platform-images)
 - [Tools](#tools)
 - [JavaScript](#javascript)
+  - [Prettier](#prettier)
   - [Markdown](#markdown)
   - [Website](#website)
 - [Python](#python)
