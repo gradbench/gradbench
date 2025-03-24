@@ -1,20 +1,19 @@
 import argparse
 from typing import Any
 
-from gradbench.comparison import compare_json_objects
-from gradbench.eval import SingleModuleValidatedEval, mismatch
+from gradbench.eval import EvaluateResponse, SingleModuleValidatedEval, mismatch
 
 
-def check(function: str, input: Any, output: Any) -> None:
-    return compare_json_objects(
-        [
+def expect(function: str, input: Any) -> EvaluateResponse:
+    return {
+        "success": True,
+        "output": [
             8.246324826140356e-06,
             8.246324826140356e-06,
             8.246324826140356e-06,
             8.246324826140356e-06,
         ],
-        output,
-    )
+    }
 
 
 def main():
@@ -23,7 +22,7 @@ def main():
     parser.add_argument("--min-seconds", type=float, default=1)
     args = parser.parse_args()
 
-    e = SingleModuleValidatedEval(module="saddle", validator=mismatch(check))
+    e = SingleModuleValidatedEval(module="saddle", validator=mismatch(expect))
     e.start()
     if e.define().success:
         input = {"start": [1.0, 1.0]}
