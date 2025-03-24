@@ -1,8 +1,8 @@
-FROM julia:1.10.4
+FROM julia:1.11.3
 WORKDIR /gradbench
-COPY tools/zygote/Project.toml .
-COPY tools/zygote/Manifest.toml .
-RUN julia --project=. -e 'import Pkg; Pkg.instantiate()'
-COPY tools/zygote/run.jl .
-ENTRYPOINT ["julia", "--project=/gradbench", "/gradbench/run.jl"]
-LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
+
+COPY tools/zygote /gradbench/tools/zygote
+
+RUN julia --project=tools/zygote -e 'import Pkg; Pkg.instantiate()'
+
+ENTRYPOINT ["julia", "--project=tools/zygote", "tools/zygote/run.jl"]
