@@ -116,6 +116,14 @@ We use Bun for JavaScript code in this repository. First install all dependencie
 bun install
 ```
 
+### Prettier
+
+We use [Prettier][] to format a lot of different files in this repository. If you're using [VS Code][], our configuration in this repository should automatically recommend that you install the Prettier extension, as well as automatically run it whenever you save an applicable file. You can also run it manually via the command line:
+
+```sh
+bun run format
+```
+
 ### Markdown
 
 This file and [`README.md`](README.md) use [markdown-toc][] to generate the table of contents at the top. If you add/modify/delete any Markdown section headers, run this command to regenerate those tables of contents:
@@ -317,6 +325,7 @@ type Session = (MessageLine | ResponseLine)[];
 [markdown-toc]: https://www.npmjs.com/package/markdown-toc
 [multi-platform images]: https://docs.docker.com/build/building/multi-platform/
 [nix]: https://nixos.org/
+[prettier]: https://prettier.io/
 [python]: https://docs.astral.sh/uv/guides/install-python/
 [qemu]: https://docs.docker.com/build/building/multi-platform/#install-qemu-manually
 [ruff]: https://docs.astral.sh/ruff/

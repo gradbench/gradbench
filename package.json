@@ -20,8 +20,14 @@
     "vite": "^5"
   },
   "scripts": {
+    "format": "prettier --write .",
     "toc": "bun run toc-contributing && bun run toc-readme",
     "toc-contributing": "markdown-toc --bullets='-' -i CONTRIBUTING.md",
     "toc-readme": "markdown-toc --bullets='-' -i README.md"
+  },
+  "prettier": {
+    "plugins": [
+      "prettier-plugin-organize-imports"
+    ]
   }
 }
