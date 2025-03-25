@@ -1,3 +1,9 @@
+-- | This is a somewhat inefficient implementation that directly
+-- implements the recursive specification, using lists of lists to
+-- represent the matrix. Remarkably, because the algorithm is
+-- fundamentally so inefficient (something like O(n!)), the workloads
+-- are necessarily tiny, and hence this inefficient representation is
+-- adequate.
 module GradBench.DetByMinor
   ( Input,
     PrimalOutput,
