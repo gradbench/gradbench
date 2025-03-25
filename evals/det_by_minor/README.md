@@ -15,9 +15,9 @@ provide a good source of floating point operations.
 
 This eval has two functions:
 
-* `primal` is given $A$ and must compute the determinant of $A$ as above.
+- `primal` is given $A$ and must compute the determinant of $A$ as above.
 
-* `gradient` is given $A$ and must compute the gradient of the
+- `gradient` is given $A$ and must compute the gradient of the
   determinant of $A$ with respect to $A$.
 
 ## Protocol

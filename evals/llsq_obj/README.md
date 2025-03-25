@@ -25,10 +25,10 @@ We write $n$ for the size of $t$ and $s$, and $m$ for the size of $x$.
 
 This eval has two functions:
 
-* `primal`, where we are given *x* and *n* and must compute *y(x)*.
+- `primal`, where we are given _x_ and _n_ and must compute _y(x)_.
 
-* `gradient`, where we are given *x* and *n* and must compute the
-  gradient of *y(x)*.
+- `gradient`, where we are given _x_ and _n_ and must compute the
+  gradient of _y(x)_.
 
 ## Protocol
 
