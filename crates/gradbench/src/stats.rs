@@ -203,7 +203,7 @@ fn scorer<R: BufRead, F: CreateFile>(eval: &str) -> Box<dyn Scorer<R, F>> {
     match eval {
         "ba" | "gmm" | "ht" | "lstm" => Box::new(ScorerClassic::new("objective", "jacobian")),
         "kmeans" => Box::new(ScorerClassic::new("cost", "dir")),
-        "an_ode" | "llsq_obj" | "det_by_minor" => Box::new(ScorerClassic::new("primal", "gradient")),
+        "ode" | "llsq" | "det" => Box::new(ScorerClassic::new("primal", "gradient")),
         _ => Box::new(()),
     }
 }

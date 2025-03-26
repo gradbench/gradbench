@@ -16,9 +16,9 @@ executable gradbench
     main-is:          Main.hs
     other-modules:    GradBench.Hello
                       GradBench.KMeans
-                      GradBench.LLSqObj
-                      GradBench.AnODE
-                      GradBench.DetByMinor
+                      GradBench.LLSq
+                      GradBench.ODE
+                      GradBench.Det
                       GradBench.Particle
                       GradBench.Saddle
                       GradBench.GD
