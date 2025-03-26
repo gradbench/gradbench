@@ -1,5 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500">
-  <rect width="100%" height="100%" fill="#3e4756" rx="50" />
-  <polygon fill="#fff" points="351.0362971081845,50 148.9637028918155,50 250,225" />
-  <polygon fill="#fff" points="450,450 450,275 50,275 50,450 100,450 100,325 400,325 400,450" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bggradient">
+      <stop offset="0%" stop-color="#3e4756" />
+      <stop offset="100%" stop-color="#3e4756" />
+    </linearGradient>
+  </defs>
+
+  <rect id="background" width="100%" height="100%" fill="url(#bggradient)" rx="50"/>
+  <polygon id="nabla" fill="#fff" points="351.0362971081845,50 148.9637028918155,50 250,225"/>
+  <polygon id="table" fill="#fff" points="450,450 450,275 50,275 50,450 100,450 100,325 400,325 400,450"/>
 </svg>

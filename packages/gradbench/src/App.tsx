@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Fragment } from "react/jsx-runtime";
 import "./App.css";
 import { Stats } from "./Stats.tsx";
@@ -117,6 +117,10 @@ const ScoredRow = ({ tools }: Row) => {
   });
 };
 
+const randomColor = () => {
+  return `#${Math.floor(Math.random() * 16777215).toString(16)}`;
+};
+
 const Viz = ({ prefix, summary }: { prefix: string; summary: Summary }) => {
   const [activeEval, setActiveEval] = useState<string | undefined>(undefined);
   const numEvals = summary.table.length;
@@ -213,6 +217,19 @@ const App = () => {
   });
   const prefix = urlPrefix({ commit, date: state.date });
   const downloaded = state.summary?.prefix;
+  const logoRef = useRef(null);
+
+  // Change color when the logo has loaded
+  const handleLogoLoad = () => {
+    const object = logoRef.current;
+    const logo = object.contentDocument;
+
+    const gradient = logo.querySelector("#bggradient");
+    const stops = gradient.querySelectorAll("stop");
+    stops[0].setAttribute("stop-color", randomColor());
+    stops[1].setAttribute("stop-color", randomColor());
+  };
+
   useEffect(() => {
     // Nothing to do if we've already downloaded this summary.
     if (prefix === downloaded) return;
@@ -237,6 +254,12 @@ const App = () => {
         return newState;
       });
     })();
+
+    const logo = logoRef.current;
+
+    if (logo) {
+      logo.onload = handleLogoLoad;
+    }
   }, [commit, prefix, downloaded]);
   const pickDate = (date: string) => {
     if (parseDate(date) === null) return;
@@ -248,6 +271,12 @@ const App = () => {
   return (
     <>
       <h1>
+        <object
+          id="logo"
+          ref={logoRef}
+          type="image/svg+xml"
+          data="/src/logo.svg"
+        ></object>
         <a href="https://github.com/gradbench/gradbench">GradBench</a>{" "}
         <button
           disabled={state.date === undefined}

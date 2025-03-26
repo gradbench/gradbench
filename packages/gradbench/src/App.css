@@ -2,6 +2,13 @@
   font-family: sans-serif;
 }
 
+#logo {
+  margin-right: 1em;
+  display: inline;
+  width: 100px;
+  height: 100px;
+}
+
 a:link {
   text-decoration: none;
 }
