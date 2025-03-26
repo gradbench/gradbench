@@ -28,6 +28,8 @@ import GradBench.DetByMinor qualified
 import GradBench.Hello qualified
 import GradBench.KMeans qualified
 import GradBench.LLSqObj qualified
+import GradBench.Particle qualified
+import GradBench.Saddle qualified
 import System.Clock (Clock (Monotonic), getTime, toNanoSecs)
 import System.Exit
 import System.IO
@@ -92,7 +94,15 @@ modules =
     (("an_ode", "primal"), wrap GradBench.AnODE.primal),
     (("an_ode", "gradient"), wrap GradBench.AnODE.gradient),
     (("det_by_minor", "primal"), wrap GradBench.DetByMinor.primal),
-    (("det_by_minor", "gradient"), wrap GradBench.DetByMinor.gradient)
+    (("det_by_minor", "gradient"), wrap GradBench.DetByMinor.gradient),
+    (("particle", "rr"), wrap GradBench.Particle.rr),
+    (("particle", "fr"), wrap GradBench.Particle.fr),
+    (("particle", "rf"), wrap GradBench.Particle.rf),
+    (("particle", "ff"), wrap GradBench.Particle.ff),
+    (("saddle", "rr"), wrap GradBench.Saddle.rr),
+    (("saddle", "fr"), wrap GradBench.Saddle.fr),
+    (("saddle", "rf"), wrap GradBench.Saddle.rf),
+    (("saddle", "ff"), wrap GradBench.Saddle.ff)
   ]
 
 type Id = Int
