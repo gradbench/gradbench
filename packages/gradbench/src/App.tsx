@@ -217,15 +217,15 @@ const App = () => {
   });
   const prefix = urlPrefix({ commit, date: state.date });
   const downloaded = state.summary?.prefix;
-  const logoRef = useRef(null);
+  const logoRef = useRef<HTMLObjectElement>(null);
 
   // Change color when the logo has loaded
   const handleLogoLoad = () => {
     const object = logoRef.current;
-    const logo = object.contentDocument;
+    const logo = object!.contentDocument;
 
-    const gradient = logo.querySelector("#bggradient");
-    const stops = gradient.querySelectorAll("stop");
+    const gradient = logo!.querySelector("#bggradient");
+    const stops = gradient!.querySelectorAll("stop");
     stops[0].setAttribute("stop-color", randomColor());
     stops[1].setAttribute("stop-color", randomColor());
   };
