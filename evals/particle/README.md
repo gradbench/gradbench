@@ -1,19 +1,6 @@
 # Charged particle trajectory
 
-The benchmark models a charged particle accelerated by an electric
-field formed by a pair of repulsive bodies, with the goal being to
-find a control parameter that causes the movement of the particle to
-intersect the origin. This benchmark, along with [saddle](../saddle/),
-was originally proposed by Pearlmutter and Siskind in the papers
-[Using Programming Language Theory to Make Automatic Differentiation
-Sound and
-Efficient](https://link.springer.com/chapter/10.1007/978-3-540-68942-3_8)
-and [Putting the Automatic Back into AD: Part I, What’s
-Wrong](https://docs.lib.purdue.edu/ecetr/368/). The benchmark has also
-been covered in [Putting the Automatic Back into AD: Part I, What’s
-Wrong](https://docs.lib.purdue.edu/cgi/viewcontent.cgi?article=1369&context=ecetr),
-which mainly discusses how the tools of the time had a very hard time
-handling it correctly.
+The benchmark models a charged particle accelerated by an electric field formed by a pair of repulsive bodies, with the goal being to find a control parameter that causes the movement of the particle to intersect the origin. This benchmark, along with [saddle](../saddle), was originally proposed by Pearlmutter and Siskind in the paper [Using Programming Language Theory to Make Automatic Differentiation Sound and Efficient](https://link.springer.com/chapter/10.1007/978-3-540-68942-3_8). The benchmark has also been covered in [Putting the Automatic Back into AD: Part I, What’s Wrong](https://docs.lib.purdue.edu/cgi/viewcontent.cgi?article=1369&context=ecetr), which mainly discusses how the tools of the time had a very hard time handling it correctly.
 
 ## Specification
 
@@ -35,7 +22,7 @@ the $x$-axis at position $\mathbf{x}(t_f)$. We desire to compute
 which makes the particle intersect the origin (this is an _argmin_
 operation).
 
-[Naive Euler ODE integration][] is used to compute the particle's
+[Naive Euler ODE integration][euler] is used to compute the particle's
 path, with linear interpolation to find the intersection with the $x$
 axis (see paper for the formula, or the code for one of the existing
 tools, this is not expressible with GitHub's math support). This ODE
