@@ -198,11 +198,81 @@ impl<R: BufRead, F: CreateFile> Scorer<R, F> for ScorerClassic {
     }
 }
 
+#[derive(Serialize)]
+struct ScorerParticleSaddle {
+    /// The average duration for each tool (outer keys) and function (inner keys).
+    tools: BTreeMap<String, IndexMap<Rc<str>, Duration>>,
+}
+
+impl ScorerParticleSaddle {
+    fn new() -> Self {
+        Self {
+            tools: BTreeMap::new(),
+        }
+    }
+}
+
+impl<R: BufRead, F: CreateFile> Scorer<R, F> for ScorerParticleSaddle {
+    fn score(&mut self, tool: &str, log: R) -> anyhow::Result<f64> {
+        let mut message = None;
+        for result in log.lines() {
+            let line = result?;
+            if let Ok(parsed) = serde_json::from_str::<LoggedMessage<Message>>(&line) {
+                message = Some(parsed.message);
+                continue;
+            }
+            let Some(msg) = message.take() else {
+                bail!("response with no preceding message");
+            };
+            if let (
+                Message::Evaluate {
+                    function,
+                    description: _,
+                    ..
+                },
+                Ok(parsed),
+            ) = (
+                msg,
+                serde_json::from_str::<LoggedResponse<EvaluateResponse>>(&line),
+            ) {
+                let mut count = 0;
+                let mut duration = Duration::ZERO;
+                for timing in parsed.response.timings.unwrap_or_default() {
+                    if timing.name == "evaluate" {
+                        count += 1;
+                        duration += nanos_duration(timing.nanoseconds)?;
+                    }
+                }
+                self.tools
+                    .entry(tool.to_string())
+                    .or_default()
+                    .insert(Rc::from(function), duration / count);
+            }
+        }
+        if let Some(runtimes) = self.tools.get(tool) {
+            let fastest = runtimes
+                .values()
+                .min()
+                .expect("no function worked")
+                .as_secs_f64();
+            Ok(1.0 / fastest)
+        } else {
+            Err(anyhow!("no results for tool {tool}"))
+        }
+    }
+
+    fn finish(&self, file: F) -> anyhow::Result<()> {
+        file.create("summary.json", serde_json::to_string(&self)?.as_bytes())?;
+        Ok(())
+    }
+}
+
 /// Return the `Scorer` for the `eval` with the given name.
 fn scorer<R: BufRead, F: CreateFile>(eval: &str) -> Box<dyn Scorer<R, F>> {
     match eval {
         "ba" | "gmm" | "ht" | "lstm" => Box::new(ScorerClassic::new("objective", "jacobian")),
         "kmeans" => Box::new(ScorerClassic::new("cost", "dir")),
+        "particle" | "saddle" => Box::new(ScorerParticleSaddle::new()),
         _ => Box::new(()),
     }
 }
