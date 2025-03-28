@@ -198,6 +198,14 @@ impl<R: BufRead, F: CreateFile> Scorer<R, F> for ScorerClassic {
     }
 }
 
+/// A scorer for evals that contain multiple semantically equivalent
+/// but operationally different functions, like particle and saddle.
+/// We assume only one workload per function.
+///
+/// The point of these evals is to investigate the consequences of
+/// different implementation choices. In a real setting, one would
+/// presumably pick the best one, so the score is reported as the
+/// minimum runtime achieved.
 #[derive(Serialize)]
 struct ScorerParticleSaddle {
     /// The average duration for each tool (outer keys) and function (inner keys).
