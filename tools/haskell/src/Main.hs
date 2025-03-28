@@ -23,8 +23,11 @@ import Data.ByteString.Char8 qualified as BS
 import Data.List qualified as L
 import Data.Maybe (fromMaybe, isJust)
 import Data.Text qualified as T
+import GradBench.Det qualified
 import GradBench.Hello qualified
 import GradBench.KMeans qualified
+import GradBench.LLSq qualified
+import GradBench.ODE qualified
 import GradBench.Particle qualified
 import GradBench.Saddle qualified
 import System.Clock (Clock (Monotonic), getTime, toNanoSecs)
@@ -86,6 +89,12 @@ modules =
     (("hello", "double"), wrap GradBench.Hello.double),
     (("kmeans", "cost"), wrap GradBench.KMeans.cost),
     (("kmeans", "dir"), wrap GradBench.KMeans.dir),
+    (("llsq", "primal"), wrap GradBench.LLSq.primal),
+    (("llsq", "gradient"), wrap GradBench.LLSq.gradient),
+    (("ode", "primal"), wrap GradBench.ODE.primal),
+    (("ode", "gradient"), wrap GradBench.ODE.gradient),
+    (("det", "primal"), wrap GradBench.Det.primal),
+    (("det", "gradient"), wrap GradBench.Det.gradient),
     (("particle", "rr"), wrap GradBench.Particle.rr),
     (("particle", "fr"), wrap GradBench.Particle.fr),
     (("particle", "rf"), wrap GradBench.Particle.rf),
