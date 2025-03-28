@@ -40,7 +40,7 @@ interface DetByMinorInput extends Runs {
 }
 ```
 
-The `A` field contains $A$ in row-major order, and the `elll` field is
+The `A` field contains $A$ in row-major order, and the `ell` field is
 the edge size $\ell$. This is strictly speaking redundant, as `ell`
 will be the square root of the length of the flat representation.
 
