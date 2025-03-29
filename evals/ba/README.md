@@ -112,7 +112,7 @@ be reported as a particular encoding of a sparse matrix. This is not
 so difficult if you are implementing this eval in C++ - use the
 provided data structure in [ba.hpp][] and look at how
 [tools/manual/run_ba.cpp] does it. It is a lot more annoying if you
-are using another language, and _particulary_ if you want to compute
+are using another language, and _particularly_ if you want to compute
 the sparse Jacobian in parallel. See [tools/futhark/ba.fut][] for how
 to do this.
 
