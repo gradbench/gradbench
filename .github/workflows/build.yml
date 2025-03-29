@@ -10,6 +10,14 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  check-cpp:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Format
+        run: git ls-files '*.c' '*.cpp' '*.h' '*.hpp' | xargs clang-format --dry-run -Werror
+
   check-js:
     runs-on: ubuntu-24.04
     steps:
