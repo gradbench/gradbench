@@ -207,12 +207,12 @@ impl<R: BufRead, F: CreateFile> Scorer<R, F> for ScorerClassic {
 /// presumably pick the best one, so the score is reported as the
 /// minimum runtime achieved.
 #[derive(Serialize)]
-struct ScorerParticleSaddle {
+struct ScorerEquivFunctions {
     /// The average duration for each tool (outer keys) and function (inner keys).
     tools: BTreeMap<String, IndexMap<Rc<str>, Duration>>,
 }
 
-impl ScorerParticleSaddle {
+impl ScorerEquivFunctions {
     fn new() -> Self {
         Self {
             tools: BTreeMap::new(),
@@ -220,7 +220,7 @@ impl ScorerParticleSaddle {
     }
 }
 
-impl<R: BufRead, F: CreateFile> Scorer<R, F> for ScorerParticleSaddle {
+impl<R: BufRead, F: CreateFile> Scorer<R, F> for ScorerEquivFunctions {
     fn score(&mut self, tool: &str, log: R) -> anyhow::Result<f64> {
         let mut message = None;
         for result in log.lines() {
@@ -280,7 +280,8 @@ fn scorer<R: BufRead, F: CreateFile>(eval: &str) -> Box<dyn Scorer<R, F>> {
     match eval {
         "ba" | "gmm" | "ht" | "lstm" => Box::new(ScorerClassic::new("objective", "jacobian")),
         "kmeans" => Box::new(ScorerClassic::new("cost", "dir")),
-        "particle" | "saddle" => Box::new(ScorerParticleSaddle::new()),
+        "particle" | "saddle" => Box::new(ScorerEquivFunctions::new()),
+        "ode" | "llsq" | "det" => Box::new(ScorerClassic::new("primal", "gradient")),
         _ => Box::new(()),
     }
 }
