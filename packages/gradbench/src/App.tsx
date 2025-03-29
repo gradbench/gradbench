@@ -270,14 +270,16 @@ const App = () => {
   };
   return (
     <>
+      <object
+        id="logo"
+        ref={logoRef}
+        type="image/svg+xml"
+        data="/src/logo.svg"
+      />
       <h1>
-        <object
-          id="logo"
-          ref={logoRef}
-          type="image/svg+xml"
-          data="/src/logo.svg"
-        ></object>
         <a href="https://github.com/gradbench/gradbench">GradBench</a>{" "}
+      </h1>
+      <nav>
         <button
           disabled={state.date === undefined}
           onClick={() => {
@@ -305,7 +307,7 @@ const App = () => {
         >
           ▶
         </button>
-      </h1>
+      </nav>
       {state.summary === undefined ? (
         <p>Downloading...</p>
       ) : state.summary.summary === undefined ? (
