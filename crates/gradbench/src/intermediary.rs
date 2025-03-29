@@ -396,8 +396,8 @@ pub fn run(
     tool: &mut Child,
     timeout: Option<Duration>,
 ) -> Result<(), BadOutcome> {
-    let outcome = Arc::new(Mutex::new(None));
-    match handle_ctrlc(eval, tool, Arc::clone(&outcome)) {
+    let outcome_mutex = Arc::new(Mutex::new(None));
+    match handle_ctrlc(eval, tool, Arc::clone(&outcome_mutex)) {
         Ok(()) => {}
         Err(err) => {
             err_fail(err);
@@ -405,8 +405,8 @@ pub fn run(
         }
     }
     let start = Instant::now();
-    Intermediary {
-        outcome,
+    let outcome = Intermediary {
+        outcome: outcome_mutex,
         eval_in: eval.stdin.take().unwrap(),
         tool_in: tool.stdin.take().unwrap(),
         eval_out: io::BufReader::new(eval.stdout.take().unwrap()),
@@ -415,7 +415,21 @@ pub fn run(
         out: io::stdout(),
         log,
     }
-    .run()
+    .run();
+    // If fail due to a timeout, the tool may still be running. Kill
+    // its process group to ensure that we will not be hanging in a
+    // wait() call in main.rs.
+    #[cfg(unix)]
+    if let Err(BadOutcome::Timeout) = outcome {
+        use nix::{sys::signal, unistd};
+        if let Ok(tool_id) = tool.id().try_into() {
+            let tool_pid = unistd::Pid::from_raw(tool_id);
+            if let Ok(pgid) = unistd::getpgid(Some(tool_pid)) {
+                let _ = signal::killpg(pgid, signal::Signal::SIGKILL);
+            }
+        }
+    }
+    outcome
 }
 
 #[cfg(test)]

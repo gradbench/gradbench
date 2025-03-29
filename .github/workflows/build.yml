@@ -49,7 +49,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Lint Rust code
-        run: cargo clippy
+        run: cargo clippy -- -Dwarnings
       - name: Test Rust code
         run: cargo test
 
