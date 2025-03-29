@@ -48,5 +48,5 @@ which you might consider implementing first.
 [protocol]: /CONTRIBUTING.md#types
 [rename]: https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/ADBench/plot_graphs.py#L89-L92
 [typescript]: https://www.typescriptlang.org/
-[gmm]: ../gmm
-[ode]: ../ode
+[gmm]: /evals/gmm
+[ode]: /evals/ode

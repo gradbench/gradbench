@@ -76,4 +76,4 @@ implementing it in tools such as [pytorch][].
 [original documentation]: https://cmpad.readthedocs.io/llsq_obj.html
 [protocol]: /CONTRIBUTING.md#types
 [typescript]: https://www.typescriptlang.org/
-[pytorch]: ../tools/pytorch
+[pytorch]: /tools/pytorch

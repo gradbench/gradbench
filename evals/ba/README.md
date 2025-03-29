@@ -121,6 +121,6 @@ to do this.
 [io]: https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/shared/BAData.py
 [typescript]: https://www.typescriptlang.org/
 [COO]: https://en.wikipedia.org/wiki/Sparse_matrix#Coordinate_list_(COO)
-[ba.hpp]: ../../cpp/gradbench/evals/ba.hpp
-[tools/manual/run_ba.cpp]: ../../tools/manual/run_ba.cpp
-[tools/futhark/ba.fut]: ../../tools/futhark/ba.fut
+[ba.hpp]: /cpp/gradbench/evals/ba.hpp
+[tools/manual/run_ba.cpp]: /tools/manual/run_ba.cpp
+[tools/futhark/ba.fut]: /tools/futhark/ba.fut

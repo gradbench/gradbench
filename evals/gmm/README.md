@@ -96,9 +96,9 @@ difficult.
 [io]: https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/shared/GMMData.py
 [protocol]: /CONTRIBUTING.md#types
 [typescript]: https://www.typescriptlang.org/
-[gmm.hpp]: ../../cpp/gradbench/evals/gmm.hpp
-[gmm.fut]: ../../tool/futhark/gmm.fut
-[gmm_objective.py]: ../../python/gradbench/gradbench/tools/pytorch/gmm_objective.py
-[llsq]: ../llsq
-[lstm]: ../lstm
-[ode]: ../ode
+[gmm.hpp]: /cpp/gradbench/evals/gmm.hpp
+[gmm.fut]: /tool/futhark/gmm.fut
+[gmm_objective.py]: /python/gradbench/gradbench/tools/pytorch/gmm_objective.py
+[llsq]: /evals/llsq
+[lstm]: /evals/lstm
+[ode]: /evals/ode

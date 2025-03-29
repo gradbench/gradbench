@@ -77,4 +77,4 @@ the only way to express this problem. See [det.fut][] for an example.
 [expansion by minors]: https://mathworld.wolfram.com/DeterminantExpansionbyMinors.html
 [protocol]: /CONTRIBUTING.md#types
 [typescript]: https://www.typescriptlang.org/
-[det.fut]: ../../tools/futhark/det.fut
+[det.fut]: /tools/futhark/det.fut

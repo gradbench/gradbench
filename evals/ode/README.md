@@ -72,4 +72,4 @@ complicated problem that exercises roughly the same parts of AD.
 [original documentation]: https://cmpad.readthedocs.io/an_ode.html
 [protocol]: /CONTRIBUTING.md#types
 [typescript]: https://www.typescriptlang.org/
-[lstm]: ../lstm
+[lstm]: /evals/lstm

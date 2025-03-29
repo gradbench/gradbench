@@ -1,6 +1,6 @@
 # Finding Saddle Points with Gradient Descent
 
-The benchmark uses gradient descent to compute the saddle point of a simple function. This benchmark, along with [particle](../particle), was originally proposed by Pearlmutter and Siskind in the paper [Using Programming Language Theory to Make Automatic Differentiation Sound and Efficient](https://link.springer.com/chapter/10.1007/978-3-540-68942-3_8). The benchmark has also been covered in [Putting the Automatic Back into AD: Part I, What’s Wrong](https://docs.lib.purdue.edu/cgi/viewcontent.cgi?article=1369&context=ecetr), which mainly discusses how the tools of the time had a very hard time handling it correctly.
+The benchmark uses gradient descent to compute the saddle point of a simple function. This benchmark, along with [particle](/evals/particle), was originally proposed by Pearlmutter and Siskind in the paper [Using Programming Language Theory to Make Automatic Differentiation Sound and Efficient](https://link.springer.com/chapter/10.1007/978-3-540-68942-3_8). The benchmark has also been covered in [Putting the Automatic Back into AD: Part I, What’s Wrong](https://docs.lib.purdue.edu/cgi/viewcontent.cgi?article=1369&context=ecetr), which mainly discusses how the tools of the time had a very hard time handling it correctly.
 
 ## Specification
 
@@ -101,4 +101,4 @@ commentary there.
 
 [protocol]: /CONTRIBUTING.md#types
 [typescript]: https://www.typescriptlang.org/
-[particle]: ../particle
+[particle]: /evals/particle

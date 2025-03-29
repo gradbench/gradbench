@@ -18,4 +18,4 @@ Note that in contrast to most other evals, `hello` does not have
 `min_runs` and `min_seconds` fields.
 
 [protocol]: /CONTRIBUTING.md#types
-[llsq]: ../llsq
+[llsq]: /evals/llsq
