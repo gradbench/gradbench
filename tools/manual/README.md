@@ -24,7 +24,7 @@ algorithmic improvements: a tool may beat `manual` through operational
 advantages, such as efficient implementations of primitives like
 matrix multiplication, parallel execution, etc. that the `manual`
 implementation of a tool does not do. It is not a goal that the
-`manual` tool is at all costs the *fastest it can possibly be*.
+`manual` tool is at all costs the _fastest it can possibly be_.
 
 It is not expected that we will be able to implement
 hand-differentiated versions of all evals. AD is after all most useful

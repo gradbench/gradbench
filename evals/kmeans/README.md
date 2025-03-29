@@ -53,7 +53,7 @@ Because the input extends `Runs`, the tool is expected to run the function some 
 Despite the quite simple objective function, this benchmark exercises
 a number of interesting things:
 
-1. Efficiently computing a *sparse* Hessian (just the diagonal). This
+1. Efficiently computing a _sparse_ Hessian (just the diagonal). This
    means that a tool that can compute the Hessian, but only the entire
    thing, would be at a disadvantage.
 
