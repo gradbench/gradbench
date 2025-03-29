@@ -35,7 +35,18 @@ The `LSTMJacobianOutput` is the gradient of `main_params` and `extra_params`, fl
 
 Because the input extends `Runs`, the tool is expected to run the function some number of times. It should include one timing entry with the name `"evaluate"` for each time it ran the function.
 
+## Commentary
+
+This eval is similar to [gmm][] in that it asks for the gradient of a
+scalar-valued function, and is thus suited for reverse mode. The main
+additional challenge is that `lstm` also contains a sequential loop,
+which will require an AD tool to handle the taping/tracing
+efficiently. An even simpler eval with the same properties is [ode][],
+which you might consider implementing first.
+
 [adbench]: https://github.com/microsoft/ADBench
 [protocol]: /CONTRIBUTING.md#types
 [rename]: https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/ADBench/plot_graphs.py#L89-L92
 [typescript]: https://www.typescriptlang.org/
+[gmm]: ../gmm
+[ode]: ../ode

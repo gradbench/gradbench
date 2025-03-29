@@ -77,7 +77,30 @@ type SaddleOutput = double;
 
 The output is the final value of $w$.
 
+## Commentary
+
+The challenging part about `particle` (and [saddle][]) is that it
+involves nested AD, and not merely in the simple way needed by
+[kmeans][] for computing hessians. These benchmarks things optimise
+objective functions that themselves contain instances of AD (in the
+case of 'saddle', this is a nested solver). The`'particle'`eval even
+has an unbounded `while` loop in the primal function, which can be a
+challenge to some tools. In particular, for the C++ tools built on
+operator overloading, the types can get quite involved.
+
+`particle` is a scalar benchmark, with no large arrays, and no
+meaningful potential for parallel execution. In principle, the two
+"attractors" that depend on $w$ could be extended to a much larger
+quantity, but that might not actually be a sensible thing to simulate.
+
+It is not required that all of the four function variants are
+implemented by instantiating some generic function (although some of
+our tools do it like that). It is fine to have four completely
+independent implementations.
+
 [protocol]: /CONTRIBUTING.md#types
 [typescript]: https://www.typescriptlang.org/
 [paper]: https://link.springer.com/chapter/10.1007/978-3-540-68942-3_8
 [euler]: https://en.wikipedia.org/wiki/Euler_method
+[kmeans]: ../kmeans
+[saddle]: ../saddle

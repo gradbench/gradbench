@@ -103,6 +103,11 @@ the last element.
 
 Because the input extends `Runs`, the tool is expected to run the function some number of times. It should include one timing entry with the name `"evaluate"` for each time it ran the function.
 
+## Commentary
+
+The actual objective function in this eval is not particularly
+challenging.
+
 [adbench]: https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87
 [data]: https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87/data/ba
 [io]: https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/shared/BAData.py

@@ -94,5 +94,11 @@ type SaddleOutput = double[4];
 
 The output contains the points `x` and `y` concatenated.
 
+## Commentary
+
+This benchmark is similar to [particle][], and it is worth reading the
+commentary there.
+
 [protocol]: /CONTRIBUTING.md#types
 [typescript]: https://www.typescriptlang.org/
+[particle]: ../particle

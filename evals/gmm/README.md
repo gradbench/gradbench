@@ -79,9 +79,26 @@ The `GMMJacobianOutput` value contains the concatenated gradients for the `alpha
 
 Because the input extends `Runs`, the tool is expected to run the function some number of times. It should include one timing entry with the name `"evaluate"` for each time it ran the function.
 
+## Commentary
+
+This eval is straightforward to implement from an AD perspective, as
+it computes a dense gradient of a scalar-valued function. The
+objective function can be easily expressed in a scalar way (see
+[gmm.hpp][] or [gmm.fut][]), or through linear algebra operations (see
+[gmm_objective.py][]). An even simpler eval with the same properties
+is [llsq][], which you might consider implementing first. After
+implementing `gmm`, implementing [lstm][] or [ode][] should not be so
+difficult.
+
 [adbench]: https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87
 [data]: https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87/data/gmm
 [gen]: https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/data/gmm/gmm-data-gen.py
 [io]: https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/shared/GMMData.py
 [protocol]: /CONTRIBUTING.md#types
 [typescript]: https://www.typescriptlang.org/
+[gmm.hpp]: ../../cpp/gradbench/evals/gmm.hpp
+[gmm.fut]: ../../tool/futhark/gmm.fut
+[gmm_objective.py]: ../../python/gradbench/gradbench/tools/pytorch/gmm_objective.py
+[llsq]: ../llsq
+[lstm]: ../lstm
+[ode]: ../ode

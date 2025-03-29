@@ -61,7 +61,15 @@ type PrimalOutput = double[];
 type GradientOutput = double[];
 ```
 
+## Commentary
+
+This eval is best implemented with reverse mode, and the main
+challenge for this eval is the sequential loop with $s$ steps, which
+requires the AD tool to maintain a tape. The [lstm][] eval is a more
+complicated problem that exercises roughly the same parts of AD.
+
 [cmpad]: https://github.com/bradbell/cmpad
 [original documentation]: https://cmpad.readthedocs.io/an_ode.html
 [protocol]: /CONTRIBUTING.md#types
 [typescript]: https://www.typescriptlang.org/
+[lstm]: ../lstm
