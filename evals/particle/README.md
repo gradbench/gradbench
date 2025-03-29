@@ -83,7 +83,7 @@ The challenging part about `particle` (and [saddle][]) is that it
 involves nested AD, and not merely in the simple way needed by
 [kmeans][] for computing hessians. These benchmarks things optimise
 objective functions that themselves contain instances of AD (in the
-case of 'saddle', this is a nested solver). The`'particle'`eval even
+case of `saddle'` this is a nested solver). The `particle` eval even
 has an unbounded `while` loop in the primal function, which can be a
 challenge to some tools. In particular, for the C++ tools built on
 operator overloading, the types can get quite involved.
