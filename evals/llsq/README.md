@@ -66,7 +66,14 @@ type GradientOutput = double[];
 The size of the `GradientOutput` is equal to the size of the input
 `x`.
 
+## Commentary
+
+This is a rather simple benchmark, and a good first one to implement.
+It can easily be expressed in a vectorised form, which is useful for
+implementing it in tools such as [pytorch][].
+
 [cmpad]: https://github.com/bradbell/cmpad
 [original documentation]: https://cmpad.readthedocs.io/llsq_obj.html
 [protocol]: /CONTRIBUTING.md#types
 [typescript]: https://www.typescriptlang.org/
+[pytorch]: ../tools/pytorch
