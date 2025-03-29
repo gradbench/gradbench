@@ -30,11 +30,11 @@ See <https://gradben.ch> for interactive performance charts generated from our l
 
 This project exists to facilitate quantitative comparison of the absolute and relative performance of different autodiff tools. There is some related work in this space:
 
-- The 2016 paper ["Efficient Implementation of a Higher-Order Language with Built-In AD"][ad2016] by Siskind and Pearlmutter includes some benchmarks implemented for a variety of tools.
-- [ADBench][] was an autodiff benchmark suite, active around 2018-2019, but is now archived as of summer 2024. The benchmarks from ADBench are a strict subset of the evals in GradBench.
+- The 2016 paper ["Efficient Implementation of a Higher-Order Language with Built-In AD"][ad2016] by Siskind and Pearlmutter links to [two benchmarks][ad2016 benchmarks] implemented for a variety of tools, mostly in Scheme.
+- [ADBench][] was an autodiff benchmark suite, active around 2018-2019, but is now archived as of summer 2024.
 - [cmpad][] is an autodiff comparison package for C++ and Python.
 
-What sets GradBench apart is the focus on supporting tools for many different programming languages in an easily extensible way. We achieve this by packaging each eval and tool into its own Docker image, and running benchmarks by having the eval and tool talk to each other over a common JSON-based protocol. We also make our benchmarks and data as easily accessible as possible, via nightly builds that publish our Docker images and run every eval against every tool to generate performance charts on the GradBench website.
+The evals in GradBench are a strict superset of all those benchmarks. What really sets this project apart is the focus on supporting tools for many different programming languages in an easily extensible way. We achieve this by packaging each eval and tool into its own Docker image, and running benchmarks by having the eval and tool talk to each other over a common JSON-based protocol. We also make our benchmarks and data as easily accessible as possible, via nightly builds that publish our Docker images and run every eval against every tool to generate performance charts on the GradBench website.
 
 ## Usage
 
@@ -106,6 +106,7 @@ GradBench is licensed under the [MIT License](LICENSE).
 
 [`cargo install`]: https://doc.rust-lang.org/cargo/commands/cargo-install.html
 [ad2016]: https://arxiv.org/abs/1611.03416
+[ad2016 benchmarks]: https://www.bcl.hamilton.ie/~qobi/ad2016-benchmarks/
 [adbench]: https://github.com/microsoft/ADBench
 [automatic differentiation]: https://en.wikipedia.org/wiki/Automatic_differentiation
 [cmpad]: https://cmpad.readthedocs.io/
