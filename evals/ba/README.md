@@ -105,11 +105,22 @@ Because the input extends `Runs`, the tool is expected to run the function some 
 
 ## Commentary
 
-The actual objective function in this eval is not particularly
-challenging.
+The actual objective function in this benchmark is not particularly
+challenging, and is mostly a bunch of scalar control flow with a
+bounded control flow graph. The annoying part is that the result must
+be reported as a particular encoding of a sparse matrix. This is not
+so difficult if you are implementing this eval in C++ - use the
+provided data structure in [ba.hpp][] and look at how
+[tools/manual/run_ba.cpp] does it. It is a lot more annoying if you
+are using another language, and _particulary_ if you want to compute
+the sparse Jacobian in parallel. See [tools/futhark/ba.fut][] for how
+to do this.
 
 [adbench]: https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87
 [data]: https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87/data/ba
 [io]: https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/shared/BAData.py
 [typescript]: https://www.typescriptlang.org/
 [COO]: https://en.wikipedia.org/wiki/Sparse_matrix#Coordinate_list_(COO)
+[ba.hpp]: ../../cpp/gradbench/evals/ba.hpp
+[tools/manual/run_ba.cpp]: ../../tools/manual/run_ba.cpp
+[tools/futhark/ba.fut]: ../../tools/futhark/ba.fut

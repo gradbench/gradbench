@@ -33,6 +33,10 @@ sometimes the parallel style is slower in that case.
   by defining a generic function that is then instantiated by the four
   different combinations of differential operators.
 
+- [ba.fut][]: Just as much time is spent packing the sparse Jacobian
+  in the expected format as in actually computing it. This part is not
+  subject to AD.
+
 [futhark]: https://futhark-lang.org/
 [det.fut]: det.fut
 [saddle.fut]: saddle.fut
