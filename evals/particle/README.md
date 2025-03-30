@@ -81,12 +81,12 @@ The output is the final value of $w$.
 
 The challenging part about `particle` (and [saddle][]) is that it
 involves nested AD, and not merely in the simple way needed by
-[kmeans][] for computing hessians. These benchmarks things optimise
-objective functions that themselves contain instances of AD (in the
-case of `saddle'` this is a nested solver). The `particle` eval even
-has an unbounded `while` loop in the primal function, which can be a
-challenge to some tools. In particular, for the C++ tools built on
-operator overloading, the types can get quite involved.
+[kmeans][] for computing hessians. These benchmarks optimise objective
+functions that themselves contain instances of AD (nested optimisation
+functions). The `particle` eval even has an unbounded `while` loop in
+the primal function, which can be a challenge to some tools. In
+particular, for the C++ tools built on operator overloading, the types
+can get quite involved.
 
 `particle` is a scalar benchmark, with no large arrays, and no
 meaningful potential for parallel execution. In principle, the two
@@ -95,7 +95,7 @@ quantity, but that might not actually be a sensible thing to simulate.
 
 It is not required that all of the four function variants are
 implemented by instantiating some generic function (although some of
-our tools do it like that). It is fine to have four completely
+the tools do it like that). It is fine to have four completely
 independent implementations.
 
 [protocol]: /CONTRIBUTING.md#types
