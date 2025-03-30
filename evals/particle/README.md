@@ -1,6 +1,6 @@
 # Charged particle trajectory
 
-The benchmark models a charged particle accelerated by an electric field formed by a pair of repulsive bodies, with the goal being to find a control parameter that causes the movement of the particle to intersect the origin. This benchmark, along with [saddle](../saddle), was originally proposed by Pearlmutter and Siskind in the paper [Using Programming Language Theory to Make Automatic Differentiation Sound and Efficient](https://link.springer.com/chapter/10.1007/978-3-540-68942-3_8). The benchmark has also been covered in [Putting the Automatic Back into AD: Part I, What’s Wrong](https://docs.lib.purdue.edu/cgi/viewcontent.cgi?article=1369&context=ecetr), which mainly discusses how the tools of the time had a very hard time handling it correctly.
+The benchmark models a charged particle accelerated by an electric field formed by a pair of repulsive bodies, with the goal being to find a control parameter that causes the movement of the particle to intersect the origin. This benchmark, along with [saddle](/evals/saddle), was originally proposed by Pearlmutter and Siskind in the paper [Using Programming Language Theory to Make Automatic Differentiation Sound and Efficient](https://link.springer.com/chapter/10.1007/978-3-540-68942-3_8). The benchmark has also been covered in [Putting the Automatic Back into AD: Part I, What’s Wrong](https://docs.lib.purdue.edu/cgi/viewcontent.cgi?article=1369&context=ecetr), which mainly discusses how the tools of the time had a very hard time handling it correctly.
 
 ## Specification
 
@@ -77,7 +77,30 @@ type SaddleOutput = double;
 
 The output is the final value of $w$.
 
+## Commentary
+
+The challenging part about `particle` (and [saddle][]) is that it
+involves nested AD, and not merely in the simple way needed by
+[kmeans][] for computing hessians. These benchmarks things optimise
+objective functions that themselves contain instances of AD (in the
+case of `saddle'` this is a nested solver). The `particle` eval even
+has an unbounded `while` loop in the primal function, which can be a
+challenge to some tools. In particular, for the C++ tools built on
+operator overloading, the types can get quite involved.
+
+`particle` is a scalar benchmark, with no large arrays, and no
+meaningful potential for parallel execution. In principle, the two
+"attractors" that depend on $w$ could be extended to a much larger
+quantity, but that might not actually be a sensible thing to simulate.
+
+It is not required that all of the four function variants are
+implemented by instantiating some generic function (although some of
+our tools do it like that). It is fine to have four completely
+independent implementations.
+
 [protocol]: /CONTRIBUTING.md#types
 [typescript]: https://www.typescriptlang.org/
 [paper]: https://link.springer.com/chapter/10.1007/978-3-540-68942-3_8
 [euler]: https://en.wikipedia.org/wiki/Euler_method
+[kmeans]: /evals/kmeans
+[saddle]: /evals/saddle
