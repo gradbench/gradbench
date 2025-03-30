@@ -43,3 +43,4 @@ sometimes the parallel style is slower in that case.
 [particle.fut]: particle.fut
 [solver.fut]: solver.fut
 [not particularly efficient in Futhark]: https://futhark-lang.org/blog/2019-01-13-giving-programmers-what-they-want.html
+[ba.fut]: ba.fut
