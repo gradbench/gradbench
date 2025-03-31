@@ -102,7 +102,10 @@ gradbench run --eval "gradbench eval hello --tag $DATE" --tool "gradbench tool p
 
 ## License
 
-GradBench is licensed under the [MIT License](LICENSE).
+GradBench is licensed under the [MIT License](LICENSE). Some
+implementations are based on work used under other licenses - this is
+clearly noted at the top of a file, along with attribution, when
+applicable. All files are available under [OSI-approved licenses][].
 
 [`cargo install`]: https://doc.rust-lang.org/cargo/commands/cargo-install.html
 [ad2016]: https://arxiv.org/abs/1611.03416
@@ -120,3 +123,4 @@ GradBench is licensed under the [MIT License](LICENSE).
 [rust]: https://www.rust-lang.org/tools/install
 [svg]: https://raw.githubusercontent.com/gradbench/gradbench/refs/heads/ci/refs/heads/nightly/summary.svg
 [website]: https://gradben.ch/
+[OSI-approved licenses]: https://opensource.org/licenses
