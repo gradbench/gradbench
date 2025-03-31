@@ -54,10 +54,10 @@ open IndexType in
 def LSTMOutput.toArray (data : LSTMOutput) : Array Float :=
   let a₁ := Array.ofFn (fun i =>
      let (i₁,i₂,j₁,j₂) := fromIdx i.toIdx
-     MatrixType.toMatrix data.mainParams[i₁,i₂] j₁ j₂)
+     data.mainParams[i₁,i₂][j₁,j₂])
   let a₂ := Array.ofFn (fun i =>
      let (i,j) := fromIdx i.toIdx
-     MatrixType.toMatrix data.extraParams i j)
+     data.extraParams[i,j])
   a₁ ++ a₂
 
 instance : ToJson (LSTMOutput) where

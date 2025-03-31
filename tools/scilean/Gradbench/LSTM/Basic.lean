@@ -30,46 +30,44 @@ abbrev_data_synth Scalar.tanh in x : HasRevFDeriv K by
   sorry_proof
 
 
-@[simp,simp_core]
-theorem VectorType.conj_real (x : Float^[n]) : VectorType.conj x = x := sorry_proof
-
-open VectorType MatrixType in
+open ArrayOps in
 def lstmModel {d : ℕ}
               (weight: Float^[4,d])
               (bias: Float^[4,d])
               (hidden: Float^[d])
               (cell: Float^[d])
               (input: Float^[d]) : Float^[d] × Float^[d] :=
-  let forget  := input  |> (mul · (row weight 0)) |> (· + (row bias 0)) |> (map sigmoid ·)
-  let ingate  := hidden |> (mul · (row weight 1)) |> (· + (row bias 1)) |> (map sigmoid ·)
-  let outgate := input  |> (mul · (row weight 2)) |> (· + (row bias 2)) |> (map sigmoid ·)
-  let change  := hidden |> (mul · (row weight 3)) |> (· + (row bias 3)) |> (map tanh ·)
-  let t1s := mul cell forget
-  let t2s := mul ingate change
-  let cell2 := t1s + t2s
-  let hidden2 := mul outgate (map tanh cell2)
+  let forget  := input  |> mapIdxMonoAcc (fun _ (wi,bi) xi => sigmoid (wi*xi + bi)) (fun i => (weight[0,i],bias[0,i]))
+  let ingate  := hidden |> mapIdxMonoAcc (fun _ (wi,bi) xi => sigmoid (wi*xi + bi)) (fun i => (weight[1,i],bias[1,i]))
+  let outgate := input  |> mapIdxMonoAcc (fun _ (wi,bi) xi => sigmoid (wi*xi + bi)) (fun i => (weight[2,i],bias[2,i]))
+  let change  := hidden |> mapIdxMonoAcc (fun _ (wi,bi) xi =>    tanh (wi*xi + bi)) (fun i => (weight[3,i],bias[2,i]))
+  let cell2   := mapIdxMonoAcc (fun _ (a,b,c) d => a*b + c*d) (fun i => (cell[i],forget[i],ingate[i])) change
+  let hidden2 := mapIdxMonoAcc (fun _ a b => tanh a * b) (cell[·]) outgate
   (hidden2, cell2)
 
 set_option maxRecDepth 1000000
 
+
 def_data_synth lstmModel in weight bias hidden cell input : HasRevFDeriv Float by
-  unfold lstmModel VectorType.map; dsimp -zeta
-  data_synth => enter[3]; lsimp
+  unfold lstmModel
+  data_synth => enter[3]; lsimp only [simp_core]
 
 def_data_synth lstmModel in weight bias hidden cell input : HasRevFDerivUpdate Float by
-  unfold lstmModel VectorType.map; dsimp -zeta
-  data_synth => enter[3]; lsimp
+  unfold lstmModel
+  data_synth => enter[3]; lsimp only [simp_core]
 
-open VectorType MatrixType in
+
+open ArrayOps in
 def lstmPredict {slen d : ℕ}
                 (mainParams: (Float^[4,d])^[slen,2])
                 (extraParams: Float^[3,d])
                 (state: (Float^[d])^[slen,2])
                 (input: Float^[d]) : Float^[d] × Float^[d]^[slen,2] :=
-  let x₀ := mul input (row extraParams 0)
+  let x₀ := mapIdxMonoAcc (fun _ a b => a*b) (extraParams[0,·]) input
   let state₀ : (Float^[d])^[slen,2] := 0
 
-  let' (state',x') := IdxType.fold .full (init:=(state₀,x₀))
+  let' (state',x') :=
+   IndexType.fold .full (init:=(state₀,x₀))
     (fun (i : Idx slen) sx =>
       let' (s,x) := sx
       let' (h,c) := lstmModel mainParams[i,0] mainParams[i,1] state[i,0] state[i,1] x
@@ -77,13 +75,13 @@ def lstmPredict {slen d : ℕ}
       let s := setElem s (i,(1:Idx 2)) c .intro
       (s,h))
 
-  let v' := mul x' (row extraParams 1) + (row extraParams 2)
+  let v' := x' |> mapIdxMonoAcc (fun _ (a,b) x => a*x+b) (fun i => (extraParams[1,i], extraParams[2,i]))
   (v', state')
 
 
 def_data_synth lstmPredict in mainParams extraParams state : HasRevFDeriv Float by
   unfold lstmPredict; --dsimp -zeta
-  data_synth => enter[3]; lsimp
+  data_synth => enter[3]; lsimp only [simp_core]
 
 
 open VectorType in
@@ -103,14 +101,14 @@ def lstmObjective {slen lenSeq d : ℕ}
                   (state : (Float^[d])^[slen, 2])
                   (sequence : Float^[d]^[lenSeq]) : Float :=
   -- state : [stlen][2][d]f64
-  let' (_a, total) := IdxType.fold .full (init:=(state, (0:Float)))
-    fun (i : Idx (lenSeq - 1)) st =>
+  let' (_a, total) := IndexType.fold .full (init:=(state, (0:Float)))
+    fun (i : Idx (lenSeq - 1)) st  =>
       let' (oldState, oldTotal) := st
       let' (y_pred, newState) := lstmPredict mainParams extraParams oldState sequence[⟨i.1,sorry_proof⟩]
       -- y_pred: DV [d]f64, newState: DM
-      let tmp_sum := sum (exp y_pred)
+      let tmp_sum := ∑ᴵ i, exp (y_pred[i])
       let tmp_log := - Scalar.log (tmp_sum + 2.0)
-      let ynorm := scalAdd 1 tmp_log y_pred
+      let ynorm := y_pred.scalAdd 1 tmp_log
       let newTotal := oldTotal + (⟪sequence[⟨i.1 + 1,sorry_proof⟩], ynorm⟫)
       (newState, newTotal)
 
