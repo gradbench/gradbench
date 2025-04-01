@@ -47,7 +47,7 @@ def primal_v3 (n : ℕ) (x : Float^[m]) : Float :=
   let t := ⊞ (i : Idx n) => -1 + i.toFloat*2/(n.toFloat-1)
   let s := t.rmap .sign
   let T := ⊞ i (j : Idx m) => (t[i])^(j:Float)
-  ‖s + T*x‖₂²
+  ‖s - T*x‖₂²
 
 
 def gradient_v3 (n : ℕ) (x : Float^[m]) : Float^[m] :=
