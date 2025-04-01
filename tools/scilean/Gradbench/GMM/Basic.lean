@@ -51,7 +51,7 @@ def gmmObjective {d k n : Nat}
 
     -- qsAndSums
     let Qs := ⊞ i => unpackQ (logdiag.row i) (lt.row i)
-    let qsums := ⊞ i => (logdiag.row i).sum
+    let qsums := logdiag.sumRows
 
     let slse : Float :=
       ∑ᴵ (i : Idx n), (⊞ (j : Idx k) =>
