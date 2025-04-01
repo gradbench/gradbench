@@ -6,7 +6,7 @@ based on operator overloading. Its usage is discussed in [Algorithm
 written in C/C++](https://dl.acm.org/doi/10.1145/229473.229474).
 
 When using ADOL-C, you first evaluate the objective function to
-construct the *tape*, which will contain a record of all arithmetic
+construct the _tape_, which will contain a record of all arithmetic
 operations. Then you interpret the tape in various ways to compute
 gradients. In the [ADBench
 implementations](https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/tools/ADOLC/main.cpp),

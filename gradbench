@@ -2,6 +2,7 @@
 
 import subprocess
 import sys
+from pathlib import Path
 
 
 def eprint(s):
@@ -44,7 +45,7 @@ def build():
 
 
 def run():
-    cmd = [f"target/{profile}/gradbench", *sys.argv[1:]]
+    cmd = [Path(__file__).parent / f"target/{profile}/gradbench", *sys.argv[1:]]
     check(subprocess.run(cmd).returncode)
 
 

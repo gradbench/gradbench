@@ -3,7 +3,7 @@ CC?=cc
 CXXFLAGS=-std=c++17 -O2 -Wall -fopenmp -I../../cpp
 LDFLAGS=-lm -ladept -fopenmp
 
-EXECUTABLES=run_hello run_gmm run_ht run_ba run_lstm
+EXECUTABLES=run_hello run_gmm run_ht run_ba run_lstm run_ode run_llsq run_det
 
 all: $(EXECUTABLES)
 

@@ -6,7 +6,7 @@ mod util;
 use std::{
     backtrace::BacktraceStatus,
     collections::BTreeMap,
-    env, fs,
+    fs,
     io::{self, BufRead},
     mem::take,
     path::{Path, PathBuf},
@@ -415,28 +415,14 @@ impl From<BadOutcome> for ExitCode {
     }
 }
 
-/// Return a command's stdout as a string, preserving its exit code whenever possible.
-fn stdout(command: &mut Command) -> Result<String, ExitCode> {
-    let output = run(command.stdout(Stdio::piped()))?;
-    String::from_utf8(output.stdout)
-        .with_context(|| format!("error processing output from {:?}", command.get_program()))
-        .map_err(err_fail)
-}
-
 /// Check that the current working directory is the root of a Git repository.
 fn check_git() -> Result<(), ExitCode> {
-    let cwd = env::current_dir()
-        .context("error getting current working directory")
-        .map_err(err_fail)?;
-    if let Ok(dir) = stdout(Command::new("git").args(["rev-parse", "--show-toplevel"])) {
-        if dir.strip_suffix('\n').map(PathBuf::from) == Some(cwd) {
-            return Ok(());
-        }
+    if Path::new(".git").exists() {
+        Ok(())
+    } else {
+        eprintln!("error running a repo subcommand: current working directory is not a Git repository root");
+        Err(ExitCode::FAILURE)
     }
-    eprintln!(
-        "error running a repo subcommand: current working directory is not a Git repository root"
-    );
-    Err(ExitCode::FAILURE)
 }
 
 /// Return a command that runs its argument as a shell command.

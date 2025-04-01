@@ -1,26 +1,24 @@
 import argparse
-import json
 from pathlib import Path
 from typing import Any
 
-import manual.ht as golden
-from gradbench.comparison import compare_json_objects
-from gradbench.eval import Analysis, SingleModuleValidatedEval, approve, mismatch
+from gradbench import cpp
+from gradbench.eval import (
+    EvaluateResponse,
+    SingleModuleValidatedEval,
+    approve,
+    mismatch,
+)
 from gradbench.evals.ht import io
 
 
-def check(function: str, input: Any, output: Any) -> None:
-    func = getattr(golden, function)
-    proc = func(input | {"min_runs": 1, "min_seconds": 0})
-    if proc.returncode == 0:
-        ls = proc.stdout.splitlines()
-        expected = json.loads(ls[0])
-        return compare_json_objects(expected, output)
-    else:
-        return Analysis(
-            valid=False,
-            error=f"golden implementation failed with stderr:\n{proc.stderr}",
-        )
+def expect(function: str, input: Any) -> EvaluateResponse:
+    return cpp.evaluate(
+        tool="manual",
+        module="ht",
+        function=function,
+        input=input | {"min_runs": 1, "min_seconds": 0},
+    )
 
 
 def main():
@@ -37,7 +35,7 @@ def main():
     args = parser.parse_args()
 
     e = SingleModuleValidatedEval(
-        module="ht", validator=approve if args.no_validation else mismatch(check)
+        module="ht", validator=approve if args.no_validation else mismatch(expect)
     )
     e.start()
     if e.define().success:
