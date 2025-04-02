@@ -16,6 +16,7 @@ def resolve (module : String)
   | "gmm" => some gmm
   | "kmeans" => some kmeans
   | "lstm" => some lstm
+  | "llsq" => some llsq
   | _ => none
 
 

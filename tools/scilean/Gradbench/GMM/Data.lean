@@ -61,12 +61,12 @@ def GMMGradientData.toArray (data : GMMGradientData) : Array Float :=
   let k := data.k; let d := data.d
   let alphaData := Array.ofFn (fun i => data.alpha[i.toIdx])
   let meansData := Array.ofFn (fun idx =>
-    toVec data.means (fromIdx idx.toIdx))
+    data.means[fromIdx idx.toIdx])
   let icfData := Array.ofFn (fun idx =>
     let (i,j) : Idx k × (Idx d ⊕ Idx (((d-1)*d)/2)) := fromIdx idx.toIdx
     match j with
-    | .inl j => toVec data.logdiag (i,j)
-    | .inr j => toVec data.lt (i,j))
+    | .inl j => data.logdiag[i,j]
+    | .inr j => data.lt[i,j])
   (alphaData ++ meansData ++ icfData)
 
 instance : ToJson GMMGradientData where
