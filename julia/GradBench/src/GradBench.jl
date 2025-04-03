@@ -24,8 +24,24 @@ function run(params)
     mod = DISPATCH_TABLE[params["module"]]
     func = mod[params["function"]]
     arg = params["input"]
-    ret, t = measure(func, arg)
-    timings = [Dict("name" => "evaluate", "nanoseconds" => t)]
+    min_runs = get(params, "min_runs", 1)
+    min_seconds = get(params, "min_seconds", 0)
+    @assert min_runs > 0
+
+    # TODO: Prepare (parse JSON?)
+    # TODO: allocate output?
+    ret = nothing
+
+    timings = Any[]
+    elapsed_seconds = 0
+    i = 1
+    while i <= min_runs || elapsed_seconds <= min_seconds
+        ret, t = measure(func, arg)
+        push!(timings, Dict("name" => "evaluate", "nanoseconds" => t))
+        elapsed_seconds += t / 1e9
+        i += 1
+    end
+    @assert ret !== nothing
     return Dict("success" => true, "output" => ret, "timings" => timings)
 end
 
