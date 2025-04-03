@@ -10,7 +10,7 @@
 # consideration. In this implementation, this is all inlined for
 # implementation simplicity. This is follows the style use in "ode.hpp"
 
-module ode
+module ODE
 
 struct Input
     x::Vector{Float64}

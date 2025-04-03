@@ -2,21 +2,30 @@ module GradBench
 
 import JSON
 
-function resolve(mod, name)
-    module_sym = Symbol(mod)
-    eval(:(using .$module_sym)) #imports module
-    mod_ref = getfield(Main, module_sym) #retrieves module
-    name_sym = Symbol(name)
-    return getfield(mod_ref, name_sym)
+const DISPATCH_TABLE = Dict{String,Dict{String,Any}}()
+
+function register!(mod, functions)
+    if haskey(DISPATCH_TABLE, mod)
+        error("mod $mod is already registered")
+    end
+    DISPATCH_TABLE[mod] = functions
+    return
 end
 
-function run(params)
-    func = resolve(params["module"], params["function"])
-    arg = params["input"]
+# Avoid measuring dispatch overhead
+function measure(func::F, arg) where {F}
     start = time_ns()
     ret = func(arg)
     done = time_ns()
-    timings = [Dict("name" => "evaluate", "nanoseconds" => done - start)]
+    return ret, done - start
+end
+
+function run(params)
+    mod = DISPATCH_TABLE[params["module"]]
+    func = mod[params["function"]]
+    arg = params["input"]
+    ret, t = measure(func, arg)
+    timings = [Dict("name" => "evaluate", "nanoseconds" => t)]
     return Dict("success" => true, "output" => ret, "timings" => timings)
 end
 
@@ -29,19 +38,12 @@ function main(tool)
         elseif message["kind"] == "evaluate"
             response = run(message)
         elseif message["kind"] == "define"
-            success = true
-            try
-                module_sym = Symbol(message["module"])
-                eval(:(using .$module_sym))
-                getfield(Main, module_sym)
-            catch
-                success = false
-            end
-            response["success"] = success
+            response["success"] = haskey(DISPATCH_TABLE, message["module"])
         end
         response["id"] = message["id"]
         println(JSON.json(response))
     end
+    return
 end
 
 include("benchmarks/hello.jl")

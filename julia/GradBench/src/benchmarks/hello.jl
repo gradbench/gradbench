@@ -1,4 +1,4 @@
-module hello
+module Hello
 
 function square(x)
     return x * x
