@@ -8,8 +8,7 @@
 # The implementation in cmpad is factored into a generic Runge-Kutta
 # module and an instantiation for the specific function under
 # consideration. In this implementation, this is all inlined for
-# implementation simplicity. This is generally written in a more
-# C-like way for the benefit of tools that are not so good at C++.
+# implementation simplicity. This is follows the style use in "ode.hpp"
 
 module ode
 
