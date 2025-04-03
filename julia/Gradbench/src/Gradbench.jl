@@ -20,12 +20,12 @@ function run(params)
     return Dict("success" => true, "output" => ret, "timings" => timings)
 end
 
-function main()
+function main(tool)
     while !eof(stdin)
         message = JSON.parse(readline(stdin))
         response = Dict()
         if message["kind"] == "start"
-            response["tool"] = "zygote"
+            response["tool"] = tool
         elseif message["kind"] == "evaluate"
             response = run(message)
         elseif message["kind"] == "define"

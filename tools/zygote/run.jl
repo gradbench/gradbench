@@ -12,4 +12,4 @@ end
 
 end
 
-Gradbench.main()
+Gradbench.main("zygote")
