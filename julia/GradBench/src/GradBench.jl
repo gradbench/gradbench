@@ -1,4 +1,4 @@
-module Gradbench
+module GradBench
 
 import JSON
 
@@ -47,4 +47,4 @@ end
 include("benchmarks/hello.jl")
 include("benchmarks/ode.jl")
 
-end # module Gradbench
+end # module GradBench

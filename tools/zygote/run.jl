@@ -1,8 +1,8 @@
-import Gradbench
+import GradBench
 
 module hello
 
-import Gradbench.hello: square
+import GradBench.hello: square
 import Zygote
 
 function double(x)
@@ -12,4 +12,4 @@ end
 
 end
 
-Gradbench.main("zygote")
+GradBench.main("zygote")

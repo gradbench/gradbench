@@ -2,7 +2,7 @@
 
 julia_version = "1.10.9"
 manifest_format = "2.0"
-project_hash = "db9d40ecdf1013e4fc0af4ee78f7ebff67c06786"
+project_hash = "ced0adcb8088ca2a0ad0ccbdcae26477eac35b45"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -177,9 +177,9 @@ git-tree-sha1 = "ec632f177c0d990e64d955ccc1b8c04c485a0950"
 uuid = "46192b85-c4d5-4398-a991-12ede77f4527"
 version = "0.1.6"
 
-[[deps.Gradbench]]
+[[deps.GradBench]]
 deps = ["JSON"]
-path = "/gradbench/Gradbench"
+path = "../../julia/GradBench"
 uuid = "b8d9ff47-6a34-4c60-b82b-acd435921e41"
 version = "0.1.0"
 
