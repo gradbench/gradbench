@@ -29,10 +29,15 @@ function run(params)
     @assert min_runs > 0
 
     # TODO: Prepare (parse JSON?)
-    # TODO: allocate output?
-    ret = nothing
-
+    # TODO: pre-allocate output?
     timings = Any[]
+
+    # Prepare
+    # - run once to compile
+    ret, t = measure(func, arg)
+    push!(timings, Dict("name" => "prepare", "nanoseconds" => t))
+
+    # Measure
     elapsed_seconds = 0
     i = 1
     while i <= min_runs || elapsed_seconds <= min_seconds
