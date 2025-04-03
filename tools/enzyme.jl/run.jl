@@ -38,7 +38,7 @@ function main()
     message = JSON.parse(readline(stdin))
     response = Dict()
     if message["kind"] == "start"
-      response["tool"] = "zygote"
+      response["tool"] = "enzyme.jl"
     elseif message["kind"] == "evaluate"
       response = run(message)
     elseif message["kind"] == "define"
