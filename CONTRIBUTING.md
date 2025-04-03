@@ -152,12 +152,13 @@ least a couple of implementations using various tools.
 Similarly to tools, an eval is specified by a subdirectory in
 [evals/](https://github.com/gradbench/gradbench/tree/main/evals) that
 behaves like an eval process as specified in the protocol. There is no
-real limit to what an eval can do, although in most cases it will send
-the `start` message, then a `define` message, then `evaluate` messages
-with various functions and inputs. All of the GradBench evals are
-currently written in Python - this is not a hard requirement, but
-since evals are not performance-sensitive or particularly complicated,
-writing them in Python means you can reuse existing utility libraries.
+real limit to what an eval can do, except that it must begin by
+sending a `start` message, then in most cases follow with a `define`
+message and some `evaluate` messages with various functions and
+inputs. All of the GradBench evals are currently written in Python -
+this is not a hard requirement, but since evals are not
+performance-sensitive or particularly complicated, writing them in
+Python means you can reuse existing utility libraries.
 
 Beyond the technical effort of specifying and implementing a
 benchmark, another question is which benchmarks are _worthwhile_. The
