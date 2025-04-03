@@ -1,5 +1,6 @@
-FROM julia:1.10.4
+FROM julia:1.10.9
 WORKDIR /gradbench
+COPY julia/Gradbench Gradbench
 COPY tools/zygote/Project.toml .
 COPY tools/zygote/Manifest.toml .
 RUN julia --project=. -e 'import Pkg; Pkg.instantiate()'
