@@ -302,6 +302,10 @@ enum Verbosity {
 fn docker_build_quiet(color: Color, mut cmd: Command) -> anyhow::Result<ExitStatus> {
     let mut child = cmd
         .arg("--progress=plain")
+        // Podman-based Dockers print build logs to stdout, which will
+        // interfere with the GradBench protocol when building as part
+        // of a 'gradbench repo tool' command. To avoid this, we
+        // silence stdout.
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .spawn()?;
