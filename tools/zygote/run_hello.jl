@@ -8,6 +8,8 @@ function double(x)
     return z
 end
 
+precompile(double, (Float64,))
+
 GradBench.register!("hello", Dict(
     "square" => GradBench.Hello.square,
     "double" => double

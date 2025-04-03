@@ -34,8 +34,8 @@ function run(params)
 
     # Prepare
     # - run once to compile
-    ret, t = measure(func, arg)
-    push!(timings, Dict("name" => "prepare", "nanoseconds" => t))
+    # ret, t = measure(func, arg)
+    # push!(timings, Dict("name" => "prepare", "nanoseconds" => t))
 
     # Measure
     elapsed_seconds = 0
