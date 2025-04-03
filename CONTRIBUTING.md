@@ -165,7 +165,7 @@ benchmark, another question is which benchmarks are _worthwhile_. The
 whole point of GradBench is comparison, so a benchmark is only worth
 having if there is an expectation that it shows something interesting
 related to AD, and _will be implemented by multiple tools_. If you are
-in doubt, come and talk to use.
+in doubt, come and talk to us.
 
 As a special case, GradBench is almost always willing to accept an
 eval that matches a benchmark found in an existing AD benchmark suite,
