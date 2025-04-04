@@ -40,6 +40,7 @@ function run(params)
     # Measure
     elapsed_seconds = 0
     i = 1
+    ret = nothing
     while i <= min_runs || elapsed_seconds <= min_seconds
         ret, t = measure(func, arg)
         push!(timings, Dict("name" => "evaluate", "nanoseconds" => t))
