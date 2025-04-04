@@ -11,7 +11,7 @@ typedef CppAD::AD<double> ADdouble;
 class Jacobian : public Function<gmm::Input, gmm::JacOutput> {
 private:
   std::vector<double> _input_flat;
-  CppAD::ADFun<double> *_tape;
+  std::vector<ADdouble> _X;
 
 public:
   Jacobian(gmm::Input& input) : Function(input) {
@@ -19,15 +19,20 @@ public:
     _input_flat.insert(_input_flat.end(), _input.means.begin(), _input.means.end());
     _input_flat.insert(_input_flat.end(), _input.icf.begin(), _input.icf.end());
 
-    std::vector<ADdouble> X(_input_flat.size());
+    _X.resize(_input_flat.size());
 
-    ADdouble* aalphas = &X[0];
+    std::copy(_input_flat.begin(), _input_flat.end(), _X.data());
+  }
+
+  void compute(gmm::JacOutput& output) {
+    int Jcols = (_input.k * (_input.d + 1) * (_input.d + 2)) / 2;
+    output.resize(Jcols);
+
+    ADdouble* aalphas = &_X[0];
     ADdouble* ameans = aalphas + _input.alphas.size();
     ADdouble* aicf = ameans + _input.means.size();
 
-    std::copy(_input_flat.begin(), _input_flat.end(), X.data());
-
-    CppAD::Independent(X);
+    CppAD::Independent(_X);
 
     std::vector<ADdouble> Y(1);
 
@@ -35,16 +40,9 @@ public:
                              aalphas, ameans, aicf,
                              _input.x.data(), _input.wishart, &Y[0]);
 
-    _tape = new CppAD::ADFun<double>(X, Y);
+    CppAD::ADFun<double> f(_X, Y);
 
-    _tape->optimize();
-  }
-
-  void compute(gmm::JacOutput& output) {
-    int Jcols = (_input.k * (_input.d + 1) * (_input.d + 2)) / 2;
-    output.resize(Jcols);
-
-    output = _tape->Jacobian(_input_flat);
+    output = f.Jacobian(_input_flat);
   }
 };
 
