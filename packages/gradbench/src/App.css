@@ -2,6 +2,20 @@
   font-family: sans-serif;
 }
 
+h1 {
+  display: inline;
+}
+
+nav {
+}
+
+#logo {
+  margin-right: 1em;
+  display: inline;
+  width: 100px;
+  height: 100px;
+}
+
 a:link {
   text-decoration: none;
 }
