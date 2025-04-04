@@ -6,21 +6,21 @@
 typedef CppAD::AD<double> ADdouble;
 
 class Gradient : public Function<llsq::Input, llsq::GradientOutput> {
-  CppAD::ADFun<double> *_tape;
+  std::vector<ADdouble> _X, _Y;
 public:
-  Gradient(llsq::Input& input) : Function(input) {
-    std::vector<ADdouble> X(_input.x.size());
-    std::copy(_input.x.begin(), _input.x.end(), X.data());
-    CppAD::Independent(X);
-    std::vector<ADdouble> Y(1);
-    llsq::primal<ADdouble>(_input.n, _input.x.size(), X.data(), &Y[0]);
-    _tape = new CppAD::ADFun<double>(X, Y);
-    _tape->optimize("no_compare_op no_conditional_skip no_print_for_op");
+  Gradient(llsq::Input& input)
+    : Function(input),
+      _X(_input.x.size()),
+      _Y(1) {
+    std::copy(_input.x.begin(), _input.x.end(), _X.data());
   }
 
   void compute(llsq::GradientOutput& output) {
     output.resize(_input.x.size());
-    output = _tape->Jacobian(_input.x);
+    CppAD::Independent(_X);
+    llsq::primal<ADdouble>(_input.n, _input.x.size(), _X.data(), &_Y[0]);
+    CppAD::ADFun<double> f(_X, _Y);
+    output = f.Jacobian(_input.x);
   }
 };
 

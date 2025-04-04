@@ -6,22 +6,23 @@
 typedef CppAD::AD<double> ADdouble;
 
 class Gradient : public Function<det::Input, det::GradientOutput> {
-  CppAD::ADFun<double> *_tape;
+  std::vector<ADdouble> _X, _Y;
+
 public:
-  Gradient(det::Input& input) : Function(input) {
-    std::vector<ADdouble> X(_input.A.size());
-    std::copy(_input.A.begin(), _input.A.end(), X.data());
-    CppAD::Independent(X);
-    std::vector<ADdouble> Y(1);
-    det::primal<ADdouble>(_input.ell, X.data(), &Y[0]);
-    _tape = new CppAD::ADFun<double>(X, Y);
-    _tape->optimize("no_compare_op no_conditional_skip no_print_for_op");
+  Gradient(det::Input& input) : Function(input),
+                                _X(_input.A.size()),
+                                _Y(1) {
+    std::copy(_input.A.begin(), _input.A.end(), _X.data());
   }
 
   void compute(det::GradientOutput& output) {
     size_t ell = _input.ell;
     output.resize(ell*ell);
-    output = _tape->Jacobian(_input.A);
+
+    CppAD::Independent(_X);
+    det::primal<ADdouble>(_input.ell, _X.data(), &_Y[0]);
+    CppAD::ADFun<double> f(_X, _Y);
+    output = f.Jacobian(_input.A);
   }
 };
 
