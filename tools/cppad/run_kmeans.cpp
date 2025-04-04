@@ -10,6 +10,7 @@ class Dir : public Function<kmeans::Input, kmeans::DirOutput> {
   CppAD::sparse_hessian_work _work;
   std::vector<bool> _p;
   std::vector<size_t> _row, _col;
+  std::vector<ADdouble> _apoints, _acentroids;
 public:
   Dir(kmeans::Input& input)
     : Function(input),
@@ -17,29 +18,18 @@ public:
       _J(input.k*input.d),
       _p((input.k*input.d)*(input.k*input.d)),
       _row(input.k*input.d),
-      _col(input.k*input.d)
+      _col(input.k*input.d),
+      _apoints(_input.points.size()),
+      _acentroids(_input.centroids.size())
   {
-    std::vector<ADdouble> apoints(_input.points.size());
-    apoints.insert(apoints.begin(),
-                   _input.points.begin(),
-                   _input.points.end());
+    std::copy(_input.points.begin(),
+              _input.points.end(),
+              _apoints.begin());
 
-    std::vector<ADdouble> acentroids(_input.centroids.size());
     std::copy(_input.centroids.begin(),
               _input.centroids.end(),
-              acentroids.data());
+              _acentroids.data());
 
-    CppAD::Independent(acentroids);
-
-    std::vector<ADdouble> err(1);
-
-    kmeans::objective<ADdouble>(_input.n, _input.k, _input.d,
-                                apoints.data(), acentroids.data(),
-                                &err[0]);
-
-    _tape = new CppAD::ADFun<double>(acentroids, err);
-
-    _tape->optimize("no_compare_op no_conditional_skip no_print_for_op");
 
     size_t input_size = _input.k * _input.d;
 
@@ -64,13 +54,25 @@ public:
     output.d = _input.d;
     output.dir.resize(_input.k * _input.d);
 
-    _J = _tape->Jacobian(_input.centroids);
+
+    CppAD::Independent(_acentroids);
+
+    std::vector<ADdouble> err(1);
+
+    kmeans::objective<ADdouble>(_input.n, _input.k, _input.d,
+                                _apoints.data(), _acentroids.data(),
+                                &err[0]);
+
+    CppAD::ADFun<double> f(_acentroids, err);
+    f.optimize("no_compare_op no_conditional_skip no_print_for_op");
+
+    _J = f.Jacobian(_input.centroids);
 
     std::vector<double> w(1);
     w[0] = 1;
 
     size_t nsweep =
-      _tape->SparseHessian(_input.centroids, w, _p, _row, _col, _H, _work);
+      f.SparseHessian(_input.centroids, w, _p, _row, _col, _H, _work);
     assert(nsweep == 1); // Just a precaution.
 
     for (int i = 0; i < _input.k * _input.d; i++) {
