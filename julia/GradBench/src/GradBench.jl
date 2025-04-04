@@ -32,11 +32,6 @@ function run(params)
     # TODO: pre-allocate output?
     timings = Any[]
 
-    # Prepare
-    # - run once to compile
-    # ret, t = measure(func, arg)
-    # push!(timings, Dict("name" => "prepare", "nanoseconds" => t))
-
     # Measure
     elapsed_seconds = 0
     i = 1
