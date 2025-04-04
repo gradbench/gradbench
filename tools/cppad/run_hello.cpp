@@ -5,17 +5,8 @@
 typedef CppAD::AD<double> ADdouble;
 
 class Double : public Function<hello::Input, hello::DoubleOutput> {
-  CppAD::ADFun<double> *_tape;
-
 public:
   Double(hello::Input& input) : Function(input) {
-    std::vector<ADdouble> X(1);
-    std::vector<ADdouble> Y(1);
-    X[0] = _input;
-    CppAD::Independent(X);
-
-    Y[0] = hello::square(X[0]);
-    _tape = new CppAD::ADFun<double>(X, Y);
   }
 
   void compute(hello::DoubleOutput& output) {
@@ -23,7 +14,14 @@ public:
     dx[0] = 1;
     std::vector<double> dy(1);
 
-    dy = _tape->Forward(1, dx);
+    std::vector<ADdouble> X(1);
+    std::vector<ADdouble> Y(1);
+    X[0] = _input;
+    CppAD::Independent(X);
+
+    Y[0] = hello::square(X[0]);
+    CppAD::ADFun<double> f(X, Y);
+    dy = f.Forward(1, dx);
     output = dy[0];
   }
 };
