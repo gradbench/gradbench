@@ -51,8 +51,6 @@ std::function<T(T)> finite_differences_default_step_function
 template<typename T>
 class FiniteDifferencesEngine {
 private:
-  std::vector<T> tmp_output_f;
-  std::vector<T> tmp_output_b;
   int max_output_size;
 
   // VECTOR UTILS
@@ -105,9 +103,7 @@ public:
   // [](T x){ return STEP_VALUE; }
   FiniteDifferencesEngine(int max_output_size = 0,
                           std::function<T(T)> step_function = finite_differences_default_step_function<T>())
-    : tmp_output_f(max_output_size),
-      tmp_output_b(max_output_size),
-      max_output_size(max_output_size),
+    : max_output_size(max_output_size),
       step(step_function)
   {}
 
@@ -117,8 +113,6 @@ public:
   // sets max_output_size - maximum size of the ouputs of the functions
   // this engine is be able to approximately differentiate
   void set_max_output_size(int size) {
-    tmp_output_f.resize(size);
-    tmp_output_b.resize(size);
     max_output_size = size;
   }
 
@@ -147,10 +141,16 @@ public:
   ///		Will store in format foreach (input) { foreach (output) {} }</param>
   void finite_differences(int order,
                           std::function<void(T*, T*)> func,
-                          T* input, int input_size, int output_size,
+                          const T* input, int input_size, int output_size,
                           T* result) {
+    std::vector<T> tmp_input(input_size);
+    std::vector<T> tmp_output_f(output_size);
+    std::vector<T> tmp_output_b(output_size);
+
+    std::copy(input, input+input_size, tmp_input.begin());
+#pragma omp parallel for firstprivate(tmp_input, tmp_output_f, tmp_output_b)
     for (int i = 0; i < input_size; i++) {
-      T input_i_orig = input[i];
+      T input_i_orig = tmp_input[i];
       T delta = step(input_i_orig);
       T tmp_b = input_i_orig - delta;
       T dx = delta * 2;
@@ -164,12 +164,12 @@ public:
 
       std::fill(tmp_output_f.begin(), tmp_output_f.end(), 0);
       for (int j = 0; j < order+1; j++) {
-        input[i] = input_i_orig + (order/2.0-j)*dx;
-        func(input, tmp_output_b.data());
+        tmp_input[i] = input_i_orig + (order/2.0-j)*dx;
+        func(tmp_input.data(), tmp_output_b.data());
         scale_vec(tmp_output_b, binom(order,j) * (j%2 == 0 ? 1 : -1));
         add_vec(tmp_output_f, tmp_output_b);
       }
-      input[i] = input_i_orig;
+      tmp_input[i] = input_i_orig;
 
       scale_vec(tmp_output_f, 1/pow(dx,order));
       vec_ins(&result[output_size * i], tmp_output_f.data(), output_size);
