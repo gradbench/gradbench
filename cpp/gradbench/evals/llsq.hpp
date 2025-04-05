@@ -26,6 +26,7 @@ void primal(size_t n,
             const T* __restrict__ x,
             T* __restrict__ out) {
   T sum = T(0);
+#pragma omp parallel for reduction(+:sum)
   for (size_t i = 0; i < n; i++) {
     T ti = t(i, n);
     T inner_sum = s(ti);
