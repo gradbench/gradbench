@@ -137,7 +137,7 @@ issue label.
 
 To add a new implementation, the easiest approach is to pattern match
 based on an existing implementations. For the C++ tools, you need to
-add a program `run_foo.cpp` where `foo` is the name of the benchmark.
+add a program `foo.cpp` where `foo` is the name of the benchmark.
 I suggest looking at the [Enzyme](evals/enzyme) implementations for
 the boilerplate input/output reading code, as all benchmarks have been
 implemented in Enzyme.

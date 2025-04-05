@@ -1,4 +1,4 @@
-// See the comment in run_particle.cpp, which is implemented
+// See the comment in particle.cpp, which is implemented
 // similarly.
 
 #include "gradbench/evals/saddle.hpp"

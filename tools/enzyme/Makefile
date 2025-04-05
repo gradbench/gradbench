@@ -6,11 +6,11 @@ LDFLAGS=-fuse-ld=$(LLD) -O3 -fno-math-errno -flto -Wl,--load-pass-plugin=$(LLDEN
 ENZYME_LIB?=/gradbench/enzyme-build/Enzyme/
 LLDENZYME=$(ENZYME_LIB)/LLDEnzyme-19.so
 
-EXECUTABLES=run_hello run_gmm run_lstm run_ba run_ht run_kmeans run_particle run_saddle run_ode run_llsq run_det
+EXECUTABLES=hello gmm lstm ba ht kmeans particle saddle ode llsq det
 
 all: $(EXECUTABLES)
 
-run_%: run_%.cpp
+%: %.cpp
 	$(CXX) -o $@ $^ $(LDFLAGS) $(CXXFLAGS)
 
 clean:
