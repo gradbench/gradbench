@@ -631,8 +631,8 @@ void hand_objective_d(
     size_t npts = data.correspondences.size();
     //Map<Matrix3Xd> err(perr, 3, npts);
     LightMatrix<double> err(3, npts, perr, false);
-    for (size_t i = 0; i < data.correspondences.size(); ++i)
-    {
+#pragma omp parallel for firstprivate(err)
+    for (size_t i = 0; i < data.correspondences.size(); ++i) {
         //err.col(i) = data.points.col(i) - vertex_positions.col(data.correspondences[i]);
         subtract(3, data.points.get_col(i), vertex_positions.get_col(data.correspondences[i]), err.get_col_ptr(i));
     }
@@ -662,8 +662,8 @@ void hand_objective_d(
     LightMatrix<double> err(3, npts, perr, false);
     LightMatrix<double> du0(3, npts, &pJ[0], false), du1(3, npts, &pJ[3 * npts], false);
     LightMatrix<double> hand_point(3, 1), tmp(3, 1);
-    for (size_t i = 0; i < data.correspondences.size(); ++i)
-    {
+#pragma omp parallel for firstprivate(err, du0, du1, hand_point, tmp)
+    for (size_t i = 0; i < data.correspondences.size(); ++i) {
         const auto& verts = data.model.triangles[data.correspondences[i]].verts;
         const double* const u = &us[2 * i];
 

@@ -97,6 +97,7 @@ void apply_global_transform(const LightMatrix<T>& pose_params,
 
   LightMatrix<T> tmp;
   mat_mult(R, *positions, &tmp);
+#pragma omp parallel for collapse(2)
   for (int j = 0; j < positions->ncols_; j++)
     for (int i = 0; i < positions->nrows_; i++)
       (*positions)(i, j) = tmp(i, j) + pose_params(i, 2);
@@ -176,23 +177,26 @@ void get_skinned_vertex_positions(const ModelLightMatrix& model,
 
   // Get bone transforms.
   transforms.resize(absolutes.size());
-  for (size_t i = 0; i < absolutes.size(); i++)
-    {
-      mat_mult(absolutes[i], model.inverse_base_absolutes[i], &transforms[i]);
-    }
+#pragma omp parallel for
+  for (size_t i = 0; i < absolutes.size(); i++) {
+    mat_mult(absolutes[i], model.inverse_base_absolutes[i], &transforms[i]);
+  }
 
   // Transform vertices by necessary transforms. + apply skinning
   auto& positions = *ppositions;
   positions.resize(3, model.base_positions.ncols_);
   positions.fill(0.);
   LightMatrix<T> curr_positions(4, model.base_positions.ncols_);
-  for (size_t i_bone = 0; i_bone < transforms.size(); i_bone++)
-    {
-      mat_mult(transforms[i_bone], model.base_positions, &curr_positions);
-      for (int i_vert = 0; i_vert < positions.ncols_; i_vert++)
-        for (int i = 0; i < 3; i++)
-          positions(i, i_vert) += curr_positions(i, i_vert) * model.weights((int)i_bone, i_vert);
-    }
+#pragma omp parallel for firstprivate(curr_positions)
+  for (size_t i_bone = 0; i_bone < transforms.size(); i_bone++) {
+    mat_mult(transforms[i_bone], model.base_positions, &curr_positions);
+    for (int i_vert = 0; i_vert < positions.ncols_; i_vert++)
+      for (int i = 0; i < 3; i++) {
+        T change = curr_positions(i, i_vert) * model.weights((int)i_bone, i_vert);
+#pragma omp atomic
+        positions(i, i_vert) += change;
+      }
+  }
 
   if (model.is_mirrored)
     positions.scale_row(0, -1);
@@ -244,6 +248,7 @@ void objective(const T* const theta,
   LightMatrix<T> vertex_positions;
   get_skinned_vertex_positions(data->model, pose_params, &vertex_positions, true);
 
+#pragma omp parallel for
   for (size_t i = 0; i < data->correspondences.size(); i++)
     for (int j = 0; j < 3; j++)
       err[i * 3 + j] = data->points(j, i) - vertex_positions(j, data->correspondences[i]);
@@ -260,6 +265,7 @@ void objective(const T* const theta,
   LightMatrix<T> vertex_positions;
   get_skinned_vertex_positions(data->model, pose_params, &vertex_positions, true);
 
+#pragma omp parallel for
   for (size_t i = 0; i < data->correspondences.size(); i++) {
     const auto& verts = data->model.triangles[data->correspondences[i]].verts;
     const T* const u = &us[2 * i];
