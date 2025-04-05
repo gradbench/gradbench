@@ -20,7 +20,14 @@ def evaluate_completed_process(proc: subprocess.CompletedProcess[str]) -> Any:
 def define(*, args: argparse.Namespace, module: str) -> Any:
     try:
         subprocess.check_output(
-            ["make", "-C", f"tools/{args.tool}", module, "-B", f"MULTITHREADED={'yes' if args.multithreaded else 'no'}"],
+            [
+                "make",
+                "-C",
+                f"tools/{args.tool}",
+                module,
+                "-B",
+                f"MULTITHREADED={'yes' if args.multithreaded else 'no'}",
+            ],
             text=True,
             stderr=subprocess.STDOUT,
         )
@@ -72,7 +79,7 @@ def main() -> None:
 
     parser = argparse.ArgumentParser()
     parser.add_argument("tool")
-    parser.add_argument("--multithreaded", action='store_true')
+    parser.add_argument("--multithreaded", action="store_true")
     args = parser.parse_args()
 
     try:
