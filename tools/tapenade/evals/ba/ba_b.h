@@ -17,8 +17,8 @@ extern "C" {
 #define BA_RAD_IDX 9
 
 #include <math.h>
-    
-#include "../utils/adBuffer.h"
+
+#include "../../utils/adBuffer.h"
 #include "adbench/shared/defs.h"
 
 

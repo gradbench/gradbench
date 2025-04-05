@@ -7,7 +7,7 @@
 #include "gradbench/main.hpp"
 #include "gradbench/evals/gmm.hpp"
 
-#include "gmm/gmm_b.h"
+#include "evals/gmm/gmm_b.h"
 
 class Jacobian : public Function<gmm::Input, gmm::JacOutput> {
 public:

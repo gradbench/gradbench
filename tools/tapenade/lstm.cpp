@@ -8,8 +8,8 @@
 #include "gradbench/main.hpp"
 #include "gradbench/evals/lstm.hpp"
 
-#include "lstm/lstm.h"
-#include "lstm/lstm_b.h"
+#include "evals/lstm/lstm.h"
+#include "evals/lstm/lstm_b.h"
 
 class Jacobian : public Function<lstm::Input, lstm::JacOutput> {
   std::vector<double> _state;
