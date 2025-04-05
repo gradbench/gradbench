@@ -50,8 +50,8 @@ compiles to a program `foo`, you can run it as follows:
 $ ./foo input.json function
 ```
 
-Here *function* is the name of the evaluation function you wish to run
-(e.g. `jacobian` or `objective`), and *input.json* is a JSON file that
+Here _function_ is the name of the evaluation function you wish to run
+(e.g. `jacobian` or `objective`), and _input.json_ is a JSON file that
 contains the equivalent of the `input` field of an `evaluate` message.
 This can be useful for running C++ implementations or a debugger or a
 profiler. You must usually obtain `input.json` from the log file
