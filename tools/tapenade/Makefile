@@ -6,10 +6,10 @@ LDFLAGS=-lm
 
 UTIL_OBJECTS=utils/adBuffer.o utils/adStack.o
 
-GMM_OBJECTS=gmm/gmm.o gmm/gmm_b.o gmm.o
-BA_OBJECTS=ba/ba.o ba/ba_b.o ba.o
-LSTM_OBJECTS=lstm/lstm.o lstm/lstm_b.o lstm.o
-HT_OBJECTS=hand/hand.o hand/hand_d.o ht.o
+GMM_OBJECTS=evals/gmm/gmm.o evals/gmm/gmm_b.o gmm.o
+BA_OBJECTS=evals/ba/ba.o evals/ba/ba_b.o ba.o
+LSTM_OBJECTS=evals/lstm/lstm.o evals/lstm/lstm_b.o lstm.o
+HT_OBJECTS=evals/hand/hand.o evals/hand/hand_d.o ht.o
 
 EXECUTABLES=gmm ba lstm ht
 

@@ -6,7 +6,7 @@
 #include "gradbench/main.hpp"
 #include "gradbench/evals/ht.hpp"
 
-#include "hand/hand_d.h"
+#include "evals/hand/hand_d.h"
 
 // Data for ht objective converted from input
 struct HTObjectiveData {

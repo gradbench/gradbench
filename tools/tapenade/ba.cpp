@@ -3,8 +3,8 @@
 
 // Largely based on https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/cpp/modules/tapenade/TapenadeBA.cpp
 
-#include "ba/ba.h"
-#include "ba/ba_b.h"
+#include "evals/ba/ba.h"
+#include "evals/ba/ba_b.h"
 
 #include <algorithm>
 #include "gradbench/main.hpp"

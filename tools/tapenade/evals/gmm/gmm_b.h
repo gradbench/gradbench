@@ -16,7 +16,7 @@ extern "C" {
 #include <stdlib.h>
 #include <math.h>
 
-#include "../utils/adBuffer.h"
+#include "../../utils/adBuffer.h"
 #include "adbench/shared/defs.h"
 
 // GMM function differentiated in reverse mode by Tapenade.
