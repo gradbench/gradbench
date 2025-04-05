@@ -1,7 +1,7 @@
 # C++ utilities
 
 This directory contains various utilities for implementing evals in
-C++. Interesting points of ntoe:
+C++. Interesting points of note:
 
 - `Makefile`: downloads an appropriate version of
   [json.hpp](https://github.com/nlohmann/json) - this is the JSON
@@ -42,7 +42,7 @@ code for more details.
 
 ### From the command line
 
-You can directly run the implementation that use this interface,
+You can directly run the implementations that use this interface,
 without going through `gradbench`. If an implementation `foo.cpp`
 compiles to a program `foo`, you can run it as follows:
 
