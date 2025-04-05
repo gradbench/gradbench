@@ -196,6 +196,7 @@ void objective(int n, int m, int p,
                const double* const feats,
                T* reproj_err,
                T* w_err) {
+#pragma omp parallel for
   for (int i = 0; i < p; i++) {
     int camIdx = obs[i * 2 + 0];
     int ptIdx = obs[i * 2 + 1];
@@ -203,6 +204,7 @@ void objective(int n, int m, int p,
                        &w[i], &feats[i * 2], &reproj_err[2 * i]);
   }
 
+#pragma omp parallel for
   for (int i = 0; i < p; i++) {
     computeZachWeightError(&w[i], &w_err[i]);
   }
@@ -244,8 +246,8 @@ SparseMat::SparseMat(int n_, int m_, int p_) : n(n_), m(m_), p(p_) {
   rows.push_back(0);
 }
 
-void SparseMat::insert_reproj_err_block(int obsIdx,
-                                          int camIdx, int ptIdx, const double* const J) {
+void SparseMat::insert_reproj_err_block(int obsIdx, int camIdx, int ptIdx,
+                                        const double* const J) {
   int n_new_cols = BA_NCAMPARAMS + 3 + 1;
   rows.push_back(rows.back() + n_new_cols);
   rows.push_back(rows.back() + n_new_cols);
