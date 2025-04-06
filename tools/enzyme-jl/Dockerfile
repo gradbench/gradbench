@@ -1,8 +1,15 @@
-FROM julia:1.10.4
-WORKDIR /gradbench
-COPY tools/enzyme.jl/Project.toml .
-COPY tools/enzyme.jl/Manifest.toml .
+FROM julia:1.10.9
+# Julia's Manifest.toml files bake in paths.
+# We thus want to mirror the directory structure from the repository,
+# such that we are able to update the Manifest.toml files directly.
+WORKDIR /tools/enzyme-jl
+RUN julia -e "import Pkg; Pkg.update()"
+COPY julia/GradBench /julia/GradBench
+# Copy over the minimal files needed to install all dependencies
+COPY tools/enzyme-jl/Project.toml .
+COPY tools/enzyme-jl/Manifest.toml .
 RUN julia --project=. -e 'import Pkg; Pkg.instantiate()'
-COPY tools/enzyme.jl/run.jl .
-ENTRYPOINT ["julia", "--project=/gradbench", "/gradbench/run.jl"]
+# Copy over the rest of the files
+COPY tools/enzyme-jl /tools/enzyme-jl
+ENTRYPOINT ["julia", "--project=.", "run.jl"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
