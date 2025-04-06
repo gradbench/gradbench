@@ -1,6 +1,6 @@
+import argparse
 import json
 import sys
-import argparse
 from typing import Any
 
 from gradbench import cpp
