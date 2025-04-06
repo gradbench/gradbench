@@ -1,11 +1,16 @@
 import json
 import sys
+import argparse
 from typing import Any
 
 from gradbench import cpp
 from gradbench.tools.tapenade import hello
 
 tool = "tapenade"
+
+args = argparse.Namespace()
+args.tool = tool
+args.multithreaded = False
 
 
 def define(module: str) -> Any:
@@ -17,7 +22,7 @@ def define(module: str) -> Any:
                 response["error"] = error
             return response
         case _:
-            return cpp.define(tool="tapenade", module=module)
+            return cpp.define(args=args, module=module)
 
 
 def evaluate(*, module: str, function: str, input: Any) -> Any:
