@@ -30,9 +30,9 @@ function gradient(message)
     Enzyme.autodiff(
         Reverse, GradBench.ODE.primal, Const,
         Const(n),
-        DuplicatedNoNeed(x, dx),
+        Duplicated(x, dx),
         Const(s),
-        DuplicatedNoNeed(output, adj)
+        Duplicated(output, adj)
     )
     return dx
 end
