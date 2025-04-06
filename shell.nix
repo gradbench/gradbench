@@ -34,6 +34,7 @@ in pkgs.stdenv.mkDerivation rec {
     pkgs.pkg-config
     pkgs.llvmPackages_19.lld
     pkgs.llvmPackages_19.clang
+    pkgs.llvmPackages_19.openmp
     pkgs.blas
     pkgs.lapack
     pkgs.openblas

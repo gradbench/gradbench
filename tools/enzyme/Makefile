@@ -1,3 +1,5 @@
+EXECUTABLES=run_hello run_gmm run_lstm run_ba run_ht run_kmeans run_an_ode run_llsq_obj run_det_by_minor
+
 CXX=clang++
 LLD=lld
 CXXFLAGS=-std=c++17 -O3 -fno-math-errno -Wall -flto -I../../cpp
@@ -6,12 +8,4 @@ LDFLAGS=-fuse-ld=$(LLD) -O3 -fno-math-errno -flto -Wl,--load-pass-plugin=$(LLDEN
 ENZYME_LIB?=/gradbench/enzyme-build/Enzyme/
 LLDENZYME=$(ENZYME_LIB)/LLDEnzyme-19.so
 
-EXECUTABLES=hello gmm lstm ba ht kmeans particle saddle ode llsq det
-
-all: $(EXECUTABLES)
-
-%: %.cpp
-	$(CXX) -o $@ $^ $(LDFLAGS) $(CXXFLAGS)
-
-clean:
-	rm -f $(EXECUTABLES)
+include ../../cpp/common.mk

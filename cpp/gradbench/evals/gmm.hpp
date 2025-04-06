@@ -105,7 +105,9 @@ void preprocess_qs(int d, int k,
                    T* sum_qs,
                    T* Qdiags) {
   int icf_sz = d * (d + 1) / 2;
+#ifdef USE_OPENMP
 #pragma omp parallel for
+#endif
   for (int ik = 0; ik < k; ik++) {
     sum_qs[ik] = 0.;
     for (int id = 0; id < d; id++) {
@@ -156,7 +158,9 @@ void objective(int d, int k, int n,
   std::vector<T> main_term(k);
   T slse = 0.;
 
+#ifdef USE_OPENMP
 #pragma omp parallel for reduction(+:slse) firstprivate(xcentered,Qxcentered,main_term)
+#endif
   for (int ix = 0; ix < n; ix++) {
     for (int ik = 0; ik < k; ik++) {
       subtract(d, &x[ix * d], &means[ik * d], &xcentered[0]);
@@ -164,7 +168,7 @@ void objective(int d, int k, int n,
 
       main_term[ik] = alphas[ik] + sum_qs[ik] - 0.5 * sqnorm(d, &Qxcentered[0]);
     }
-    double lsum = logsumexp(k, &main_term[0]);
+    T lsum = logsumexp(k, &main_term[0]);
     slse += lsum;
   }
 
