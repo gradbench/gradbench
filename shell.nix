@@ -45,6 +45,9 @@ in pkgs.stdenv.mkDerivation rec {
     cppad
     codipack
 
+    # Julia
+    pkgs.julia
+
     # Haskell
     pkgs.cabal-install
     pkgs.ghc
