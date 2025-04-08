@@ -3,7 +3,7 @@ CC?=cc
 CFLAGS=-std=c++17 -O3 -Wall -I../../cpp
 LDFLAGS=-lm
 
-EXECUTABLES=hello gmm ba lstm ht particle saddle ode llsq det
+EXECUTABLES=hello gmm ba lstm ht particle saddle ode llsq det logsumexp
 
 all: $(EXECUTABLES)
 
