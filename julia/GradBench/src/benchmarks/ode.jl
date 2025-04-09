@@ -15,7 +15,8 @@ module ODE
 using ADTypes: AbstractADType
 import DifferentiationInterface as DI
 
-function ode_fun(n, x, y, z)
+function ode_fun(x, y, z)
+    n = length(x)
     z[1] = x[1]
     for i in 2:n
         z[i] = x[i] * y[i-1]
@@ -35,22 +36,22 @@ function primal!(y::Vector{T}, x::Vector{T}, s::Real) where {T}
     y .= T(0)
 
     for _ in 1:s
-        ode_fun(n, x, y, k1)
+        ode_fun(x, y, k1)
 
         for i in eachindex(y_tmp, y, k1)
             y_tmp[i] = y[i] + h * k1[i] / T(2)
         end
-        ode_fun(n, x, y_tmp, k2)
+        ode_fun(x, y_tmp, k2)
 
         for i in eachindex(y_tmp, y, k2)
             y_tmp[i] = y[i] + h * k2[i] / T(2)
         end
-        ode_fun(n, x, y_tmp, k3)
+        ode_fun(x, y_tmp, k3)
 
         for i in eachindex(y_tmp, y, k3)
             y_tmp[i] = y[i] + h * k3[i]
         end
-        ode_fun(n, x, y_tmp, k4)
+        ode_fun(x, y_tmp, k4)
 
         for i in eachindex(y, k1, k2, k3, k4)
             y[i] += h * (k1[i] + T(2) * k2[i] + T(2) * k3[i] + k4[i]) / T(6)
