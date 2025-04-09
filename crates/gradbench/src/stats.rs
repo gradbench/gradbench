@@ -343,7 +343,7 @@ fn svg(output: &Path, summary: Summary) -> anyhow::Result<()> {
     let num_evals = summary.table.len() as f64;
     let num_tools = summary.table[0].tools.len() as f64;
     let font_size = 12.;
-    let eval_text_length = 60.;
+    let eval_text_length = 80.;
     let tool_text_length = 80.;
     let gap = 5.;
     let cell_size = 30.;
