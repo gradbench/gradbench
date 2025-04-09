@@ -7,7 +7,7 @@ import "./Stats.css";
 // They are not picked to make a particularly pleasing scheme, and
 // some are unfortunately a little close to each other.
 const colors = {
-  "ad-hpp": "#ff69b4",
+  "ad-hpp": "#f6a800",
   "adol-c": "#9da117",
   adept: "#d8702f",
   codipack: "#d02718",
