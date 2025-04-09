@@ -65,7 +65,7 @@ function primal(x::Vector, s::Real)
     return y
 end
 
-function gradientlast(x::Vector, s::Real, backend::AbstractADType)
+function gradientlast(backend::AbstractADType, x::Vector, s::Real)
     return DI.gradient(last ∘ primal, backend, x, DI.Constant(s))
 end
 
@@ -80,9 +80,9 @@ function primal_from_message(message::Dict)
     return primal(x, s)
 end
 
-function gradientlast_from_message(message::Dict, backend::AbstractADType)
+function gradientlast_from_message(backend::AbstractADType, message::Dict)
     x, s = parse_input(message)
-    return gradientlast(x, s, backend)
+    return gradientlast(backend, x, s)
 end
 
 end # module ode

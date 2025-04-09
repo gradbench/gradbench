@@ -6,8 +6,7 @@ import GradBench
 
 GradBench.register!("hello", Dict(
     "square" => GradBench.Hello.square,
-    "double" => GradBench.Hello.double,
-    "backend" => AutoZygote(),
+    "double" => (GradBench.Hello.double, AutoZygote()),
 ))
 
 end # module

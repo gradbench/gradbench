@@ -7,8 +7,7 @@ import GradBench
 GradBench.register!(
     "hello", Dict(
         "square" => GradBench.Hello.square,
-        "double" => GradBench.Hello.double,
-        "backend" => AutoForwardDiff(),
+        "double" => (GradBench.Hello.double, AutoForwardDiff()),
     )
 )
 

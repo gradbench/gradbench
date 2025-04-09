@@ -23,7 +23,11 @@ end
 function run(params)
     mod = DISPATCH_TABLE[params["module"]]
     func = mod[params["function"]]
-    backend = get(mod, "backend", nothing)
+    if func isa Tuple
+        func, backend = func
+    else
+        backend = nothing
+    end
     arg = params["input"]
     min_runs = get(params, "min_runs", 1)
     min_seconds = get(params, "min_seconds", 0)
@@ -41,7 +45,7 @@ function run(params)
         if isnothing(backend)
             ret, t = measure(func, arg)
         else
-            ret, t = measure(func, arg, backend)
+            ret, t = measure(func, backend, arg)
         end
         push!(timings, Dict("name" => "evaluate", "nanoseconds" => t))
         elapsed_seconds += t / 1e9
