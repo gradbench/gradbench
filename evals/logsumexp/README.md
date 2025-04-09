@@ -69,7 +69,7 @@ The size of the `GradientOutput` is equal to the size of the input
 
 ## Commentary
 
-This is a *very* simple benchmark, and a good first one to implement.
+This is a _very_ simple benchmark, and a good first one to implement.
 
 [the LogSumExp trick]: https://gregorygundersen.com/blog/2020/02/09/log-sum-exp/
 [protocol]: /CONTRIBUTING.md#types
