@@ -19,6 +19,8 @@ public:
     _alphas(_input.k),
     _means(_input.d * _input.k),
     _icf((_input.d*(_input.d + 1) / 2)*_input.k) {
+    adjoint::global_tape = adjoint::tape_t::create(TAPE_SIZE);
+
     for (size_t i = 0; i < _alphas.size(); i++) {
       _alphas[i] = _input.alphas[i];
     }
@@ -36,7 +38,7 @@ public:
     int Jcols = (_input.k * (_input.d + 1) * (_input.d + 2)) / 2;
     output.resize(Jcols);
 
-    adjoint::global_tape = adjoint::tape_t::create(TAPE_SIZE);
+    adjoint::global_tape->reset();
 
     for (size_t i = 0; i < _alphas.size(); i++) {
       adjoint::global_tape->register_variable(_alphas[i]);

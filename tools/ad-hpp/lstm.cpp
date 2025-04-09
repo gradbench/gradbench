@@ -21,6 +21,8 @@ public:
     _state(_input.state.size()),
     _sequence(_input.sequence.size()) {
 
+    adjoint::global_tape = adjoint::tape_t::create(TAPE_SIZE);
+
     for (size_t i = 0; i < _main_params.size(); i++) {
       _main_params[i] = _input.main_params[i];
     }
@@ -41,7 +43,7 @@ public:
   void compute(lstm::JacOutput& output) {
     output.resize(8 * _input.l * _input.b + 3 * _input.b);
 
-    adjoint::global_tape = adjoint::tape_t::create(TAPE_SIZE);
+    adjoint::global_tape->reset();
 
     for (size_t i = 0; i < _main_params.size(); i++) {
       adjoint::global_tape->register_variable(_main_params[i]);
