@@ -23,7 +23,7 @@ function ode_fun(x, y, z)
     end
 end
 
-function primal!(y::Vector{T}, x::Vector{T}, s::Real) where {T}
+function primal!(y::AbstractVector{T}, x::AbstractVector{T}, s::Real) where {T}
     tf = T(2)
     h = tf / T(s)
 
@@ -60,13 +60,13 @@ function primal!(y::Vector{T}, x::Vector{T}, s::Real) where {T}
     return nothing
 end
 
-function primal(x::Vector, s::Real)
+function primal(x::AbstractVector, s::Real)
     y = similar(x)
     primal!(y, x, s)
     return y
 end
 
-function gradientlast(backend::AbstractADType, x::Vector, s::Real)
+function gradientlast(backend::AbstractADType, x::AbstractVector, s::Real)
     return DI.gradient(last ∘ primal, backend, x, DI.Constant(s))
 end
 
