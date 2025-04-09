@@ -1,4 +1,4 @@
-module GradBench.LogSumExp
+module GradBench.LSE
   ( primal,
     gradient,
   )

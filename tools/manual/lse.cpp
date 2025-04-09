@@ -1,12 +1,12 @@
 #include <algorithm>
 #include "gradbench/main.hpp"
-#include "gradbench/evals/logsumexp.hpp"
+#include "gradbench/evals/lse.hpp"
 
-class Gradient : public Function<logsumexp::Input, logsumexp::GradientOutput> {
+class Gradient : public Function<lse::Input, lse::GradientOutput> {
 public:
-  Gradient(logsumexp::Input& input) : Function(input) {}
+  Gradient(lse::Input& input) : Function(input) {}
 
-  void compute(logsumexp::GradientOutput& output) {
+  void compute(lse::GradientOutput& output) {
     size_t n = _input.x.size();
     output.resize(n);
 
@@ -26,7 +26,7 @@ public:
 
 int main(int argc, char* argv[]) {
   return generic_main(argc, argv, {
-      {"primal", function_main<logsumexp::Primal>},
+      {"primal", function_main<lse::Primal>},
       {"gradient", function_main<Gradient>},
     });;
 }

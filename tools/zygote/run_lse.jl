@@ -1,16 +1,16 @@
-module LogSumExp
+module LSE
 
 import Zygote
 import GradBench
 
 function gradient(input)
     x = convert(Vector{Float64}, input["x"])
-    z, = Zygote.gradient(GradBench.LogSumExp.logsumexp, x)
+    z, = Zygote.gradient(GradBench.LSE.logsumexp, x)
     return z
 end
 
-GradBench.register!("logsumexp", Dict(
-    "primal" => GradBench.LogSumExp.primal,
+GradBench.register!("lse", Dict(
+    "primal" => GradBench.LSE.primal,
     "gradient" => gradient
 ))
 

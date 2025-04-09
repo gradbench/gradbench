@@ -9,15 +9,15 @@ function gradient(message)
     dx = Enzyme.make_zero(x)
 
     Enzyme.autodiff(
-        Reverse, GradBench.LogSumExp.logsumexp, Active,
+        Reverse, GradBench.LSE.logsumexp, Active,
         Duplicated(x, dx)
     )
     return dx
 end
 
 GradBench.register!(
-    "logsumexp", Dict(
-        "primal" => GradBench.LogSumExp.primal,
+    "lse", Dict(
+        "primal" => GradBench.LSE.primal,
         "gradient" => gradient
     )
 )

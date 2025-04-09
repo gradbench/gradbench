@@ -1,4 +1,4 @@
-module type LOGSUMEXP_SCALAR = sig
+module type LSE_SCALAR = sig
   type t
 
   val float : float -> t
@@ -11,7 +11,7 @@ module type LOGSUMEXP_SCALAR = sig
 
 end
 
-module type LOGSUMEXP_TENSOR = sig
+module type LSE_TENSOR = sig
   type t
   type scalar
 
@@ -52,7 +52,7 @@ module type LOGSUMEXP_TENSOR = sig
   val pow_const : t -> float -> t
 end
 
-module type LOGSUMEXP_PRIMAL = sig
+module type LSE_PRIMAL = sig
   type tensor
   type scalar
 
@@ -60,8 +60,8 @@ module type LOGSUMEXP_PRIMAL = sig
 end
 
 module Make
-         (S : LOGSUMEXP_SCALAR)
-         (T : LOGSUMEXP_TENSOR with type scalar = S.t) : LOGSUMEXP_PRIMAL
+         (S : LSE_SCALAR)
+         (T : LSE_TENSOR with type scalar = S.t) : LSE_PRIMAL
        with type tensor = T.t
        with type scalar = S.t
   = struct
@@ -71,7 +71,7 @@ module Make
   open S
   open T
 
-  (* XXX: This is not really reasonable - logsumexp seems to be a
+  (* XXX: This is not really reasonable - lse seems to be a
      primitive in this AD library, not a derived form. *)
   let primal x = get (log_sum_exp x) [|0|]
 

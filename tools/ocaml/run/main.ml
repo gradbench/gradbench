@@ -87,10 +87,10 @@ let modules =
      in (("gmm", "objective"), wrap M.objective M.input_of_json M.json_of_objective));
     (let module M = Evals_effect_handlers_gmm.GMM
      in (("gmm", "jacobian"), wrap M.jacobian M.input_of_json M.json_of_jacobian));
-    (let module M = Evals_effect_handlers_logsumexp.LOGSUMEXP
-     in (("logsumexp", "primal"), wrap M.primal M.input_of_json M.json_of_primal));
-    (let module M = Evals_effect_handlers_logsumexp.LOGSUMEXP
-     in (("logsumexp", "gradient"), wrap M.gradient M.input_of_json M.json_of_gradient));
+    (let module M = Evals_effect_handlers_lse.LSE
+     in (("lse", "primal"), wrap M.primal M.input_of_json M.json_of_primal));
+    (let module M = Evals_effect_handlers_lse.LSE
+     in (("lse", "gradient"), wrap M.gradient M.input_of_json M.json_of_gradient));
   ]
 
 let timing_of x =

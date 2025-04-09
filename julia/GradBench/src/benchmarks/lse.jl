@@ -1,4 +1,4 @@
-module LogSumExp
+module LSE
 
 struct Input
     x::Vector{Float64}
@@ -14,4 +14,4 @@ function primal(input)
     return logsumexp(x)
 end
 
-end # module logsumexp
+end # module lse

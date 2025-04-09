@@ -13,7 +13,7 @@ from gradbench.eval import (
 def expect(function: str, input: Any) -> EvaluateResponse:
     return cpp.evaluate(
         tool="manual",
-        module="logsumexp",
+        module="lse",
         function=function,
         input=input | {"min_runs": 1, "min_seconds": 0},
     )
@@ -22,11 +22,13 @@ def expect(function: str, input: Any) -> EvaluateResponse:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-n", nargs="+", type=int, default=[10000, 100000, 1000000])
+    parser.add_argument("--min", nargs="+", type=float, default=-100)
+    parser.add_argument("--max", nargs="+", type=float, default=100)
     parser.add_argument("--min-runs", type=int, default=1)
     parser.add_argument("--min-seconds", type=float, default=1)
     args = parser.parse_args()
 
-    e = SingleModuleValidatedEval(module="logsumexp", validator=mismatch(expect))
+    e = SingleModuleValidatedEval(module="lse", validator=mismatch(expect))
     e.start()
     if e.define().success:
         np.random.seed(31337)  # For determinism.

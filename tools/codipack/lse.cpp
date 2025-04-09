@@ -1,23 +1,23 @@
 #include <algorithm>
 #include <vector>
 #include "gradbench/main.hpp"
-#include "gradbench/evals/logsumexp.hpp"
+#include "gradbench/evals/lse.hpp"
 
 #include <codi.hpp>
 
 using Real = codi::RealReverse;
 using Tape = typename Real::Tape;
 
-class Gradient : public Function<logsumexp::Input, logsumexp::GradientOutput> {
+class Gradient : public Function<lse::Input, lse::GradientOutput> {
   std::vector<Real> _x_d;
 public:
-  Gradient(logsumexp::Input& input)
+  Gradient(lse::Input& input)
     : Function(input),
       _x_d(_input.x.size()){
     std::copy(_input.x.begin(), _input.x.end(), _x_d.begin());
   }
 
-  void compute(logsumexp::GradientOutput& output) {
+  void compute(lse::GradientOutput& output) {
     size_t n = _input.x.size();
     output.resize(n);
 
@@ -30,7 +30,7 @@ public:
     }
 
     Real error;
-    logsumexp::primal(n, _x_d.data(), &error);
+    lse::primal(n, _x_d.data(), &error);
 
     tape.registerOutput(error);
     tape.setPassive();
@@ -45,7 +45,7 @@ public:
 
 int main(int argc, char* argv[]) {
   return generic_main(argc, argv, {
-      {"primal", function_main<logsumexp::Primal>},
+      {"primal", function_main<lse::Primal>},
       {"gradient", function_main<Gradient>}
     });
 }

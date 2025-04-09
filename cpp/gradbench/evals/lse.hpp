@@ -2,7 +2,7 @@
 #include <cmath>
 #include "json.hpp"
 
-namespace logsumexp {
+namespace lse {
 
 struct Input {
   std::vector<double> x;

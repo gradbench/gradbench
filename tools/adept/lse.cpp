@@ -1,15 +1,15 @@
 #include <algorithm>
 #include "gradbench/main.hpp"
-#include "gradbench/evals/logsumexp.hpp"
+#include "gradbench/evals/lse.hpp"
 #include "adept.h"
 
 using adept::adouble;
 
-class Gradient : public Function<logsumexp::Input, logsumexp::GradientOutput> {
+class Gradient : public Function<lse::Input, lse::GradientOutput> {
 public:
-  Gradient(logsumexp::Input& input) : Function(input) {}
+  Gradient(lse::Input& input) : Function(input) {}
 
-  void compute(logsumexp::GradientOutput& output) {
+  void compute(lse::GradientOutput& output) {
     size_t n = _input.x.size();
     output.resize(n);
 
@@ -19,7 +19,7 @@ public:
 
     stack.new_recording();
     adouble primal_out;
-    logsumexp::primal(n, x_d.data(), &primal_out);
+    lse::primal(n, x_d.data(), &primal_out);
     primal_out.set_gradient(1.);
     stack.reverse();
 
@@ -29,7 +29,7 @@ public:
 
 int main(int argc, char* argv[]) {
   return generic_main(argc, argv, {
-      {"primal", function_main<logsumexp::Primal>},
+      {"primal", function_main<lse::Primal>},
       {"gradient", function_main<Gradient>},
     });;
 }

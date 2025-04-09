@@ -3,7 +3,7 @@ open Owl.Dense.Ndarray.Generic
 open Evals_effect_handlers_evaluate_tensor
 open Evals_effect_handlers_reverse_tensor
 
-module FloatScalar : Shared_logsumexp.LOGSUMEXP_SCALAR
+module FloatScalar : Shared_lse.LSE_SCALAR
        with type t = float
   = struct
   type t = float
@@ -16,7 +16,7 @@ module FloatScalar : Shared_logsumexp.LOGSUMEXP_SCALAR
   let ( /. ) = Stdlib.( /. )
 end
 
-module EvaluateScalar : Shared_logsumexp.LOGSUMEXP_SCALAR
+module EvaluateScalar : Shared_lse.LSE_SCALAR
        with type t = Evaluate.scalar
   = struct
   include Evaluate
@@ -27,7 +27,7 @@ end
 
 module ReverseEvaluate = Reverse (Evaluate)
 
-module ReverseScalar : Shared_logsumexp.LOGSUMEXP_SCALAR
+module ReverseScalar : Shared_lse.LSE_SCALAR
        with type t = ReverseEvaluate.scalar
   = struct
   include ReverseEvaluate
@@ -36,7 +36,7 @@ module ReverseScalar : Shared_logsumexp.LOGSUMEXP_SCALAR
   let float = c
 end
 
-module OwlFloatTensor : Shared_logsumexp.LOGSUMEXP_TENSOR
+module OwlFloatTensor : Shared_lse.LSE_TENSOR
        with type t = (float, Bigarray.float64_elt) Owl.Dense.Ndarray.Generic.t
        with type scalar = float
   = struct
@@ -66,7 +66,7 @@ module OwlFloatTensor : Shared_logsumexp.LOGSUMEXP_TENSOR
   let pow_const = pow_scalar
 end
 
-module EvaluateTensor : Shared_logsumexp.LOGSUMEXP_TENSOR
+module EvaluateTensor : Shared_lse.LSE_TENSOR
        with type t = Evaluate.tensor
        with type scalar = Evaluate.scalar
   = struct
@@ -80,7 +80,7 @@ module EvaluateTensor : Shared_logsumexp.LOGSUMEXP_TENSOR
   let mul = ( * )
 end
 
-module ReverseTensor : Shared_logsumexp.LOGSUMEXP_TENSOR
+module ReverseTensor : Shared_lse.LSE_TENSOR
        with type t = ReverseEvaluate.tensor
        with type scalar = ReverseEvaluate.scalar
   = struct
@@ -98,7 +98,7 @@ module ReverseTensor : Shared_logsumexp.LOGSUMEXP_TENSOR
   let mul = ( * )
 end
 
-module type LOGSUMEXP = sig
+module type LSE = sig
   type input
   type primal_output
   type gradient_output
@@ -111,7 +111,7 @@ module type LOGSUMEXP = sig
   val gradient: input -> gradient_output
 end
 
-module LOGSUMEXP : LOGSUMEXP
+module LSE : LSE
   = struct
   type input = (float, Bigarray.float64_elt) t
   type primal_output = float
@@ -119,7 +119,7 @@ module LOGSUMEXP : LOGSUMEXP
 
   let primal (param: input) =
     let module Objective =
-      Shared_logsumexp.Make (EvaluateScalar) (EvaluateTensor)
+      Shared_lse.Make (EvaluateScalar) (EvaluateTensor)
     in
     Effect.Deep.match_with
       Objective.primal
@@ -128,7 +128,7 @@ module LOGSUMEXP : LOGSUMEXP
 
   let gradient (param: input) =
     let module Objective =
-      Shared_logsumexp.Make (ReverseScalar) (ReverseTensor)
+      Shared_lse.Make (ReverseScalar) (ReverseTensor)
     in
     let grads =
       Effect.Deep.match_with (fun p ->

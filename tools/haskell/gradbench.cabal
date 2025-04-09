@@ -17,7 +17,7 @@ executable gradbench
     other-modules:    GradBench.Hello
                       GradBench.KMeans
                       GradBench.LLSq
-                      GradBench.LogSumExp
+                      GradBench.LSE
                       GradBench.ODE
                       GradBench.Det
                       GradBench.Particle

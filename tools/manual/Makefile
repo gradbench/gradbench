@@ -3,7 +3,7 @@ CC?=cc
 CFLAGS=-std=c++17 -O3 -Wall -I../../cpp
 LDFLAGS=-lm
 
-EXECUTABLES=hello gmm ba lstm ht kmeans ode llsq det logsumexp
+EXECUTABLES=hello gmm ba lstm ht kmeans ode llsq det lse
 
 all: $(EXECUTABLES)
 

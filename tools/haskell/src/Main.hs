@@ -27,7 +27,7 @@ import GradBench.Det qualified
 import GradBench.Hello qualified
 import GradBench.KMeans qualified
 import GradBench.LLSq qualified
-import GradBench.LogSumExp qualified
+import GradBench.LSE qualified
 import GradBench.ODE qualified
 import GradBench.Particle qualified
 import GradBench.Saddle qualified
@@ -96,8 +96,8 @@ modules =
     (("ode", "gradient"), wrap GradBench.ODE.gradient),
     (("det", "primal"), wrap GradBench.Det.primal),
     (("det", "gradient"), wrap GradBench.Det.gradient),
-    (("logsumexp", "primal"), wrap GradBench.LogSumExp.primal),
-    (("logsumexp", "gradient"), wrap GradBench.LogSumExp.gradient),
+    (("lse", "primal"), wrap GradBench.LSE.primal),
+    (("lse", "gradient"), wrap GradBench.LSE.gradient),
     (("particle", "rr"), wrap GradBench.Particle.rr),
     (("particle", "fr"), wrap GradBench.Particle.fr),
     (("particle", "rf"), wrap GradBench.Particle.rf),
