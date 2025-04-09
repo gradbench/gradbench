@@ -2,12 +2,13 @@ import argparse
 from pathlib import Path
 from typing import Any
 
-import numpy as np
-
-import gradbench.pytorch.ba as golden
-from gradbench.comparison import compare_json_objects
-from gradbench.eval import SingleModuleValidatedEval, approve, mismatch
-from gradbench.wrap import Wrapped
+from gradbench import cpp
+from gradbench.eval import (
+    EvaluateResponse,
+    SingleModuleValidatedEval,
+    approve,
+    mismatch,
+)
 
 
 def parse(file):
@@ -34,39 +35,44 @@ def parse(file):
     }
 
 
-def check(function: str, input: Any, output: Any) -> None:
-    func: Wrapped = getattr(golden, function)
-    expected = func.wrapped(input | {"runs": 1})["output"]
-    return compare_json_objects(expected, output)
+def expect(function: str, input: Any) -> EvaluateResponse:
+    return cpp.evaluate(
+        tool="manual",
+        module="ba",
+        function=function,
+        input=input | {"min_runs": 1, "min_seconds": 0},
+    )
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--min", type=int, default=1)
-    parser.add_argument("--max", type=int, default=2)
-    parser.add_argument("--runs", type=int, default=1)
+    parser.add_argument("--max", type=int, default=14)  # Can go up to 20
+    parser.add_argument("--min-runs", type=int, default=1)
+    parser.add_argument("--min-seconds", type=float, default=1)
     parser.add_argument("--no-validation", action="store_true", default=False)
     args = parser.parse_args()
 
     e = SingleModuleValidatedEval(
-        module="ba", validator=approve if args.no_validation else mismatch(check)
+        module="ba", validator=approve if args.no_validation else mismatch(expect)
     )
     e.start()
     if e.define().success:
         # NOTE: data files are taken directly from ADBench. See README for more information.
-        # Currently set to run on the smallest two data files. To run on all 20 set loop range to be: range(1,21)
         for i in range(args.min, args.max + 1):
             datafile = next(Path("evals/ba/data").glob(f"ba{i}_*.txt"), None)
             if datafile:
                 input = parse(datafile)
                 e.evaluate(
                     function="objective",
-                    input=input | {"runs": args.runs},
+                    input=input
+                    | {"min_runs": args.min_runs, "min_seconds": args.min_seconds},
                     description=datafile.stem,
                 )
                 e.evaluate(
                     function="jacobian",
-                    input=input | {"runs": args.runs},
+                    input=input
+                    | {"min_runs": args.min_runs, "min_seconds": args.min_seconds},
                     description=datafile.stem,
                 )
 

@@ -1,35 +1,28 @@
 FROM python:3.11-slim
+WORKDIR /gradbench
 
-WORKDIR /home/gradbench
-
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    python3 \
-    wget \
-    curl
-
-COPY python /home/gradbench/python
-ENV PYTHONPATH=/home/gradbench/python/gradbench
+# Install build dependencies.
+RUN apt-get update && apt-get install -y automake build-essential wget
 
 # Download and compile Adept.
 #
-# We download new versions of config.guess and config.sub because the
+# We copy in new versions of config.guess and config.sub because the
 # versions in the tarball are obsolete and do not recognise
 # new-fangled architectures such as ARM.
-RUN curl -O http://www.met.reading.ac.uk/clouds/adept/adept-2.1.1.tar.gz
+ADD http://www.met.reading.ac.uk/clouds/adept/adept-2.1.1.tar.gz .
 RUN tar xvf adept-2.1.1.tar.gz
-RUN cd adept-2.1.1 && curl -O https://cvs.savannah.gnu.org/viewvc/*checkout*/config/config/config.guess
-RUN cd adept-2.1.1 && curl -O https://cvs.savannah.gnu.org/viewvc/*checkout*/config/config/config.sub
-RUN cd adept-2.1.1 && ./configure
-RUN make -C adept-2.1.1
-RUN make -C adept-2.1.1 install
+RUN cp /usr/share/misc/config.guess /usr/share/misc/config.sub adept-2.1.1
+RUN cd adept-2.1.1 && ./configure && make && make install
 ENV LIBRARY_PATH=/usr/local/lib
 ENV LD_LIBRARY_PATH=/usr/local/lib
 
-COPY cpp /home/gradbench/cpp
+# Download C++ dependencies.
+COPY cpp cpp
 RUN make -C cpp
 
-COPY tools/adept/ /home/gradbench/tools/adept
+# `COPY` the rest of the files.
+COPY python python
+COPY tools/adept tools/adept
 
-ENTRYPOINT ["python3", "/home/gradbench/tools/adept/run.py"]
+ENTRYPOINT ["python3", "python/gradbench/gradbench/cpp.py", "adept"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench

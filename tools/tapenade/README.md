@@ -16,7 +16,7 @@ make -C tools/tapenade
 Then, to run the tool itself:
 
 ```sh
-python3 tools/tapenade/run.py
+python3 python/gradbench/gradbench/tools/tapenade/run.py
 ```
 
 [c]: https://en.wikipedia.org/wiki/C_(programming_language)

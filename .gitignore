@@ -5,9 +5,12 @@ __pycache__/
 *.vsix
 *~
 /.config/dotnet-tools.json
+/.direnv/
+/.envrc
 /log.jsonl
 /packages/vscode/bin/
 /run/
+/stats/
 /tapenade_3.16.tar
 /tapenade_3.16/
 /target/

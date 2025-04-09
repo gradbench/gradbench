@@ -1,22 +1,27 @@
-FROM python:3.11-slim
+FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim
+ARG FUTHARK_VER=0.25.29
+WORKDIR /gradbench
 
-RUN apt update
-RUN apt install -y xz-utils build-essential git
+# Install build dependencies.
+RUN apt-get update && apt-get install -y build-essential git xz-utils
 
-RUN pip install futhark-data futhark-server dataclasses-json
+# `COPY` the minimal set of files for `uv sync`.
+COPY pyproject.toml uv.lock ./
+COPY python/gradbench/pyproject.toml python/gradbench/
+COPY python/gradbench/gradbench/__init__.py python/gradbench/gradbench/
+RUN uv sync --no-default-groups --group dataclasses-json --group futhark-server --group gradbench
 
-ADD https://futhark-lang.org/releases/futhark-0.25.23-linux-x86_64.tar.xz futhark-0.25.23-linux-x86_64.tar.xz
+# Install Futhark.
+ADD https://futhark-lang.org/releases/futhark-${FUTHARK_VER}-linux-x86_64.tar.xz futhark-${FUTHARK_VER}-linux-x86_64.tar.xz
+RUN tar xvf futhark-${FUTHARK_VER}-linux-x86_64.tar.xz
+RUN make -C futhark-${FUTHARK_VER}-linux-x86_64 install
 
-RUN tar xvf futhark-0.25.23-linux-x86_64.tar.xz
+# Install Futhark packages.
+COPY tools/futhark tools/futhark
+RUN cd tools/futhark && futhark pkg sync
 
-RUN make -C futhark-0.25.23-linux-x86_64 install
+# `COPY` the rest of the files.
+COPY python python
 
-COPY python /home/gradbench/python
-ENV PYTHONPATH=/home/gradbench/python/gradbench
-
-COPY tools/futhark /home/gradbench/tools/futhark
-RUN cd /home/gradbench/tools/futhark && futhark pkg sync
-
-WORKDIR /home/gradbench
-ENTRYPOINT ["python", "/home/gradbench/tools/futhark/run.py"]
+ENTRYPOINT ["uv", "run", "--no-sync", "tools/futhark/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench

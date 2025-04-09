@@ -31,7 +31,6 @@ Changes Made:
 - No longer obscures the origin of exceptions.
 """
 
-
 import sys
 
 import numpy as np
@@ -63,14 +62,11 @@ def replicate_point(n):
 
 
 def generate(data_uniform, data_normal, D, k, n):
-
     gamma = 1.0
     m = 0
 
     view_uniform = data_uniform[:]
     view_normal = data_normal[:]
-
-    filename = f"gmm_d{D}_K{k}_N{n}.txt"
 
     output = {}
 
@@ -112,7 +108,6 @@ def generate(data_uniform, data_normal, D, k, n):
 
 
 def generator(d, k, n):
-
     np.random.seed(31337)  # For determinism.
 
     K_max = 200  # K[-1] from [5, 10, 25, 50, 100, 200]

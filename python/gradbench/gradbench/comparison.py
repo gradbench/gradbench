@@ -10,7 +10,7 @@ def difference(x, y):
     return absdiff / normCoef
 
 
-def compare_json_objects(expected, actual, tolerance=1e-4, path=""):
+def compare_json_objects(expected, actual, tolerance=1e-4, path="") -> list[str]:
     """Compare two Python objects corresponding to JSON objects and
     report mismatches.
 
@@ -32,7 +32,7 @@ def compare_json_objects(expected, actual, tolerance=1e-4, path=""):
     if type(expected) is float and type(actual) is int:
         actual = float(actual)
 
-    if type(expected) != type(actual):
+    if type(expected) != type(actual):  # noqa: E721
         mismatches.append(
             f"{path}: expected value of type {type(expected)}, got value of type {type(actual)}"
         )
@@ -59,10 +59,13 @@ def compare_json_objects(expected, actual, tolerance=1e-4, path=""):
             mismatches.append(
                 f"{path}: Expected array of length {expected_len}, got array of length {actual_len}."
             )
-        for i in range(expected_len):
-            mismatches.extend(
-                compare_json_objects(expected[i], actual[i], tolerance, f"{path}[{i}]")
-            )
+        else:
+            for i in range(expected_len):
+                mismatches.extend(
+                    compare_json_objects(
+                        expected[i], actual[i], tolerance, f"{path}[{i}]"
+                    )
+                )
 
     elif isinstance(expected, float) and isinstance(actual, float):
         if difference(np.array(actual), np.array(expected)) > tolerance:

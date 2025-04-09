@@ -5,6 +5,8 @@ from typing import Any, Callable, Optional
 
 from pydantic import BaseModel
 
+from gradbench.comparison import compare_json_objects
+
 
 class Timing(BaseModel):
     name: str
@@ -60,9 +62,17 @@ def assertion(check: Callable[[str, Any, Any], None]) -> Validator:
     return validator
 
 
-def mismatch(check: Callable[[str, Any, Any], None], max_mismatches=10) -> Validator:
+def mismatch(
+    expect: Callable[[str, Any], EvaluateResponse], max_mismatches=10
+) -> Validator:
     def validator(function: str, input: Any, output: Any) -> Analysis:
-        mismatches = check(function, input, output)
+        expected = expect(function, input)
+        if not expected["success"]:
+            return Analysis(
+                valid=False,
+                error=f"golden implementation failed with error:\n{expected['error']}",
+            )
+        mismatches = compare_json_objects(expected["output"], output)
         if len(mismatches) == 0:
             return Analysis(valid=True, error=None)
         else:
@@ -91,7 +101,7 @@ class SingleModuleValidatedEval:
         print(flush=True)
         if message["kind"] == "end":
             return
-        l = sys.stdin.readline()
+        l = sys.stdin.readline()  # noqa: E741
         if l == "":
             raise EOFError
         response = json.loads(l)
