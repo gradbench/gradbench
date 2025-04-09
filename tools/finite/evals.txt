@@ -5,7 +5,7 @@ hello
 ht timeout
 kmeans timeout
 llsq
-logsumexp
+logsumexp timeout
 lstm
 ode timeout
 particle
