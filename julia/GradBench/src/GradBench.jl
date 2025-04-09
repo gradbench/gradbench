@@ -13,9 +13,9 @@ function register!(mod, functions)
 end
 
 # Avoid measuring dispatch overhead
-function measure(func::F, arg) where {F}
+function measure(func::F, args::Vararg{Any,N}) where {F,N}
     start = time_ns()
-    ret = func(arg)
+    ret = func(args...)
     done = time_ns()
     return ret, done - start
 end
@@ -23,6 +23,7 @@ end
 function run(params)
     mod = DISPATCH_TABLE[params["module"]]
     func = mod[params["function"]]
+    backend = get(mod, "backend", nothing)
     arg = params["input"]
     min_runs = get(params, "min_runs", 1)
     min_seconds = get(params, "min_seconds", 0)
@@ -37,7 +38,11 @@ function run(params)
     i = 1
     ret = nothing
     while i <= min_runs || elapsed_seconds <= min_seconds
-        ret, t = measure(func, arg)
+        if isnothing(backend)
+            ret, t = measure(func, arg)
+        else
+            ret, t = measure(func, arg, backend)
+        end
         push!(timings, Dict("name" => "evaluate", "nanoseconds" => t))
         elapsed_seconds += t / 1e9
         i += 1

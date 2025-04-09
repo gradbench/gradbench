@@ -1,4 +1,4 @@
 [deps]
-DifferentiationInterface = "a0c0ee7d-e4b9-4e03-894e-1c5f64a51d63"
+ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 GradBench = "b8d9ff47-6a34-4c60-b82b-acd435921e41"

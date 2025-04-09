@@ -1,20 +1,14 @@
 module Hello
 
-import DifferentiationInterface as DI
+using ADTypes: AutoForwardDiff
 import ForwardDiff
 import GradBench
-
-function double(x)
-    z, = DI.derivative(GradBench.Hello.square, DI.AutoForwardDiff(), x)
-    return z
-end
-
-precompile(double, (Float64,))
 
 GradBench.register!(
     "hello", Dict(
         "square" => GradBench.Hello.square,
-        "double" => double
+        "double" => GradBench.Hello.double,
+        "backend" => AutoForwardDiff(),
     )
 )
 

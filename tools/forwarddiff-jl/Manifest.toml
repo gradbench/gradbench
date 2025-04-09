@@ -2,7 +2,7 @@
 
 julia_version = "1.10.9"
 manifest_format = "2.0"
-project_hash = "49e59455f9920eb962a956dc346e588d9dfbd0cd"
+project_hash = "cd176a231a2683dbebbcca60271b78a48234a3e3"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
@@ -115,7 +115,7 @@ version = "1.0.1"
     StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [[deps.GradBench]]
-deps = ["JSON"]
+deps = ["ADTypes", "DifferentiationInterface", "JSON"]
 path = "../../julia/GradBench"
 uuid = "b8d9ff47-6a34-4c60-b82b-acd435921e41"
 version = "0.1.0"

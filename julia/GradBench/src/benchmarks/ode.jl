@@ -12,10 +12,8 @@
 
 module ODE
 
-struct Input
-    x::Vector{Float64}
-    s::Int
-end
+using ADTypes: AbstractADType
+import DifferentiationInterface as DI
 
 function ode_fun(n, x, y, z)
     z[1] = x[1]
@@ -24,40 +22,67 @@ function ode_fun(n, x, y, z)
     end
 end
 
-function primal(n, xi::Vector{T}, s, yf::Vector{T}) where {T}
+function primal!(y::Vector{T}, x::Vector{T}, s::Real) where {T}
     tf = T(2)
     h = tf / T(s)
 
-    k1 = Vector{T}(undef, n)
-    k2 = Vector{T}(undef, n)
-    k3 = Vector{T}(undef, n)
-    k4 = Vector{T}(undef, n)
-    y_tmp = Vector{T}(undef, n)
+    k1 = similar(y)
+    k2 = similar(y)
+    k3 = similar(y)
+    k4 = similar(y)
+    y_tmp = similar(y)
 
-    yf .= T(0)
+    y .= T(0)
 
     for _ in 1:s
-        ode_fun(n, xi, yf, k1)
+        ode_fun(n, x, y, k1)
 
-        for i in 1:n
-            y_tmp[i] = yf[i] + h * k1[i] / T(2)
+        for i in eachindex(y_tmp, y, k1)
+            y_tmp[i] = y[i] + h * k1[i] / T(2)
         end
-        ode_fun(n, xi, y_tmp, k2)
+        ode_fun(n, x, y_tmp, k2)
 
-        for i in 1:n
-            y_tmp[i] = yf[i] + h * k2[i] / T(2)
+        for i in eachindex(y_tmp, y, k2)
+            y_tmp[i] = y[i] + h * k2[i] / T(2)
         end
-        ode_fun(n, xi, y_tmp, k3)
+        ode_fun(n, x, y_tmp, k3)
 
-        for i in 1:n
-            y_tmp[i] = yf[i] + h * k3[i]
+        for i in eachindex(y_tmp, y, k3)
+            y_tmp[i] = y[i] + h * k3[i]
         end
-        ode_fun(n, xi, y_tmp, k4)
+        ode_fun(n, x, y_tmp, k4)
 
-        for i in 1:n
-            yf[i] += h * (k1[i] + T(2) * k2[i] + T(2) * k3[i] + k4[i]) / T(6)
+        for i in eachindex(y, k1, k2, k3, k4)
+            y[i] += h * (k1[i] + T(2) * k2[i] + T(2) * k3[i] + k4[i]) / T(6)
         end
     end
+    return nothing
+end
+
+function primal(x::Vector, s::Real)
+    y = similar(x)
+    primal!(y, x, s)
+    return y
+end
+
+function gradientlast(x::Vector, s::Real, backend::AbstractADType)
+    return DI.gradient(last ∘ primal, backend, x, DI.Constant(s))
+end
+
+function parse_input(message::Dict)
+    x = convert(Vector{Float64}, message["x"])
+    s = message["s"]
+    return x, s
+end
+
+function primal_from_message(message::Dict)
+    x, s = parse_input(message)
+    return primal(x, s)
+end
+
+function gradientlast_from_message(message::Dict, backend::AbstractADType)
+    x, s = parse_input(message)
+    return gradientlast(x, s, backend)
 end
 
 end # module ode

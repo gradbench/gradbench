@@ -9,9 +9,8 @@ function primal(message)
     s = message["s"]
 
     output = similar(x)
-    n = length(x)
 
-    GradBench.ODE.primal(n, x, s, output)
+    GradBench.ODE.primal!(output, x, s)
     return output
 end
 
@@ -20,7 +19,6 @@ function gradient(message)
     s = message["s"]
 
     output = similar(x)
-    n = length(x)
 
     adj = Enzyme.make_zero(output)
     adj[end] = 1
@@ -28,11 +26,10 @@ function gradient(message)
     dx = Enzyme.make_zero(x)
 
     Enzyme.autodiff(
-        Reverse, GradBench.ODE.primal, Const,
-        Const(n),
+        Reverse, GradBench.ODE.primal!, Const,
+        Duplicated(output, adj),
         Duplicated(x, dx),
         Const(s),
-        Duplicated(output, adj)
     )
     return dx
 end
