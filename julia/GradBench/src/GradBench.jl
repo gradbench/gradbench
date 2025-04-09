@@ -65,5 +65,6 @@ end
 
 include("benchmarks/hello.jl")
 include("benchmarks/ode.jl")
+include("benchmarks/logsumexp.jl")
 
 end # module GradBench
