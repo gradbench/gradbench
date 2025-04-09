@@ -2,7 +2,7 @@
 
 This eval concerns computing the LogSumExp (LSE) function and its
 gradient. LSE is a smooth approximation to the function that takes the
-maximum of a sequence of values $x$. Mathematically, it is defined as
+maximum of a vector of values $x$. Mathematically, it is defined as
 
 ```math
 \text{LSE}(x) = \log \sum_i \exp(x_i)
