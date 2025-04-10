@@ -1,18 +1,24 @@
-COMMIT=f8a524c5e2dd373933115a3c2c0c7e6fe30f0690
+GIT_TAG=v1.7
 CXX?=c++
 CC?=cc
-CFLAGS=-std=c++17 -O3 -Wall -I../../cpp
+CFLAGS=-std=c++17 -O3 -Wall -I../../cpp -Iinclude
 LDFLAGS=-lm
 
 EXECUTABLES=hello llsq
 
 all: $(EXECUTABLES)
 
-%: %.cpp ad.hpp
+%: %.cpp include/ad.hpp
 	$(CXX) -o $@ $< $(LDFLAGS) $(CFLAGS)
 
 clean:
 	rm -f $(EXECUTABLES)
 
-ad.hpp:
-	wget https://gitlab.stce.rwth-aachen.de/stce/ad/-/raw/$(COMMIT)/ad.hpp -O $@
+include/ad.hpp:
+	mkdir -p include
+	wget https://gitlab.stce.rwth-aachen.de/stce/ad/-/raw/$(GIT_TAG)/$@ -O $@
+
+include/extensions/ad_interoperability_eigen.hpp:
+	mkdir -p include/extensions
+	wget https://gitlab.stce.rwth-aachen.de/stce/ad/-/raw/$(GIT_TAG)/$@ -O $@
+

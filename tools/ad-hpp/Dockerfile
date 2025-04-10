@@ -13,7 +13,7 @@ COPY python python
 COPY tools/ad-hpp tools/ad-hpp
 
 # Download ad.hpp
-RUN make -C tools/ad-hpp ad.hpp
+RUN make -C tools/ad-hpp include/ad.hpp
 
 ENTRYPOINT ["python3", "python/gradbench/gradbench/cpp.py", "ad-hpp"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
