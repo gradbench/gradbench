@@ -25,7 +25,7 @@ def on_json(j):
         for x in j["response"]["timings"]:
             if x["name"] not in timings:
                 timings[x["name"]] = []
-            timings[x["name"]].append(x["nanoseconds"]/1000)
+            timings[x["name"]].append(x["nanoseconds"] / 1000)
         for t in timings:
             ts = np.array(timings[t])
             mean = np.mean(ts)
@@ -34,8 +34,8 @@ def on_json(j):
             min = np.min(ts)
             print(f"  {t} (runs: {ts.shape[0]})")
             print(f"    avg: {mean:.2f}")
-            print(f"    max: {max:.2f} (run {np.where(ts==max)[0][0]})")
-            print(f"    min: {min:.2f} (run {np.where(ts==min)[0][0]})")
+            print(f"    max: {max:.2f} (run {np.where(ts == max)[0][0]})")
+            print(f"    min: {min:.2f} (run {np.where(ts == min)[0][0]})")
             print(f"    dev: {stddev / mean}")
 
 
