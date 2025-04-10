@@ -12,5 +12,5 @@ make -C tools/finite
 Then, to run the tool itself:
 
 ```sh
-python3 tools/finite/run.py
+python3 python/gradbench/gradbench/cpp.py finite
 ```

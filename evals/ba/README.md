@@ -68,24 +68,59 @@ interface BAInput extends Runs {
 }
 ```
 
+The `p` input is a duplication parameter - the tool is expected to
+duplicate the input `p` times. The tool must not actually exploit this
+duplication to reduce the work.
+
 ### Outputs
 
 A tool must respond to an `EvaluateMessage` with an `EvaluateResponse`. The type of the `output` field in the `EvaluateResponse` depends on the `function` field in the `EvaluateMessage`:
 
 - `"objective"`: `BAObjectiveOutput`.
-- `"jacobian"`: `BAObjectiveOutput`.
+- `"jacobian"`: `BAJacobianOutput`.
 
 ```typescript
-interface BAOutput {
-  cols: int[];
-  rows: int[];
-  vals: double[];
+interface BAObjectiveOutput {
+  reproj_err: double[];
+  w_err: double[];
 }
 ```
 
+```typescript
+interface BAJacobianOutput {
+  cols: int[31];
+  rows: int[31];
+  vals: double[31];
+}
+```
+
+The `BAJacobianOutput` represents a sparse matrix in [COO][] format,
+albeit in the form of three lists instead of a list of triples.
+Further, to make the matrix smaller, we undo the factor-`p`
+duplication of the input (see above) and store only a subset of the
+full lists. Specifically, we transmit only the first 30 elements and
+the last element.
+
 Because the input extends `Runs`, the tool is expected to run the function some number of times. It should include one timing entry with the name `"evaluate"` for each time it ran the function.
+
+## Commentary
+
+The actual objective function in this benchmark is not particularly
+challenging, and is mostly a bunch of scalar control flow with a
+bounded control flow graph. The annoying part is that the result must
+be reported as a particular encoding of a sparse matrix. This is not
+so difficult if you are implementing this eval in C++ - use the
+provided data structure in [ba.hpp][] and look at how
+[tools/manual/run_ba.cpp] does it. It is a lot more annoying if you
+are using another language, and _particularly_ if you want to compute
+the sparse Jacobian in parallel. See [tools/futhark/ba.fut][] for how
+to do this.
 
 [adbench]: https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87
 [data]: https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87/data/ba
 [io]: https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/shared/BAData.py
 [typescript]: https://www.typescriptlang.org/
+[COO]: https://en.wikipedia.org/wiki/Sparse_matrix#Coordinate_list_(COO)
+[ba.hpp]: /cpp/gradbench/evals/ba.hpp
+[tools/manual/run_ba.cpp]: /tools/manual/run_ba.cpp
+[tools/futhark/ba.fut]: /tools/futhark/ba.fut

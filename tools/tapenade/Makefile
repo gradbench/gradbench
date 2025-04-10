@@ -6,25 +6,25 @@ LDFLAGS=-lm
 
 UTIL_OBJECTS=utils/adBuffer.o utils/adStack.o
 
-GMM_OBJECTS=gmm/gmm.o gmm/gmm_b.o run_gmm.o
-BA_OBJECTS=ba/ba.o ba/ba_b.o run_ba.o
-LSTM_OBJECTS=lstm/lstm.o lstm/lstm_b.o run_lstm.o
-HT_OBJECTS=hand/hand.o hand/hand_d.o run_ht.o
+GMM_OBJECTS=evals/gmm/gmm.o evals/gmm/gmm_b.o gmm.o
+BA_OBJECTS=evals/ba/ba.o evals/ba/ba_b.o ba.o
+LSTM_OBJECTS=evals/lstm/lstm.o evals/lstm/lstm_b.o lstm.o
+HT_OBJECTS=evals/hand/hand.o evals/hand/hand_d.o ht.o
 
-EXECUTABLES=run_gmm run_ba run_lstm run_ht
+EXECUTABLES=gmm ba lstm ht
 
 all: $(EXECUTABLES)
 
-run_ba: $(BA_OBJECTS) $(UTIL_OBJECTS)
+ba: $(BA_OBJECTS) $(UTIL_OBJECTS)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-run_gmm: $(GMM_OBJECTS) $(UTIL_OBJECTS)
+gmm: $(GMM_OBJECTS) $(UTIL_OBJECTS)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-run_lstm: $(LSTM_OBJECTS) $(UTIL_OBJECTS)
+lstm: $(LSTM_OBJECTS) $(UTIL_OBJECTS)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-run_ht: $(HT_OBJECTS) $(UTIL_OBJECTS)
+ht: $(HT_OBJECTS) $(UTIL_OBJECTS)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 %.o: %.c

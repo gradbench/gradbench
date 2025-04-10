@@ -22,12 +22,12 @@ jobs:
         uses: houseabsolute/actions-rust-cross@v1
         with:
           target: x86_64-unknown-linux-musl
-          args: --package gradbench --release
+          args: --package=gradbench --profile=release-with-debug
       - name: Upload CLI as artifact
         uses: actions/upload-artifact@v4
         with:
           name: cli
-          path: target/x86_64-unknown-linux-musl/release/gradbench
+          path: target/x86_64-unknown-linux-musl/release-with-debug/gradbench
 
   matrix:
     needs: cli
@@ -162,7 +162,7 @@ jobs:
         run: docker load --input tool-${{ matrix.tool }}.tar
       - name: Run tool on eval
         continue-on-error: true
-        run: gradbench run --eval "gradbench eval ${{ matrix.eval }}" --tool "gradbench tool ${{ matrix.tool }}" --output log.jsonl
+        run: gradbench run --eval "gradbench eval ${{ matrix.eval }}" --tool "gradbench tool ${{ matrix.tool }}" --output log.jsonl --timeout 600
       - name: Upload log as artifact
         uses: actions/upload-artifact@v4
         with:

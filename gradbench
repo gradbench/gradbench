@@ -2,6 +2,7 @@
 
 import subprocess
 import sys
+from pathlib import Path
 
 
 def eprint(s):
@@ -9,11 +10,23 @@ def eprint(s):
     sys.stderr.flush()
 
 
+def check(returncode):
+    if returncode != 0:
+        sys.exit(returncode)
+
+
+profile = "release-with-debug"
+
+
 def build():
-    process = subprocess.Popen(
-        ["cargo", "build", "--release", "--package", "gradbench", "--color", "always"],
-        stderr=subprocess.PIPE,
-    )
+    cmd = [
+        "cargo",
+        "build",
+        "--package=gradbench",
+        f"--profile={profile}",
+        "--color=always",
+    ]
+    process = subprocess.Popen(cmd, stderr=subprocess.PIPE)
     cached = True
     lines = []
     while True:
@@ -28,15 +41,18 @@ def build():
                     eprint(line)
         else:
             eprint(line)
-    returncode = process.wait()
-    if returncode != 0:
-        sys.exit(returncode)
+    check(process.wait())
+
+
+def run():
+    cmd = [Path(__file__).parent / f"target/{profile}/gradbench", *sys.argv[1:]]
+    check(subprocess.run(cmd).returncode)
 
 
 def main():
     try:
         build()
-        sys.exit(subprocess.run(["target/release/gradbench", *sys.argv[1:]]).returncode)
+        run()
     except KeyboardInterrupt:
         pass
 

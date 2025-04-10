@@ -4,7 +4,11 @@
 
 **GradBench** is a benchmark suite for differentiable programming across languages and domains.
 
-See <https://gradben.ch> for interactive performance charts generated from our latest nightly build. Here's a static preview of the overview table on the website, where rows are [evals](evals) and columns are [tools](tools). A _white_ cell means the tool is **slow** for that eval; a _blue_ cell means the tool is **fast** for that eval.
+See <https://gradben.ch> for interactive performance charts generated from our latest nightly build. Here's a static preview of the overview table on the website, where rows are [evals](evals) and columns are [tools](tools).
+
+- A _grey_ cell means the tool did not successfully complete that eval.
+- A _white_ cell means the tool is **slow** for that eval.
+- A _blue_ cell means the tool is **fast** for that eval.
 
 ![summary][svg]
 
@@ -26,11 +30,11 @@ See <https://gradben.ch> for interactive performance charts generated from our l
 
 This project exists to facilitate quantitative comparison of the absolute and relative performance of different autodiff tools. There is some related work in this space:
 
-- The 2016 paper ["Efficient Implementation of a Higher-Order Language with Built-In AD"][ad2016] by Siskind and Pearlmutter includes some benchmarks implemented for a variety of tools.
-- [ADBench][] was an autodiff benchmark suite, active around 2018-2019, but is now archived as of summer 2024. The benchmarks from ADBench are a strict subset of the evals in GradBench.
+- The 2016 paper ["Efficient Implementation of a Higher-Order Language with Built-In AD"][ad2016] by Siskind and Pearlmutter links to [two benchmarks][ad2016 benchmarks] implemented for a variety of tools, mostly in Scheme.
+- [ADBench][] was an autodiff benchmark suite, active around 2018-2019, but is now archived as of summer 2024.
 - [cmpad][] is an autodiff comparison package for C++ and Python.
 
-What sets GradBench apart is the focus on supporting tools for many different programming languages in an easily extensible way. We achieve this by packaging each eval and tool into its own Docker image, and running benchmarks by having the eval and tool talk to each other over a common JSON-based protocol. We also make our benchmarks and data as easily accessible as possible, via nightly builds that publish our Docker images and run every eval against every tool to generate performance charts on the GradBench website.
+The evals in GradBench are a strict superset of all those benchmarks. What really sets this project apart is the focus on supporting tools for many different programming languages in an easily extensible way. We achieve this by packaging each eval and tool into its own Docker image, and running benchmarks by having the eval and tool talk to each other over a common JSON-based protocol. We also make our benchmarks and data as easily accessible as possible, via nightly builds that publish our Docker images and run every eval against every tool to generate performance charts on the GradBench website.
 
 ## Usage
 
@@ -98,10 +102,14 @@ gradbench run --eval "gradbench eval hello --tag $DATE" --tool "gradbench tool p
 
 ## License
 
-GradBench is licensed under the [MIT License](LICENSE).
+GradBench is licensed under the [MIT License](LICENSE). Some
+implementations are based on work used under other licenses - this is
+clearly noted at the top of a file, along with attribution, when
+applicable. All files are available under [OSI-approved licenses][].
 
 [`cargo install`]: https://doc.rust-lang.org/cargo/commands/cargo-install.html
 [ad2016]: https://arxiv.org/abs/1611.03416
+[ad2016 benchmarks]: https://www.bcl.hamilton.ie/~qobi/ad2016-benchmarks/
 [adbench]: https://github.com/microsoft/ADBench
 [automatic differentiation]: https://en.wikipedia.org/wiki/Automatic_differentiation
 [cmpad]: https://cmpad.readthedocs.io/
@@ -115,3 +123,4 @@ GradBench is licensed under the [MIT License](LICENSE).
 [rust]: https://www.rust-lang.org/tools/install
 [svg]: https://raw.githubusercontent.com/gradbench/gradbench/refs/heads/ci/refs/heads/nightly/summary.svg
 [website]: https://gradben.ch/
+[OSI-approved licenses]: https://opensource.org/licenses

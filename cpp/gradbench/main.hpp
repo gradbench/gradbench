@@ -32,13 +32,13 @@ int function_main(const std::string& input_file) {
   json j = json::parse(f);
   typename Benchmark::Input input = j.template get<typename Benchmark::Input>();
 
-  int min_runs = j.is_object() ? int(j["min_runs"]) : 1;
-  double min_seconds = j.is_object() ? double(j["min_seconds"]) : 0;
+  int min_runs = j.contains("min_runs") ? int(j["min_runs"]) : 1;
+  double min_seconds = j.contains("min_seconds") ? double(j["min_seconds"]) : 0;
   assert(min_runs > 0);
 
-  auto prepare_start = high_resolution_clock::now();
+  auto prepare_start = steady_clock::now();
   Benchmark b(input);
-  auto prepare_finish = high_resolution_clock::now();
+  auto prepare_finish = steady_clock::now();
   long prepare_time_taken = duration_cast<nanoseconds>(prepare_finish - prepare_start).count();
 
   std::vector<long> evaluate_times;
@@ -47,9 +47,9 @@ int function_main(const std::string& input_file) {
   double elapsed_seconds = 0;;
 
   for (int i = 0; i < min_runs || elapsed_seconds < min_seconds; i++) {
-    auto start = high_resolution_clock::now();
+    auto start = steady_clock::now();
     b.compute(output);
-    auto finish = high_resolution_clock::now();
+    auto finish = steady_clock::now();
     long elapsed_ns = duration_cast<nanoseconds>(finish - start).count();
     evaluate_times.push_back(elapsed_ns);
     elapsed_seconds += (double)elapsed_ns/1e9;

@@ -14,12 +14,12 @@ set_default_scalar Float
 open VectorType in
 /-- unlack `logdiag` and `lt` to lower triangular matrix -/
 def unpackQ {d : Nat} (logdiag : Float^[d]) (lt : Float^[((d-1)*d/2)]) : Float^[d,d]  :=
-  ⊞ (ij : Fin d × Fin d) =>
+  ⊞ (ij : Idx d × Idx d) =>
     let' (i,j) := ij
     if h : i < j then 0
        else if h' : i == j then exp (logdiag[i])
        else
-         let idx : Fin ((d-1)*d/2) := ⟨d*j.1 + i.1 - j.1 - 1 - (j.1 * (j.1+1))/2,
+         let idx : Idx ((d-1)*d/2) := ⟨d.toUSize*j.1 + i.1 - j.1 - 1 - (j.1 * (j.1+1))/2,
                                        have := h; have := h'; sorry_proof⟩
          (lt[idx])
 
@@ -33,7 +33,7 @@ def logWishartPrior {k d : Nat} (Qs : Float^[d,d]^[k]) (qsums : Float^[k]) (wish
     let n := p + wishartM + 1
     let c := (n * p) * (log wishartGamma - 0.5 * log 2) - (logMultiGamma (0.5 * n.toFloat) p)
     let frobenius : Float := ‖Qs‖₂²
-    let sumQs : Float := VectorType.sum qsums
+    let sumQs : Float := qsums.sum
     0.5 * wishartGamma * wishartGamma * frobenius - wishartM * sumQs - k * c
 
 
@@ -50,19 +50,18 @@ def gmmObjective {d k n : Nat}
     let C := -(n * d * 0.5 * log (2 * π))
 
     -- qsAndSums
-    let Qs := ⊞ i => unpackQ (MatrixType.row logdiag i) (MatrixType.row lt i)
-    let qsums := ⊞ i => VectorType.sum (MatrixType.row logdiag i)
+    let Qs := ⊞ i => unpackQ (logdiag.row i) (lt.row i)
+    let qsums := logdiag.sumRows
 
     let slse : Float :=
-      ∑ (i : Fin n), logsumexp (VectorType.fromVec (X:=Float^[k])
-        fun (j : Fin k) =>
+      ∑ᴵ (i : Idx n), (⊞ (j : Idx k) =>
           alphas[j]
           +
           qsums[j]
           -
-          0.5 * ‖MatrixType.gemv 1 1 Qs[j] ((MatrixType.row x i) - (MatrixType.row means j)) 0‖₂²)
+          0.5 * ‖Qs[j] * ((x.row i) - (means.row j))‖₂²).logsumexp
 
-    C + slse - n * VectorType.logsumexp alphas + logWishartPrior Qs qsums wishartGamma wishartM
+    C + slse - n * alphas.logsumexp + logWishartPrior Qs qsums wishartGamma wishartM
 
 
 abbrev_data_synth gmmObjective in alphas means logdiag lt : HasRevFDeriv Float by

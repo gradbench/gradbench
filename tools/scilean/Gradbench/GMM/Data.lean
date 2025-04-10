@@ -37,11 +37,11 @@ def GMMDataRaw.toGMMData (d : GMMDataRaw) : GMMData :={
   n := d.n
   m := d.m
   gamma := d.gamma
-  alpha := ⊞ (i : Fin d.k) => d.alpha[i.1]!
-  means := ⊞ (i : Fin d.k) (j : Fin d.d) => (d.means.get! i.1 |>.get! j.1)
-  logdiag := ⊞ (i : Fin d.k) (j : Fin d.d) => (d.icf.get! i.1 |>.get! j.1)
-  lt := ⊞ (i : Fin d.k) (j : Fin (((d.d-1)*d.d)/2)) => (d.icf.get! i.1 |>.get! (d.d+j.1))
-  x := ⊞ (i : Fin d.n) (j : Fin d.d) => (d.x.get! i.1 |>.get! j.1)
+  alpha := ⊞ (i : Idx d.k) => d.alpha[i.1]!
+  means := ⊞ (i : Idx d.k) (j : Idx d.d) => (d.means.get! i.1.toNat |>.get! j.1.toNat)
+  logdiag := ⊞ (i : Idx d.k) (j : Idx d.d) => (d.icf.get! i.1.toNat |>.get! j.1.toNat)
+  lt := ⊞ (i : Idx d.k) (j : Idx (((d.d-1)*d.d)/2)) => (d.icf.get! i.1.toNat |>.get! (d.d+j.1.toNat))
+  x := ⊞ (i : Idx d.n) (j : Idx d.d) => (d.x.get! i.1.toNat |>.get! j.1.toNat)
 }
 
 instance : FromJson GMMData where
@@ -59,14 +59,14 @@ structure GMMGradientData where
 open VectorType IndexType in
 def GMMGradientData.toArray (data : GMMGradientData) : Array Float :=
   let k := data.k; let d := data.d
-  let alphaData := Array.ofFn (fun i => toVec data.alpha i)
+  let alphaData := Array.ofFn (fun i => data.alpha[i.toIdx])
   let meansData := Array.ofFn (fun idx =>
-    toVec data.means (fromFin idx))
+    data.means[fromIdx idx.toIdx])
   let icfData := Array.ofFn (fun idx =>
-    let (i,j) : Fin k × (Fin d ⊕ Fin (((d-1)*d)/2)) := fromFin idx
+    let (i,j) : Idx k × (Idx d ⊕ Idx (((d-1)*d)/2)) := fromIdx idx.toIdx
     match j with
-    | .inl j => toVec data.logdiag (i,j)
-    | .inr j => toVec data.lt (i,j))
+    | .inl j => data.logdiag[i,j]
+    | .inr j => data.lt[i,j])
   (alphaData ++ meansData ++ icfData)
 
 instance : ToJson GMMGradientData where

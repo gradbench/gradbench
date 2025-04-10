@@ -4,8 +4,9 @@ mod stats;
 mod util;
 
 use std::{
-    collections::{BTreeMap, BTreeSet},
-    env, fs,
+    backtrace::BacktraceStatus,
+    collections::BTreeMap,
+    fs,
     io::{self, BufRead},
     mem::take,
     path::{Path, PathBuf},
@@ -208,6 +209,20 @@ enum RepoCommands {
     },
 }
 
+/// Print `error` to stderr, then return [`ExitCode::FAILURE`].
+fn err_fail(error: anyhow::Error) -> ExitCode {
+    eprintln!("{error:#}");
+    let backtrace = error.backtrace();
+    match backtrace.status() {
+        BacktraceStatus::Disabled => eprintln!(
+            "note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace"
+        ),
+        BacktraceStatus::Captured => eprint!("{backtrace}"),
+        _ => {}
+    }
+    ExitCode::FAILURE
+}
+
 /// Return `Err` if the status is not successful, preserving its exit code whenever possible.
 fn status_code(status: ExitStatus) -> Result<(), ExitCode> {
     if status.success() {
@@ -228,10 +243,8 @@ fn run(command: &mut Command) -> Result<Output, ExitCode> {
     let output = command
         .spawn()
         .and_then(|child| child.wait_with_output())
-        .map_err(|err| {
-            eprintln!("error running {:?}: {err}", command.get_program());
-            ExitCode::FAILURE
-        })?;
+        .with_context(|| format!("error running {:?}", command.get_program()))
+        .map_err(err_fail)?;
     status_code(output.status)?;
     Ok(output)
 }
@@ -287,7 +300,15 @@ enum Verbosity {
 
 /// Run a `docker build` command but don't print output if everything is cached.
 fn docker_build_quiet(color: Color, mut cmd: Command) -> anyhow::Result<ExitStatus> {
-    let mut child = cmd.arg("--progress=plain").stderr(Stdio::piped()).spawn()?;
+    let mut child = cmd
+        .arg("--progress=plain")
+        // Podman-based Dockers print build logs to stdout, which will
+        // interfere with the GradBench protocol when building as part
+        // of a 'gradbench repo tool' command. To avoid this, we
+        // silence stdout.
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()?;
     // A digit mean the start of a number of seconds for an output line for a `RUN` command. The
     // string `sha256` is the start of a line for downloading in a `FROM` command.
     let re = Regex::new(r"^#\d+ (\d|sha256)").unwrap();
@@ -313,8 +334,7 @@ fn docker_build_quiet(color: Color, mut cmd: Command) -> anyhow::Result<ExitStat
 /// Build the Docker image for an eval.
 fn build_eval(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Result<(), ExitCode> {
     if name.is_empty() || !fs::exists(Path::new("evals").join(name)).unwrap_or(false) {
-        eprintln!("can't find eval to build: {name:?}");
-        return Err(ExitCode::FAILURE);
+        return Err(err_fail(anyhow!("can't find eval to build: {name:?}")));
     }
     let mut cmd = Command::new("docker");
     cmd.arg("build");
@@ -330,21 +350,18 @@ fn build_eval(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Resul
             run(&mut cmd)?;
             Ok(())
         }
-        Verbosity::Quiet => {
-            let color = Color::Blue;
-            status_code(docker_build_quiet(color, cmd).map_err(|err| {
-                eprintln!("error building eval {name}: {err}");
-                ExitCode::FAILURE
-            })?)
-        }
+        Verbosity::Quiet => status_code(
+            docker_build_quiet(Color::Blue, cmd)
+                .with_context(|| format!("error building eval {name}"))
+                .map_err(err_fail)?,
+        ),
     }
 }
 
 /// Build the Docker image for a tool.
 fn build_tool(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Result<(), ExitCode> {
     if name.is_empty() || !fs::exists(Path::new("tools").join(name)).unwrap_or(false) {
-        eprintln!("can't find tool to build: {name:?}");
-        return Err(ExitCode::FAILURE);
+        return Err(err_fail(anyhow!("can't find tool to build: {name:?}")));
     }
     let mut cmd = Command::new("docker");
     cmd.arg("build");
@@ -361,18 +378,17 @@ fn build_tool(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Resul
             run(&mut cmd)?;
             Ok(())
         }
-        Verbosity::Quiet => {
-            let color = Color::Magenta;
-            status_code(docker_build_quiet(color, cmd).map_err(|err| {
-                eprintln!("error building tool {name}: {err}");
-                ExitCode::FAILURE
-            })?)
-        }
+        Verbosity::Quiet => status_code(
+            docker_build_quiet(Color::Magenta, cmd)
+                .with_context(|| format!("error building tool {name}"))
+                .map_err(err_fail)?,
+        ),
     }
 }
 
 /// An imperfect outcome from running the intermediary.
-#[derive(Clone, Copy, Debug, EnumIter, EnumString, Eq, IntoStaticStr, PartialEq)]
+#[derive(Clone, Copy, Debug, EnumIter, EnumString, Eq, IntoStaticStr, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 enum BadOutcome {
     /// The user sent an interrupt signal.
@@ -407,31 +423,14 @@ impl From<BadOutcome> for ExitCode {
     }
 }
 
-/// Return a command's stdout as a string, preserving its exit code whenever possible.
-fn stdout(command: &mut Command) -> Result<String, ExitCode> {
-    let output = run(command.stdout(Stdio::piped()))?;
-    String::from_utf8(output.stdout).map_err(|err| {
-        let program = command.get_program();
-        eprintln!("error processing output from {program:?}: {err}");
-        ExitCode::FAILURE
-    })
-}
-
 /// Check that the current working directory is the root of a Git repository.
 fn check_git() -> Result<(), ExitCode> {
-    let cwd = env::current_dir().map_err(|err| {
-        eprintln!("error getting current working directory: {err}");
-        ExitCode::FAILURE
-    })?;
-    if let Ok(dir) = stdout(Command::new("git").args(["rev-parse", "--show-toplevel"])) {
-        if dir.strip_suffix('\n').map(PathBuf::from) == Some(cwd) {
-            return Ok(());
-        }
+    if Path::new(".git").exists() {
+        Ok(())
+    } else {
+        eprintln!("error running a repo subcommand: current working directory is not a Git repository root");
+        Err(ExitCode::FAILURE)
     }
-    eprintln!(
-        "error running a repo subcommand: current working directory is not a Git repository root"
-    );
-    Err(ExitCode::FAILURE)
 }
 
 /// Return a command that runs its argument as a shell command.
@@ -468,11 +467,14 @@ fn github_output(name: &str, value: impl Serialize) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// A map from eval names to the tools that support them.
+type Matrix = BTreeMap<String, BTreeMap<Rc<str>, Option<BadOutcome>>>;
+
 /// Return a map from eval names to the tools that support them.
-fn evals_to_tools(evals: Vec<String>) -> anyhow::Result<BTreeMap<String, BTreeSet<Rc<str>>>> {
+fn evals_to_tools(evals: Vec<String>) -> anyhow::Result<Matrix> {
     let mut map = BTreeMap::new();
     for eval in evals {
-        map.insert(eval, BTreeSet::new());
+        map.insert(eval, BTreeMap::new());
     }
     for result in fs::read_dir("tools")? {
         let entry = result?;
@@ -480,11 +482,21 @@ fn evals_to_tools(evals: Vec<String>) -> anyhow::Result<BTreeMap<String, BTreeSe
             .file_name()
             .into_string()
             .map_err(|name| anyhow!("invalid file name {name:?}"))?;
-        let evals = fs::read_to_string(entry.path().join("evals.txt")).unwrap_or_default();
-        for eval in evals.lines() {
+        let path = entry.path().join("evals.txt");
+        let evals = fs::read_to_string(&path).unwrap_or_default();
+        for line in evals.lines() {
+            let (eval, outcome) = match line.split_once(' ') {
+                None => (line, None),
+                Some((eval, outcome)) => {
+                    let bad_outcome = BadOutcome::from_str(outcome).with_context(|| {
+                        format!("{path:?}: invalid outcome {outcome:?} for eval {eval:?}")
+                    })?;
+                    (eval, Some(bad_outcome))
+                }
+            };
             map.get_mut(eval)
                 .ok_or_else(|| anyhow!("eval {eval:?} not found"))?
-                .insert(Rc::from(tool.as_str()));
+                .insert(Rc::from(tool.as_str()), outcome);
         }
     }
     Ok(map)
@@ -539,10 +551,10 @@ fn matrix() -> anyhow::Result<()> {
             run.push(RunEntry {
                 eval,
                 tool,
-                outcome: if supported.contains(tool.as_str()) {
-                    "success"
-                } else {
-                    BadOutcome::Undefined.into()
+                outcome: match supported.get(tool.as_str()) {
+                    None => BadOutcome::Undefined.into(),
+                    Some(None) => "success",
+                    Some(Some(bad_outcome)) => bad_outcome.into(),
                 },
             });
         }
@@ -586,20 +598,14 @@ fn cli() -> Result<(), ExitCode> {
                     cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn()
                 },
             ) else {
-                eprintln!("error starting eval and tool commands");
-                return Err(ExitCode::FAILURE);
+                return Err(err_fail(anyhow!("error starting eval and tool commands")));
             };
             let timeout = timeout.map(Duration::from_secs);
             let outcome = match output {
-                Some(path) => match fs::File::create(&path) {
-                    Ok(mut file) => {
-                        intermediary::run(&mut file, &mut eval_child, &mut tool_child, timeout)
-                    }
-                    Err(err) => {
-                        println!("{err:#}");
-                        return Err(ExitCode::FAILURE);
-                    }
-                },
+                Some(path) => {
+                    let mut file = fs::File::create(&path).map_err(|err| err_fail(anyhow!(err)))?;
+                    intermediary::run(&mut file, &mut eval_child, &mut tool_child, timeout)
+                }
                 None => {
                     intermediary::run(&mut io::sink(), &mut eval_child, &mut tool_child, timeout)
                 }
@@ -623,8 +629,7 @@ fn cli() -> Result<(), ExitCode> {
                 if outcome == "success" {
                     Ok(())
                 } else {
-                    eprintln!("unknown outcome name {outcome:?}");
-                    Err(ExitCode::FAILURE)
+                    Err(err_fail(anyhow!("unknown outcome name {outcome:?}")))
                 }
             }
         },
@@ -655,20 +660,14 @@ fn cli() -> Result<(), ExitCode> {
                 RepoCommands::BuildTool { tool, platform } => {
                     build_tool(&tool, platform.as_deref(), Verbosity::Normal)
                 }
-                RepoCommands::Matrix => matrix().map_err(|err| {
-                    eprintln!("{err:#}");
-                    ExitCode::FAILURE
-                }),
+                RepoCommands::Matrix => matrix().map_err(err_fail),
                 RepoCommands::Stats {
                     input,
                     output,
                     date,
                     commit,
                 } => {
-                    stats::generate(input, output, StatsMetadata { date, commit }).map_err(|err| {
-                        eprintln!("{err:#}");
-                        ExitCode::FAILURE
-                    })
+                    stats::generate(input, output, StatsMetadata { date, commit }).map_err(err_fail)
                 }
             }
         }

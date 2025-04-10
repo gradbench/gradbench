@@ -2,20 +2,21 @@
 name = "gradbench-workspace"
 version = "0.0.0"
 requires-python = ">=3.11"
-dependencies = [
-  "autograd~=1.0",
-  "dataclasses-json~=0.6",
-  "futhark-server~=1.0",
-  "gradbench",
-  "jax~=0.4",
-  "mygrad~=2.0",
-  "numpy~=1.0",
-  "pydantic~=2.0",
-  "ruff~=0.9",
-  "scipy~=1.0",
-  "tensorflow~=2.0",
-  "torch~=2.0",
-]
+
+[dependency-groups]
+dataclasses-json = ["dataclasses-json~=0.6"]
+futhark-server = ["futhark-server~=1.0"]
+gradbench = ["gradbench"]
+jax = ["jax~=0.4"]
+numpy = ["numpy~=1.0"]
+pydantic = ["pydantic~=2.0"]
+ruff = ["ruff~=0.9"]
+torch = ["torch~=2.0"]
+tensorflow = ["tensorflow~=2.0"]
+scipy = ["scipy~=1.0"]
+
+[tool.uv]
+default-groups = "all"
 
 [tool.uv.sources]
 gradbench = { workspace = true }

@@ -1,28 +1,29 @@
-FROM python:3.11-slim
-
+FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim
 WORKDIR /gradbench
 
-RUN apt-get update && apt-get install -y \
-    bash \
-    build-essential \
-    python3 \
-    wget \
-    openjdk-17-jre-headless
+# Install build dependencies.
+RUN apt-get update && apt-get install -y bash build-essential openjdk-17-jre-headless wget
 
-COPY python /gradbench/python
-ENV PYTHONPATH=/gradbench/python/gradbench
-
-# install Tapenade
+# Install Tapenade.
 RUN wget https://tapenade.gitlabpages.inria.fr/tapenade/distrib/tapenade_3.16.tar
 RUN tar -xvzf tapenade_3.16.tar
 
-# ensure Tapenade is accessible
-RUN ln -s /gradbench/tapenade_3.16/bin/tapenade /usr/local/bin/tapenade
+# Ensure Tapenade is accessible.
+RUN ln -s tapenade_3.16/bin/tapenade /usr/local/bin/tapenade
 
-COPY cpp /gradbench/cpp
+# `COPY` the minimal set of files for `uv sync`.
+COPY pyproject.toml uv.lock ./
+COPY python/gradbench/pyproject.toml python/gradbench/
+COPY python/gradbench/gradbench/__init__.py python/gradbench/gradbench/
+RUN uv sync --no-default-groups --group gradbench
+
+# Download C++ dependencies.
+COPY cpp cpp
 RUN make -C cpp
 
-COPY tools/tapenade/ /gradbench/tools/tapenade
+# `COPY` the rest of the files.
+COPY python python
+COPY tools/tapenade tools/tapenade
 
-ENTRYPOINT ["python3", "/gradbench/tools/tapenade/run.py"]
+ENTRYPOINT ["uv", "run", "--no-sync", "python/gradbench/gradbench/tools/tapenade/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
