@@ -19,6 +19,8 @@ let
   adept = pkgs.callPackage ./nix/adept.nix { };
   codipack = pkgs.callPackage ./nix/codipack.nix { };
   GRADBENCH_PATH = builtins.getEnv "PWD";
+
+  isX86 = builtins.currentSystem == "x86_64-linux";
 in pkgs.stdenv.mkDerivation rec {
   name = "gradbench";
   buildInputs = [
@@ -60,10 +62,13 @@ in pkgs.stdenv.mkDerivation rec {
     pkgs.opam
     pkgs.ocamlPackages.dune_3
     pkgs.ocamlPackages.ocaml
-  ];
+  ] ++
+    # Nixpkgs marks Julia as broken on Apple Silicon
+    (if isX86 then [ pkgs.julia ] else [ ]);
 
   # The following are environment variables used by various tools.
   RUST_SRC_PATH = pkgs.rustPlatform.rustLibSrc;
   ENZYME_LIB = "${pkgs.enzyme}/lib";
-  LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath buildInputs}:${pkgs.stdenv.cc.cc.lib}/lib";
+  LD_LIBRARY_PATH =
+    "${pkgs.lib.makeLibraryPath buildInputs}:${pkgs.stdenv.cc.cc.lib}/lib";
 }

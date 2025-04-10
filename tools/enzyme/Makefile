@@ -1,4 +1,4 @@
-EXECUTABLES=run_hello run_gmm run_lstm run_ba run_ht run_kmeans run_an_ode run_llsq_obj run_det_by_minor
+EXECUTABLES=hello gmm lstm ba ht kmeans ode llsq det lse
 
 CXX=clang++
 LLD=lld
