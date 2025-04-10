@@ -13,6 +13,7 @@
 #include <iostream>
 #include <limits>
 #include <cmath>
+#include "gradbench/multithread.hpp"
 
 const double FINITE_DIFFERENCES_DEFAULT_EPSILON = std::cbrt(std::numeric_limits<double>::epsilon());
 const double FINITE_DIFFERENCES_DEFAULT_ZERO_NEIGHBORHOOD_RADIUS = 1;
@@ -52,6 +53,9 @@ template<typename T>
 class FiniteDifferencesEngine {
 private:
   int max_output_size;
+  std::vector<std::vector<T>> tmp_inputs;
+  std::vector<std::vector<T>> tmp_outputs_f;
+  std::vector<std::vector<T>> tmp_outputs_b;
 
   // VECTOR UTILS
 
@@ -104,8 +108,12 @@ public:
   FiniteDifferencesEngine(int max_output_size = 0,
                           std::function<T(T)> step_function = finite_differences_default_step_function<T>())
     : max_output_size(max_output_size),
-      step(step_function)
-  {}
+      tmp_inputs(num_threads()),
+      tmp_outputs_f(num_threads()),
+      tmp_outputs_b(num_threads()),
+      step(step_function) {
+    set_max_output_size(max_output_size);
+  }
 
   // Computes finite differences step for given argument.
   std::function<T(T)> step;
@@ -114,6 +122,12 @@ public:
   // this engine is be able to approximately differentiate
   void set_max_output_size(int size) {
     max_output_size = size;
+    for (auto& v : tmp_outputs_f) {
+      v.resize(max_output_size);
+    }
+    for (auto& v : tmp_outputs_b) {
+      v.resize(max_output_size);
+    }
   }
 
   // gets max_output_size - maximum size of the ouputs of the functions
@@ -147,36 +161,40 @@ public:
                           int input_d_start, int input_d_size,
                           int output_size,
                           T* result) {
-    std::vector<T> tmp_input(input_size);
-    std::vector<T> tmp_output_f(output_size);
-    std::vector<T> tmp_output_b(output_size);
 
-    std::copy(input, input+input_size, tmp_input.begin());
-#pragma omp parallel for firstprivate(tmp_input, tmp_output_f, tmp_output_b)
-    for (int i = input_d_start; i < input_d_start+input_d_size; i++) {
-      T input_i = input[i];
-      T delta = step(input_i);
-      T tmp_b = input_i - delta;
-      T dx = delta * 2;
-      T tmp_f = tmp_b + dx;
-      // adjusting dx so that (tmp_b + dx) - tmp_b == dx
-      dx = tmp_f - tmp_b;
-      if (dx < delta * 0.5)
-        std::cerr << "WARNING: Finite difference step "
-                  << delta << " seems incompatible with the argument "
-                  << input_i << std::endl;
+#pragma omp parallel
+    {
+      std::vector<T> &tmp_input = tmp_inputs[thread_num()];
+      tmp_input.resize(input_size);
+      std::vector<T> &tmp_output_f = tmp_outputs_f[thread_num()];
+      std::vector<T> &tmp_output_b = tmp_outputs_b[thread_num()];
+      std::copy(input, input+input_size, tmp_input.begin());
+#pragma omp for
+      for (int i = input_d_start; i < input_d_start+input_d_size; i++) {
+        T input_i = input[i];
+        T delta = step(input_i);
+        T tmp_b = input_i - delta;
+        T dx = delta * 2;
+        T tmp_f = tmp_b + dx;
+        // adjusting dx so that (tmp_b + dx) - tmp_b == dx
+        dx = tmp_f - tmp_b;
+        if (dx < delta * 0.5)
+          std::cerr << "WARNING: Finite difference step "
+                    << delta << " seems incompatible with the argument "
+                    << input_i << std::endl;
 
-      std::fill(tmp_output_f.begin(), tmp_output_f.end(), 0);
-      for (int j = 0; j < order+1; j++) {
-        tmp_input[i] = input_i + (order/2.0-j)*dx;
-        func(tmp_input.data(), tmp_output_b.data());
-        scale_vec(tmp_output_b, binom(order,j) * (j%2 == 0 ? 1 : -1));
-        add_vec(tmp_output_f, tmp_output_b);
+        std::fill(tmp_output_f.begin(), tmp_output_f.end(), 0);
+        for (int j = 0; j < order+1; j++) {
+          tmp_input[i] = input_i + (order/2.0-j)*dx;
+          func(tmp_input.data(), tmp_output_b.data());
+          scale_vec(tmp_output_b, binom(order,j) * (j%2 == 0 ? 1 : -1));
+          add_vec(tmp_output_f, tmp_output_b);
+        }
+        tmp_input[i] = input[i];
+
+        scale_vec(tmp_output_f, 1/pow(dx,order));
+        vec_ins(&result[output_size * (i-input_d_start)], tmp_output_f.data(), output_size);
       }
-      tmp_input[i] = input[i];
-
-      scale_vec(tmp_output_f, 1/pow(dx,order));
-      vec_ins(&result[output_size * (i-input_d_start)], tmp_output_f.data(), output_size);
     }
   }
 

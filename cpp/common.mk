@@ -13,7 +13,7 @@ LDFLAGS?=-lm
 MULTITHREADED=no
 
 ifeq ($(MULTITHREADED),yes)
-CFLAGS+= -fopenmp -DUSE_OPENMP
+CFLAGS+= -fopenmp
 LDFLAGS+= -fopenmp
 else
 CFLAGS+= -Wno-unknown-pragmas
