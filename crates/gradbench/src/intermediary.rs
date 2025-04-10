@@ -920,7 +920,7 @@ mod tests {
     }
 
     #[test]
-    fn test_intermediary_evaluate_no_error() {
+    fn test_intermediary_evaluate_failure_no_error() {
         let (eval_out, tool_out) = session(&[
             (
                 Message::Start { id: 0, eval: None },
@@ -967,7 +967,7 @@ mod tests {
         };
         colored::control::set_override(false);
         let result = intermediary.run();
-        write_goldenfile("evaluate_no_error.txt", &intermediary.out);
+        write_goldenfile("evaluate_failure_no_error.txt", &intermediary.out);
         assert_eq!(result, Err(BadOutcome::Failure));
     }
 
