@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+#
+# This program exfiltrates input data from a GradBench eval and stores
+# it in JSON files. This is useful for testing implementations without
+# going through the 'gradbench' intermediary.
+#
+# Gradburglar works by implementing the tool side of the GradBench
+# protocol and saving in separate files the "input" fields of the
+# "evaluate" messages it is sent. Gradburglar does not actually
+# evaluate anything, and responds with failure results, so this only
+# works if the eval continues to send more workloads even if previous
+# ones failed. It also expects the "evaluate" message to have a
+# "description" field, which is strictly speaking optional. As of this
+# writing, it works for all evals except "hello".
+#
+# Example usage:
+#
+#     $ scripts/gradburglar './gradbench repo eval gmm'
+#     gmm_objective_2_5_1000.json
+#     gmm_jacobian_2_5_1000.json
+#     ...
+
+import json
+import subprocess
+import sys
+
+eval_cmd = sys.argv[1]
+
+eval_p = subprocess.Popen(eval_cmd,
+                        stdin=subprocess.PIPE,
+                        stdout=subprocess.PIPE,
+                        shell=True,
+                        text=True)
+
+eval_out = eval_p.stdout
+eval_in = eval_p.stdin
+
+while True:
+    l = eval_out.readline()
+    if len(l) == 0:
+        break
+    msg = json.loads(l)
+
+    response = {'id': msg['id'], 'success': True}
+
+    if msg['kind'] == 'evaluate':
+        module = msg['module']
+        function = msg['function']
+        input = msg['input']
+        description = msg['description']
+        fname = f'{module}_{function}_{description}.json'
+
+        print(fname)
+        with open(fname, 'w') as f:
+            f.write(json.dumps(input))
+
+        response['success'] = False
+
+    eval_in.write(json.dumps(response))
+    eval_in.write('\n')
+    eval_in.flush()
+
+eval_in.close()
+
+eval_p.wait()
