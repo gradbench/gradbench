@@ -281,7 +281,7 @@ fn scorer<R: BufRead, F: CreateFile>(eval: &str) -> Box<dyn Scorer<R, F>> {
         "ba" | "gmm" | "ht" | "lstm" => Box::new(ScorerClassic::new("objective", "jacobian")),
         "kmeans" => Box::new(ScorerClassic::new("cost", "dir")),
         "particle" | "saddle" => Box::new(ScorerEquivFunctions::new()),
-        "ode" | "llsq" | "det" => Box::new(ScorerClassic::new("primal", "gradient")),
+        "ode" | "llsq" | "det" | "lse" => Box::new(ScorerClassic::new("primal", "gradient")),
         _ => Box::new(()),
     }
 }
