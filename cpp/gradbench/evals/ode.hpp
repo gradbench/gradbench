@@ -32,6 +32,7 @@ void ode_fun(size_t n,
                 const T* __restrict__ y,
                 T* __restrict__ z) {
   z[0] = x[0];
+#pragma omp parallel for
   for (size_t i = 1; i < n; i++) {
     z[i] = x[i] * y[i-1];
   }
@@ -50,16 +51,19 @@ void primal(size_t n,
   for (size_t i_step = 0; i_step < s; i_step++) {
     ode_fun(n, xi, yf, k1.data());
 
+    #pragma omp parallel for
     for (size_t i = 0; i < n; i++) {
       y_tmp[i] = yf[i] + h * k1[i] / T(2);
     }
     ode_fun(n, xi, y_tmp.data(), k2.data());
 
+    #pragma omp parallel for
     for (size_t i = 0; i < n; i++) {
       y_tmp[i] = yf[i] + h * k2[i] / T(2);
     }
     ode_fun(n, xi, y_tmp.data(), k3.data());
 
+    #pragma omp parallel for
     for (size_t i = 0; i < n; i++) {
       y_tmp[i] = yf[i] + h * k3[i];
     }

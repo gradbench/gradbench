@@ -15,7 +15,8 @@ RUN apt-get update && apt-get install -y \
     llvm-19 \
     clang-19 \
     libclang-19-dev \
-    lld-19
+    lld-19 \
+    libomp-dev
 
 # Set clang.
 RUN update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 100

@@ -7,6 +7,7 @@ void kmeans_objective_d(int n, int k, int d, double const *points,
   std::vector<int> cluster_sizes(k);
   std::vector<double> cluster_sums(k*d);
 
+#pragma omp parallel for
   for (int i = 0; i < n; i++) {
     double const *a = &points[i*d];
     double closest = INFINITY;
@@ -19,12 +20,15 @@ void kmeans_objective_d(int n, int k, int d, double const *points,
         closest_j = j;
       }
     }
+#pragma omp atomic
     cluster_sizes[closest_j]++;
     for (int l = 0; l < d; l++) {
+#pragma omp atomic
       cluster_sums[closest_j*d+l] += a[l];
     }
   }
 
+#pragma omp parallel for
   for (int j = 0; j < k; j++) {
     double *cluster_sum = &cluster_sums.data()[j*d];
     int cluster_size = cluster_sizes[j];
