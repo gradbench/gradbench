@@ -5,7 +5,7 @@
 To run this outside Docker, use the following command:
 
 ```sh
-cargo run --package gradbench-floretta --release
+node tools/floretta/run.js
 ```
 
 [floretta]: https://github.com/samestep/floretta
