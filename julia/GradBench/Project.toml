@@ -4,4 +4,11 @@ authors = []
 version = "0.1.0"
 
 [deps]
+ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
+DifferentiationInterface = "a0c0ee7d-e4b9-4e03-894e-1c5f64a51d63"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+
+[compat]
+ADTypes = "1.14.0"
+DifferentiationInterface = "0.6.50"
+JSON = "0.21.4"
