@@ -3,7 +3,7 @@ CC?=cc
 CXXFLAGS=-std=c++17 -O3 -Wall $(shell pkg-config --cflags cppad) -I../../cpp
 LDFLAGS=-lm $(shell pkg-config --libs cppad)
 
-EXECUTABLES=hello gmm lstm kmeans ode llsq det
+EXECUTABLES=hello ba gmm lstm kmeans ode llsq det
 
 all: $(EXECUTABLES)
 
