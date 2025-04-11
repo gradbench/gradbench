@@ -61,6 +61,10 @@ in pkgs.stdenv.mkDerivation rec {
     pkgs.opam
     pkgs.ocamlPackages.dune_3
     pkgs.ocamlPackages.ocaml
+
+    # Floretta
+    pkgs.nodejs
+    pkgs.wasm-tools
   ] ++
     # Nixpkgs marks Julia as broken on Apple Silicon
     (if isX86 then [ pkgs.julia ] else [ ]);
@@ -70,4 +74,8 @@ in pkgs.stdenv.mkDerivation rec {
   ENZYME_LIB = "${pkgs.enzyme}/lib";
   LD_LIBRARY_PATH =
     "${pkgs.lib.makeLibraryPath buildInputs}:${pkgs.stdenv.cc.cc.lib}/lib";
+
+  shellHook = ''
+    export PATH="/Users/samueles/github/samestep/floretta/target/release:$PATH"
+  '';
 }
