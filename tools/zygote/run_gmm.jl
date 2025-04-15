@@ -41,17 +41,6 @@ Zygote.@adjoint function GradBench.GMM.expdiags(Qs)
     end
 end
 
-Zygote.@adjoint function Base.map(f, args...)
-    ys_and_backs = map((args...) -> Zygote._forward(__context__, f, args...), args...)
-    ys, backs = unzip(ys_and_backs)
-    ys, function (Δ)
-        Δf_and_args_zipped = map((f, δ) -> f(δ), backs, Δ)
-        Δf_and_args = unzip(Δf_and_args_zipped)
-        Δf = reduce(Zygote.accum, Δf_and_args[1])
-        (Δf, Δf_and_args[2:end]...)
-    end
-end
-
 function get_Qs(x, means, icfs)
     d = size(x, 1)
     k = size(means, 2)
