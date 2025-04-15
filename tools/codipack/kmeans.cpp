@@ -16,11 +16,8 @@ public:
     output.d = _input.d;
     output.dir.resize(_input.k * _input.d);
 
-    std::vector<r2s> ad_points(_input.points.size());
     std::vector<r2s> ad_centroids(_input.centroids.size());
 
-    std::copy(_input.points.begin(), _input.points.end(),
-              ad_points.begin());
     std::copy(_input.centroids.begin(), _input.centroids.end(),
               ad_centroids.begin());
 
@@ -35,7 +32,7 @@ public:
     r2s err;
 
     kmeans::objective<r2s>(_input.n, _input.k, _input.d,
-                           ad_points.data(),
+                           _input.points.data(),
                            ad_centroids.data(),
                            &err);
 

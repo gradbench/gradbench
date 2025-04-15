@@ -15,21 +15,17 @@ public:
       _H(input.k*input.d),
       _J(input.k*input.d),
       _tangent(input.centroids.size()) {
-    std::vector<adouble> apoints(input.points.size());
     std::vector<adouble> acentroids(input.centroids.size());
     adouble aerr;
 
     trace_on(tapeTag);
 
-    for (size_t i = 0; i < apoints.size(); i++) {
-      apoints[i] = _input.points[i];
-    }
     for (size_t i = 0; i < acentroids.size(); i++) {
       acentroids[i] <<= _input.centroids[i];
     }
 
     kmeans::objective<adouble>(_input.n, _input.k, _input.d,
-                               apoints.data(), acentroids.data(),
+                               _input.points.data(), acentroids.data(),
                                &aerr);
     double err;
     aerr >>= err;
