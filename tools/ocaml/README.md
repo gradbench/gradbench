@@ -15,7 +15,7 @@ replaced with GradBench-specific code.
 You must have [opam][] and [Dune][]. Make sure the `opam` environment
 is set - this may require you to run `eval $(opam env)`, although this
 is usually done in your shell configuration, and it is not necessary
-when using the [shell.nix](../../shell.nix). You may need to do `opam
+when using the [shell.nix](/shell.nix). You may need to do `opam
 init` if you have not done so before.
 
 Standing in the root of the GradBench repository, first run
@@ -45,4 +45,4 @@ actually want to pass this command as the `--tool` argument to
 `gradbench`.
 
 [opam]: https://opam.ocaml.org/
-[Dune](https://dune.build/)
+[Dune]: https://dune.build/

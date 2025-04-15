@@ -8,7 +8,10 @@
 - [Docker](#docker)
   - [Multi-platform images](#multi-platform-images)
 - [Tools](#tools)
+  - [Implementing a new eval for a tool](#implementing-a-new-eval-for-a-tool)
+- [Evals](#evals)
 - [JavaScript](#javascript)
+  - [Prettier](#prettier)
   - [Markdown](#markdown)
   - [Website](#website)
 - [Python](#python)
@@ -108,12 +111,81 @@ We'd also really appreciate it if you also write a short `README.md` file next t
 
 Before taking a look at any of the other evals, you should implement the [`hello` eval](evals/hello) for the tool you're adding! This will help you get all the structure for the GradBench protocol working correctly first, after which you can implement other evals for that tool over time. Once you've done so, add a file called `evals.txt` in your tool directory (next to your `Dockerfile`) with the names of all the evals your tool supports, each on their own line, in sorted order; otherwise GitHub Actions will squawk at you saying it expected your tool to be `undefined` on those evals.
 
+If the new tool you want to add is a C++ or Python library, then you
+are in luck - you can piggyback on the existing implementations of the
+procotol. Otherwise, you will have to implement it yourself. If you
+have access to a JSON library in your chosen language, this is not so
+difficult. Using `gradbench` with the `-o` option, to make it dump the
+raw message log to a file, is a good way to debug errors in the
+protocol implementation. Even if your program is not written in
+Python, you may still find it beneficial to use the Python
+implementation of the protocol, and then internally execute your
+program(s) using some bespoke mechanism. That is in fact [how the C++
+tools work](python/gradbench/gradbench/cpp.py).
+
+### Implementing a new eval for a tool
+
+For some tools, the infrastructure has been built (speaking the
+protocol, writing the `Dockerfile`), but not yet implementations of
+all benchmarks. Sometimes this is because we have not gotten around to
+it, but at other times it is because those benchmarks require
+something that is tricky to do in a specific tool.
+
+If you are looking for a missing implementation to add, try browsing
+the [missing](https://github.com/gradbench/gradbench/labels/missing)
+issue label.
+
+To add a new implementation, the easiest approach is to pattern match
+based on an existing implementations. For the C++ tools, you need to
+add a program `foo.cpp` where `foo` is the name of the benchmark.
+I suggest looking at the [Enzyme](evals/enzyme) implementations for
+the boilerplate input/output reading code, as all benchmarks have been
+implemented in Enzyme.
+
+## Evals
+
+Adding an eval is the most laborious form of contribution. An eval
+must be specified in a way that is clear enough for others to
+understand it, come with some validation mechanism, and also have at
+least a couple of implementations using various tools.
+
+Similarly to tools, an eval is specified by a subdirectory in
+[evals/](https://github.com/gradbench/gradbench/tree/main/evals) that
+behaves like an eval process as specified in the protocol. There is no
+real limit to what an eval can do, except that it must begin by
+sending a `start` message, then in most cases follow with a `define`
+message and some `evaluate` messages with various functions and
+inputs. All of the GradBench evals are currently written in Python -
+this is not a hard requirement, but since evals are not
+performance-sensitive or particularly complicated, writing them in
+Python means you can reuse existing utility libraries.
+
+Beyond the technical effort of specifying and implementing a
+benchmark, another question is which benchmarks are _worthwhile_. The
+whole point of GradBench is comparison, so a benchmark is only worth
+having if there is an expectation that it shows something interesting
+related to AD, and _will be implemented by multiple tools_. If you are
+in doubt, come and talk to us.
+
+As a special case, GradBench is almost always willing to accept an
+eval that matches a benchmark found in an existing AD benchmark suite,
+as GradBench aims to (benevolently!) assimilate all current benchmark
+suites.
+
 ## JavaScript
 
 We use Bun for JavaScript code in this repository. First install all dependencies from npm:
 
 ```sh
 bun install
+```
+
+### Prettier
+
+We use [Prettier][] to format a lot of different files in this repository. If you're using [VS Code][], our configuration in this repository should automatically recommend that you install the Prettier extension, as well as automatically run it whenever you save an applicable file. You can also run it manually via the command line:
+
+```sh
+bun run format
 ```
 
 ### Markdown
@@ -317,6 +389,7 @@ type Session = (MessageLine | ResponseLine)[];
 [markdown-toc]: https://www.npmjs.com/package/markdown-toc
 [multi-platform images]: https://docs.docker.com/build/building/multi-platform/
 [nix]: https://nixos.org/
+[prettier]: https://prettier.io/
 [python]: https://docs.astral.sh/uv/guides/install-python/
 [qemu]: https://docs.docker.com/build/building/multi-platform/#install-qemu-manually
 [ruff]: https://docs.astral.sh/ruff/

@@ -41,4 +41,4 @@ but its diagnostic output can interfere with the protocol when used as
 the `--tool` argument to `gradbench`.
 
 [ghcup]: https://www.haskell.org/ghcup/
-[shell.nix]: ../../shell.nix
+[shell.nix]: /shell.nix

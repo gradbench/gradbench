@@ -1,7 +1,7 @@
 *.o
-run_hello
-run_gmm
-run_ba
-run_lstm
-run_ht
-run_kmeans
+hello
+gmm
+ba
+lstm
+ht
+kmeans

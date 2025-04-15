@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.3"
+julia_version = "1.10.9"
 manifest_format = "2.0"
-project_hash = "c2f17fd88bfd9b8f09cacfb66d27c8602fd048ec"
+project_hash = "ced0adcb8088ca2a0ad0ccbdcae26477eac35b45"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -188,6 +188,12 @@ git-tree-sha1 = "ec632f177c0d990e64d955ccc1b8c04c485a0950"
 uuid = "46192b85-c4d5-4398-a991-12ede77f4527"
 version = "0.1.6"
 
+[[deps.GradBench]]
+deps = ["JSON"]
+path = "../../julia/GradBench"
+uuid = "b8d9ff47-6a34-4c60-b82b-acd435921e41"
+version = "0.1.0"
+
 [[deps.IRTools]]
 deps = ["InteractiveUtils", "MacroTools"]
 git-tree-sha1 = "950c3717af761bc3ff906c2e8e52bd83390b6ec2"
@@ -339,7 +345,7 @@ version = "0.3.27+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+2"
+version = "0.8.1+4"
 
 [[deps.OpenSpecFun_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl"]

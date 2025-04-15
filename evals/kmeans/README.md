@@ -18,7 +18,7 @@ First we find the derivative with respect to $C$, which produces a $k$-element g
 
 Then we take the derivative of (the function that computes) $J$, to compute a Hessian $H$, which has nonzero elements only along the diagonal, meaning $H$ can be represented as a $k$-element vector of $d$-dimensional points.
 
-We finally compute $J * H^{-1}$, which is the result that must be reported by the tool for the `"dir"` function. Note that since $H$ is sparse, $H^{-1}$ is simply the inverse of each element of $H$.
+We finally compute $J * H^{-1}$, which is the result that must be reported by the tool for the `"dir"` function. Note that since $H$ is sparse diagonal, $H^{-1}$ is simply the inverse of each element of $H$.
 
 ## Protocol
 
@@ -47,6 +47,23 @@ type DirOutput = double[][];
 ```
 
 Because the input extends `Runs`, the tool is expected to run the function some number of times. It should include one timing entry with the name `"evaluate"` for each time it ran the function.
+
+## Commentary
+
+Despite the quite simple objective function, this benchmark exercises
+a number of interesting things:
+
+1. Efficiently computing a _sparse_ Hessian (just the diagonal). This
+   means that a tool that can compute the Hessian, but only the entire
+   thing, would be at a disadvantage.
+
+2. Computing the Jacobian along with the Hessian. It is most efficient
+   to compute both at the same time (reusing work), but a tool might
+   not allow this.
+
+3. Computing the adjoint of the minimum operation in the primal
+   function may not be entirely straightforward, as it is "sparse",
+   but it is important for performance.
 
 [paper]: https://proceedings.neurips.cc/paper/1994/hash/a1140a3d0df1c81e24ae954d935e8926-Abstract.html
 [protocol]: /CONTRIBUTING.md#types
