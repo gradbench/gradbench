@@ -66,6 +66,7 @@ end
 include("benchmarks/ba.jl")
 include("benchmarks/gmm.jl")
 include("benchmarks/hello.jl")
+include("benchmarks/ht.jl")
 include("benchmarks/ode.jl")
 include("benchmarks/lse.jl")
 include("benchmarks/lstm.jl")
