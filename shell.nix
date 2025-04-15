@@ -48,7 +48,7 @@ in pkgs.stdenv.mkDerivation rec {
     codipack
 
     # Zygote
-    pkgs.julia
+    pkgs.julia_110
 
     # Haskell
     pkgs.cabal-install
