@@ -47,6 +47,9 @@ in pkgs.stdenv.mkDerivation rec {
     cppad
     codipack
 
+    # Zygote
+    pkgs.julia_110
+
     # Haskell
     pkgs.cabal-install
     pkgs.ghc

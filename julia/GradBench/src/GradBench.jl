@@ -63,6 +63,7 @@ function main(tool)
     return
 end
 
+include("benchmarks/gmm.jl")
 include("benchmarks/hello.jl")
 include("benchmarks/ode.jl")
 include("benchmarks/lse.jl")
