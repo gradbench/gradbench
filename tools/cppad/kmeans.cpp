@@ -10,7 +10,7 @@ class Dir : public Function<kmeans::Input, kmeans::DirOutput> {
   CppAD::sparse_hessian_work _work;
   std::vector<bool> _p;
   std::vector<size_t> _row, _col;
-  std::vector<ADdouble> _apoints, _acentroids;
+  std::vector<ADdouble> _acentroids;
 public:
   Dir(kmeans::Input& input)
     : Function(input),
@@ -19,13 +19,8 @@ public:
       _p((input.k*input.d)*(input.k*input.d)),
       _row(input.k*input.d),
       _col(input.k*input.d),
-      _apoints(_input.points.size()),
       _acentroids(_input.centroids.size())
   {
-    std::copy(_input.points.begin(),
-              _input.points.end(),
-              _apoints.begin());
-
     std::copy(_input.centroids.begin(),
               _input.centroids.end(),
               _acentroids.data());
@@ -54,13 +49,12 @@ public:
     output.d = _input.d;
     output.dir.resize(_input.k * _input.d);
 
-
     CppAD::Independent(_acentroids);
 
     std::vector<ADdouble> err(1);
 
     kmeans::objective<ADdouble>(_input.n, _input.k, _input.d,
-                                _apoints.data(), _acentroids.data(),
+                                _input.points.data(), _acentroids.data(),
                                 &err[0]);
 
     CppAD::ADFun<double> f(_acentroids, err);
