@@ -67,5 +67,6 @@ include("benchmarks/gmm.jl")
 include("benchmarks/hello.jl")
 include("benchmarks/ode.jl")
 include("benchmarks/lse.jl")
+include("benchmarks/lstm.jl")
 
 end # module GradBench
