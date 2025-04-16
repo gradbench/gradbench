@@ -25,7 +25,7 @@ const colors = {
   scilean: "#5c123a",
   tapenade: "#047f01",
   tensorflow: "#ff8d00",
-  zygote: "#6daa5e",
+  "zygote-jl": "#6daa5e",
 };
 
 const makeSpec = ({

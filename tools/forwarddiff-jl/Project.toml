@@ -1,0 +1,9 @@
+[deps]
+ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+GradBench = "b8d9ff47-6a34-4c60-b82b-acd435921e41"
+
+[compat]
+ADTypes = "1.14"
+ForwardDiff = "1.0"
+julia = "1.10"
