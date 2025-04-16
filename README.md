@@ -196,8 +196,15 @@ the documentation is insufficient, you can always look at the
 Each C++ tool is structured with one executable per eval. They expect
 to find their includes and libraries through standard mechanisms such
 as `pkg-config` or by having environment variables such as
-`CPATH`/`LD_LIBRARY_PATH`/`LIBRARY_PATH` set appropriately. The
-executable for a tool `foo` for eval `bar` is compiled with
+`CPATH`/`LD_LIBRARY_PATH`/`LIBRARY_PATH` set appropriately. Further,
+they expect some libraries to be available in the `cpp` directory,
+which can be achieved with:
+
+```shell
+$ make -C cpp
+```
+
+The executable for a tool `foo` for eval `bar` is compiled with
 
 ```shell
 $ make -C tools/foo bar
