@@ -20,6 +20,13 @@ See <https://gradben.ch> for interactive performance charts generated from our l
 - [Usage](#usage)
   - [Running GradBench locally](#running-gradbench-locally)
   - [Without cloning this repository](#without-cloning-this-repository)
+  - [Obtaining raw results](#obtaining-raw-results)
+  - [Without using Docker](#without-using-docker)
+    - [Running evals outside of Docker](#running-evals-outside-of-docker)
+      - [Using `uv`](#using-uv)
+      - [Not using `uv`](#not-using-uv)
+    - [Running tools outside of Docker](#running-tools-outside-of-docker)
+      - [Running C++-based tools](#running-c-based-tools)
 - [License](#license)
 
 <!-- tocstop -->
@@ -100,6 +107,130 @@ DATE=$(curl https://raw.githubusercontent.com/gradbench/gradbench/refs/heads/ci/
 gradbench run --eval "gradbench eval hello --tag $DATE" --tool "gradbench tool pytorch --tag $DATE"
 ```
 
+### Obtaining raw results
+
+Pass `-o log.jsonl` to `gradbench` to store the raw messages in the
+file `log.jsonl` in the [JSON Lines][] format, such that each line is
+a valid JSON object. The file consists of message/response pairs sent
+from the message and received from the tool, and can be analysed using
+other scripts. Since a log file contains all inputs and outputs, it
+can be quite large.
+
+### Without using Docker
+
+cthe `--eval` and `--tool` options passed to the `gradbench` CLI are
+arbitrary shell commands, and the default use of Docker is merely a
+convenience. It is possible to run GradBench without using Docker,
+although it requires you to set up the necessary dependencies on your
+system. This section describes how to do that.
+
+While the dependencies required for the evals are somewhat restrained,
+tool dependencies can be very diverse and difficult to install.
+Details are provided below. If you use Nix or NixOS, then the
+[`shell.nix`][./shell.nix] provides an easy way to install the
+dependencies needed for most evals and tools.
+
+#### Running evals outside of Docker
+
+As of this writing, all evals are written in Python, and depend on
+Python packages that must be made available. Further, many evals
+perform validation by comparing against the `manual` tool. Before
+running these evals, you must compile `manual`, like so:
+
+```shell
+$ make -C cpp
+$ make -C tools/manual
+```
+
+This requires you to have a functioning C++ compiler, but `manual`
+does not otherwise have any dependencies.
+
+##### Using `uv`
+
+The easiest way to run GradBench's Python code is to install a
+sufficiently recent version of [uv][python] (0.6.8 works as of this
+writing), which is a Python package manager. Once this is done, an
+eval can be run with e.g.:
+
+```shell
+$ uv run python/gradbench/gradbench/evals/hello/run.py
+{"id": 0, "kind": "start", "eval": "hello"}
+```
+
+At this point the eval will hang, as it waits for a response from the
+tool. Just terminate it with `Ctrl-c` or `Ctrl-d` - if you see the
+above, then the eval likely works.
+
+##### Not using `uv`
+
+You can run Python code without `uv` by manually installing the
+dependencies (or by using another package manager, such as `pip`). The
+file [`pyproject.toml`][./pyproject.toml] lists all required
+dependencies, but evals need only a subset of these. Specifically, the
+following are required:
+
+- `numpy`
+- `pydantic`
+
+You may want to install these in a `virtualenv`.
+
+When not using `uv`, your `PYTHONPATH` must manually be set to include
+`python/gradbench`. For example, we can run the `hello` eval manually
+as follows:
+
+```shell
+$ PYTHONPATH=python/gradbench/:$PYTHONPATH python3 python/gradbench/gradbench/evals/hello/run.py
+```
+
+#### Running tools outside of Docker
+
+Each tool README should document how to run that tool outside of
+Docker, which may require installing dependencies or setting
+environment variables. For some tools that can be quite challenging.
+However, there is also some commonality between related tools. When
+the documentation is insufficient, you can always look at the
+`Dockerfile` to see exactly what needs to be installed.
+
+##### Running C++-based tools
+
+Each C++ tool is structured with one executable per eval. They expect
+to find their includes and libraries through standard mechanisms such
+as `pkg-config` or by having environment variables such as
+`CPATH`/`LD_LIBRARY_PATH`/`LIBRARY_PATH` set appropriately. The
+executable for a tool `foo` for eval `bar` is compiled with
+
+```shell
+$ make -C tools/foo bar
+```
+
+However, you do not need to do this in advance - compilation is done
+by a Python module that implements the GradBench protocol and runs the
+executables. Specifically, to run tool `foo` we would do:
+
+```shell
+$ uv run python/gradbench/gradbench/cpp.py foo
+```
+
+This will seem to hang because it is waiting for a message from the
+eval. Putting it all together, we can run the `hello` eval with the
+`manual` tool as follows:
+
+```shell
+$ ./gradbench run --eval 'uv run python/gradbench/gradbench/evals/hello/run.py' --tool 'uv run python/gradbench/gradbench/cpp.py manual'
+```
+
+Or without using `uv`:
+
+```shell
+PYTHONPATH=python/gradbench/:$PYTHONPATH ./gradbench run --eval 'python3 python/gradbench/gradbench/evals/hello/run.py' --tool 'python3 python/gradbench/gradbench/cpp.py manual'
+```
+
+[You can also run the C++ executables completely separately from
+GradBench if you
+wish.](https://github.com/gradbench/gradbench/tree/main/cpp#from-the-command-line)
+This does require you to first extract the raw input from a
+`gradbench` log file.
+
 ## License
 
 GradBench is licensed under the [MIT License](LICENSE). Some
@@ -124,3 +255,4 @@ applicable. All files are available under [OSI-approved licenses][].
 [svg]: https://raw.githubusercontent.com/gradbench/gradbench/refs/heads/ci/refs/heads/nightly/summary.svg
 [website]: https://gradben.ch/
 [OSI-approved licenses]: https://opensource.org/licenses
+[JSON Lines]: https://jsonlines.org/
