@@ -5,15 +5,17 @@
 // originally by Bradley M. Bell <bradbell@seanet.com>, and used here
 // under the terms of the EPL-2.0 or GPL-2.0-or-later.
 
-#include <vector>
 #include <cassert>
+#include <vector>
+
+#include "gradbench/main.hpp"
 #include "json.hpp"
 
 namespace det {
 
 struct Input {
   std::vector<double> A;
-  size_t ell;
+  size_t              ell;
 };
 
 typedef double PrimalOutput;
@@ -24,11 +26,8 @@ typedef std::vector<double> GradientOutput;
 // columns. This is used to (relatively) efficiently remove rows and
 // columns, without actually moving the data.
 template <typename T>
-T det_of_minor(const T* __restrict__ A,
-               size_t n,
-               size_t m,
-               std::vector<size_t> &r,
-               std::vector<size_t> &c) {
+T det_of_minor(const T* __restrict__ A, size_t n, size_t m,
+               std::vector<size_t>& r, std::vector<size_t>& c) {
   size_t R0 = r[n];
   assert(R0 < n);
   size_t Cj = c[n];
@@ -83,15 +82,13 @@ T det_of_minor(const T* __restrict__ A,
   return detM;
 }
 
-template<typename T>
-void primal(size_t ell,
-            const T* __restrict__ A,
-            T* __restrict__ out) {
+template <typename T>
+void primal(size_t ell, const T* __restrict__ A, T* __restrict__ out) {
   std::vector<size_t> r(ell + 1);
   std::vector<size_t> c(ell + 1);
-  for(size_t i = 0; i < ell; i++) {
-    r[i] = i+1;
-    c[i] = i+1;
+  for (size_t i = 0; i < ell; i++) {
+    r[i] = i + 1;
+    c[i] = i + 1;
   }
   *out = det_of_minor(A, ell, ell, r, c);
 }
@@ -99,7 +96,7 @@ void primal(size_t ell,
 using json = nlohmann::json;
 
 void from_json(const json& j, Input& p) {
-  p.A = j["A"].get<std::vector<double>>();
+  p.A   = j["A"].get<std::vector<double>>();
   p.ell = j["ell"].get<size_t>();
 }
 
@@ -108,10 +105,8 @@ public:
   Primal(Input& input) : Function(input) {}
 
   void compute(PrimalOutput& output) {
-    primal<double>(_input.ell,
-                   _input.A.data(),
-                   &output);
+    primal<double>(_input.ell, _input.A.data(), &output);
   }
 };
 
-}
+}  // namespace det
