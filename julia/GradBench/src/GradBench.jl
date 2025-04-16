@@ -32,7 +32,7 @@ end
 # Avoid measuring dispatch overhead
 function measure(experiment::E, args...) where {E<:Experiment}
     start = time_ns()
-    ret = func(args...)
+    ret = experiment(args...)
     done = time_ns()
     return ret, done - start
 end
