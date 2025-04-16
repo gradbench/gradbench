@@ -19,14 +19,13 @@ See <https://gradben.ch> for interactive performance charts generated from our l
 - [Motivation](#motivation)
 - [Usage](#usage)
   - [Running GradBench locally](#running-gradbench-locally)
-  - [Without cloning this repository](#without-cloning-this-repository)
-  - [Obtaining raw results](#obtaining-raw-results)
   - [Without using Docker](#without-using-docker)
     - [Running evals outside of Docker](#running-evals-outside-of-docker)
       - [Using `uv`](#using-uv)
       - [Not using `uv`](#not-using-uv)
     - [Running tools outside of Docker](#running-tools-outside-of-docker)
       - [Running C++-based tools](#running-c-based-tools)
+  - [Without cloning this repository](#without-cloning-this-repository)
 - [License](#license)
 
 <!-- tocstop -->
