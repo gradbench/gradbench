@@ -1,6 +1,6 @@
-#include <iostream>
-#include "gradbench/main.hpp"
 #include "gradbench/evals/hello.hpp"
+#include "gradbench/main.hpp"
+#include <iostream>
 
 #include <adolc/adouble.h>
 #include <adolc/drivers/drivers.h>
@@ -13,7 +13,7 @@ public:
   Double(hello::Input& input) : Function(input) {
     // Construct tape.
     adouble ax;
-    double output;
+    double  output;
     trace_on(tapeTag);
     ax <<= _input;
     hello::square<adouble>(ax) >>= output;
@@ -26,8 +26,8 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-  return generic_main(argc, argv, {
-      {"square", function_main<hello::Square>},
-      {"double", function_main<Double>}
-    });;
+  return generic_main(argc, argv,
+                      {{"square", function_main<hello::Square>},
+                       {"double", function_main<Double>}});
+  ;
 }

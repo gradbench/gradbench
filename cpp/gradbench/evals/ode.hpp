@@ -11,41 +11,38 @@
 // implementation simplicity. This is generally written in a more
 // C-like way for the benefit of tools that are not so good at C++.
 
-#include <vector>
 #include <cassert>
+#include <vector>
+
+#include "gradbench/main.hpp"
 #include "json.hpp"
 
 namespace ode {
 
 struct Input {
   std::vector<double> x;
-  size_t s;
+  size_t              s;
 };
 
 typedef std::vector<double> PrimalOutput;
 
 typedef std::vector<double> GradientOutput;
 
-template<typename T>
-void ode_fun(size_t n,
-                const T* __restrict__ x,
-                const T* __restrict__ y,
-                T* __restrict__ z) {
+template <typename T>
+void ode_fun(size_t n, const T* __restrict__ x, const T* __restrict__ y,
+             T* __restrict__ z) {
   z[0] = x[0];
   for (size_t i = 1; i < n; i++) {
-    z[i] = x[i] * y[i-1];
+    z[i] = x[i] * y[i - 1];
   }
 }
 
-template<typename T>
-void primal(size_t n,
-            const T* __restrict__ xi,
-            size_t s,
-            T* __restrict__ yf) {
-  T tf = T(2);
-  T h = tf / T(s);
+template <typename T>
+void primal(size_t n, const T* __restrict__ xi, size_t s, T* __restrict__ yf) {
+  T              tf = T(2);
+  T              h  = tf / T(s);
   std::vector<T> k1(n), k2(n), k3(n), k4(n), y_tmp(n);
-  std::fill(yf, yf+n, T(0));
+  std::fill(yf, yf + n, T(0));
 
   for (size_t i_step = 0; i_step < s; i_step++) {
     ode_fun(n, xi, yf, k1.data());
@@ -85,11 +82,8 @@ public:
   void compute(PrimalOutput& output) {
     output.resize(_input.x.size());
     size_t n = _input.x.size();
-    primal<double>(n,
-                   _input.x.data(),
-                   _input.s,
-                   output.data());
+    primal<double>(n, _input.x.data(), _input.s, output.data());
   }
 };
 
-}
+}  // namespace ode

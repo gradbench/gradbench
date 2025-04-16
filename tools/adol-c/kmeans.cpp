@@ -9,14 +9,13 @@ static const int tapeTag = 1;
 
 class Dir : public Function<kmeans::Input, kmeans::DirOutput> {
   std::vector<double> _H, _J, _tangent;
+
 public:
   Dir(kmeans::Input& input)
-    : Function(input),
-      _H(input.k*input.d),
-      _J(input.k*input.d),
-      _tangent(input.centroids.size()) {
+      : Function(input), _H(input.k * input.d), _J(input.k * input.d),
+        _tangent(input.centroids.size()) {
     std::vector<adouble> acentroids(input.centroids.size());
-    adouble aerr;
+    adouble              aerr;
 
     trace_on(tapeTag);
 
@@ -25,8 +24,7 @@ public:
     }
 
     kmeans::objective<adouble>(_input.n, _input.k, _input.d,
-                               _input.points.data(), acentroids.data(),
-                               &aerr);
+                               _input.points.data(), acentroids.data(), &aerr);
     double err;
     aerr >>= err;
 
@@ -40,8 +38,8 @@ public:
     output.d = _input.d;
     output.dir.resize(_input.k * _input.d);
 
-    gradient(tapeTag, _input.centroids.size(),
-             _input.centroids.data(), _J.data());
+    gradient(tapeTag, _input.centroids.size(), _input.centroids.data(),
+             _J.data());
 
     hess_vec(tapeTag, _input.centroids.size(), _input.centroids.data(),
              _tangent.data(), _H.data());
@@ -53,8 +51,7 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-  return generic_main(argc, argv, {
-      {"cost", function_main<kmeans::Cost>},
-      {"dir", function_main<Dir>}
-    });
+  return generic_main(
+      argc, argv,
+      {{"cost", function_main<kmeans::Cost>}, {"dir", function_main<Dir>}});
 }

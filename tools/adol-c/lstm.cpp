@@ -1,7 +1,7 @@
 #include <algorithm>
 
-#include "gradbench/main.hpp"
 #include "gradbench/evals/lstm.hpp"
+#include "gradbench/main.hpp"
 
 #include <adolc/adouble.h>
 #include <adolc/drivers/drivers.h>
@@ -18,7 +18,7 @@ public:
     std::vector<adouble> aextra_params(_input.extra_params.size());
     std::vector<adouble> astate(_input.state.size());
     std::vector<adouble> asequence(_input.sequence.size());
-    adouble aobjective;
+    adouble              aobjective;
 
     for (size_t i = 0; i < _input.main_params.size(); i++) {
       amain_params[i] <<= _input.main_params[i];
@@ -36,9 +36,8 @@ public:
       asequence[i] = _input.sequence[i];
     }
 
-    lstm::objective(_input.l, _input.c, _input.b,
-                    amain_params.data(), aextra_params.data(),
-                    astate.data(), asequence.data(),
+    lstm::objective(_input.l, _input.c, _input.b, amain_params.data(),
+                    aextra_params.data(), astate.data(), asequence.data(),
                     &aobjective);
 
     double err;
@@ -49,12 +48,10 @@ public:
 
   void compute(lstm::JacOutput& output) {
     output.resize(8 * _input.l * _input.b + 3 * _input.b);
-    double *in = new double[output.size()];
-    memcpy(in,
-           _input.main_params.data(),
+    double* in = new double[output.size()];
+    memcpy(in, _input.main_params.data(),
            _input.main_params.size() * sizeof(double));
-    memcpy(in + _input.main_params.size(),
-           _input.extra_params.data(),
+    memcpy(in + _input.main_params.size(), _input.extra_params.data(),
            _input.extra_params.size() * sizeof(double));
     gradient(tapeTag, output.size(), in, output.data());
     delete[] in;
@@ -62,8 +59,8 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-  return generic_main(argc, argv, {
-      {"objective", function_main<lstm::Objective>},
-      {"jacobian", function_main<Jacobian>}
-    });;
+  return generic_main(argc, argv,
+                      {{"objective", function_main<lstm::Objective>},
+                       {"jacobian", function_main<Jacobian>}});
+  ;
 }
