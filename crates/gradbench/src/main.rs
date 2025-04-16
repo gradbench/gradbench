@@ -328,7 +328,11 @@ fn docker_build_quiet(color: Color, mut cmd: Command) -> anyhow::Result<ExitStat
             eprintln!("{}", line.color(color));
         }
     }
-    Ok(child.wait()?)
+    let status = child.wait()?;
+    if !status.success() {
+        eprint!("{}", take(&mut buffer).color(color));
+    }
+    Ok(status)
 }
 
 /// Build the Docker image for an eval.

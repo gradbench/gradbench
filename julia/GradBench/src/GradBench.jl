@@ -64,6 +64,7 @@ function main(tool)
 end
 
 include("benchmarks/ba.jl")
+include("benchmarks/det.jl")
 include("benchmarks/gmm.jl")
 include("benchmarks/hello.jl")
 include("benchmarks/ht.jl")
