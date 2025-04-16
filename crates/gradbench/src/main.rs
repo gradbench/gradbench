@@ -328,6 +328,7 @@ fn docker_build_quiet(color: Color, mut cmd: Command) -> anyhow::Result<ExitStat
             eprintln!("{}", line.color(color));
         }
     }
+    eprint!("{}", take(&mut buffer).color(color));
     Ok(child.wait()?)
 }
 
