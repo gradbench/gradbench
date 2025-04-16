@@ -67,7 +67,7 @@ Make sure you have the following tools available on your system:
 All the command-line scripts for working with GradBench are packaged into the _GradBench CLI_, which you can run using the [`./gradbench`](gradbench) script at the root of this repository. For example, you can use the following command to run [PyTorch][] on our simplest eval:
 
 ```sh
-./gradbench run --eval "./gradbench repo eval hello" --tool "./gradbench repo tool pytorch"
+./gradbench run --eval "./gradbench repo eval hello" --tool "./gradbench repo tool pytorch" -o log.jsonl
 ```
 
 You should see a bunch of green and blue and magenta build output, followed by something like this:
@@ -85,36 +85,9 @@ You should see a bunch of green and blue and magenta build output, followed by s
  [16] eval  hello::double   16384.0                 0ms ~         0ms evaluate ✓
 ```
 
-Congrats, this means everything worked correctly! Now you can try running other combinations from our set of available [evals](evals) and [tools](tools).
+Congrats, this means everything worked correctly! Now you can try running other combinations from our set of available [evals](evals) and [tools](tools). The raw message log has been stored in `log.jsonl` in the [JSON Lines][] format, such that each line is a valid JSON object. The file consists of message/response pairs sent from the message and received from the tool, and can be analysed using other scripts. Since a log file contains all inputs and outputs, it can be quite large.
 
 This was just a quickstart summary; see [`CONTRIBUTING.md`](CONTRIBUTING.md) for more details.
-
-### Without cloning this repository
-
-> [!WARNING]
-> Only use this method if you have a specific reason not to use the primary method documented above.
-
-It's also possible to install and run the GradBench CLI without cloning this repository, if you'd prefer. In this case you don't need Python but you still need Rust and Docker. Use [`cargo install`][] with the `--git` flag (note that this command only installs GradBench once; to update, you'll need to re-run it):
-
-```sh
-cargo install --locked gradbench --git https://github.com/gradbench/gradbench --branch nightly
-```
-
-Then, you can use the newly installed `gradbench` CLI to download and run our [nightly Docker images][packages]. For instance, if you have [jq][] installed, you can run these commands to grab the date of the most recent successful nightly build, then download and run those images for the `hello` eval and the `pytorch` tool:
-
-```sh
-DATE=$(curl https://raw.githubusercontent.com/gradbench/gradbench/refs/heads/ci/refs/heads/nightly/summary.json | jq --raw-output .date)
-gradbench run --eval "gradbench eval hello --tag $DATE" --tool "gradbench tool pytorch --tag $DATE"
-```
-
-### Obtaining raw results
-
-Pass `-o log.jsonl` to `gradbench` to store the raw messages in the
-file `log.jsonl` in the [JSON Lines][] format, such that each line is
-a valid JSON object. The file consists of message/response pairs sent
-from the message and received from the tool, and can be analysed using
-other scripts. Since a log file contains all inputs and outputs, it
-can be quite large.
 
 ### Without using Docker
 
@@ -220,8 +193,11 @@ $ uv run python/gradbench/gradbench/cpp.py foo
 ```
 
 This will seem to hang because it is waiting for a message from the
-eval. Putting it all together, we can run the `hello` eval with the
-`manual` tool as follows:
+eval. You can use the command above as the `--tool` option to the
+`gradbench` CLI.
+
+Putting it all together, we can run the `hello` eval with the `manual`
+tool as follows:
 
 ```shell
 $ ./gradbench run --eval 'uv run python/gradbench/gradbench/evals/hello/run.py' --tool 'uv run python/gradbench/gradbench/cpp.py manual'
@@ -238,6 +214,24 @@ GradBench if you
 wish.](https://github.com/gradbench/gradbench/tree/main/cpp#from-the-command-line)
 This does require you to first extract the raw input from a
 `gradbench` log file.
+
+### Without cloning this repository
+
+> [!WARNING]
+> Only use this method if you have a specific reason not to use the primary method documented above.
+
+It's also possible to install and run the GradBench CLI without cloning this repository, if you'd prefer. In this case you don't need Python but you still need Rust and Docker. Use [`cargo install`][] with the `--git` flag (note that this command only installs GradBench once; to update, you'll need to re-run it):
+
+```sh
+cargo install --locked gradbench --git https://github.com/gradbench/gradbench --branch nightly
+```
+
+Then, you can use the newly installed `gradbench` CLI to download and run our [nightly Docker images][packages]. For instance, if you have [jq][] installed, you can run these commands to grab the date of the most recent successful nightly build, then download and run those images for the `hello` eval and the `pytorch` tool:
+
+```sh
+DATE=$(curl https://raw.githubusercontent.com/gradbench/gradbench/refs/heads/ci/refs/heads/nightly/summary.json | jq --raw-output .date)
+gradbench run --eval "gradbench eval hello --tag $DATE" --tool "gradbench tool pytorch --tag $DATE"
+```
 
 ## License
 
