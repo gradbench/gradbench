@@ -60,4 +60,24 @@ function primal(n, xi::Vector{T}, s, yf::Vector{T}) where {T}
     end
 end
 
+import ..GradBench
+
+abstract type AbstractODE <: GradBench.Experiment end
+
+function GradBench.from_json(::AbstractODE, message)
+    x = convert(Vector{Float64}, message["x"])
+    s = message["s"]
+    (; x, s)
+end
+
+struct PrimalODE <: AbstractODE end
+function (::PrimalODE)(x, s)
+    output = similar(x)
+    n = length(x)
+
+    primal(n, x, s, output)
+    return output
+end
+
+
 end # module ode
