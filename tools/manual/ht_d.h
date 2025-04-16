@@ -171,9 +171,9 @@ void to_pose_params_d(const double* const             theta,
 // theta - double[]
 // data - HandDataEigen
 // Outputs:
-// perr - pointer to memory allocated for the objective - double[3 *
-// data.correspondences.size()] pJ - pointer to memory allocated for the
-// jacobian
+// perr - pointer to memory allocated for
+//        the objective - double[3 * data.correspondences.size()]
+// pJ - pointer to memory allocated for the // jacobian
 void hand_objective_d(const double* const        theta,
                       const HandDataLightMatrix& data, double* perr,
                       double* pJ);
@@ -183,9 +183,9 @@ void hand_objective_d(const double* const        theta,
 // us - double[2 * data.correspondences.size()]
 // data - HandDataEigen
 // Outputs:
-// perr - pointer to memory allocated for the objective - double[3 *
-// data.correspondences.size()] pJ - pointer to memory allocated for the
-// jacobian
+// perr - pointer to memory allocated for
+//        the objective - double[3 * data.correspondences.size()]
+// pJ - pointer to memory allocated for the jacobian
 void hand_objective_d(const double* const theta, const double* const us,
                       const HandDataLightMatrix& data, double* perr,
                       double* pJ);

@@ -154,7 +154,7 @@ public:
   /// <param name="result">Pointer to where resultant Jacobian should go.
   ///		Will be stored as a vector(input_size * output_size).
   ///		Will store in format foreach (input) { foreach (output) {}
-  ///}</param>
+  ///		}</param>
   void finite_differences(int order, std::function<void(T*, T*)> func, T* input,
                           int input_size, int output_size, T* result) {
     for (int i = 0; i < input_size; i++) {

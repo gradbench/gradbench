@@ -203,9 +203,9 @@ void apply_global_transform_d(const double* const          us,
   for (int i_param = 0; i_param < 3; ++i_param) {
     LightMatrix<double> J_glob_rot(3, npts, &pJ[i_param * 3 * npts], false);
     for (size_t i_pt = 0; i_pt < npts; ++i_pt) {
-      // tmp1 = u[0] * positions.get_col(verts[0]) + u[1] *
-      // positions.get_col(verts[1]) + (1. - u[0] - u[1]) *
-      // positions.get_col(verts[2]
+      // tmp1 = u[0] * positions.get_col(verts[0])
+      //      + u[1] * positions.get_col(verts[1])
+      //      + (1. - u[0] - u[1]) * positions.get_col(verts[2]
       const auto&         verts = triangles[corresp[i_pt]].verts;
       const double* const u     = &us[2 * i_pt];
       scale(3, u[0], positions.get_col(verts[0]), tmp1);
@@ -424,8 +424,8 @@ void get_skinned_vertex_positions_d_common(
   base_positions_homogenized.set_row(3, 1.);
   for (int i = 0; i < (int)transforms.size(); ++i) {
     //*positions +=
-    //    ((transforms[i] *
-    //    model.base_positions.colwise().homogeneous()).array()
+    //    ((transforms[i] * model.base_positions.colwise().homogeneous())
+    //        .array()
     //        .rowwise() * model.weights.row(i)).matrix()
     //    .topRows(3);
     mat_mult(transforms[i], base_positions_homogenized, &tmp);
@@ -440,8 +440,8 @@ void get_skinned_vertex_positions_d_common(
       mat_mult(transforms_d[i][j], base_positions_homogenized, &tmp);
 
       //(*positions_d)[i_param] +=
-      //    ((transforms_d[i][j] *
-      //    model.base_positions.colwise().homogeneous()).array()
+      //    ((transforms_d[i][j] * model.base_positions.colwise().homogeneous())
+      //        .array()
       //        .rowwise() * model.weights.row(i)).matrix()
       //    .topRows(3);
       for (int l = 0; l < 3; ++l) {
@@ -530,9 +530,9 @@ void get_skinned_vertex_positions_d(const double* const         us,
       const auto&         verts = model.triangles[corresp[j]].verts;
       const double* const u     = &us[2 * j];
 
-      // tmp1 = u[0] * positions_d[i].col(verts[0]) + u[1] *
-      // positions_d[i].col(verts[1])
-      //     + (1. - u[0] - u[1]) * positions_d[i].col(verts[2]);
+      // tmp1 = u[0] * positions_d[i].col(verts[0])
+      //      + u[1] * positions_d[i].col(verts[1])
+      //      + (1. - u[0] - u[1]) * positions_d[i].col(verts[2]);
       tmp1.set(positions_d[i].get_col(verts[0]));
       tmp1.scale_col(0, u[0]);
       tmp2.set(positions_d[i].get_col(verts[1]));
@@ -584,9 +584,9 @@ void to_pose_params_d(const double* const             theta,
 // theta - double[]
 // data - HandDataEigen
 // Outputs:
-// perr - pointer to memory allocated for the objective - double[3 *
-// data.correspondences.size()] pJ - pointer to memory allocated for the
-// jacobian
+// perr - pointer to memory allocated for
+//        the objective - double[3 * data.correspondences.size()]
+// pJ - pointer to memory allocated for the jacobian
 void hand_objective_d(const double* const        theta,
                       const HandDataLightMatrix& data, double* perr,
                       double* pJ) {
@@ -601,8 +601,8 @@ void hand_objective_d(const double* const        theta,
   // Map<Matrix3Xd> err(perr, 3, npts);
   LightMatrix<double> err(3, npts, perr, false);
   for (size_t i = 0; i < data.correspondences.size(); ++i) {
-    // err.col(i) = data.points.col(i) -
-    // vertex_positions.col(data.correspondences[i]);
+    // err.col(i) = data.points.col(i)
+    //            - vertex_positions.col(data.correspondences[i]);
     subtract(3, data.points.get_col(i),
              vertex_positions.get_col(data.correspondences[i]),
              err.get_col_ptr(i));
@@ -614,9 +614,9 @@ void hand_objective_d(const double* const        theta,
 // us - double[2 * data.correspondences.size()]
 // data - HandDataEigen
 // Outputs:
-// perr - pointer to memory allocated for the objective - double[3 *
-// data.correspondences.size()] pJ - pointer to memory allocated for the
-// jacobian
+// perr - pointer to memory allocated for
+//        the objective - double[3 * data.correspondences.size()]
+// pJ - pointer to memory allocated for the jacobian
 void hand_objective_d(const double* const theta, const double* const us,
                       const HandDataLightMatrix& data, double* perr,
                       double* pJ) {
@@ -642,9 +642,9 @@ void hand_objective_d(const double* const theta, const double* const us,
     subtract(3, vertex_positions.get_col(verts[2]),
              vertex_positions.get_col(verts[1]), du1.get_col_ptr(i));
 
-    // hand_point = u[0] * vertex_positions.col(verts[0]) + u[1] *
-    // vertex_positions.col(verts[1])
-    //     + (1. - u[0] - u[1]) * vertex_positions.col(verts[2]);
+    // hand_point = u[0] * vertex_positions.col(verts[0])
+    //            + u[1] * vertex_positions.col(verts[1])
+    //            + (1. - u[0] - u[1]) * vertex_positions.col(verts[2]);
     hand_point.set(vertex_positions.get_col(verts[0]));
     hand_point.scale_col(0, u[0]);
     tmp.set(vertex_positions.get_col(verts[1]));

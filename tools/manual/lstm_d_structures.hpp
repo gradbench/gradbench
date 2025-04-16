@@ -87,8 +87,8 @@ struct LayerStateJacobianPredict {
   T*                                          raw_data;
   bool                                        owns_memory;
 
-  // raw_jacobian must point to ((10 * n_layers + 1) * 2 * hsize) pre-allocated
-  // T
+  // raw_jacobian must point
+  // to ((10 * n_layers + 1) * 2 * hsize) pre-allocated T
   LayerStateJacobianPredict(T* raw_jacobian, int n_layers, int hsize,
                             bool should_own_memory = false)
       : raw_data(raw_jacobian), owns_memory(should_own_memory) {
@@ -117,8 +117,8 @@ struct StateJacobianPredict {
   T*                                        raw_data;
   bool                                      owns_memory;
 
-  // raw_jacobian must point to (((10 * n_layers + 1) * 2 * hsize) * n_layers)
-  // pre-allocated T
+  // raw_jacobian must point
+  // to (((10 * n_layers + 1) * 2 * hsize) * n_layers) pre-allocated T
   StateJacobianPredict(T* raw_jacobian, int n_layers, int hsize,
                        bool should_own_memory = false)
       : raw_data(raw_jacobian), owns_memory(should_own_memory) {
@@ -244,8 +244,8 @@ struct GradByParams {
   T*                                raw_data;
   bool                              owns_memory;
 
-  // raw_jacobian must point to (8 * n_layers * hsize + 3 * hsize) pre-allocated
-  // T
+  // raw_jacobian must point
+  // to (8 * n_layers * hsize + 3 * hsize) pre-allocated T
   GradByParams(T* grad_raw, int n_layers, int hsize,
                bool should_own_memory = false)
       : d_in_weight(&grad_raw[8 * hsize * n_layers]),

@@ -3,8 +3,8 @@
 
 // https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/cpp/modules/tapenade/utils/adStack.c
 
-// Added from Tapenade AdFirstAidKit (PUSH/POP) (see
-// https://www-sop.inria.fr/tropics/tapenade.html)
+// Added from Tapenade AdFirstAidKit (PUSH/POP)
+// (see https://www-sop.inria.fr/tropics/tapenade.html)
 
 #include <stdio.h>
 #include <stdlib.h>
