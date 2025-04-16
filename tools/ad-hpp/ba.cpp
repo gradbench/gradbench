@@ -1,21 +1,23 @@
-#include "gradbench/main.hpp"
-#include "gradbench/evals/ba.hpp"
+#include <algorithm>
+#include <vector>
+
 #include "ad.hpp"
+#include "gradbench/evals/ba.hpp"
+#include "gradbench/main.hpp"
 
 using adjoint_t = ad::adjoint_t<double>;
 using adjoint   = ad::adjoint<double>;
 
 class Jacobian : public Function<ba::Input, ba::JacOutput> {
 public:
-  Jacobian(ba::Input& input) :
-    Function(input) {
+  Jacobian(ba::Input& input) : Function(input) {
     adjoint::global_tape = adjoint::tape_t::create();
   }
 
   void compute(ba::JacOutput& output) {
     output = ba::SparseMat(_input.n, _input.m, _input.p);
 
-    const int cols = BA_NCAMPARAMS + 3 + 1;
+    const int           cols = BA_NCAMPARAMS + 3 + 1;
     std::vector<double> gradient(2 * cols);
 
     std::vector<adjoint_t> ad_cams(_input.cams.size());
@@ -30,25 +32,24 @@ public:
 
     for (int i = 0; i < _input.p; i++) {
       const int camIdx = _input.obs[i * 2 + 0];
-      const int ptIdx = _input.obs[i * 2 + 1];
+      const int ptIdx  = _input.obs[i * 2 + 1];
 
       adjoint::global_tape->reset();
 
       adjoint_t ad_reproj_err[2];
 
       for (size_t j = 0; j < BA_NCAMPARAMS; j++) {
-        adjoint::global_tape->register_variable(ad_cams[camIdx*BA_NCAMPARAMS+j]);
+        adjoint::global_tape->register_variable(
+            ad_cams[camIdx * BA_NCAMPARAMS + j]);
       }
       for (size_t j = 0; j < 3; j++) {
-        adjoint::global_tape->register_variable(ad_X[ptIdx*3 + j]);
+        adjoint::global_tape->register_variable(ad_X[ptIdx * 3 + j]);
       }
       adjoint::global_tape->register_variable(ad_w[i]);
 
-      ba::computeReprojError<adjoint_t>(&ad_cams[camIdx*BA_NCAMPARAMS],
-                                        &ad_X[ptIdx * 3],
-                                        &ad_w[i],
-                                        &_input.feats[i * 2],
-                                        ad_reproj_err);
+      ba::computeReprojError<adjoint_t>(&ad_cams[camIdx * BA_NCAMPARAMS],
+                                        &ad_X[ptIdx * 3], &ad_w[i],
+                                        &_input.feats[i * 2], ad_reproj_err);
 
       // Compute first row.
       {
@@ -58,10 +59,11 @@ public:
 
         int o = 0;
         for (size_t j = 0; j < BA_NCAMPARAMS; j++) {
-          gradient[2 * o++] = ad::derivative(ad_cams[camIdx*BA_NCAMPARAMS+j]);
+          gradient[2 * o++] =
+              ad::derivative(ad_cams[camIdx * BA_NCAMPARAMS + j]);
         }
         for (size_t j = 0; j < 3; j++) {
-          gradient[2 * o++] = ad::derivative(ad_X[ptIdx*3 + j]);
+          gradient[2 * o++] = ad::derivative(ad_X[ptIdx * 3 + j]);
         }
         gradient[2 * o++] = ad::derivative(ad_w[i]);
       }
@@ -75,12 +77,13 @@ public:
 
         int o = 0;
         for (size_t j = 0; j < BA_NCAMPARAMS; j++) {
-          gradient[1+ 2*o++] = ad::derivative(ad_cams[camIdx*BA_NCAMPARAMS+j]);
+          gradient[1 + 2 * o++] =
+              ad::derivative(ad_cams[camIdx * BA_NCAMPARAMS + j]);
         }
         for (size_t j = 0; j < 3; j++) {
-          gradient[1+ 2*o++] = ad::derivative(ad_X[ptIdx*3 + j]);
+          gradient[1 + 2 * o++] = ad::derivative(ad_X[ptIdx * 3 + j]);
         }
-        gradient[1+ 2*o++] = ad::derivative(ad_w[i]);
+        gradient[1 + 2 * o++] = ad::derivative(ad_w[i]);
       }
 
       output.insert_reproj_err_block(i, camIdx, ptIdx, gradient.data());
@@ -100,8 +103,7 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-  return generic_main(argc, argv, {
-      {"objective", function_main<ba::Objective>},
-      {"jacobian", function_main<Jacobian>}
-    });
+  return generic_main(argc, argv,
+                      {{"objective", function_main<ba::Objective>},
+                       {"jacobian", function_main<Jacobian>}});
 }

@@ -1,25 +1,25 @@
-#include <algorithm>
-#include "gradbench/main.hpp"
-#include "gradbench/evals/lstm.hpp"
+#include <vector>
+
 #include "ad.hpp"
+#include "gradbench/evals/lstm.hpp"
+#include "gradbench/main.hpp"
 
 using adjoint_t = ad::adjoint_t<double>;
 using adjoint   = ad::adjoint<double>;
 
-static const int TAPE_SIZE = 1000000000; // Determined experimentally.
+static const int TAPE_SIZE = 1000000000;  // Determined experimentally.
 
 class Jacobian : public Function<lstm::Input, lstm::JacOutput> {
   std::vector<adjoint_t> _main_params;
   std::vector<adjoint_t> _extra_params;
   std::vector<adjoint_t> _state;
   std::vector<adjoint_t> _sequence;
+
 public:
-  Jacobian(lstm::Input& input) :
-    Function(input),
-    _main_params(_input.main_params.size()),
-    _extra_params(_input.extra_params.size()),
-    _state(_input.state.size()),
-    _sequence(_input.sequence.size()) {
+  Jacobian(lstm::Input& input)
+      : Function(input), _main_params(_input.main_params.size()),
+        _extra_params(_input.extra_params.size()), _state(_input.state.size()),
+        _sequence(_input.sequence.size()) {
 
     adjoint::global_tape = adjoint::tape_t::create(TAPE_SIZE);
 
@@ -54,9 +54,8 @@ public:
     }
 
     adjoint_t loss;
-    lstm::objective(_input.l, _input.c, _input.b,
-                    _main_params.data(), _extra_params.data(),
-                    _state.data(), _sequence.data(),
+    lstm::objective(_input.l, _input.c, _input.b, _main_params.data(),
+                    _extra_params.data(), _state.data(), _sequence.data(),
                     &loss);
 
     ad::derivative(loss) = 1.0;
@@ -73,8 +72,8 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-  return generic_main(argc, argv, {
-      {"objective", function_main<lstm::Objective>},
-      {"jacobian", function_main<Jacobian>}
-    });;
+  return generic_main(argc, argv,
+                      {{"objective", function_main<lstm::Objective>},
+                       {"jacobian", function_main<Jacobian>}});
+  ;
 }

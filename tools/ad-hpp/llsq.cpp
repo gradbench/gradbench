@@ -1,18 +1,18 @@
-#include <algorithm>
-#include "gradbench/main.hpp"
-#include "gradbench/evals/llsq.hpp"
+#include <vector>
+
 #include "ad.hpp"
+#include "gradbench/evals/llsq.hpp"
+#include "gradbench/main.hpp"
 
 using adjoint_t = ad::adjoint_t<double>;
 using adjoint   = ad::adjoint<double>;
 
 class Gradient : public Function<llsq::Input, llsq::GradientOutput> {
   std::vector<adjoint_t> _x;
+
 public:
-  Gradient(llsq::Input& input) :
-    Function(input),
-    _x(_input.x.size()) {
-    size_t m = _input.x.size();
+  Gradient(llsq::Input& input) : Function(input), _x(_input.x.size()) {
+    size_t m             = _input.x.size();
     adjoint::global_tape = adjoint::tape_t::create();
     for (size_t i = 0; i < m; i++) {
       _x[i] = _input.x[i];
@@ -45,8 +45,10 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-  return generic_main(argc, argv, {
-      {"primal", function_main<llsq::Primal>},
-      {"gradient", function_main<Gradient>},
-    });;
+  return generic_main(argc, argv,
+                      {
+                          {"primal", function_main<llsq::Primal>},
+                          {"gradient", function_main<Gradient>},
+                      });
+  ;
 }

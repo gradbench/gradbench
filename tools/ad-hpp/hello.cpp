@@ -1,6 +1,6 @@
-#include "gradbench/main.hpp"
 #include "gradbench/evals/hello.hpp"
 #include "ad.hpp"
+#include "gradbench/main.hpp"
 
 using adjoint_t = ad::adjoint_t<double>;
 using adjoint   = ad::adjoint<double>;
@@ -24,8 +24,8 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-  return generic_main(argc, argv, {
-      {"square", function_main<hello::Square>},
-      {"double", function_main<Double>}
-    });;
+  return generic_main(argc, argv,
+                      {{"square", function_main<hello::Square>},
+                       {"double", function_main<Double>}});
+  ;
 }
