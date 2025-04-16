@@ -3,17 +3,6 @@ module GMM
 import Zygote
 import GradBench
 
-function unpack(input)
-    gmm_input = GradBench.GMM.input_from_json(input)
-
-    d = size(gmm_input.x, 1)
-    k = size(gmm_input.means, 2)
-    Qs = cat([GradBench.GMM.get_Q(d, gmm_input.icfs[:, ik]) for ik in 1:k]...;
-             dims=[3])
-
-    return (gmm_input.alphas, gmm_input.means, Qs, gmm_input.x, gmm_input.wishart)
-end
-
 Zygote.@adjoint function GradBench.GMM.diagsums(Qs)
     GradBench.GMM.diagsums(Qs),
     function (Δ)

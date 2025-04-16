@@ -7,7 +7,7 @@ module GMM
 using SpecialFunctions
 using LinearAlgebra
 
-export Wishart, GMMInput, get_Q, expdiags, diagsums
+export Wishart, GMMInput, input_from_json, objective, get_Q, expdiags, diagsums
 
 struct Wishart
     gamma::Float64
