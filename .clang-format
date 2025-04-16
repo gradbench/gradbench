@@ -1,11 +1,11 @@
 BasedOnStyle: LLVM
-IndentWidth:  2
+IndentWidth: 2
 ColumnLimit: 80
 
 PointerAlignment: Left
 ReferenceAlignment: Left
 
-BreakTemplateDeclarations: Yes 
+BreakTemplateDeclarations: Yes
 IndentRequiresClause: true
 
 AlignConsecutiveAssignments: Consecutive
@@ -22,4 +22,3 @@ MaxEmptyLinesToKeep: 1
 NamespaceIndentation: Inner
 
 IncludeBlocks: Preserve
-
