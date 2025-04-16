@@ -205,7 +205,8 @@ $ make -C tools/foo bar
 
 However, you do not need to do this in advance - compilation is done
 by a Python module that implements the GradBench protocol and runs the
-executables. Specifically, to run tool `foo` we would do:
+executables (except for `manual`, see above). Specifically, to run
+tool `foo` we would do:
 
 ```shell
 $ uv run python/gradbench/gradbench/cpp.py foo
@@ -222,7 +223,7 @@ $ ./gradbench run --eval 'uv run python/gradbench/gradbench/evals/hello/run.py' 
 Or without using `uv`:
 
 ```shell
-PYTHONPATH=python/gradbench/:$PYTHONPATH ./gradbench run --eval 'python3 python/gradbench/gradbench/evals/hello/run.py' --tool 'python3 python/gradbench/gradbench/cpp.py manual'
+$ PYTHONPATH=python/gradbench/:$PYTHONPATH ./gradbench run --eval 'python3 python/gradbench/gradbench/evals/hello/run.py' --tool 'python3 python/gradbench/gradbench/cpp.py manual'
 ```
 
 [You can also run the C++ executables completely separately from
