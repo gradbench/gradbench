@@ -63,7 +63,7 @@ in pkgs.stdenv.mkDerivation rec {
     pkgs.ocamlPackages.ocaml
   ] ++
     # Nixpkgs marks Julia as broken on Apple Silicon
-    (if isX86 then [ pkgs.julia ] else [ ]);
+    (if isX86 then [ pkgs.julia_110 ] else [ ]);
 
   # The following are environment variables used by various tools.
   RUST_SRC_PATH = pkgs.rustPlatform.rustLibSrc;

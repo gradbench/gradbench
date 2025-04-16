@@ -13,3 +13,4 @@ RUN julia --project=. -e 'import Pkg; Pkg.instantiate()'
 COPY tools/zygote /tools/zygote
 ENTRYPOINT ["julia", "--project=.", "run.jl"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
+
