@@ -4,7 +4,7 @@
 
 namespace hello {
 
-template<typename D>
+template <typename D>
 D square(D x) {
   return x * x;
 }
@@ -17,9 +17,7 @@ class Square : public Function<Input, SquareOutput> {
 public:
   Square(Input& input) : Function(input) {}
 
-  void compute(SquareOutput& output) {
-    output = _input * _input;
-  }
+  void compute(SquareOutput& output) { output = _input * _input; }
 };
 
-}
+}  // namespace hello
