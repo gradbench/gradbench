@@ -18,7 +18,7 @@ function jacobian(input)
     Qs = GradBench.GMM.get_Qs(gmm_input.icfs, k, d)
 
     J =
-        Enzyme.gradient(Reverse,
+        Enzyme.gradient(set_runtime_activity(Reverse),
                         GradBench.GMM.objective,
                         gmm_input.alphas, gmm_input.means, Qs,
                         Const(gmm_input.x), Const(gmm_input.wishart))
