@@ -1,1 +1,25 @@
-DisableFormat: true
+BasedOnStyle: LLVM
+IndentWidth:  2
+ColumnLimit: 80
+
+PointerAlignment: Left
+ReferenceAlignment: Left
+
+BreakTemplateDeclarations: Yes 
+IndentRequiresClause: true
+
+AlignConsecutiveAssignments: Consecutive
+AlignConsecutiveDeclarations: Consecutive
+AlignTrailingComments: true
+SpacesBeforeTrailingComments: 2
+
+KeepEmptyLines:
+  AtEndOfFile: true
+  AtStartOfBlock: true
+  AtStartOfFile: false
+MaxEmptyLinesToKeep: 1
+
+NamespaceIndentation: Inner
+
+IncludeBlocks: Preserve
+

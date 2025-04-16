@@ -4,9 +4,10 @@
 # who can possibly know why...
 
 CompileFlags:
-  Add: [-Icpp]
+  Add: [--std=c++17, -Icpp]
 
 ---
+# ad-hpp 
 If:
   # use leading * to allow clangd to pick up the right files
   # since clangd doesn't support relative paths to .clangd files
