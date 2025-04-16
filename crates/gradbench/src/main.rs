@@ -332,7 +332,7 @@ fn docker_build_quiet(color: Color, mut cmd: Command) -> anyhow::Result<ExitStat
     if !status.success() {
         eprint!("{}", take(&mut buffer).color(color));
     }
-    return Ok(status);
+    Ok(status)
 }
 
 /// Build the Docker image for an eval.
