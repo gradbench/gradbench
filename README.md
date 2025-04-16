@@ -165,9 +165,9 @@ above, then the eval likely works.
 
 You can run Python code without `uv` by manually installing the
 dependencies (or by using another package manager, such as `pip`). The
-file [`pyproject.toml`](./pyproject.toml) lists all required
-dependencies, but evals need only a subset of these. Specifically, the
-following are required:
+file [`pyproject.toml`](./pyproject.toml) lists the dependencies
+required by all tools, but evals need only a subset of these.
+Specifically, the following are required:
 
 - `numpy`
 - `pydantic`
