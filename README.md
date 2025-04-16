@@ -21,8 +21,8 @@ See <https://gradben.ch> for interactive performance charts generated from our l
   - [Running GradBench locally](#running-gradbench-locally)
   - [Without using Docker](#without-using-docker)
     - [Running evals outside of Docker](#running-evals-outside-of-docker)
-      - [Using `uv`](#using-uv)
-      - [Not using `uv`](#not-using-uv)
+      - [Using uv](#using-uv)
+      - [Not using uv](#not-using-uv)
     - [Running tools outside of Docker](#running-tools-outside-of-docker)
       - [Running C++-based tools](#running-c-based-tools)
   - [Without cloning this repository](#without-cloning-this-repository)
@@ -110,32 +110,37 @@ perform validation by comparing against the `manual` tool. Before
 running these evals, you must compile `manual`, like so:
 
 ```shell
-$ make -C cpp
-$ make -C tools/manual
+make -C cpp
+make -C tools/manual
 ```
 
 This requires you to have a functioning C++ compiler, but `manual`
 does not otherwise have any dependencies.
 
-##### Using `uv`
+##### Using uv
 
 The easiest way to run GradBench's Python code is to install a
-sufficiently recent version of [uv][python] (0.6.8 works as of this
+sufficiently recent version of [uv][] (0.6.8 works as of this
 writing), which is a Python package manager. Once this is done, an
 eval can be run with e.g.:
 
-```shell
-$ uv run python/gradbench/gradbench/evals/hello/run.py
-{"id": 0, "kind": "start", "eval": "hello"}
+```sh
+uv run python/gradbench/gradbench/evals/hello/run.py
+```
+
+You should see just one line of output:
+
+```json
+{ "id": 0, "kind": "start", "eval": "hello" }
 ```
 
 At this point the eval will hang, as it waits for a response from the
 tool. Just terminate it with `Ctrl-c` or `Ctrl-d` - if you see the
 above, then the eval likely works.
 
-##### Not using `uv`
+##### Not using uv
 
-You can run Python code without `uv` by manually installing the
+You can run Python code without uv by manually installing the
 dependencies (or by using another package manager, such as `pip`). The
 file [`pyproject.toml`](./pyproject.toml) lists the dependencies
 required by all tools, but evals need only a subset of these.
@@ -146,12 +151,12 @@ Specifically, the following are required:
 
 You may want to install these in a `virtualenv`.
 
-When not using `uv`, your `PYTHONPATH` must manually be set to include
+When not using uv, your `PYTHONPATH` must manually be set to include
 `python/gradbench`. For example, we can run the `hello` eval manually
 as follows:
 
-```shell
-$ PYTHONPATH=python/gradbench/:$PYTHONPATH python3 python/gradbench/gradbench/evals/hello/run.py
+```sh
+PYTHONPATH=python/gradbench/:$PYTHONPATH python3 python/gradbench/gradbench/evals/hello/run.py
 ```
 
 #### Running tools outside of Docker
@@ -172,14 +177,14 @@ as `pkg-config` or by having environment variables such as
 they expect some libraries to be available in the `cpp` directory,
 which can be achieved with:
 
-```shell
-$ make -C cpp
+```sh
+make -C cpp
 ```
 
 The executable for a tool `foo` for eval `bar` is compiled with
 
-```shell
-$ make -C tools/foo bar
+```sh
+make -C tools/foo bar
 ```
 
 However, you do not need to do this in advance - compilation is done
@@ -187,38 +192,36 @@ by a Python module `cpp.py` that implements the GradBench protocol and
 runs the executables (except for `manual`, see above). Specifically,
 to run tool `foo` we would do:
 
-```shell
-$ uv run python/gradbench/gradbench/cpp.py foo
+```sh
+uv run python/gradbench/gradbench/cpp.py foo
 ```
 
 This will seem to hang because it is waiting for a message from the
 eval. You can use the command above as the `--tool` option to the
 `gradbench` CLI. In fact, as of this writing `cpp.py` does does depend
-on any non-builtin Python module, so you can run it without `uv` or
+on any non-builtin Python module, so you can run it without uv or
 fiddling with `PYTHONPATH`:
 
-```shell
-$ python3 python/gradbench/gradbench/cpp.py foo
+```sh
+python3 python/gradbench/gradbench/cpp.py foo
 ```
 
 Putting it all together, we can run the `hello` eval with the `manual`
 tool as follows:
 
-```shell
-$ ./gradbench run --eval 'uv run python/gradbench/gradbench/evals/hello/run.py' --tool 'uv run python/gradbench/gradbench/cpp.py manual'
+```sh
+./gradbench run --eval "uv run python/gradbench/gradbench/evals/hello/run.py" --tool "python3 python/gradbench/gradbench/cpp.py manual"
 ```
 
-Or without using `uv`:
+Or without using uv:
 
-```shell
-$ PYTHONPATH=python/gradbench/:$PYTHONPATH ./gradbench run --eval 'python3 python/gradbench/gradbench/evals/hello/run.py' --tool 'python3 python/gradbench/gradbench/cpp.py manual'
+```sh
+PYTHONPATH=python/gradbench/:$PYTHONPATH ./gradbench run --eval "python3 python/gradbench/gradbench/evals/hello/run.py" --tool "python3 python/gradbench/gradbench/cpp.py manual"
 ```
 
 [You can also run the C++ executables completely separately from
-GradBench if you
-wish.](https://github.com/gradbench/gradbench/tree/main/cpp#from-the-command-line)
-This does require you to first extract the raw input from a
-`gradbench` log file.
+GradBench if you wish.](cpp#from-the-command-line) This does require
+you to first extract the raw input from a `gradbench` log file.
 
 ### Without cloning this repository
 
@@ -246,8 +249,8 @@ clearly noted at the top of a file, along with attribution, when
 applicable. All files are available under [OSI-approved licenses][].
 
 [`cargo install`]: https://doc.rust-lang.org/cargo/commands/cargo-install.html
-[ad2016]: https://arxiv.org/abs/1611.03416
 [ad2016 benchmarks]: https://www.bcl.hamilton.ie/~qobi/ad2016-benchmarks/
+[ad2016]: https://arxiv.org/abs/1611.03416
 [adbench]: https://github.com/microsoft/ADBench
 [automatic differentiation]: https://en.wikipedia.org/wiki/Automatic_differentiation
 [cmpad]: https://cmpad.readthedocs.io/
@@ -255,11 +258,12 @@ applicable. All files are available under [OSI-approved licenses][].
 [docker]: https://docs.docker.com/desktop/
 [github cli]: https://github.com/cli/cli#installation
 [jq]: https://jqlang.org/
+[json lines]: https://jsonlines.org/
+[osi-approved licenses]: https://opensource.org/licenses
 [packages]: https://github.com/orgs/gradbench/packages
 [python]: https://docs.astral.sh/uv/guides/install-python/
 [pytorch]: https://pytorch.org/
 [rust]: https://www.rust-lang.org/tools/install
 [svg]: https://raw.githubusercontent.com/gradbench/gradbench/refs/heads/ci/refs/heads/nightly/summary.svg
+[uv]: https://docs.astral.sh/uv/
 [website]: https://gradben.ch/
-[OSI-approved licenses]: https://opensource.org/licenses
-[JSON Lines]: https://jsonlines.org/

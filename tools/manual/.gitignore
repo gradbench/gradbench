@@ -1,7 +1,11 @@
 *.o
-hello
-gmm
 ba
-lstm
+det
+gmm
+hello
 ht
 kmeans
+llsq
+lse
+lstm
+ode
