@@ -118,7 +118,7 @@ can be quite large.
 
 ### Without using Docker
 
-cthe `--eval` and `--tool` options passed to the `gradbench` CLI are
+The `--eval` and `--tool` options passed to the `gradbench` CLI are
 arbitrary shell commands, and the default use of Docker is merely a
 convenience. It is possible to run GradBench without using Docker,
 although it requires you to set up the necessary dependencies on your
