@@ -119,18 +119,23 @@ end
 # how it is supposed to. This function packs the Jacobian
 # appropriately.
 function pack_J(J, k, d)
-    alphas = reshape(J[1], :)
-    means = reshape(J[2], :)
-    icf_unpacked = map(1:k) do Q_idx
+    alphas = vec(J[1])
+    means = vec(J[2])
+    icf = Vector{Float64}(undef, k * (d + (d * (d - 1)) ÷ 2))
+
+    idx = 1
+    for Q_idx in 1:k
         Q = J[3][:, :, Q_idx]
-        lt_cols = map(1:d-1) do col
-            Q[col+1:d, col]
+        icf[idx:idx+d-1] = diag(Q)
+        idx += d
+        for col in 1:d-1
+            len = d - col
+            icf[idx:idx+len-1] = @view Q[col+1:d, col]
+            idx += len
         end
-        vcat(diag(Q), lt_cols...)
     end
-    icf = collect(Iterators.flatten(icf_unpacked))
-    packed_J = vcat(alphas, means, icf)
-    packed_J
+
+    return vcat(alphas, means, icf)
 end
 
 end
