@@ -109,7 +109,7 @@ Python packages that must be made available. Further, many evals
 perform validation by comparing against the `manual` tool. Before
 running these evals, you must compile `manual`, like so:
 
-```shell
+```sh
 make -C cpp
 make -C tools/manual
 ```
