@@ -147,7 +147,7 @@ public:
   /// <param name="func">Function to be differentiated.
   ///		Should accept 2 pointers as arguments (one input, one output).
   ///		Each output will be differentiated with respect to each
-  ///input.</param>
+  ///		input.</param>
   /// <param name="input">Pointer to input data (scalar or vector)</param>
   /// <param name="input_size">Input data size (1 for scalar)</param>
   /// <param name="output_size">Size of 'func' output data</param>

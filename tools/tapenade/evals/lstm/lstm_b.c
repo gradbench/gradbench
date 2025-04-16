@@ -388,5 +388,5 @@ void lstm_objective_b(int l, int c, int b, const double* main_params,
   free(ypred);
   free(ypredb);
   free(stateb);
-      /* TFIX */  // Added to dispose memory allocated in repaired code
+  /* TFIX */  // Added to dispose memory allocated in repaired code
 }
