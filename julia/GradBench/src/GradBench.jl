@@ -2,34 +2,49 @@ module GradBench
 
 import JSON
 
-const DISPATCH_TABLE = Dict{String,Dict{String,Any}}()
+"""
+    Experiment
 
-function register!(mod, functions)
+Defines a measurment experiment.
+
+## Interface
+- `from_json()`
+- `ret = (::Experiment)(args...)`
+- Optional: `postprocess(::Experiment, ret)`
+"""
+abstract type Experiment end
+
+function from_json end
+function postprocess(::Experiment, ret)
+    return ret
+end
+
+const DISPATCH_TABLE = Dict{String,Dict{String,Experiment}}()
+
+function register!(mod, experiments)
     if haskey(DISPATCH_TABLE, mod)
         error("mod $mod is already registered")
     end
-    DISPATCH_TABLE[mod] = functions
+    DISPATCH_TABLE[mod] = experiments
     return
 end
 
 # Avoid measuring dispatch overhead
-function measure(func::F, arg) where {F}
+function measure(experiment::E, args...) where {E<:Experiment}
     start = time_ns()
-    ret = func(arg)
+    ret = func(args...)
     done = time_ns()
     return ret, done - start
 end
 
 function run(params)
     mod = DISPATCH_TABLE[params["module"]]
-    func = mod[params["function"]]
-    arg = params["input"]
+    experiment = mod[params["function"]]
     min_runs = get(params, "min_runs", 1)
     min_seconds = get(params, "min_seconds", 0)
     @assert min_runs > 0
 
-    # TODO: Prepare (parse JSON?)
-    # TODO: pre-allocate output?
+    args = from_json(experiment, params["input"])
     timings = Any[]
 
     # Measure
@@ -37,13 +52,14 @@ function run(params)
     i = 1
     ret = nothing
     while i <= min_runs || elapsed_seconds <= min_seconds
-        ret, t = measure(func, arg)
+        ret, t = measure(experiment, args...)
         push!(timings, Dict("name" => "evaluate", "nanoseconds" => t))
         elapsed_seconds += t / 1e9
         i += 1
     end
     @assert ret !== nothing
-    return Dict("success" => true, "output" => ret, "timings" => timings)
+
+    return Dict("success" => true, "output" => postprocess(experiment, ret), "timings" => timings)
 end
 
 function main(tool)
