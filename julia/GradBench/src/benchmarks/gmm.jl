@@ -82,12 +82,6 @@ function expdiags(Qs)
     end
 end
 
-function unzip(tuples)
-    map(1:length(first(tuples))) do i
-        map(tuple -> tuple[i], tuples)
-    end
-end
-
 Base.:*(::Float64, ::Nothing) = nothing
 
 # This function requires an argument 'Qs' that is not immediately part
