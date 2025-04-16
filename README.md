@@ -184,9 +184,9 @@ $ make -C tools/foo bar
 ```
 
 However, you do not need to do this in advance - compilation is done
-by a Python module that implements the GradBench protocol and runs the
-executables (except for `manual`, see above). Specifically, to run
-tool `foo` we would do:
+by a Python module `cpp.py` that implements the GradBench protocol and
+runs the executables (except for `manual`, see above). Specifically,
+to run tool `foo` we would do:
 
 ```shell
 $ uv run python/gradbench/gradbench/cpp.py foo
@@ -194,7 +194,13 @@ $ uv run python/gradbench/gradbench/cpp.py foo
 
 This will seem to hang because it is waiting for a message from the
 eval. You can use the command above as the `--tool` option to the
-`gradbench` CLI.
+`gradbench` CLI. In fact, as of this writing `cpp.py` does does depend
+on any non-builtin Python module, so you can run it without `uv` or
+fiddling with `PYTHONPATH`:
+
+```shell
+$ python3 python/gradbench/gradbench/cpp.py foo
+```
 
 Putting it all together, we can run the `hello` eval with the `manual`
 tool as follows:
