@@ -10,6 +10,7 @@
 #include "adbench/shared/defs.h"
 #include "adbench/shared/light_matrix.h"
 #include "adbench/shared/matrix.h"
+#include "gradbench/main.hpp"
 
 namespace ht {
 
