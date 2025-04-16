@@ -8,5 +8,4 @@ include("run_ht.jl")
 include("run_lse.jl")
 include("run_lstm.jl")
 
-GradBench.main("zygote")
-
+GradBench.main("zygote-jl")
