@@ -223,7 +223,7 @@ uv run ruff format
 
 ## C++
 
-We autoformat C++ code using [clang-format 19][]; note that GitHub Actions currently uses version 19.1.1 specifically, so if you have a different version (e.g. `shell.nix` currently provides version 19.1.7) then unfortunately you may experience disagreements in some cases. You can run it manually via the command line:
+We autoformat C++ code using [clang-format 19][]; note that GitHub Actions currently uses version 19.1.1 specifically, so if you have a different version (e.g. `shell.nix` currently provides version 19.1.7) then unfortunately you may experience disagreements in some cases. In any case, if you're using [VS Code][], our configuration in this repository should automatically recommend that you install the clangd extension, as well as automatically run it whenever you save a C++ file. You can also run it manually via the command line:
 
 ```sh
 git ls-files '*.c' '*.cpp' '*.h' '*.hpp' | xargs clang-format -i
