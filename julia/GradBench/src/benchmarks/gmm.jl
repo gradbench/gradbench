@@ -7,7 +7,7 @@ module GMM
 using SpecialFunctions
 using LinearAlgebra
 
-export Wishart, GMMInput, input_from_json, objective, get_Q, expdiags, diagsums
+export Wishart, GMMInput, input_from_json, objective, get_Qs, expdiags, diagsums, pack_J
 
 struct Wishart
     gamma::Float64
@@ -51,6 +51,11 @@ function get_Q(d, icf)
     ltri_unpack((icf[1:d]), icf[d+1:end])
 end
 
+function get_Qs(icfs, k, d)
+    cat([get_Q(d, icfs[:, ik]) for ik in 1:k]...;
+        dims=[3])
+end
+
 function log_gamma_distrib(a, p)
     out = 0.25 * p * (p - 1) * 1.1447298858494002 #convert(Float64, log(pi))
     out += sum(j -> loggamma(a + 0.5 * (1 - j)), 1:p)
@@ -85,6 +90,12 @@ end
 
 Base.:*(::Float64, ::Nothing) = nothing
 
+# This function requires an argument 'Qs' that is not immediately part
+# of GMMInput. Instead it must be extracted from 'icfs' using the
+# function 'get_Qs'. This is somewhat different to our other
+# implementations of GMM, where the extraction of Qs is done inside
+# the objective function itself. I believe the cause is that 'get_Qs'
+# is not handled well by some of the Julia AD tools.
 function objective(alphas, means, Qs, x, wishart::Wishart)
     d = size(x, 1)
     n = size(x, 2)
@@ -101,6 +112,25 @@ function objective(alphas, means, Qs, x, wishart::Wishart)
     end
 
     CONSTANT + slse - n * logsumexp(alphas) + log_wishart_prior(wishart, sum_qs, Qs, k)
+end
+
+# The objective function is defined in terms of Qs, which are
+# extracted from icfs. This means the Jacobian doesn't look exactly
+# how it is supposed to. This function packs the Jacobian
+# appropriately.
+function pack_J(J, k, d)
+    alphas = reshape(J[1], :)
+    means = reshape(J[2], :)
+    icf_unpacked = map(1:k) do Q_idx
+        Q = J[3][:, :, Q_idx]
+        lt_cols = map(1:d-1) do col
+            Q[col+1:d, col]
+        end
+        vcat(diag(Q), lt_cols...)
+    end
+    icf = collect(Iterators.flatten(icf_unpacked))
+    packed_J = vcat(alphas, means, icf)
+    packed_J
 end
 
 end
