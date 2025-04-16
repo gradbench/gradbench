@@ -35,8 +35,7 @@ in pkgs.stdenv.mkDerivation rec {
     pkgs.enzyme
     pkgs.pkg-config
     pkgs.llvmPackages_19.lld
-    pkgs.llvmPackages_19.clang-tools # Must come before clang for
-                                     # clangd to work.
+    pkgs.llvmPackages_19.clang-tools # Must come before clang for clangd to work.
     pkgs.llvmPackages_19.clang
     pkgs.blas
     pkgs.lapack
