@@ -22,6 +22,9 @@ def main():
     parser.add_argument("--multithreaded", action="store_true")
     args = parser.parse_args()
 
+    if args.multithreaded:
+        print("multithreading not yet implemented", file=sys.stderr)
+
     for line in sys.stdin:
         message = json.loads(line)
         response = {}
