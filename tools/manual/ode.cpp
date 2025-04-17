@@ -15,9 +15,9 @@ public:
     double tf  = 2.0;
     double y_r = _input.x[0] * tf;
 
-#pragma omp parallel reduction(*:y_r)
-    for(size_t i = 1; i <= r; i++) {
-      y_r *= _input.x[i] * tf / double(i+1);
+#pragma omp parallel reduction(* : y_r)
+    for (size_t i = 1; i <= r; i++) {
+      y_r *= _input.x[i] * tf / double(i + 1);
     }
 
 #pragma omp parallel for

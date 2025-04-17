@@ -12,7 +12,7 @@ public:
     output.resize(m);
 
     std::vector<double> sums(n);
-    #pragma omp parallel for
+#pragma omp parallel for
     for (size_t i = 0; i < n; i++) {
       double ti        = llsq::t(i, n);
       double inner_sum = llsq::s(ti);
@@ -21,8 +21,8 @@ public:
       }
       sums[i] = inner_sum;
     }
-    #pragma omp parallel for
-    for(size_t j = 0; j < m; j++) {
+#pragma omp parallel for
+    for (size_t j = 0; j < m; j++) {
       double sum = 0;
       for (size_t i = 0; i < n; i++) {
         double ti = llsq::t(i, n);

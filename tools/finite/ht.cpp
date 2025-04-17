@@ -31,18 +31,22 @@ public:
     output.jacobian.resize(err_size * ncols);
 
     if (_complicated) {
-      _engine.finite_differences(1, [&](double* theta_in, double* err) {
-        ht::objective(theta_in, _input.us.data(), &_input.data, err);
-      }, _input.theta.data(), _input.theta.size(),
-        _objective.size(),
-        &output.jacobian.data()[6 * _input.data.correspondences.size()]);
+      _engine.finite_differences(
+          1,
+          [&](double* theta_in, double* err) {
+            ht::objective(theta_in, _input.us.data(), &_input.data, err);
+          },
+          _input.theta.data(), _input.theta.size(), _objective.size(),
+          &output.jacobian.data()[6 * _input.data.correspondences.size()]);
 
       for (unsigned int j = 0; j < _input.us.size() / 2; ++j) {
-        _engine.finite_differences(1, [&](double* us_in, double* err) {
-          ht::objective(_input.theta.data(), us_in, &_input.data, err);
-        }, _input.us.data(), _input.us.size(), j * 2, 2,
-          _objective.size(),
-          _jacobian_by_us.data());
+        _engine.finite_differences(
+            1,
+            [&](double* us_in, double* err) {
+              ht::objective(_input.theta.data(), us_in, &_input.data, err);
+            },
+            _input.us.data(), _input.us.size(), j * 2, 2, _objective.size(),
+            _jacobian_by_us.data());
 
         for (int k = 0; k < 3; ++k) {
           output.jacobian[j * 3 + k] = _jacobian_by_us[j * 3 + k];

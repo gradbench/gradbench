@@ -23,7 +23,7 @@ void kmeans_objective_d(int n, int k, int d, double const* points,
     cluster_sizes[closest_j]++;
     for (int l = 0; l < d; l++) {
 #pragma omp atomic
-      cluster_sums[closest_j*d+l] += a[l];
+      cluster_sums[closest_j * d + l] += a[l];
     }
   }
 

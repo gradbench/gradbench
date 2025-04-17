@@ -597,11 +597,13 @@ void hand_objective_d(const double* const        theta,
   get_skinned_vertex_positions_d(data.model, pose_params, data.correspondences,
                                  vertex_positions, pJ);
 
-  size_t npts = data.correspondences.size();
+  size_t              npts = data.correspondences.size();
   LightMatrix<double> err(3, npts, perr, false);
 #pragma omp parallel for firstprivate(err)
   for (size_t i = 0; i < data.correspondences.size(); ++i) {
-    subtract(3, data.points.get_col(i), vertex_positions.get_col(data.correspondences[i]), err.get_col_ptr(i));
+    subtract(3, data.points.get_col(i),
+             vertex_positions.get_col(data.correspondences[i]),
+             err.get_col_ptr(i));
   }
 }
 
@@ -626,11 +628,12 @@ void hand_objective_d(const double* const theta, const double* const us,
                                  &pJ[2 * 3 * npts]);
 
   LightMatrix<double> err(3, npts, perr, false);
-  LightMatrix<double> du0(3, npts, &pJ[0], false), du1(3, npts, &pJ[3 * npts], false);
+  LightMatrix<double> du0(3, npts, &pJ[0], false),
+      du1(3, npts, &pJ[3 * npts], false);
   LightMatrix<double> hand_point(3, 1), tmp(3, 1);
 #pragma omp parallel for firstprivate(err, du0, du1, hand_point, tmp)
   for (size_t i = 0; i < data.correspondences.size(); ++i) {
-    const auto& verts = data.model.triangles[data.correspondences[i]].verts;
+    const auto& verts     = data.model.triangles[data.correspondences[i]].verts;
     const double* const u = &us[2 * i];
 
     subtract(3, vertex_positions.get_col(verts[2]),
