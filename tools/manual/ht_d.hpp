@@ -201,14 +201,14 @@ void angle_axis_to_rotation_matrix_d(const double*        angle_axis,
                                      LightMatrix<double>& R,
                                      std::array<LightMatrix<double>, 3>& dR) {
   double _sqnorm = sqnorm(3, angle_axis);
-  double norm = sqrt(_sqnorm);
+  double norm    = sqrt(_sqnorm);
   if (norm < .0001) {
     R.set_identity();
     for (int i = 0; i < 3; i++)
       dR[i].fill(0.);
     return;
   }
-  double inv_norm = 1. / norm;
+  double inv_norm   = 1. / norm;
   double inv_sqnorm = 1. / _sqnorm;
   double d_norm[3];
   scale(3, inv_norm, angle_axis, d_norm);
@@ -232,27 +232,30 @@ void angle_axis_to_rotation_matrix_d(const double*        angle_axis,
   scale(3, c, d_norm, ds);
   scale(3, -s, d_norm, dc);
 
-  double r_val[9] =
-    {
-      x * x + (1 - x * x) * c, x * y * (1 - c) + z * s, x * z * (1 - c) - y * s,
-      x * y * (1 - c) - z * s, y * y + (1 - y * y) * c, z * y * (1 - c) + x * s,
-      x * z * (1 - c) + y * s, y * z * (1 - c) - x * s, z * z + (1 - z * z) * c
-    }; // col-major
+  double r_val[9] = {x * x + (1 - x * x) * c, x * y * (1 - c) + z * s,
+                     x * z * (1 - c) - y * s, x * y * (1 - c) - z * s,
+                     y * y + (1 - y * y) * c, z * y * (1 - c) + x * s,
+                     x * z * (1 - c) + y * s, y * z * (1 - c) - x * s,
+                     z * z + (1 - z * z) * c};  // col-major
   R.set(r_val);
 
   for (int i = 0; i < 3; i++) {
-    double tmp[9] =
-      {
-        2 * x * dx[i] - 2 * x * dx[i] * c + (1 - x * x) * dc[i],
-        dx[i] * y * (1 - c) + x * dy[i] * (1 - c) - x * y * dc[i] + dz[i] * s + z * ds[i],
-        dx[i] * z * (1 - c) + x * dz[i] * (1 - c) - x * z * dc[i] - dy[i] * s - y * ds[i],
-        dx[i] * y * (1 - c) + x * dy[i] * (1 - c) - x * y * dc[i] - dz[i] * s - z * ds[i],
-        2 * y * dy[i] - 2 * y * dy[i] * c + (1 - y * y) * dc[i],
-        dz[i] * y * (1 - c) + z * dy[i] * (1 - c) - z * y * dc[i] + dx[i] * s + x * ds[i],
-        dx[i] * z * (1 - c) + x * dz[i] * (1 - c) - x * z * dc[i] + dy[i] * s + y * ds[i],
-        dy[i] * z * (1 - c) + y * dz[i] * (1 - c) - y * z * dc[i] - dx[i] * s - x * ds[i],
-        2 * z * dz[i] - 2 * z * dz[i] * c + (1 - z * z) * dc[i]
-      }; // col-major
+    double tmp[9] = {2 * x * dx[i] - 2 * x * dx[i] * c + (1 - x * x) * dc[i],
+                     dx[i] * y * (1 - c) + x * dy[i] * (1 - c) - x * y * dc[i] +
+                         dz[i] * s + z * ds[i],
+                     dx[i] * z * (1 - c) + x * dz[i] * (1 - c) - x * z * dc[i] -
+                         dy[i] * s - y * ds[i],
+                     dx[i] * y * (1 - c) + x * dy[i] * (1 - c) - x * y * dc[i] -
+                         dz[i] * s - z * ds[i],
+                     2 * y * dy[i] - 2 * y * dy[i] * c + (1 - y * y) * dc[i],
+                     dz[i] * y * (1 - c) + z * dy[i] * (1 - c) - z * y * dc[i] +
+                         dx[i] * s + x * ds[i],
+                     dx[i] * z * (1 - c) + x * dz[i] * (1 - c) - x * z * dc[i] +
+                         dy[i] * s + y * ds[i],
+                     dy[i] * z * (1 - c) + y * dz[i] * (1 - c) - y * z * dc[i] -
+                         dx[i] * s - x * ds[i],
+                     2 * z * dz[i] - 2 * z * dz[i] * c +
+                         (1 - z * z) * dc[i]};  // col-major
     dR[i].set(tmp);
   }
 }
@@ -292,7 +295,10 @@ void apply_global_transform_d_common(const LightMatrix<double>& pose_params,
 // positions - 3xN matrix,
 // Outputs:
 // pJ - pointer to memory allocated for the jacobian
-void apply_global_translation_d(const size_t& npts, const LightMatrix<double>& R, const LightMatrix<double>& pose_params, LightMatrix<double>& positions, double* pJ) {
+void apply_global_translation_d(const size_t&              npts,
+                                const LightMatrix<double>& R,
+                                const LightMatrix<double>& pose_params,
+                                LightMatrix<double>& positions, double* pJ) {
   // global translation
   LightMatrix<double> tmp;
   LightMatrix<double> J_glob_translation(3 * npts, 3, &pJ[3 * 3 * npts], false);
@@ -334,7 +340,10 @@ void apply_global_transform_d(const std::vector<int>&    corresp,
   for (int i_param = 0; i_param < 3; ++i_param) {
     LightMatrix<double> J_glob_rot(3, npts, &pJ[i_param * 3 * npts], false);
     for (size_t i_pt = 0; i_pt < npts; i_pt++) {
-      mat_mult(dR[i_param], LightMatrix<double>(3, 1, positions.get_col_ptr(corresp[i_pt]), false), &tmp);
+      mat_mult(dR[i_param],
+               LightMatrix<double>(3, 1, positions.get_col_ptr(corresp[i_pt]),
+                                   false),
+               &tmp);
       J_glob_rot.set_col(i_pt, tmp.get_col(0));
       J_glob_rot.scale_col(i_pt, -1.);
     }
@@ -693,13 +702,15 @@ void get_skinned_vertex_positions_d(const double* const         us,
   LightMatrix<double> tmp1(3, 1), tmp2(3, 1);
 #pragma omp parallel for firstprivate(tmp1, tmp2)
   for (int i = 0; i < 4 * 5; ++i) {
-    LightMatrix<double> curr_J(3, ncorresp, &pJ[(6 + i) * 3 * ncorresp], false); // 6 is offset (global params)
+    LightMatrix<double> curr_J(3, ncorresp, &pJ[(6 + i) * 3 * ncorresp],
+                               false);  // 6 is offset (global params)
     for (int j = 0; j < curr_J.cols(); ++j) {
-      const auto& verts = model.triangles[corresp[j]].verts;
-      const double* const u = &us[2 * j];
+      const auto&         verts = model.triangles[corresp[j]].verts;
+      const double* const u     = &us[2 * j];
 
-      //tmp1 = u[0] * positions_d[i].col(verts[0]) + u[1] * positions_d[i].col(verts[1])
-      //    + (1. - u[0] - u[1]) * positions_d[i].col(verts[2]);
+      // tmp1 = u[0] * positions_d[i].col(verts[0]) + u[1] *
+      // positions_d[i].col(verts[1])
+      //     + (1. - u[0] - u[1]) * positions_d[i].col(verts[2]);
       tmp1.set(positions_d[i].get_col(verts[0]));
       tmp1.scale_col(0, u[0]);
       tmp2.set(positions_d[i].get_col(verts[1]));
@@ -767,7 +778,9 @@ void ht_objective_d(const double* const theta, const ht::DataLightMatrix& data,
   LightMatrix<double> err(3, npts, perr, false);
 #pragma omp parallel for
   for (size_t i = 0; i < data.correspondences.size(); ++i) {
-    subtract(3, data.points.get_col(i), vertex_positions.get_col(data.correspondences[i]), err.get_col_ptr(i));
+    subtract(3, data.points.get_col(i),
+             vertex_positions.get_col(data.correspondences[i]),
+             err.get_col_ptr(i));
   }
 }
 
@@ -797,14 +810,17 @@ void ht_objective_d(const double* const theta, const double* const us,
 
 #pragma omp parallel for firstprivate(ht_point, tmp)
   for (size_t i = 0; i < data.correspondences.size(); ++i) {
-    const auto& verts = data.model.triangles[data.correspondences[i]].verts;
+    const auto& verts     = data.model.triangles[data.correspondences[i]].verts;
     const double* const u = &us[2 * i];
 
-    subtract(3, vertex_positions.get_col(verts[2]), vertex_positions.get_col(verts[0]), du0.get_col_ptr(i));
-    subtract(3, vertex_positions.get_col(verts[2]), vertex_positions.get_col(verts[1]), du1.get_col_ptr(i));
+    subtract(3, vertex_positions.get_col(verts[2]),
+             vertex_positions.get_col(verts[0]), du0.get_col_ptr(i));
+    subtract(3, vertex_positions.get_col(verts[2]),
+             vertex_positions.get_col(verts[1]), du1.get_col_ptr(i));
 
-    //ht_point = u[0] * vertex_positions.col(verts[0]) + u[1] * vertex_positions.col(verts[1])
-    //    + (1. - u[0] - u[1]) * vertex_positions.col(verts[2]);
+    // ht_point = u[0] * vertex_positions.col(verts[0]) + u[1] *
+    // vertex_positions.col(verts[1])
+    //     + (1. - u[0] - u[1]) * vertex_positions.col(verts[2]);
     ht_point.set(vertex_positions.get_col(verts[0]));
     ht_point.scale_col(0, u[0]);
     tmp.set(vertex_positions.get_col(verts[1]));
@@ -814,6 +830,7 @@ void ht_objective_d(const double* const theta, const double* const us,
     tmp.scale_col(0, 1. - u[0] - u[1]);
     ht_point.add(tmp);
 
-    subtract(3, data.points.get_col(i), ht_point.get_col(0), err.get_col_ptr(i));
+    subtract(3, data.points.get_col(i), ht_point.get_col(0),
+             err.get_col_ptr(i));
   }
 }

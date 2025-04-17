@@ -88,17 +88,11 @@ double logsumexp_d(int n, const double* const x, double* logsumexp_partial_d) {
   return log(semx) + mx;
 }
 
-void gmm_objective_d(int d, int k, int n,
-                     const double *alphas,
-                     const double *means,
-                     const double *icf,
-                     const double *x,
-                     gmm::Wishart wishart,
-                     double *err,
-                     double *J)
-{
-  const double CONSTANT = -n * d*0.5*log(2 * M_PI);
-  const int icf_sz = d * (d + 1) / 2;
+void gmm_objective_d(int d, int k, int n, const double* alphas,
+                     const double* means, const double* icf, const double* x,
+                     gmm::Wishart wishart, double* err, double* J) {
+  const double CONSTANT = -n * d * 0.5 * log(2 * M_PI);
+  const int    icf_sz   = d * (d + 1) / 2;
 
   std::vector<double> Qdiags(d * k);
   std::vector<double> sum_qs(k);
@@ -111,8 +105,8 @@ void gmm_objective_d(int d, int k, int n,
   std::vector<double> xcentered(d);
   std::vector<double> Qxcentered(d);
 
-  std::vector<double> curr_means_d(d*k);
-  std::vector<double> curr_q_d(d*k);
+  std::vector<double> curr_means_d(d * k);
+  std::vector<double> curr_q_d(d * k);
   std::vector<double> curr_L_d((icf_sz - d) * k);
 
   double* alphas_d = J;
@@ -122,9 +116,9 @@ void gmm_objective_d(int d, int k, int n,
   double slse = 0.;
 
   for (int ix = 0; ix < n; ix++) {
-    const double* const curr_x = &x[ix*d];
+    const double* const curr_x = &x[ix * d];
 
-#pragma omp parallel for firstprivate(xcentered,Qxcentered)
+#pragma omp parallel for firstprivate(xcentered, Qxcentered)
     for (int ik = 0; ik < k; ik++) {
       int     icf_off = ik * icf_sz;
       double* Qdiag   = &Qdiags[ik * d];
@@ -141,7 +135,8 @@ void gmm_objective_d(int d, int k, int n,
       main_term[ik] =
           alphas[ik] + sum_qs[ik] - 0.5 * sqnorm(d, Qxcentered.data());
     }
-    double lsum = logsumexp_d(k, main_term.data(), main_term.data());;
+    double lsum = logsumexp_d(k, main_term.data(), main_term.data());
+    ;
     slse += lsum;
 
 #pragma omp parallel for
@@ -154,13 +149,14 @@ void gmm_objective_d(int d, int k, int n,
         icf_d[icf_off + id] += curr_q_d[ik * d + id] * main_term[ik];
       }
       for (int i = d; i < icf_sz; i++) {
-        icf_d[icf_off + i] += curr_L_d[ik*(icf_sz - d) + (i - d)] * main_term[ik];
+        icf_d[icf_off + i] +=
+            curr_L_d[ik * (icf_sz - d) + (i - d)] * main_term[ik];
       }
     }
   }
 
   std::vector<double> lse_alphas_d(k);
-  double lse_alphas = logsumexp_d(k, alphas, lse_alphas_d.data());
+  double              lse_alphas = logsumexp_d(k, alphas, lse_alphas_d.data());
 #pragma omp parallel for
   for (int ik = 0; ik < k; ik++) {
     alphas_d[ik] -= n * lse_alphas_d[ik];

@@ -192,7 +192,8 @@ void get_skinned_vertex_positions(const ModelLightMatrix& model,
     mat_mult(transforms[i_bone], model.base_positions, &curr_positions);
     for (int i_vert = 0; i_vert < positions.ncols_; i_vert++)
       for (int i = 0; i < 3; i++) {
-        T change = curr_positions(i, i_vert) * model.weights((int)i_bone, i_vert);
+        T change =
+            curr_positions(i, i_vert) * model.weights((int)i_bone, i_vert);
 #pragma omp atomic
         positions(i, i_vert) += change;
       }

@@ -7,14 +7,13 @@
 
 #pragma once
 
+#include "gradbench/multithread.hpp"
 #include <algorithm>
 #include <cmath>
 #include <functional>
 #include <iostream>
 #include <limits>
-#include <cmath>
 #include <vector>
-#include "gradbench/multithread.hpp"
 
 const double FINITE_DIFFERENCES_DEFAULT_EPSILON =
     std::cbrt(std::numeric_limits<double>::epsilon());
@@ -63,7 +62,7 @@ std::function<T(T)> finite_differences_default_step_function(
 template <typename T>
 class FiniteDifferencesEngine {
 private:
-  int max_output_size;
+  int                         max_output_size;
   std::vector<std::vector<T>> tmp_inputs;
   std::vector<std::vector<T>> tmp_outputs_f;
   std::vector<std::vector<T>> tmp_outputs_b;
@@ -118,13 +117,12 @@ public:
   // differences based on the input value. Defaults to
   // finite_differences_default_step_function(). For fixed step use
   // [](T x){ return STEP_VALUE; }
-  FiniteDifferencesEngine(int max_output_size = 0,
-                          std::function<T(T)> step_function = finite_differences_default_step_function<T>())
-    : max_output_size(max_output_size),
-      tmp_inputs(num_threads()),
-      tmp_outputs_f(num_threads()),
-      tmp_outputs_b(num_threads()),
-      step(step_function) {
+  FiniteDifferencesEngine(int                 max_output_size = 0,
+                          std::function<T(T)> step_function =
+                              finite_differences_default_step_function<T>())
+      : max_output_size(max_output_size), tmp_inputs(num_threads()),
+        tmp_outputs_f(num_threads()), tmp_outputs_b(num_threads()),
+        step(step_function) {
     set_max_output_size(max_output_size);
   }
 
@@ -161,61 +159,59 @@ public:
   ///		input.</param>
   /// <param name="input">Pointer to input data (scalar or vector)</param>
   /// <param name="input_size">Input data size (1 for scalar)</param>
-  /// <param name="input_d_start">Offset in input where to start differentiating.</param>
-  /// <param name="input_d_size">How many elements starting at input_d_Start to differentiate.</param>
-  /// <param name="output_size">Size of 'func' output data</param>
-  /// <param name="result">Pointer to where resultant Jacobian should go.
+  /// <param name="input_d_start">Offset in input where to start
+  /// differentiating.</param> <param name="input_d_size">How many elements
+  /// starting at input_d_Start to differentiate.</param> <param
+  /// name="output_size">Size of 'func' output data</param> <param
+  /// name="result">Pointer to where resultant Jacobian should go.
   ///		Will be stored as a vector(input_d_size * output_size).
-  ///		Will store in format foreach (input) { foreach (output) {} }</param>
-  void finite_differences(int order,
-                          std::function<void(T*, T*)> func,
-                          const T* input, int input_size,
-                          int input_d_start, int input_d_size,
-                          int output_size,
-                          T* result) {
+  ///		Will store in format foreach (input) { foreach (output) {}
+  ///}</param>
+  void finite_differences(int order, std::function<void(T*, T*)> func,
+                          const T* input, int input_size, int input_d_start,
+                          int input_d_size, int output_size, T* result) {
 
 #pragma omp parallel
     {
-      std::vector<T> &tmp_input = tmp_inputs[thread_num()];
+      std::vector<T>& tmp_input = tmp_inputs[thread_num()];
       tmp_input.resize(input_size);
-      std::vector<T> &tmp_output_f = tmp_outputs_f[thread_num()];
-      std::vector<T> &tmp_output_b = tmp_outputs_b[thread_num()];
-      std::copy(input, input+input_size, tmp_input.begin());
+      std::vector<T>& tmp_output_f = tmp_outputs_f[thread_num()];
+      std::vector<T>& tmp_output_b = tmp_outputs_b[thread_num()];
+      std::copy(input, input + input_size, tmp_input.begin());
 #pragma omp for
-      for (int i = input_d_start; i < input_d_start+input_d_size; i++) {
+      for (int i = input_d_start; i < input_d_start + input_d_size; i++) {
         T input_i = input[i];
-        T delta = step(input_i);
-        T tmp_b = input_i - delta;
-        T dx = delta * 2;
-        T tmp_f = tmp_b + dx;
+        T delta   = step(input_i);
+        T tmp_b   = input_i - delta;
+        T dx      = delta * 2;
+        T tmp_f   = tmp_b + dx;
         // adjusting dx so that (tmp_b + dx) - tmp_b == dx
         dx = tmp_f - tmp_b;
         if (dx < delta * 0.5)
-          std::cerr << "WARNING: Finite difference step "
-                    << delta << " seems incompatible with the argument "
-                    << input_i << std::endl;
+          std::cerr << "WARNING: Finite difference step " << delta
+                    << " seems incompatible with the argument " << input_i
+                    << std::endl;
 
         std::fill(tmp_output_f.begin(), tmp_output_f.end(), 0);
-        for (int j = 0; j < order+1; j++) {
-          tmp_input[i] = input_i + (order/2.0-j)*dx;
+        for (int j = 0; j < order + 1; j++) {
+          tmp_input[i] = input_i + (order / 2.0 - j) * dx;
           func(tmp_input.data(), tmp_output_b.data());
-          scale_vec(tmp_output_b, binom(order,j) * (j%2 == 0 ? 1 : -1));
+          scale_vec(tmp_output_b, binom(order, j) * (j % 2 == 0 ? 1 : -1));
           add_vec(tmp_output_f, tmp_output_b);
         }
         tmp_input[i] = input[i];
 
-        scale_vec(tmp_output_f, 1/pow(dx,order));
-        vec_ins(&result[output_size * (i-input_d_start)], tmp_output_f.data(), output_size);
+        scale_vec(tmp_output_f, 1 / pow(dx, order));
+        vec_ins(&result[output_size * (i - input_d_start)], tmp_output_f.data(),
+                output_size);
       }
     }
   }
 
-
-  void finite_differences(int order,
-                          std::function<void(T*, T*)> func,
-                          const T* input, int input_size,
-                          int output_size,
+  void finite_differences(int order, std::function<void(T*, T*)> func,
+                          const T* input, int input_size, int output_size,
                           T* result) {
-    finite_differences(order, func, input, input_size, 0, input_size, output_size, result);
+    finite_differences(order, func, input, input_size, 0, input_size,
+                       output_size, result);
   }
 };

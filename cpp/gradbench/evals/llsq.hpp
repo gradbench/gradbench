@@ -1,8 +1,8 @@
 #include <vector>
 
 #include "gradbench/main.hpp"
-#include "json.hpp"
 #include "gradbench/multithread.hpp"
+#include "json.hpp"
 
 namespace llsq {
 struct Input {
@@ -36,10 +36,8 @@ void primal(size_t n, size_t m, const T* __restrict__ x, T* __restrict__ out) {
 }
 
 // Multithreaded version.
-template<>
-void primal(size_t n,
-            size_t m,
-            const double* __restrict__ x,
+template <>
+void primal(size_t n, size_t m, const double* __restrict__ x,
             double* __restrict__ out) {
   std::vector<double> sums(num_threads());
 #pragma omp parallel
@@ -47,12 +45,12 @@ void primal(size_t n,
     double sum = 0;
 #pragma omp for
     for (size_t i = 0; i < n; i++) {
-      double ti = t(i, n);
+      double ti        = t(i, n);
       double inner_sum = s(ti);
       for (size_t j = 0; j < m; j++) {
         inner_sum -= x[j] * pow(ti, j);
       }
-      sum += inner_sum*inner_sum;
+      sum += inner_sum * inner_sum;
     }
     sums[thread_num()] = sum;
   }
@@ -60,7 +58,7 @@ void primal(size_t n,
   for (auto x : sums) {
     sum += x;
   }
-  *out = sum/double(2);
+  *out = sum / double(2);
 }
 
 using json = nlohmann::json;

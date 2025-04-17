@@ -17,22 +17,14 @@ int thread_num();
 
 #include <omp.h>
 
-int num_threads() {
-  return omp_get_max_threads();
-}
+int num_threads() { return omp_get_max_threads(); }
 
-int thread_num() {
-  return omp_get_thread_num();
-}
+int thread_num() { return omp_get_thread_num(); }
 
 #else
 
-int num_threads() {
-  return 1;
-}
+int num_threads() { return 1; }
 
-int thread_num() {
-  return 0;
-}
+int thread_num() { return 0; }
 
 #endif

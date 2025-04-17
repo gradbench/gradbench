@@ -71,14 +71,10 @@ T logsumexp(int n, const T* const x) {
   return log(semx) + mx;
 }
 
-template<typename T>
-T log_wishart_prior(int p, int k,
-                    const Wishart wishart,
-                    const T* const sum_qs,
-                    const T* const Qdiags,
-                    const T* const icf)
-{
-  int n = p + wishart.m + 1;
+template <typename T>
+T log_wishart_prior(int p, int k, const Wishart wishart, const T* const sum_qs,
+                    const T* const Qdiags, const T* const icf) {
+  int n      = p + wishart.m + 1;
   int icf_sz = p * (p + 1) / 2;
 
   double C = n * p * (log(wishart.gamma) - 0.5 * log(2)) -
@@ -86,18 +82,17 @@ T log_wishart_prior(int p, int k,
 
   T out = 0;
   for (int ik = 0; ik < k; ik++) {
-    T frobenius = sqnorm(p, &Qdiags[ik * p]) + sqnorm(icf_sz - p, &icf[ik * icf_sz + p]);
-    out += 0.5 * wishart.gamma * wishart.gamma * frobenius - wishart.m * sum_qs[ik];
+    T frobenius =
+        sqnorm(p, &Qdiags[ik * p]) + sqnorm(icf_sz - p, &icf[ik * icf_sz + p]);
+    out += 0.5 * wishart.gamma * wishart.gamma * frobenius -
+           wishart.m * sum_qs[ik];
   }
 
   return out - k * C;
 }
 
-template<typename T>
-void preprocess_qs(int d, int k,
-                   const T* const icf,
-                   T* sum_qs,
-                   T* Qdiags) {
+template <typename T>
+void preprocess_qs(int d, int k, const T* const icf, T* sum_qs, T* Qdiags) {
   int icf_sz = d * (d + 1) / 2;
 #ifdef USE_OPENMP
 #pragma omp parallel for
@@ -105,19 +100,17 @@ void preprocess_qs(int d, int k,
   for (int ik = 0; ik < k; ik++) {
     sum_qs[ik] = 0.;
     for (int id = 0; id < d; id++) {
-      T q = icf[ik * icf_sz + id];
-      sum_qs[ik] = sum_qs[ik] + q;
+      T q                 = icf[ik * icf_sz + id];
+      sum_qs[ik]          = sum_qs[ik] + q;
       Qdiags[ik * d + id] = exp(q);
     }
   }
 }
 
-template<typename T>
-void Qtimesx(int d,
-             const T* const Qdiag,
-             const T* const ltri, // strictly lower triangular part
-             const T* const x,
-             T* out) {
+template <typename T>
+void Qtimesx(int d, const T* const Qdiag,
+             const T* const ltri,  // strictly lower triangular part
+             const T* const x, T* out) {
   for (int id = 0; id < d; id++) {
     out[id] = Qdiag[id] * x[id];
   }
@@ -138,7 +131,7 @@ void objective(int d, int k, int n, const T* __restrict__ const alphas,
                const double* __restrict__ const x, Wishart wishart,
                T* __restrict__ err) {
   const double CONSTANT = -n * d * 0.5 * log(2 * M_PI);
-  const int icf_sz = d * (d + 1) / 2;
+  const int    icf_sz   = d * (d + 1) / 2;
 
   std::vector<T> Qdiags(d * k);
   std::vector<T> sum_qs(k);
@@ -148,15 +141,17 @@ void objective(int d, int k, int n, const T* __restrict__ const alphas,
   std::vector<T> xcentered(d);
   std::vector<T> Qxcentered(d);
   std::vector<T> main_term(k);
-  T slse = 0.;
+  T              slse = 0.;
 
 #ifdef USE_OPENMP
-#pragma omp parallel for reduction(+:slse) firstprivate(xcentered,Qxcentered,main_term)
+#pragma omp parallel for reduction(+ : slse)                                   \
+    firstprivate(xcentered, Qxcentered, main_term)
 #endif
   for (int ix = 0; ix < n; ix++) {
     for (int ik = 0; ik < k; ik++) {
       subtract(d, &x[ix * d], &means[ik * d], &xcentered[0]);
-      Qtimesx(d, &Qdiags[ik * d], &icf[ik * icf_sz + d], &xcentered[0], &Qxcentered[0]);
+      Qtimesx(d, &Qdiags[ik * d], &icf[ik * icf_sz + d], &xcentered[0],
+              &Qxcentered[0]);
 
       main_term[ik] = alphas[ik] + sum_qs[ik] - 0.5 * sqnorm(d, &Qxcentered[0]);
     }

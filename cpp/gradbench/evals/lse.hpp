@@ -1,8 +1,8 @@
 #include <cmath>
 #include <vector>
 
-#include "gradbench/multithread.hpp"
 #include "gradbench/main.hpp"
+#include "gradbench/multithread.hpp"
 #include "json.hpp"
 
 namespace lse {
@@ -29,31 +29,31 @@ void primal(size_t n, const T* __restrict__ x, T* __restrict__ out) {
   *out = log(s) + A;
 }
 
-template<>
-void primal(size_t n, const double *__restrict__ x, double *__restrict__ out) {
+template <>
+void primal(size_t n, const double* __restrict__ x, double* __restrict__ out) {
   std::vector<double> As(num_threads());
 #pragma omp parallel
   {
     double priv_A = x[0];
-    #pragma omp for
-    for (size_t i=1; i<n; i++) {
+#pragma omp for
+    for (size_t i = 1; i < n; i++) {
       priv_A = std::max(priv_A, x[i]);
     }
     As[thread_num()] = priv_A;
   }
-  double A = std::accumulate(std::begin(As), std::end(As), 0, std::plus<double>());
+  double A =
+      std::accumulate(std::begin(As), std::end(As), 0, std::plus<double>());
 
   double s = 0;
   {
     double priv_s = 0;
-    for (size_t i=0; i<n; i++) {
+    for (size_t i = 0; i < n; i++) {
       priv_s += exp(x[i] - A);
     }
     s += priv_s;
   }
   *out = log(s) + A;
 }
-
 
 using json = nlohmann::json;
 
