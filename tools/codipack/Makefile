@@ -1,9 +1,9 @@
 CXX?=c++
 CC?=cc
-CFLAGS=-std=c++17 -O3 -Wall -I../../cpp
+CFLAGS=-std=c++17 -O3 -Wall -DCODI_ForcedInlines=1 -I../../cpp
 LDFLAGS=-lm
 
-EXECUTABLES=hello gmm lstm ba ht kmeans
+EXECUTABLES=ba det gmm hello ht kmeans llsq lse lstm ode
 
 all: $(EXECUTABLES)
 

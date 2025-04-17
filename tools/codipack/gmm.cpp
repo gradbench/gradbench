@@ -1,19 +1,24 @@
-#include "gradbench/evals/gmm.hpp"
 #include "gradbench/main.hpp"
-#include <codi.hpp>
+#include "gradbench/evals/gmm.hpp"
+#include "codi_impl.hpp"
 
-using Real = codi::RealReverse;
-using Tape = typename Real::Tape;
+class Jacobian : public Function<gmm::Input, gmm::JacOutput>, CoDiReverseRunner {
+  using Real = typename CoDiReverseRunner::Real;
 
-class Jacobian : public Function<gmm::Input, gmm::JacOutput> {
   std::vector<Real> alphas_d;
   std::vector<Real> means_d;
   std::vector<Real> icf_d;
 
+  Real error;
+
 public:
-  Jacobian(gmm::Input& input)
-      : Function(input), alphas_d(_input.k), means_d(_input.d * _input.k),
-        icf_d((_input.d * (_input.d + 1) / 2) * _input.k) {
+  Jacobian(gmm::Input& input) :
+    Function(input),
+    alphas_d(_input.k),
+    means_d(_input.d*_input.k),
+    icf_d((_input.d*(_input.d + 1) / 2)*_input.k),
+    error()
+  {
 
     for (size_t i = 0; i < alphas_d.size(); i++) {
       alphas_d[i] = _input.alphas[i];
@@ -30,46 +35,51 @@ public:
     int Jcols = (_input.k * (_input.d + 1) * (_input.d + 2)) / 2;
     output.resize(Jcols);
 
-    Tape& tape = Real::getTape();
-    tape.reset();
-    tape.setActive();
+    codiStartRecording();
 
     for (size_t i = 0; i < alphas_d.size(); i++) {
-      tape.registerInput(alphas_d[i]);
+      codiAddInput(alphas_d[i]);
     }
     for (size_t i = 0; i < means_d.size(); i++) {
-      tape.registerInput(means_d[i]);
+      codiAddInput(means_d[i]);
     }
     for (size_t i = 0; i < icf_d.size(); i++) {
-      tape.registerInput(icf_d[i]);
+      codiAddInput(icf_d[i]);
     }
 
-    Real error;
-    gmm::objective(_input.d, _input.k, _input.n, alphas_d.data(),
-                   means_d.data(), icf_d.data(), _input.x.data(),
-                   _input.wishart, &error);
 
-    tape.registerOutput(error);
-    tape.setPassive();
-    error.setGradient(1.0);
-    tape.evaluate();
+    gmm::objective(_input.d, _input.k, _input.n,
+                   alphas_d.data(),
+                   means_d.data(),
+                   icf_d.data(),
+                   _input.x.data(),
+                   _input.wishart,
+                   &error);
+
+    codiAddOutput(error);
+    codiStopRecording();
+
+    codiSetGradient(error, 1.0);
+    codiEval();
 
     int o = 0;
     for (size_t i = 0; i < alphas_d.size(); i++) {
-      output[o++] = alphas_d[i].getGradient();
+      output[o++] = codiGetGradient(alphas_d[i]);
     }
     for (size_t i = 0; i < means_d.size(); i++) {
-      output[o++] = means_d[i].getGradient();
+      output[o++] = codiGetGradient(means_d[i]);
     }
     for (size_t i = 0; i < icf_d.size(); i++) {
-      output[o++] = icf_d[i].getGradient();
+      output[o++] = codiGetGradient(icf_d[i]);
     }
+
+    codiCleanup();
   }
 };
 
 int main(int argc, char* argv[]) {
-  return generic_main(argc, argv,
-                      {{"objective", function_main<gmm::Objective>},
-                       {"jacobian", function_main<Jacobian>}});
-  ;
+  return generic_main(argc, argv, {
+      {"objective", function_main<gmm::Objective>},
+      {"jacobian", function_main<Jacobian>}
+    });;
 }
