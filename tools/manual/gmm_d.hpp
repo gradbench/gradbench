@@ -7,9 +7,9 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <vector>
-#include <algorithm>
 
 #include "adbench/shared/defs.h"
 #include "adbench/shared/matrix.h"
@@ -22,8 +22,8 @@
 // alphas: k logs of mixture weights (unnormalized), so
 //          weights = exp(log_alphas) / sum(exp(log_alphas))
 // means: d*k component means
-// icf: (d*(d+1)/2)*k inverse covariance factors 
-//                  every icf entry stores firstly log of diagonal and then 
+// icf: (d*(d+1)/2)*k inverse covariance factors
+//                  every icf entry stores firstly log of diagonal and then
 //          columnwise other entries
 //          To generate icf in MATLAB given covariance C :
 //              L = inv(chol(C, 'lower'));
@@ -32,46 +32,33 @@
 // x: d*n points
 // err: objective function output
 // J: gradient output
-void gmm_objective_d(int d, int k, int n,
-                     const double *alphas,
-                     const double *means,
-                     const double *icf,
-                     const double *x,
-                     gmm::Wishart wishart,
-                     double *err,
-                     double *J);
+void gmm_objective_d(int d, int k, int n, const double* alphas,
+                     const double* means, const double* icf, const double* x,
+                     gmm::Wishart wishart, double* err, double* J);
 
-void Qtransposetimesx(int d,
-                      const double* const Ldiag,
-                      const double* const icf,
-                      const double* const x,
-                      double* Ltransposex) {
+void Qtransposetimesx(int d, const double* const Ldiag, const double* const icf,
+                      const double* const x, double* Ltransposex) {
   int Lparamsidx = d;
   for (int i = 0; i < d; i++)
     Ltransposex[i] = Ldiag[i] * x[i];
 
   for (int i = 0; i < d; i++)
-    for (int j = i + 1; j < d; j++)
-      {
-        Ltransposex[i] += icf[Lparamsidx] * x[j];
-        Lparamsidx++;
-      }
+    for (int j = i + 1; j < d; j++) {
+      Ltransposex[i] += icf[Lparamsidx] * x[j];
+      Lparamsidx++;
+    }
 }
 
-void compute_q_inner_term(int d,
-                          const double* const Ldiag,
+void compute_q_inner_term(int d, const double* const Ldiag,
                           const double* const xcentered,
-                          const double* const Lxcentered,
-                          double* logLdiag_d) {
+                          const double* const Lxcentered, double* logLdiag_d) {
   for (int i = 0; i < d; i++) {
     logLdiag_d[i] = 1. - Ldiag[i] * xcentered[i] * Lxcentered[i];
   }
 }
 
-void compute_L_inner_term(int d,
-                          const double* const xcentered,
-                          const double* const Lxcentered,
-                          double* L_d) {
+void compute_L_inner_term(int d, const double* const xcentered,
+                          const double* const Lxcentered, double* L_d) {
   int Lparamsidx = 0;
   for (int i = 0; i < d; i++) {
     int n_curr_elems = d - i - 1;
@@ -82,19 +69,17 @@ void compute_L_inner_term(int d,
   }
 }
 
-double logsumexp_d(int n, const double* const x, double *logsumexp_partial_d)
-{
-  int max_elem = arr_max_idx(n, x);
-  double mx = x[max_elem];
-  double semx = 0.;
+double logsumexp_d(int n, const double* const x, double* logsumexp_partial_d) {
+  int    max_elem = arr_max_idx(n, x);
+  double mx       = x[max_elem];
+  double semx     = 0.;
   for (int i = 0; i < n; i++) {
     logsumexp_partial_d[i] = exp(x[i] - mx);
     semx += logsumexp_partial_d[i];
   }
   if (semx == 0.) {
     std::fill(logsumexp_partial_d, logsumexp_partial_d + n, 0.0);
-  }
-  else {
+  } else {
     logsumexp_partial_d[max_elem] -= semx;
     for (int i = 0; i < n; i++)
       logsumexp_partial_d[i] /= semx;
@@ -115,7 +100,7 @@ void gmm_objective_d(int d, int k, int n,
   const double CONSTANT = -n * d*0.5*log(2 * M_PI);
   const int icf_sz = d * (d + 1) / 2;
 
-  std::vector<double> Qdiags(d*k);
+  std::vector<double> Qdiags(d * k);
   std::vector<double> sum_qs(k);
 
   gmm::preprocess_qs(d, k, icf, sum_qs.data(), Qdiags.data());
@@ -130,9 +115,9 @@ void gmm_objective_d(int d, int k, int n,
   std::vector<double> curr_q_d(d*k);
   std::vector<double> curr_L_d((icf_sz - d) * k);
 
-  double *alphas_d = J;
-  double *means_d = &J[k];
-  double *icf_d = &J[k + d * k];
+  double* alphas_d = J;
+  double* means_d  = &J[k];
+  double* icf_d    = &J[k + d * k];
 
   double slse = 0.;
 
@@ -141,15 +126,20 @@ void gmm_objective_d(int d, int k, int n,
 
 #pragma omp parallel for firstprivate(xcentered,Qxcentered)
     for (int ik = 0; ik < k; ik++) {
-      int icf_off = ik * icf_sz;
-      double *Qdiag = &Qdiags[ik*d];
+      int     icf_off = ik * icf_sz;
+      double* Qdiag   = &Qdiags[ik * d];
 
-      subtract(d, curr_x, &means[ik*d], xcentered.data());
-      gmm::Qtimesx(d, Qdiag, &icf[ik*icf_sz + d], xcentered.data(), Qxcentered.data());
-      Qtransposetimesx(d, Qdiag, &icf[icf_off], Qxcentered.data(), &curr_means_d[ik*d]);
-      compute_q_inner_term(d, Qdiag, xcentered.data(), Qxcentered.data(), &curr_q_d[ik*d]);
-      compute_L_inner_term(d, xcentered.data(), Qxcentered.data(), &curr_L_d[ik*(icf_sz - d)]);
-      main_term[ik] = alphas[ik] + sum_qs[ik] - 0.5*sqnorm(d, Qxcentered.data());
+      subtract(d, curr_x, &means[ik * d], xcentered.data());
+      gmm::Qtimesx(d, Qdiag, &icf[ik * icf_sz + d], xcentered.data(),
+                   Qxcentered.data());
+      Qtransposetimesx(d, Qdiag, &icf[icf_off], Qxcentered.data(),
+                       &curr_means_d[ik * d]);
+      compute_q_inner_term(d, Qdiag, xcentered.data(), Qxcentered.data(),
+                           &curr_q_d[ik * d]);
+      compute_L_inner_term(d, xcentered.data(), Qxcentered.data(),
+                           &curr_L_d[ik * (icf_sz - d)]);
+      main_term[ik] =
+          alphas[ik] + sum_qs[ik] - 0.5 * sqnorm(d, Qxcentered.data());
     }
     double lsum = logsumexp_d(k, main_term.data(), main_term.data());;
     slse += lsum;
@@ -157,11 +147,11 @@ void gmm_objective_d(int d, int k, int n,
 #pragma omp parallel for
     for (int ik = 0; ik < k; ik++) {
       int means_off = ik * d;
-      int icf_off = ik * icf_sz;
+      int icf_off   = ik * icf_sz;
       alphas_d[ik] += main_term[ik];
       for (int id = 0; id < d; id++) {
         means_d[means_off + id] += curr_means_d[means_off + id] * main_term[ik];
-        icf_d[icf_off + id] += curr_q_d[ik*d + id] * main_term[ik];
+        icf_d[icf_off + id] += curr_q_d[ik * d + id] * main_term[ik];
       }
       for (int i = d; i < icf_sz; i++) {
         icf_d[icf_off + i] += curr_L_d[ik*(icf_sz - d) + (i - d)] * main_term[ik];
@@ -175,14 +165,17 @@ void gmm_objective_d(int d, int k, int n,
   for (int ik = 0; ik < k; ik++) {
     alphas_d[ik] -= n * lse_alphas_d[ik];
     for (int id = 0; id < d; id++) {
-      icf_d[ik*icf_sz + id] += wishart.gamma*wishart.gamma * Qdiags[ik*d + id] * Qdiags[ik*d + id]
-        - wishart.m;
+      icf_d[ik * icf_sz + id] += wishart.gamma * wishart.gamma *
+                                     Qdiags[ik * d + id] * Qdiags[ik * d + id] -
+                                 wishart.m;
     }
     for (int i = d; i < icf_sz; i++) {
-      icf_d[ik*icf_sz + i] += wishart.gamma*wishart.gamma*icf[ik*icf_sz + i];
+      icf_d[ik * icf_sz + i] +=
+          wishart.gamma * wishart.gamma * icf[ik * icf_sz + i];
     }
   }
 
   *err = CONSTANT + slse - n * lse_alphas;
-  *err += gmm::log_wishart_prior(d, k, wishart, sum_qs.data(), Qdiags.data(), icf);
+  *err +=
+      gmm::log_wishart_prior(d, k, wishart, sum_qs.data(), Qdiags.data(), icf);
 }

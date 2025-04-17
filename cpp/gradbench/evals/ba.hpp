@@ -7,11 +7,11 @@
 
 #pragma once
 
-#include <vector>
-#include <cmath>
 #include "adbench/shared/matrix.h"
 #include "gradbench/main.hpp"
 #include "json.hpp"
+#include <cmath>
+#include <vector>
 
 #define BA_NCAMPARAMS 11
 #define BA_ROT_IDX 0
@@ -35,17 +35,13 @@ namespace ba {
 // distorted = radial_distort(projective2euclidean(Xcam), radial_parameters)
 // proj = distorted * f + principal_point
 // err = sqsum(proj - measurement)
-template<typename T>
-void computeReprojError(
-                        const T* const cam,
-                        const T* const X,
-                        const T* const w,
-                        const double* const feat,
-                        T *err);
+template <typename T>
+void computeReprojError(const T* const cam, const T* const X, const T* const w,
+                        const double* const feat, T* err);
 
 // w: 1
 // w_err: 1
-template<typename T>
+template <typename T>
 void computeZachWeightError(const T* const w, T* err);
 
 // n number of cameras
@@ -67,15 +63,10 @@ void computeZachWeightError(const T* const w, T* err);
 // distorted = radial_distort(projective2euclidean(Xcam), radial_parameters)
 // proj = distorted * f + principal_point
 // err = sqsum(proj - measurement)
-template<typename T>
-void objective(int n, int m, int p,
-               const T* const cams,
-               const T* const X,
-               const T* const w,
-               const int* const obs,
-               const double* const feats,
-               T* reproj_err,
-               T* w_err);
+template <typename T>
+void objective(int n, int m, int p, const T* const cams, const T* const X,
+               const T* const w, const int* const obs,
+               const double* const feats, T* reproj_err, T* w_err);
 
 // rot: 3 rotation parameters
 // pt: 3 point to be rotated
@@ -87,16 +78,15 @@ void objective(int n, int m, int p,
 //  n = w / theta;
 //  n_x = au_cross_matrix(n);
 //  R = eye(3) + n_x*sin(theta) + n_x*n_x*(1 - cos(theta));
-template<typename T>
-void rodrigues_rotate_point(const T* const rot,
-                            const T* const pt,
-                            T *rotatedPt);
+template <typename T>
+void rodrigues_rotate_point(const T* const rot, const T* const pt,
+                            T* rotatedPt);
 
 ////////////////////////////////////////////////////////////
 //////////////////// Definitions ///////////////////////////
 ////////////////////////////////////////////////////////////
 
-template<typename T>
+template <typename T>
 T sqsum(int n, const T* const x) {
   T res = 0;
   for (int i = 0; i < n; i++)
@@ -104,18 +94,16 @@ T sqsum(int n, const T* const x) {
   return res;
 }
 
-template<typename T>
-void rodrigues_rotate_point(const T* const rot,
-                            const T* const pt,
-                            T *rotatedPt) {
+template <typename T>
+void rodrigues_rotate_point(const T* const rot, const T* const pt,
+                            T* rotatedPt) {
   T sqtheta = sqsum(3, rot);
   if (sqtheta != 0) {
-    T theta, costheta, sintheta, theta_inverse,
-      w[3], w_cross_pt[3], tmp;
+    T theta, costheta, sintheta, theta_inverse, w[3], w_cross_pt[3], tmp;
 
-    theta = sqrt(sqtheta);
-    costheta = cos(theta);
-    sintheta = sin(theta);
+    theta         = sqrt(sqtheta);
+    costheta      = cos(theta);
+    sintheta      = sin(theta);
     theta_inverse = 1.0 / theta;
 
     for (int i = 0; i < 3; i++)
@@ -123,8 +111,7 @@ void rodrigues_rotate_point(const T* const rot,
 
     cross(w, pt, w_cross_pt);
 
-    tmp = (w[0] * pt[0] + w[1] * pt[1] + w[2] * pt[2]) *
-      (1. - costheta);
+    tmp = (w[0] * pt[0] + w[1] * pt[1] + w[2] * pt[2]) * (1. - costheta);
 
     for (int i = 0; i < 3; i++)
       rotatedPt[i] = pt[i] * costheta + w_cross_pt[i] * sintheta + w[i] * tmp;
@@ -137,22 +124,19 @@ void rodrigues_rotate_point(const T* const rot,
   }
 }
 
-template<typename T>
-void radial_distort(const T* const rad_params,
-                    T *proj) {
+template <typename T>
+void radial_distort(const T* const rad_params, T* proj) {
   T rsq, L;
-  rsq = sqsum(2, proj);
-  L = 1. + rad_params[0] * rsq + rad_params[1] * rsq * rsq;
+  rsq     = sqsum(2, proj);
+  L       = 1. + rad_params[0] * rsq + rad_params[1] * rsq * rsq;
   proj[0] = proj[0] * L;
   proj[1] = proj[1] * L;
 }
 
-template<typename T>
-void project(const T* const cam,
-             const T* const X,
-             T* proj) {
+template <typename T>
+void project(const T* const cam, const T* const X, T* proj) {
   const T* const C = &cam[3];
-  T Xo[3], Xcam[3];
+  T              Xo[3], Xcam[3];
 
   Xo[0] = X[0] - C[0];
   Xo[1] = X[1] - C[1];
@@ -169,22 +153,19 @@ void project(const T* const cam,
   proj[1] = proj[1] * cam[6] + cam[8];
 }
 
-template<typename T>
-void computeReprojError(const T* const cam,
-                        const T* const X,
-                        const T* const w,
-                        const double* const feat,
-                        T *err) {
+template <typename T>
+void computeReprojError(const T* const cam, const T* const X, const T* const w,
+                        const double* const feat, T* err) {
   T proj[2];
   project(cam, X, proj);
 
-  err[0] = (*w)*(proj[0] - feat[0]);
-  err[1] = (*w)*(proj[1] - feat[1]);
+  err[0] = (*w) * (proj[0] - feat[0]);
+  err[1] = (*w) * (proj[1] - feat[1]);
 }
 
-template<typename T>
+template <typename T>
 void computeZachWeightError(const T* const w, T* err) {
-  *err = 1 - (*w)*(*w);
+  *err = 1 - (*w) * (*w);
 }
 
 template<typename T>
@@ -199,9 +180,9 @@ void objective(int n, int m, int p,
 #pragma omp parallel for
   for (int i = 0; i < p; i++) {
     int camIdx = obs[i * 2 + 0];
-    int ptIdx = obs[i * 2 + 1];
-    computeReprojError(&cams[camIdx * BA_NCAMPARAMS], &X[ptIdx * 3],
-                       &w[i], &feats[i * 2], &reproj_err[2 * i]);
+    int ptIdx  = obs[i * 2 + 1];
+    computeReprojError(&cams[camIdx * BA_NCAMPARAMS], &X[ptIdx * 3], &w[i],
+                       &feats[i * 2], &reproj_err[2 * i]);
   }
 
 #pragma omp parallel for
@@ -217,17 +198,17 @@ void objective(int n, int m, int p,
 // element in the row. Similarly for values.
 class SparseMat {
 public:
-  int n, m, p; // number of cams, points and observations
-  int nrows, ncols;
-  std::vector<int> rows;
-  std::vector<int> cols;
+  int                 n, m, p;  // number of cams, points and observations
+  int                 nrows, ncols;
+  std::vector<int>    rows;
+  std::vector<int>    cols;
   std::vector<double> vals;
 
   SparseMat();
   SparseMat(int n_, int m_, int p_);
 
-  void insert_reproj_err_block(int obsIdx,
-                               int camIdx, int ptIdx, const double* const J);
+  void insert_reproj_err_block(int obsIdx, int camIdx, int ptIdx,
+                               const double* const J);
 
   void insert_w_err_block(int wIdx, double w_d);
 
@@ -253,21 +234,21 @@ void SparseMat::insert_reproj_err_block(int obsIdx, int camIdx, int ptIdx,
   rows.push_back(rows.back() + n_new_cols);
 
   for (int i_row = 0; i_row < 2; i_row++) {
-      for (int i = 0; i < BA_NCAMPARAMS; i++) {
-        cols.push_back(BA_NCAMPARAMS * camIdx + i);
-        vals.push_back(J[2 * i + i_row]);
-      }
-      int col_offset = BA_NCAMPARAMS * n;
-      int val_offset = BA_NCAMPARAMS * 2;
-      for (int i = 0; i < 3; i++) {
-        cols.push_back(col_offset + 3 * ptIdx + i);
-        vals.push_back(J[val_offset + 2 * i + i_row]);
-      }
-      col_offset += 3 * m;
-      val_offset += 3 * 2;
-      cols.push_back(col_offset + obsIdx);
-      vals.push_back(J[val_offset + i_row]);
+    for (int i = 0; i < BA_NCAMPARAMS; i++) {
+      cols.push_back(BA_NCAMPARAMS * camIdx + i);
+      vals.push_back(J[2 * i + i_row]);
     }
+    int col_offset = BA_NCAMPARAMS * n;
+    int val_offset = BA_NCAMPARAMS * 2;
+    for (int i = 0; i < 3; i++) {
+      cols.push_back(col_offset + 3 * ptIdx + i);
+      vals.push_back(J[val_offset + 2 * i + i_row]);
+    }
+    col_offset += 3 * m;
+    val_offset += 3 * 2;
+    cols.push_back(col_offset + obsIdx);
+    vals.push_back(J[val_offset + i_row]);
+  }
 }
 
 void SparseMat::insert_w_err_block(int wIdx, double w_d) {
@@ -288,9 +269,9 @@ void SparseMat::clear() {
 }
 
 struct Input {
-  int n = 0, m = 0, p = 0;
+  int                 n = 0, m = 0, p = 0;
   std::vector<double> cams, X, w, feats;
-  std::vector<int> obs;
+  std::vector<int>    obs;
 };
 
 struct ObjOutput {
@@ -307,9 +288,9 @@ void from_json(const json& j, Input& p) {
   p.m = j["m"].get<int>();
   p.p = j["p"].get<int>();
 
-  auto cam = j["cam"].get<std::vector<double>>();
-  auto x = j["x"].get<std::vector<double>>();
-  auto w = j["w"].get<double>();
+  auto cam  = j["cam"].get<std::vector<double>>();
+  auto x    = j["x"].get<std::vector<double>>();
+  auto w    = j["w"].get<double>();
   auto feat = j["feat"].get<std::vector<double>>();
 
   int nCamParams = 11;
@@ -328,7 +309,7 @@ void from_json(const json& j, Input& p) {
 
   for (int i = 0; i < p.m; i++) {
     for (int j = 0; j < 3; j++) {
-      p.X[i*3+j] = x[j];
+      p.X[i * 3 + j] = x[j];
     }
   }
 
@@ -337,7 +318,7 @@ void from_json(const json& j, Input& p) {
   }
 
   int camIdx = 0;
-  int ptIdx = 0;
+  int ptIdx  = 0;
   for (int i = 0; i < p.p; i++) {
     p.obs[i * 2 + 0] = (camIdx++ % p.n);
     p.obs[i * 2 + 1] = (ptIdx++ % p.m);
@@ -353,44 +334,32 @@ void to_json(nlohmann::json& j, const ObjOutput& p) {
   std::vector<double> reproj_err(2);
   reproj_err[0] = p.reproj_err[0];
   reproj_err[1] = p.reproj_err[1];
-  j = {
-    {"reproj_error",
-     {{"elements", reproj_err},
-      {"repeated", p.reproj_err.size()/2}}},
-    {"w_err",
-     {{"element", p.w_err[0]},
-      {"repeated", p.w_err.size()}
-     }
-    }
-  };
+  j             = {{"reproj_error",
+                    {{"elements", reproj_err}, {"repeated", p.reproj_err.size() / 2}}},
+                   {"w_err", {{"element", p.w_err[0]}, {"repeated", p.w_err.size()}}}};
 }
 
 void to_json(nlohmann::json& j, const JacOutput& p) {
-  int num_reproj_err_elems = 2*(BA_NCAMPARAMS+4);
+  int num_reproj_err_elems = 2 * (BA_NCAMPARAMS + 4);
 
-  std::vector<double> repeated_vals(num_reproj_err_elems+1);
-  std::copy(p.vals.begin(),
-            p.vals.begin()+num_reproj_err_elems,
+  std::vector<double> repeated_vals(num_reproj_err_elems + 1);
+  std::copy(p.vals.begin(), p.vals.begin() + num_reproj_err_elems,
             repeated_vals.begin());
   repeated_vals[num_reproj_err_elems] = p.vals.back();
 
-  std::vector<int> repeated_rows(num_reproj_err_elems+1);
-  std::copy(p.rows.begin(),
-            p.rows.begin()+num_reproj_err_elems,
+  std::vector<int> repeated_rows(num_reproj_err_elems + 1);
+  std::copy(p.rows.begin(), p.rows.begin() + num_reproj_err_elems,
             repeated_rows.begin());
   repeated_rows[num_reproj_err_elems] = p.rows.back();
 
-  std::vector<int> repeated_cols(num_reproj_err_elems+1);
-  std::copy(p.cols.begin(),
-            p.cols.begin()+num_reproj_err_elems,
+  std::vector<int> repeated_cols(num_reproj_err_elems + 1);
+  std::copy(p.cols.begin(), p.cols.begin() + num_reproj_err_elems,
             repeated_cols.begin());
   repeated_cols[num_reproj_err_elems] = p.cols.back();
 
-  j = {
-    {"rows", repeated_rows},
-    {"cols", repeated_cols},
-    {"vals", repeated_vals}
-  };
+  j = {{"rows", repeated_rows},
+       {"cols", repeated_cols},
+       {"vals", repeated_vals}};
 }
 
 class Objective : public Function<Input, ObjOutput> {
@@ -400,10 +369,9 @@ public:
   void compute(ObjOutput& output) {
     output.reproj_err.resize(2 * _input.p);
     output.w_err.resize(_input.p);
-    objective(_input.n, _input.m, _input.p,
-              _input.cams.data(), _input.X.data(), _input.w.data(),
-              _input.obs.data(), _input.feats.data(),
+    objective(_input.n, _input.m, _input.p, _input.cams.data(), _input.X.data(),
+              _input.w.data(), _input.obs.data(), _input.feats.data(),
               output.reproj_err.data(), output.w_err.data());
   }
 };
-}
+}  // namespace ba

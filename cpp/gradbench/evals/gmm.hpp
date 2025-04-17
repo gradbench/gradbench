@@ -8,8 +8,10 @@
 #pragma once
 
 #include <vector>
-#include "adbench/shared/matrix.h"
+
 #include "adbench/shared/defs.h"
+#include "adbench/shared/matrix.h"
+#include "gradbench/main.hpp"
 
 namespace gmm {
 //// Declarations
@@ -22,8 +24,8 @@ typedef ::Wishart Wishart;
 // alphas: k logs of mixture weights (unnormalized), so
 //          weights = exp(log_alphas) / sum(exp(log_alphas))
 // means: d*k component means
-// icf: (d*(d+1)/2)*k inverse covariance factors 
-//                  every icf entry stores firstly log of diagonal and then 
+// icf: (d*(d+1)/2)*k inverse covariance factors
+//                  every icf entry stores firstly log of diagonal and then
 //          columnwise other entris
 //          To generate icf in MATLAB given covariance C :
 //              L = inv(chol(C, 'lower'));
@@ -31,11 +33,12 @@ typedef ::Wishart Wishart;
 // wishart: wishart distribution parameters
 // x: d*n points
 // err: 1 output
-template<typename T>
+template <typename T>
 void objective(int d, int k, int n, const T* const alphas, const T* const means,
-               const T* const icf, const double* const x, Wishart wishart, T* err);
+               const T* const icf, const double* const x, Wishart wishart,
+               T* err);
 
-template<typename T>
+template <typename T>
 T logsumexp(int n, const T* const x);
 
 // p: dim
@@ -44,37 +47,27 @@ T logsumexp(int n, const T* const x);
 // sum_qs: k sums of log diags of Qs
 // Qdiags: d*k
 // icf: (p*(p+1)/2)*k inverse covariance factors
-template<typename T>
-T log_wishart_prior(int p, int k,
-                    Wishart wishart,
-                    const T* const sum_qs,
-                    const T* const Qdiags,
-                    const T* const icf);
+template <typename T>
+T log_wishart_prior(int p, int k, Wishart wishart, const T* const sum_qs,
+                    const T* const Qdiags, const T* const icf);
 
-template<typename T>
-void preprocess_qs(int d, int k,
-                   const T* const icf,
-                   T* sum_qs,
-                   T* Qdiags);
+template <typename T>
+void preprocess_qs(int d, int k, const T* const icf, T* sum_qs, T* Qdiags);
 
-template<typename T>
-void Qtimesx(int d,
-             const T* const Qdiag,
-             const T* const ltri, // strictly lower triangular part
-             const T* const x,
-             T* out);
+template <typename T>
+void Qtimesx(int d, const T* const Qdiag,
+             const T* const ltri,  // strictly lower triangular part
+             const T* const x, T* out);
 
 //// Definitions
 
-template<typename T>
-T logsumexp(int n, const T* const x)
-{
-  T mx = arr_max(n, x);
+template <typename T>
+T logsumexp(int n, const T* const x) {
+  T mx   = arr_max(n, x);
   T semx = 0.;
-  for (int i = 0; i < n; i++)
-    {
-      semx = semx + exp(x[i] - mx);
-    }
+  for (int i = 0; i < n; i++) {
+    semx = semx + exp(x[i] - mx);
+  }
   return log(semx) + mx;
 }
 
@@ -88,7 +81,8 @@ T log_wishart_prior(int p, int k,
   int n = p + wishart.m + 1;
   int icf_sz = p * (p + 1) / 2;
 
-  double C = n * p * (log(wishart.gamma) - 0.5 * log(2)) - log_gamma_distrib(0.5 * n, p);
+  double C = n * p * (log(wishart.gamma) - 0.5 * log(2)) -
+             log_gamma_distrib(0.5 * n, p);
 
   T out = 0;
   for (int ik = 0; ik < k; ik++) {
@@ -137,13 +131,11 @@ void Qtimesx(int d,
   }
 }
 
-template<typename T>
-void objective(int d, int k, int n,
-               const T* __restrict__ const alphas,
+template <typename T>
+void objective(int d, int k, int n, const T* __restrict__ const alphas,
                const T* __restrict__ const means,
                const T* __restrict__ const icf,
-               const double* __restrict__ const x,
-               Wishart wishart,
+               const double* __restrict__ const x, Wishart wishart,
                T* __restrict__ err) {
   const double CONSTANT = -n * d * 0.5 * log(2 * M_PI);
   const int icf_sz = d * (d + 1) / 2;
@@ -182,9 +174,9 @@ void objective(int d, int k, int n,
 //// Interface
 
 struct Input {
-  int d, k, n;
+  int                 d, k, n;
   std::vector<double> alphas, means, icf, x;
-  Wishart wishart;
+  Wishart             wishart;
 };
 
 typedef double ObjOutput;
@@ -194,14 +186,14 @@ typedef std::vector<double> JacOutput;
 using json = nlohmann::json;
 
 void from_json(const json& j, Input& p) {
-  p.d = j["d"].get<int>();
-  p.k = j["k"].get<int>();
-  p.n = j["n"].get<int>();
+  p.d      = j["d"].get<int>();
+  p.k      = j["k"].get<int>();
+  p.n      = j["n"].get<int>();
   p.alphas = j["alpha"].get<std::vector<double>>();
 
   auto means = j["means"].get<std::vector<std::vector<double>>>();
-  auto icf = j["icf"].get<std::vector<std::vector<double>>>();
-  auto x = j["x"].get<std::vector<std::vector<double>>>();
+  auto icf   = j["icf"].get<std::vector<std::vector<double>>>();
+  auto x     = j["x"].get<std::vector<std::vector<double>>>();
   for (int i = 0; i < p.k; i++) {
     p.means.insert(p.means.end(), means[i].begin(), means[i].end());
     p.icf.insert(p.icf.end(), icf[i].begin(), icf[i].end());
@@ -211,7 +203,7 @@ void from_json(const json& j, Input& p) {
   }
 
   p.wishart.gamma = j["gamma"].get<double>();
-  p.wishart.m = j["m"].get<int>();
+  p.wishart.m     = j["m"].get<int>();
 }
 
 class Objective : public Function<Input, ObjOutput> {
@@ -219,11 +211,10 @@ public:
   Objective(Input& input) : Function(input) {}
 
   void compute(ObjOutput& output) {
-    objective(_input.d, _input.k, _input.n,
-              _input.alphas.data(), _input.means.data(),
-              _input.icf.data(), _input.x.data(), _input.wishart,
-              &output);
+    objective(_input.d, _input.k, _input.n, _input.alphas.data(),
+              _input.means.data(), _input.icf.data(), _input.x.data(),
+              _input.wishart, &output);
   }
 };
 
-}
+}  // namespace gmm

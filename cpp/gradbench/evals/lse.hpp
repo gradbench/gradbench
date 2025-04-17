@@ -1,6 +1,8 @@
-#include <vector>
 #include <cmath>
+#include <vector>
+
 #include "gradbench/multithread.hpp"
+#include "gradbench/main.hpp"
 #include "json.hpp"
 
 namespace lse {
@@ -9,18 +11,18 @@ struct Input {
   std::vector<double> x;
 };
 
-typedef double PrimalOutput;
+typedef double              PrimalOutput;
 typedef std::vector<double> GradientOutput;
 
-template<typename T>
-void primal(size_t n, const T *__restrict__ x, T *__restrict__ out) {
+template <typename T>
+void primal(size_t n, const T* __restrict__ x, T* __restrict__ out) {
   T A = x[0];
-  for (size_t i=1; i<n; i++) {
+  for (size_t i = 1; i < n; i++) {
     A = std::max(A, x[i]);
   }
 
   T s = 0;
-  for (size_t i=0; i<n; i++) {
+  for (size_t i = 0; i < n; i++) {
     s += exp(x[i] - A);
   }
 
@@ -69,4 +71,4 @@ public:
   }
 };
 
-}
+}  // namespace lse

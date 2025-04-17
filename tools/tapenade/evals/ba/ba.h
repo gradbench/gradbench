@@ -16,9 +16,9 @@ extern "C" {
 #define BA_X0_IDX 7
 #define BA_RAD_IDX 9
 
-#include <stdlib.h>
-#include <math.h>
 #include <float.h>
+#include <math.h>
+#include <stdlib.h>
 
 #include "adbench/shared/defs.h"
 
@@ -36,18 +36,9 @@ extern "C" {
 // feats: 2*p features (x,y coordinates corresponding to observations)
 // reproj_err: 2*p errors of observations
 // w_err: p weight "error" terms
-void ba_objective(
-    int n,
-    int m,
-    int p,
-    double const* cams,
-    double const* X,
-    double const* w,
-    int const* obs,
-    double const* feats,
-    double* reproj_err,
-    double* w_err
-);
+void ba_objective(int n, int m, int p, double const* cams, double const* X,
+                  double const* w, int const* obs, double const* feats,
+                  double* reproj_err, double* w_err);
 
 #ifdef __cplusplus
 }

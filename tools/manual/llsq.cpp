@@ -1,6 +1,6 @@
-#include <algorithm>
-#include "gradbench/main.hpp"
 #include "gradbench/evals/llsq.hpp"
+#include "gradbench/main.hpp"
+#include <algorithm>
 
 class Gradient : public Function<llsq::Input, llsq::GradientOutput> {
 public:
@@ -14,7 +14,7 @@ public:
     std::vector<double> sums(n);
     #pragma omp parallel for
     for (size_t i = 0; i < n; i++) {
-      double ti = llsq::t(i, n);
+      double ti        = llsq::t(i, n);
       double inner_sum = llsq::s(ti);
       for (size_t l = 0; l < m; l++) {
         inner_sum -= _input.x[l] * pow(ti, l);
@@ -26,7 +26,7 @@ public:
       double sum = 0;
       for (size_t i = 0; i < n; i++) {
         double ti = llsq::t(i, n);
-        sum += sums[i]*pow(ti,j);
+        sum += sums[i] * pow(ti, j);
       }
       output[j] = -sum;
     }
@@ -34,8 +34,10 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-  return generic_main(argc, argv, {
-      {"primal", function_main<llsq::Primal>},
-      {"gradient", function_main<Gradient>},
-    });;
+  return generic_main(argc, argv,
+                      {
+                          {"primal", function_main<llsq::Primal>},
+                          {"gradient", function_main<Gradient>},
+                      });
+  ;
 }

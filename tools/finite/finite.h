@@ -7,41 +7,52 @@
 
 #pragma once
 
-#include <vector>
-#include <functional>
 #include <algorithm>
+#include <cmath>
+#include <functional>
 #include <iostream>
 #include <limits>
 #include <cmath>
+#include <vector>
 #include "gradbench/multithread.hpp"
 
-const double FINITE_DIFFERENCES_DEFAULT_EPSILON = std::cbrt(std::numeric_limits<double>::epsilon());
+const double FINITE_DIFFERENCES_DEFAULT_EPSILON =
+    std::cbrt(std::numeric_limits<double>::epsilon());
 const double FINITE_DIFFERENCES_DEFAULT_ZERO_NEIGHBORHOOD_RADIUS = 1;
-const double FINITE_DIFFERENCES_DEFAULT_ZERO_NEIGHBORHOOD_CHARACTERISTIC_SCALE = 1;
+const double FINITE_DIFFERENCES_DEFAULT_ZERO_NEIGHBORHOOD_CHARACTERISTIC_SCALE =
+    1;
 
-/// <summary>Generates a function that returns a value proportional to some characteristic scale
-///     when the argument lies within a neighborhood of zero or a value proportional to the
-///     argument itself otherwise.</summary>
-/// <param name="epsilon">Coefficient by which the value of the input variable is multiplied
-///     to determine the difference to use in finite differentiation when the absolute value
-///     of the said variable is greater or equal to zero_neighborhood_radius</param>
-/// <param name="zero_neighborhood_radius">Radius of the neighborhood of zero where the difference
-///     used in finite differentiation should not be proportional to the input</param>
-/// <param name="zero_neighborhood_characteristic_scale">Value, which when multiplied by epsilon
-///     gives the difference to use in finite differentiation when the absolute value
-///     of the said variable is lesser than zero_neighborhood_radius</param>
-template<typename T>
-std::function<T(T)> finite_differences_default_step_function
-(T epsilon = FINITE_DIFFERENCES_DEFAULT_EPSILON,
- T zero_neighborhood_radius = FINITE_DIFFERENCES_DEFAULT_ZERO_NEIGHBORHOOD_RADIUS,
- T zero_neighborhood_characteristic_scale = FINITE_DIFFERENCES_DEFAULT_ZERO_NEIGHBORHOOD_CHARACTERISTIC_SCALE) {
-  return [epsilon,
-          zero_neighborhood_radius,
+/// <summary>Generates a function that returns a value proportional to some
+/// characteristic scale
+///     when the argument lies within a neighborhood of zero or a value
+///     proportional to the argument itself otherwise.</summary>
+/// <param name="epsilon">Coefficient by which the value of the input variable
+/// is multiplied
+///     to determine the difference to use in finite differentiation when the
+///     absolute value of the said variable is greater or equal to
+///     zero_neighborhood_radius</param>
+/// <param name="zero_neighborhood_radius">Radius of the neighborhood of zero
+/// where the difference
+///     used in finite differentiation should not be proportional to the
+///     input</param>
+/// <param name="zero_neighborhood_characteristic_scale">Value, which when
+/// multiplied by epsilon
+///     gives the difference to use in finite differentiation when the absolute
+///     value of the said variable is lesser than
+///     zero_neighborhood_radius</param>
+template <typename T>
+std::function<T(T)> finite_differences_default_step_function(
+    T epsilon = FINITE_DIFFERENCES_DEFAULT_EPSILON,
+    T zero_neighborhood_radius =
+        FINITE_DIFFERENCES_DEFAULT_ZERO_NEIGHBORHOOD_RADIUS,
+    T zero_neighborhood_characteristic_scale =
+        FINITE_DIFFERENCES_DEFAULT_ZERO_NEIGHBORHOOD_CHARACTERISTIC_SCALE) {
+  return [epsilon, zero_neighborhood_radius,
           zero_neighborhood_characteristic_scale](T x) {
     T absx = std::abs(x);
     return absx >= zero_neighborhood_radius
-      ? absx * epsilon
-      : zero_neighborhood_characteristic_scale * epsilon;
+               ? absx * epsilon
+               : zero_neighborhood_characteristic_scale * epsilon;
   };
 }
 
@@ -49,7 +60,7 @@ std::function<T(T)> finite_differences_default_step_function
 // Shares temporary memory buffer between calls.
 // Encapsulates a function that chooses the step for finite differences
 // based on the input value.
-template<typename T>
+template <typename T>
 class FiniteDifferencesEngine {
 private:
   int max_output_size;
@@ -84,10 +95,12 @@ private:
 
   // Compute binomial coefficient.
   static long long binom(int n, int k) {
-    if (k > n) return 0;
-    if (k == 0 || k == n) return 1;
+    if (k > n)
+      return 0;
+    if (k == 0 || k == n)
+      return 1;
 
-    k = std::min(k, n - k);
+    k                = std::min(k, n - k);
     long long result = 1;
 
     for (int i = 0; i < k; ++i) {
@@ -132,9 +145,7 @@ public:
 
   // gets max_output_size - maximum size of the ouputs of the functions
   // this engine is be able to approximately differentiate
-  int current_max_output_size() {
-    return max_output_size;
-  }
+  int current_max_output_size() { return max_output_size; }
 
   // FINITE DIFFERENTIATION FUNCTION
 
@@ -146,7 +157,8 @@ public:
   ///
   /// <param name="func">Function to be differentiated.
   ///		Should accept 2 pointers as arguments (one input, one output).
-  ///		Each output will be differentiated with respect to each input.</param>
+  ///		Each output will be differentiated with respect to each
+  ///		input.</param>
   /// <param name="input">Pointer to input data (scalar or vector)</param>
   /// <param name="input_size">Input data size (1 for scalar)</param>
   /// <param name="input_d_start">Offset in input where to start differentiating.</param>

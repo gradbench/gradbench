@@ -1,7 +1,7 @@
-#include <algorithm>
-#include "gradbench/main.hpp"
 #include "gradbench/evals/lse.hpp"
 #include "adept.h"
+#include "gradbench/main.hpp"
+#include <algorithm>
 
 using adept::adouble;
 
@@ -13,7 +13,7 @@ public:
     size_t n = _input.x.size();
     output.resize(n);
 
-    adept::Stack stack;
+    adept::Stack         stack;
     std::vector<adouble> x_d(n);
     adept::set_values(x_d.data(), n, _input.x.data());
 
@@ -28,8 +28,10 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-  return generic_main(argc, argv, {
-      {"primal", function_main<lse::Primal>},
-      {"gradient", function_main<Gradient>},
-    });;
+  return generic_main(argc, argv,
+                      {
+                          {"primal", function_main<lse::Primal>},
+                          {"gradient", function_main<Gradient>},
+                      });
+  ;
 }

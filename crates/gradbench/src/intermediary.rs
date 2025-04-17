@@ -298,16 +298,21 @@ impl<
                     if let Some(timings) = response.timings {
                         self.print_timings(&timings)?;
                     }
-                    if let Some(error) = response.error {
+                    if response.success {
+                        if let Some(error) = response.error {
+                            line.end(&mut self.out)?;
+                            writeln!(self.out, "{}", error.red())?;
+                            return Err(anyhow!("tool reported success but gave an error"));
+                        } else if response.output.is_none() {
+                            line.end(&mut self.out)?;
+                            return Err(anyhow!("tool reported success but gave no output"));
+                        }
+                    } else {
                         self.print_status(false)?;
                         line.end(&mut self.out)?;
-                        writeln!(self.out, "{}", error.red())?;
-                        if response.success {
-                            return Err(anyhow!("tool reported success but gave an error"));
+                        if let Some(error) = response.error {
+                            writeln!(self.out, "{}", error.red())?;
                         }
-                    } else if response.output.is_none() {
-                        writeln!(self.out)?;
-                        return Err(anyhow!("tool reported success but gave no output"));
                     }
                 }
                 Message::Analysis { .. } => {
@@ -911,6 +916,58 @@ mod tests {
         colored::control::set_override(false);
         let result = intermediary.run();
         write_goldenfile("evaluate_error.txt", &intermediary.out);
+        assert_eq!(result, Err(BadOutcome::Failure));
+    }
+
+    #[test]
+    fn test_intermediary_evaluate_failure_no_error() {
+        let (eval_out, tool_out) = session(&[
+            (
+                Message::Start { id: 0, eval: None },
+                Response::Start { id: 0, tool: None },
+            ),
+            (
+                Message::Define {
+                    id: 1,
+                    module: "foo".to_string(),
+                },
+                Response::Define {
+                    id: 1,
+                    success: true,
+                    timings: None,
+                    error: None,
+                },
+            ),
+            (
+                Message::Evaluate {
+                    id: 2,
+                    module: "foo".to_string(),
+                    function: "bar".to_string(),
+                    input: json!(42),
+                    description: None,
+                },
+                Response::Evaluate {
+                    id: 2,
+                    success: false,
+                    output: None,
+                    timings: None,
+                    error: None,
+                },
+            ),
+        ]);
+        let mut intermediary = Intermediary {
+            outcome: Arc::new(Mutex::new(None)),
+            eval_in: io::sink(),
+            tool_in: io::sink(),
+            eval_out: eval_out.as_bytes(),
+            tool_out: tool_out.as_bytes(),
+            clock: || Duration::ZERO,
+            out: Vec::new(),
+            log: io::sink(),
+        };
+        colored::control::set_override(false);
+        let result = intermediary.run();
+        write_goldenfile("evaluate_failure_no_error.txt", &intermediary.out);
         assert_eq!(result, Err(BadOutcome::Failure));
     }
 
