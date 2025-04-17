@@ -5,7 +5,7 @@ mod util;
 
 use std::{
     backtrace::BacktraceStatus,
-    collections::BTreeMap,
+    collections::{BTreeMap, HashSet},
     fs,
     io::{self, BufRead},
     mem::take,
@@ -123,6 +123,32 @@ enum Commands {
 
 #[derive(Debug, Subcommand)]
 enum RepoCommands {
+    /// Build and run one or more evals against one of more tools, using Docker.
+    ///
+    /// The output directory will contain a `run-<EVAL>-<TOOL>/log.jsonl` file for each `<EVAL>` and
+    /// each `<TOOL>`.
+    Run {
+        /// One or more evals to run, or all evals by default
+        #[clap(short, long)]
+        eval: Vec<String>,
+
+        /// One or more tools to run, or all tools by default
+        #[clap(short, long)]
+        tool: Vec<String>,
+
+        /// Evals to omit
+        #[clap(long, value_name = "EVAL")]
+        no_eval: Vec<String>,
+
+        /// Tools to omit
+        #[clap(long, value_name = "TOOL")]
+        no_tool: Vec<String>,
+
+        /// Output directory
+        #[clap(short, long)]
+        output: Option<PathBuf>,
+    },
+
     /// Build and run an eval using Docker.
     ///
     /// If the build is not already cached, any output will be printed in blue.
@@ -249,13 +275,8 @@ fn run(command: &mut Command) -> Result<Output, ExitCode> {
     Ok(output)
 }
 
-/// Run an eval using Docker.
-fn run_eval(
-    name: &str,
-    tag: Option<&str>,
-    platform: Option<&str>,
-    args: &[String],
-) -> Result<(), ExitCode> {
+/// Get a command to run an eval using Docker.
+fn eval_cmd(name: &str, tag: Option<&str>, platform: Option<&str>, args: &[String]) -> Command {
     let t = tag.unwrap_or("latest");
     let mut cmd = Command::new("docker");
     cmd.arg("run");
@@ -265,6 +286,31 @@ fn run_eval(
     cmd.args(["--rm", "--interactive"])
         .arg(format!("ghcr.io/gradbench/eval-{name}:{t}"))
         .args(args);
+    cmd
+}
+
+/// Get a command to run a tool using Docker.
+fn tool_cmd(name: &str, tag: Option<&str>, platform: Option<&str>, args: &[String]) -> Command {
+    let t = tag.unwrap_or("latest");
+    let mut cmd = Command::new("docker");
+    cmd.arg("run");
+    if let Some(platform) = platform {
+        cmd.args(["--platform", platform]);
+    }
+    cmd.args(["--rm", "--interactive"])
+        .arg(format!("ghcr.io/gradbench/tool-{name}:{t}"))
+        .args(args);
+    cmd
+}
+
+/// Run an eval using Docker.
+fn run_eval(
+    name: &str,
+    tag: Option<&str>,
+    platform: Option<&str>,
+    args: &[String],
+) -> Result<(), ExitCode> {
+    let mut cmd = eval_cmd(name, tag, platform, args);
     run(&mut cmd)?;
     Ok(())
 }
@@ -276,30 +322,22 @@ fn run_tool(
     platform: Option<&str>,
     args: &[String],
 ) -> Result<(), ExitCode> {
-    let t = tag.unwrap_or("latest");
-    let mut cmd = Command::new("docker");
-    cmd.arg("run");
-    if let Some(platform) = platform {
-        cmd.args(["--platform", platform]);
-    }
-    cmd.args(["--rm", "--interactive"])
-        .arg(format!("ghcr.io/gradbench/tool-{name}:{t}"))
-        .args(args);
+    let mut cmd = tool_cmd(name, tag, platform, args);
     run(&mut cmd)?;
     Ok(())
 }
 
-/// A level of verbosity for building a Docker image.
-enum Verbosity {
-    /// Normal output.
-    Normal,
+/// Whether or not Docker output was suppressed due to detected caching.
+enum Caching {
+    /// Everything seemed to be cached; output was suppressed.
+    Cached,
 
-    /// No output except for errors.
-    Quiet,
+    /// Not everything seemed to be cached; output was not suppressed.
+    Uncached,
 }
 
 /// Run a `docker build` command but don't print output if everything is cached.
-fn docker_build_quiet(color: Color, mut cmd: Command) -> anyhow::Result<ExitStatus> {
+fn docker_build_quiet(color: Color, mut cmd: Command) -> anyhow::Result<(Caching, ExitStatus)> {
     let mut child = cmd
         .arg("--progress=plain")
         // Podman-based Dockers print build logs to stdout, which will
@@ -328,15 +366,33 @@ fn docker_build_quiet(color: Color, mut cmd: Command) -> anyhow::Result<ExitStat
             eprintln!("{}", line.color(color));
         }
     }
+    let caching = if cached {
+        Caching::Cached
+    } else {
+        Caching::Uncached
+    };
     let status = child.wait()?;
     if !status.success() {
         eprint!("{}", take(&mut buffer).color(color));
     }
-    Ok(status)
+    Ok((caching, status))
+}
+
+/// A level of verbosity for building a Docker image.
+enum Verbosity {
+    /// Normal output.
+    Normal,
+
+    /// No output except for errors.
+    Quiet,
 }
 
 /// Build the Docker image for an eval.
-fn build_eval(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Result<(), ExitCode> {
+fn build_eval(
+    name: &str,
+    platform: Option<&str>,
+    verbosity: Verbosity,
+) -> Result<Caching, ExitCode> {
     if name.is_empty() || !fs::exists(Path::new("evals").join(name)).unwrap_or(false) {
         return Err(err_fail(anyhow!("can't find eval to build: {name:?}")));
     }
@@ -352,18 +408,24 @@ fn build_eval(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Resul
     match verbosity {
         Verbosity::Normal => {
             run(&mut cmd)?;
-            Ok(())
+            Ok(Caching::Uncached)
         }
-        Verbosity::Quiet => status_code(
-            docker_build_quiet(Color::Blue, cmd)
+        Verbosity::Quiet => {
+            let (caching, status) = docker_build_quiet(Color::Blue, cmd)
                 .with_context(|| format!("error building eval {name}"))
-                .map_err(err_fail)?,
-        ),
+                .map_err(err_fail)?;
+            status_code(status)?;
+            Ok(caching)
+        }
     }
 }
 
 /// Build the Docker image for a tool.
-fn build_tool(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Result<(), ExitCode> {
+fn build_tool(
+    name: &str,
+    platform: Option<&str>,
+    verbosity: Verbosity,
+) -> Result<Caching, ExitCode> {
     if name.is_empty() || !fs::exists(Path::new("tools").join(name)).unwrap_or(false) {
         return Err(err_fail(anyhow!("can't find tool to build: {name:?}")));
     }
@@ -380,13 +442,15 @@ fn build_tool(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Resul
         Verbosity::Normal => {
             cmd.arg("--progress=plain");
             run(&mut cmd)?;
-            Ok(())
+            Ok(Caching::Uncached)
         }
-        Verbosity::Quiet => status_code(
-            docker_build_quiet(Color::Magenta, cmd)
+        Verbosity::Quiet => {
+            let (caching, status) = docker_build_quiet(Color::Magenta, cmd)
                 .with_context(|| format!("error building tool {name}"))
-                .map_err(err_fail)?,
-        ),
+                .map_err(err_fail)?;
+            status_code(status)?;
+            Ok(caching)
+        }
     }
 }
 
@@ -461,6 +525,105 @@ fn ls(dir: &str) -> anyhow::Result<Vec<String>> {
                 .map_err(|name| anyhow!("invalid file name {name:?}"))
         })
         .collect()
+}
+
+/// Config for running one or more evals against one or more tools.
+struct RunConfig {
+    /// Evals to run, or all by default.
+    eval: Vec<String>,
+
+    /// Tools to run, or all by default.
+    tool: Vec<String>,
+
+    /// Evals to omit.
+    no_eval: Vec<String>,
+
+    /// Tools to omit.
+    no_tool: Vec<String>,
+
+    /// Output directory.
+    output: Option<PathBuf>,
+}
+
+/// Build and run one or more evals against one or more tools.
+fn run_multiple(
+    RunConfig {
+        eval,
+        tool,
+        no_eval,
+        no_tool,
+        output,
+    }: RunConfig,
+) -> anyhow::Result<Result<(), ExitCode>> {
+    let mut evals = if eval.is_empty() { ls("evals")? } else { eval };
+    let mut tools = if tool.is_empty() { ls("tools")? } else { tool };
+    evals.sort();
+    tools.sort();
+    let omit_evals: HashSet<String> = no_eval.into_iter().collect();
+    let omit_tools: HashSet<String> = no_tool.into_iter().collect();
+    evals.retain(|e| !omit_evals.contains(e));
+    tools.retain(|e| !omit_tools.contains(e));
+    for eval in &evals {
+        println!("{} {}", "building eval".blue().bold(), eval);
+        match build_eval(eval, None, Verbosity::Quiet) {
+            Ok(Caching::Cached) => {}
+            Ok(Caching::Uncached) => println!(),
+            Err(code) => return Ok(Err(code)),
+        }
+    }
+    for tool in &tools {
+        println!("{} {}", "building tool".magenta().bold(), tool);
+        match build_tool(tool, None, Verbosity::Quiet) {
+            Ok(Caching::Cached) => {}
+            Ok(Caching::Uncached) => println!(),
+            Err(code) => return Ok(Err(code)),
+        }
+    }
+    if let Some(dir) = &output {
+        fs::create_dir_all(dir)?;
+    }
+    for eval in &evals {
+        for tool in &tools {
+            println!("{} {} {}", "running".bold(), "eval".blue().bold(), eval);
+            println!("{} {} {}", "   with".bold(), "tool".magenta().bold(), tool);
+            let (Ok(mut eval_child), Ok(mut tool_child)) = (
+                {
+                    let mut cmd = eval_cmd(eval, None, None, &[]);
+                    #[cfg(unix)]
+                    std::os::unix::process::CommandExt::process_group(&mut cmd, 0);
+                    cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn()
+                },
+                {
+                    let mut cmd = tool_cmd(tool, None, None, &[]);
+                    #[cfg(unix)]
+                    std::os::unix::process::CommandExt::process_group(&mut cmd, 0);
+                    cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn()
+                },
+            ) else {
+                println!("error starting eval and tool commands");
+                continue;
+            };
+            let outcome = intermediary::run_with_ctrlc_handler(
+                &mut io::sink(),
+                &mut eval_child,
+                &mut tool_child,
+                None,
+                false,
+            );
+            let _ = eval_child.wait();
+            let _ = tool_child.wait();
+            print!("{} ", "outcome".bold());
+            match outcome {
+                Ok(()) => println!("success"),
+                Err(bad_outcome) => {
+                    let stringified: &str = bad_outcome.into();
+                    println!("{}", stringified);
+                }
+            }
+            println!();
+        }
+    }
+    Ok(Ok(()))
 }
 
 /// Print a JSON `value` with a `name` for GitHub Actions.
@@ -640,6 +803,22 @@ fn cli() -> Result<(), ExitCode> {
         Commands::Repo { command } => {
             check_git()?;
             match command {
+                RepoCommands::Run {
+                    eval,
+                    tool,
+                    no_eval,
+                    no_tool,
+                    output,
+                } => match run_multiple(RunConfig {
+                    eval,
+                    tool,
+                    no_eval,
+                    no_tool,
+                    output,
+                }) {
+                    Ok(res) => res,
+                    Err(err) => Err(err_fail(err)),
+                },
                 RepoCommands::Eval {
                     eval,
                     platform,
@@ -659,10 +838,10 @@ fn cli() -> Result<(), ExitCode> {
                     Ok(())
                 }
                 RepoCommands::BuildEval { eval, platform } => {
-                    build_eval(&eval, platform.as_deref(), Verbosity::Normal)
+                    build_eval(&eval, platform.as_deref(), Verbosity::Normal).map(|_| ())
                 }
                 RepoCommands::BuildTool { tool, platform } => {
-                    build_tool(&tool, platform.as_deref(), Verbosity::Normal)
+                    build_tool(&tool, platform.as_deref(), Verbosity::Normal).map(|_| ())
                 }
                 RepoCommands::Matrix => matrix().map_err(err_fail),
                 RepoCommands::Stats {

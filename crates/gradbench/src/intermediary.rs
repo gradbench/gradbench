@@ -394,19 +394,22 @@ fn timeout_reader(reader: ChildStdout, timeout: Option<Duration>) -> impl io::Re
     }
 }
 
-/// Run an eval and a tool together, returning the outcome.
-pub fn run(
+/// Run an eval and a tool together with an optional `SIGINT` handler`, returning the outcome.
+pub fn run_with_ctrlc_handler(
     log: impl Write,
     eval: &mut Child,
     tool: &mut Child,
     timeout: Option<Duration>,
+    ctrlc: bool,
 ) -> Result<(), BadOutcome> {
     let outcome_mutex = Arc::new(Mutex::new(None));
-    match handle_ctrlc(eval, tool, Arc::clone(&outcome_mutex)) {
-        Ok(()) => {}
-        Err(err) => {
-            err_fail(err);
-            return Err(BadOutcome::Error);
+    if ctrlc {
+        match handle_ctrlc(eval, tool, Arc::clone(&outcome_mutex)) {
+            Ok(()) => {}
+            Err(err) => {
+                err_fail(err);
+                return Err(BadOutcome::Error);
+            }
         }
     }
     let start = Instant::now();
@@ -435,6 +438,16 @@ pub fn run(
         }
     }
     outcome
+}
+
+/// Run an eval and a tool together, returning the outcome.
+pub fn run(
+    log: impl Write,
+    eval: &mut Child,
+    tool: &mut Child,
+    timeout: Option<Duration>,
+) -> Result<(), BadOutcome> {
+    run_with_ctrlc_handler(log, eval, tool, timeout, true)
 }
 
 #[cfg(test)]
