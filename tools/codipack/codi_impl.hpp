@@ -2,6 +2,34 @@
 
 #include <codi.hpp>
 
+
+namespace type_details {
+
+#ifndef CODI_TYPE
+#define CODI_TYPE codi::RealReverse
+#endif
+
+#define COMBINE(A,B) COMBINE2(A,B)
+#define COMBINE2(A,B) A ## B
+
+#define CODI_TYPE_VEC COMBINE(CODI_TYPE, Vec)
+#define CODI_TYPE_GEN COMBINE(CODI_TYPE, Gen)
+
+using Base = CODI_TYPE;
+
+template<int dim>
+using Vec = CODI_TYPE_VEC<dim>;
+
+template<typename Real, typename Gradient = Real>
+using Gen = CODI_TYPE_GEN<Real, Gradient>;
+
+#undef CODI_TYPE
+#undef CODI_TYPE_VEC
+#undef CODI_TYPE_GEN
+#undef COMBINE
+#undef COMBINE2
+}
+
 struct CoDiForwardRunner {
   using Real = codi::RealForward;
 
@@ -73,8 +101,8 @@ struct CoDiReverseRunnerBase {
   }
 };
 
-struct CoDiReverseRunner : public CoDiReverseRunnerBase<codi::RealReverse> {
-  using Base = CoDiReverseRunnerBase<codi::RealReverse>;
+struct CoDiReverseRunner : public CoDiReverseRunnerBase<type_details::Base> {
+  using Base = CoDiReverseRunnerBase<type_details::Base>;
   using Real = typename Base::Real;
 
   using Tape = typename CoDiReverseRunnerBase::Tape;
@@ -93,8 +121,8 @@ struct CoDiReverseRunner : public CoDiReverseRunnerBase<codi::RealReverse> {
 };
 
 
-struct CoDiReverseRunner2nd : public CoDiReverseRunnerBase<codi::RealReverseGen<codi::RealForward>> {
-  using Base = CoDiReverseRunnerBase<codi::RealReverseGen<codi::RealForward>>;
+struct CoDiReverseRunner2nd : public CoDiReverseRunnerBase<type_details::Gen<codi::RealForward>> {
+  using Base = CoDiReverseRunnerBase<type_details::Gen<codi::RealForward>>;
   using Real = typename Base::Real;
 
   using DH = codi::DerivativeAccess<Real>;
@@ -121,9 +149,9 @@ struct CoDiReverseRunner2nd : public CoDiReverseRunnerBase<codi::RealReverseGen<
 };
 
 template<int dim>
-struct CoDiReverseRunnerVec : public CoDiReverseRunnerBase<codi::RealReverse> {
+struct CoDiReverseRunnerVec : public CoDiReverseRunnerBase<type_details::Base> {
 
-  using Base = CoDiReverseRunnerBase<codi::RealReverse>;
+  using Base = CoDiReverseRunnerBase<type_details::Base>;
   using Real = typename Base::Real;
 
   using Tape = typename Base::Tape;
