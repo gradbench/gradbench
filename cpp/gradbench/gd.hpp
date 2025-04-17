@@ -18,7 +18,7 @@ template <typename T>
 T magnitude_squared(const std::vector<T>& v) {
   T acc = 0.0;
   for (auto x : v) {
-    acc += x*x;
+    acc += x * x;
   }
   return acc;
 }
@@ -32,14 +32,14 @@ template <typename T>
 T vector_dist(const std::vector<T>& u, const std::vector<T>& v) {
   T acc = 0.0;
   for (size_t i = 0; i < u.size(); i++) {
-    acc += (u[i]-v[i])*(u[i]-v[i]);
+    acc += (u[i] - v[i]) * (u[i] - v[i]);
   }
   return sqrt(acc);
 }
 
 template <typename F>
 std::vector<double> multivariate_argmin(const F f, const double* xp) {
-  double fx;
+  double              fx;
   std::vector<double> x(f.input_size());
   std::vector<double> gx(f.input_size());
   std::vector<double> x_prime(f.input_size());
@@ -51,7 +51,7 @@ std::vector<double> multivariate_argmin(const F f, const double* xp) {
   f.objective(xp, &fx);
   f.gradient(x.data(), gx.data());
 
-  int i = 0;
+  int    i   = 0;
   double eta = 1e-5;
 
   while (true) {
@@ -70,7 +70,7 @@ std::vector<double> multivariate_argmin(const F f, const double* xp) {
         double fx_prime;
         f.objective(x_prime.data(), &fx_prime);
         if (fx_prime < fx) {
-          x = x_prime;
+          x  = x_prime;
           fx = fx_prime;
           f.gradient(x.data(), gx.data());
           i++;
@@ -108,8 +108,8 @@ std::vector<double> multivariate_argmax(const F& f, const double* x) {
 
 template <typename F>
 double multivariate_max(const F& f, const double* x) {
-  double res;
-  std::vector<double> xmax = multivariate_argmax(f,x);
+  double              res;
+  std::vector<double> xmax = multivariate_argmax(f, x);
   f.objective(xmax.data(), &res);
   return res;
 }

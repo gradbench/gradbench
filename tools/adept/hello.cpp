@@ -1,7 +1,7 @@
-#include <iostream>
-#include "gradbench/main.hpp"
 #include "gradbench/evals/hello.hpp"
 #include "adept.h"
+#include "gradbench/main.hpp"
+#include <iostream>
 
 class Double : public Function<hello::Input, hello::DoubleOutput> {
 public:
@@ -11,7 +11,7 @@ public:
     using adept::adouble;
     using adept::Real;
     adept::Stack s;
-    adouble x = _input;
+    adouble      x = _input;
 
     s.new_recording();
     adouble y = hello::square<adouble>(x);
@@ -24,8 +24,8 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-  return generic_main(argc, argv, {
-      {"square", function_main<hello::Square>},
-      {"double", function_main<Double>}
-    });;
+  return generic_main(argc, argv,
+                      {{"square", function_main<hello::Square>},
+                       {"double", function_main<Double>}});
+  ;
 }

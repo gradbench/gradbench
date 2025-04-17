@@ -1,17 +1,15 @@
-#include <algorithm>
-#include "gradbench/main.hpp"
 #include "gradbench/evals/lse.hpp"
+#include "gradbench/main.hpp"
+#include <algorithm>
 #include <cppad/cppad.hpp>
 
 typedef CppAD::AD<double> ADdouble;
 
 class Gradient : public Function<lse::Input, lse::GradientOutput> {
   std::vector<ADdouble> _X, _Y;
+
 public:
-  Gradient(lse::Input& input)
-    : Function(input),
-      _X(_input.x.size()),
-      _Y(1) {
+  Gradient(lse::Input& input) : Function(input), _X(_input.x.size()), _Y(1) {
     std::copy(_input.x.begin(), _input.x.end(), _X.data());
   }
 
@@ -25,8 +23,10 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-  return generic_main(argc, argv, {
-      {"primal", function_main<lse::Primal>},
-      {"gradient", function_main<Gradient>},
-    });;
+  return generic_main(argc, argv,
+                      {
+                          {"primal", function_main<lse::Primal>},
+                          {"gradient", function_main<Gradient>},
+                      });
+  ;
 }

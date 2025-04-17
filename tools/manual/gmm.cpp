@@ -1,12 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
-// Largely derived from https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/cpp/modules/manual/ManualGMM.cpp
+// Largely derived from
+// https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/cpp/modules/manual/ManualGMM.cpp
 
-#include <algorithm>
-#include "gradbench/main.hpp"
 #include "gradbench/evals/gmm.hpp"
 #include "gmm_d.hpp"
+#include "gradbench/main.hpp"
+#include <algorithm>
 
 class Jacobian : public Function<gmm::Input, gmm::JacOutput> {
 public:
@@ -17,16 +18,15 @@ public:
     output.resize(Jcols);
 
     double error;
-    gmm_objective_d(_input.d, _input.k, _input.n,
-                    _input.alphas.data(), _input.means.data(),
-                    _input.icf.data(), _input.x.data(), _input.wishart,
-                    &error, output.data());
+    gmm_objective_d(_input.d, _input.k, _input.n, _input.alphas.data(),
+                    _input.means.data(), _input.icf.data(), _input.x.data(),
+                    _input.wishart, &error, output.data());
   }
 };
 
 int main(int argc, char* argv[]) {
-  return generic_main(argc, argv, {
-      {"objective", function_main<gmm::Objective>},
-      {"jacobian", function_main<Jacobian>}
-    });;
+  return generic_main(argc, argv,
+                      {{"objective", function_main<gmm::Objective>},
+                       {"jacobian", function_main<Jacobian>}});
+  ;
 }

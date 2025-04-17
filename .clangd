@@ -1,0 +1,17 @@
+# THE compile_flags.txt FILE MUST EXIST IN PROJECT ROOT 
+# AND BE EMPTY FOR THIS TO WORK!
+#
+# who can possibly know why...
+
+CompileFlags:
+  Add: [--std=c++17, -Icpp]
+
+---
+# ad-hpp 
+If:
+  # use leading * to allow clangd to pick up the right files
+  # since clangd doesn't support relative paths to .clangd files
+  PathMatch: */tools/ad-hpp/*\.cpp
+
+CompileFlags:
+  Add: -Itools/ad-hpp/include
