@@ -1,6 +1,6 @@
 CXX?=c++
 CC?=cc
-CFLAGS=-std=c++17 -O3 -Wall -DCODI_ForcedInlines=1 -I../../cpp
+CFLAGS=-std=c++17 -O3 -Wall -march=native -DCODI_ForcedInlines=1 -I../../cpp
 LDFLAGS=-lm
 
 EXECUTABLES=ba det gmm hello ht kmeans llsq lse lstm ode
