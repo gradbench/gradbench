@@ -223,6 +223,22 @@ PYTHONPATH=python/gradbench/:$PYTHONPATH ./gradbench run --eval "python3 python/
 GradBench if you wish.](cpp#from-the-command-line) This does require
 you to first extract the raw input from a `gradbench` log file.
 
+### Multithreading
+
+By default, tools use only a single thread. You can ask them to use
+multiple (CPU) threads, if possible, by passing the option
+`--multithread`. If you use `gradbench repo tool`, then remember to
+pass `--` before any tool-specific options. Example:
+
+```sh
+./gradbench repo tool manual -- --multithread
+```
+
+Multithreading is still a somewhat experimental feature. Many tools
+may still use only a single thread. Some tools may be able to
+multithread their primal code, but not their differentiated code. Some
+tools may fail to work entirely.
+
 ### Without cloning this repository
 
 > [!WARNING]
