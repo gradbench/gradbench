@@ -8,13 +8,16 @@ import JSON
 Defines a measurment experiment.
 
 ## Interface
-- `from_json()`
+- `args = preprocess(::Experiment, message)`
 - `ret = (::Experiment)(args...)`
 - Optional: `postprocess(::Experiment, ret)`
 """
 abstract type Experiment end
 
-function from_json end
+function preprocess(::Experiment, message)
+    return message
+end
+
 function postprocess(::Experiment, ret)
     return ret
 end
@@ -30,9 +33,9 @@ function register!(mod, experiments)
 end
 
 # Avoid measuring dispatch overhead
-function measure(experiment::E, args...) where {E<:Experiment}
+function measure(func::F, args...) where {F}
     start = time_ns()
-    ret = experiment(args...)
+    ret = func(args...)
     done = time_ns()
     return ret, done - start
 end
@@ -44,22 +47,28 @@ function run(params)
     min_seconds = get(params, "min_seconds", 0)
     @assert min_runs > 0
 
-    args = from_json(experiment, params["input"])
     timings = Any[]
+
+    args, t = measure(preprocess, experiment, params["input"])
+    push!(timings, Dict("name" => "preprocess", "nanoseconds" => t))
+
+    ret, t = measure(experiment, args...)
+    push!(timings, Dict("name" => "warmup", "nanoseconds" => t))
+
+    output, t = measure(postprocess, experiment, ret)
+    push!(timings, Dict("name" => "postprocess", "nanoseconds" => t))
 
     # Measure
     elapsed_seconds = 0
     i = 1
-    ret = nothing
     while i <= min_runs || elapsed_seconds <= min_seconds
-        ret, t = measure(experiment, args...)
+        _, t = measure(experiment, args...)
         push!(timings, Dict("name" => "evaluate", "nanoseconds" => t))
         elapsed_seconds += t / 1e9
         i += 1
     end
-    @assert ret !== nothing
 
-    return Dict("success" => true, "output" => postprocess(experiment, ret), "timings" => timings)
+    return Dict("success" => true, "output" => output, "timings" => timings)
 end
 
 function main(tool)

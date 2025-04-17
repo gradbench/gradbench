@@ -64,7 +64,7 @@ import ..GradBench
 
 abstract type AbstractODE <: GradBench.Experiment end
 
-function GradBench.from_json(::AbstractODE, message)
+function GradBench.preprocess(::AbstractODE, message)
     x = convert(Vector{Float64}, message["x"])
     s = message["s"]
     (; x, s)

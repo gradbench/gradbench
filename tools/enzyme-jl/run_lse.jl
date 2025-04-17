@@ -3,9 +3,9 @@ module ODE
 using Enzyme
 import GradBench
 
-function gradient(message)
-    x = convert(Vector{Float64}, message["x"])
+struct GradientLSE <: GradBench.LSE.AbstractLSE end
 
+function (::GradientLSE)(x)
     dx = Enzyme.make_zero(x)
 
     Enzyme.autodiff(
@@ -17,8 +17,8 @@ end
 
 GradBench.register!(
     "lse", Dict(
-        "primal" => GradBench.LSE.primal,
-        "gradient" => gradient
+        "primal" => GradBench.LSE.PrimalLSE(),
+        "gradient" => GradientLSE()
     )
 )
 
