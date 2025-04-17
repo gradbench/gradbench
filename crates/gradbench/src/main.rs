@@ -16,7 +16,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context};
 use clap::{Parser, Subcommand};
 use colored::{Color, Colorize};
 use regex::Regex;
@@ -555,38 +555,72 @@ fn run_multiple(
         output,
     }: RunConfig,
 ) -> anyhow::Result<Result<(), ExitCode>> {
-    let mut evals = if eval.is_empty() { ls("evals")? } else { eval };
-    let mut tools = if tool.is_empty() { ls("tools")? } else { tool };
-    evals.sort();
-    tools.sort();
-    let omit_evals: HashSet<String> = no_eval.into_iter().collect();
-    let omit_tools: HashSet<String> = no_tool.into_iter().collect();
-    evals.retain(|e| !omit_evals.contains(e));
-    tools.retain(|e| !omit_tools.contains(e));
+    let evals = if eval.is_empty() {
+        let mut evals = ls("evals")?;
+        let omit_evals: HashSet<String> = no_eval.into_iter().collect();
+        evals.retain(|e| !omit_evals.contains(e));
+        evals.sort();
+        evals
+    } else {
+        if !no_eval.is_empty() {
+            bail!("`--no-eval` cannot be used together with `--eval`");
+        }
+        eval
+    };
+    let tools = if tool.is_empty() {
+        let mut tools = ls("tools")?;
+        let omit_tools: HashSet<String> = no_tool.into_iter().collect();
+        tools.retain(|e| !omit_tools.contains(e));
+        tools.sort();
+        tools
+    } else {
+        if !no_tool.is_empty() {
+            bail!("`--no-tool` cannot be used together with `--tool`");
+        }
+        tool
+    };
+    let mut newline = false;
     for eval in &evals {
         println!("{} {}", "building eval".blue().bold(), eval);
         match build_eval(eval, None, Verbosity::Quiet) {
-            Ok(Caching::Cached) => {}
-            Ok(Caching::Uncached) => println!(),
+            Ok(Caching::Cached) => newline = false,
+            Ok(Caching::Uncached) => {
+                println!();
+                newline = true;
+            }
             Err(code) => return Ok(Err(code)),
         }
+    }
+    if !newline {
+        println!();
     }
     for tool in &tools {
         println!("{} {}", "building tool".magenta().bold(), tool);
         match build_tool(tool, None, Verbosity::Quiet) {
-            Ok(Caching::Cached) => {}
-            Ok(Caching::Uncached) => println!(),
+            Ok(Caching::Cached) => newline = false,
+            Ok(Caching::Uncached) => {
+                println!();
+                newline = true;
+            }
             Err(code) => return Ok(Err(code)),
         }
+    }
+    if !newline {
+        println!();
     }
     if let Some(dir) = &output {
         fs::create_dir_all(dir)?;
     }
+    let mut first = true;
     for eval in &evals {
         for tool in &tools {
+            if !first {
+                println!();
+            }
+            first = false;
             println!("{} {} {}", "running".bold(), "eval".blue().bold(), eval);
             println!("{} {} {}", "   with".bold(), "tool".magenta().bold(), tool);
-            let (Ok(mut eval_child), Ok(mut tool_child)) = (
+            let outcome = match (
                 {
                     let mut cmd = eval_cmd(eval, None, None, &[]);
                     #[cfg(unix)]
@@ -599,19 +633,21 @@ fn run_multiple(
                     std::os::unix::process::CommandExt::process_group(&mut cmd, 0);
                     cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn()
                 },
-            ) else {
-                println!("error starting eval and tool commands");
-                continue;
+            ) {
+                (Ok(mut eval_child), Ok(mut tool_child)) => {
+                    let result = intermediary::run_with_ctrlc_handler(
+                        &mut io::sink(),
+                        &mut eval_child,
+                        &mut tool_child,
+                        None,
+                        false,
+                    );
+                    let _ = eval_child.wait();
+                    let _ = tool_child.wait();
+                    result
+                }
+                _ => Err(BadOutcome::Error),
             };
-            let outcome = intermediary::run_with_ctrlc_handler(
-                &mut io::sink(),
-                &mut eval_child,
-                &mut tool_child,
-                None,
-                false,
-            );
-            let _ = eval_child.wait();
-            let _ = tool_child.wait();
             print!("{} ", "outcome".bold());
             match outcome {
                 Ok(()) => println!("success"),
@@ -620,7 +656,6 @@ fn run_multiple(
                     println!("{}", stringified);
                 }
             }
-            println!();
         }
     }
     Ok(Ok(()))
