@@ -25,6 +25,7 @@ See <https://gradben.ch> for interactive performance charts generated from our l
       - [Not using uv](#not-using-uv)
     - [Running tools outside of Docker](#running-tools-outside-of-docker)
       - [Running C++-based tools](#running-c-based-tools)
+  - [Multithreading](#multithreading)
   - [Without cloning this repository](#without-cloning-this-repository)
 - [License](#license)
 
