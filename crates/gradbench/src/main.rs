@@ -5,7 +5,7 @@ mod util;
 
 use std::{
     backtrace::BacktraceStatus,
-    collections::{BTreeMap, HashSet},
+    collections::{BTreeMap, HashSet, VecDeque},
     fs,
     io::{self, BufRead},
     mem::take,
@@ -124,6 +124,15 @@ enum Commands {
 #[derive(Debug, Subcommand)]
 enum RepoCommands {
     /// Build and run one or more evals against one of more tools, using Docker.
+    ///
+    /// The `--eval` and `--tool` arguments can each be repeated any number of times, and each
+    /// instance can take any of the following forms:
+    ///
+    /// - A name, e.g. `--eval foo`.
+    ///
+    /// - A name followed by some arguments, e.g. `--tool "foo --bar --baz=qux"`.
+    ///
+    /// - A dollar sign followed by any command, e.g. `--eval "$ echo 'an example'"`.
     ///
     /// The output directory will contain a `run-<EVAL>-<TOOL>/log.jsonl` file for each `<EVAL>` and
     /// each `<TOOL>`.
@@ -503,6 +512,7 @@ fn check_git() -> Result<(), ExitCode> {
 
 /// Return a command that runs its argument as a shell command.
 fn shell(command: &str) -> Command {
+    // TODO: replace with shlex
     if cfg!(windows) {
         let mut cmd = Command::new("powershell");
         cmd.arg("-Command").arg(command);
@@ -545,6 +555,87 @@ struct RunConfig {
     output: Option<PathBuf>,
 }
 
+/// Choice between talking about evals or talking about tools.
+enum RunItemKind {
+    /// Evals.
+    Eval,
+
+    /// Tools.
+    Tool,
+}
+
+/// A processed eval or tool command that can be optionally built, and then run.
+struct RunItem {
+    /// The raw user-provided string.
+    string: String,
+
+    /// The name of the eval or tool to build, if any.
+    build: Option<String>,
+
+    /// The command to run.
+    cmd: Command,
+}
+
+/// Process a human-friendly list of evals or tools into a list of commands and things to build.
+fn process_run_items(
+    item_kind: RunItemKind,
+    items: Vec<String>,
+    omit: Vec<String>,
+    default: impl FnOnce() -> anyhow::Result<Vec<String>>,
+) -> anyhow::Result<Vec<RunItem>> {
+    // TODO: test this function
+    let kind = match item_kind {
+        RunItemKind::Eval => "eval",
+        RunItemKind::Tool => "tool",
+    };
+    let strings = if items.is_empty() {
+        let mut all = default()?;
+        let set: HashSet<String> = omit.into_iter().collect();
+        all.retain(|e| !set.contains(e));
+        all.sort();
+        all
+    } else {
+        if !omit.is_empty() {
+            bail!("`--no-{kind}` cannot be used together with `--{kind}`");
+        }
+        items
+    };
+    strings
+        .into_iter()
+        .map(|string| {
+            let mut parts = VecDeque::from(
+                shlex::split(&string)
+                    .ok_or_else(|| anyhow!("failed to split `--{kind}`: {string:?}"))?,
+            );
+            let first = parts
+                .pop_front()
+                .ok_or_else(|| anyhow!("empty `--{kind}` after splitting: {string:?}"))?;
+            let mut item = if first == "$" {
+                let program = parts
+                    .pop_front()
+                    .ok_or_else(|| anyhow!("empty `--{kind}` after `$`: {string:?}"))?;
+                let build = None;
+                let cmd = Command::new(program);
+                RunItem { string, build, cmd }
+            } else {
+                let cmd = (match item_kind {
+                    RunItemKind::Eval => eval_cmd,
+                    RunItemKind::Tool => tool_cmd,
+                })(&first, None, None, &[]);
+                let build = Some(first);
+                RunItem { string, build, cmd }
+            };
+            for arg in parts {
+                item.cmd.arg(arg);
+            }
+            item.cmd.stdin(Stdio::piped()).stdout(Stdio::piped());
+            #[cfg(unix)]
+            std::os::unix::process::CommandExt::process_group(&mut item.cmd, 0);
+            Ok(item)
+        })
+        .collect()
+}
+
 /// Build and run one or more evals against one or more tools.
 fn run_multiple(
     RunConfig {
@@ -555,85 +646,65 @@ fn run_multiple(
         output,
     }: RunConfig,
 ) -> anyhow::Result<Result<(), ExitCode>> {
-    let evals = if eval.is_empty() {
-        let mut evals = ls("evals")?;
-        let omit_evals: HashSet<String> = no_eval.into_iter().collect();
-        evals.retain(|e| !omit_evals.contains(e));
-        evals.sort();
-        evals
-    } else {
-        if !no_eval.is_empty() {
-            bail!("`--no-eval` cannot be used together with `--eval`");
-        }
-        eval
-    };
-    let tools = if tool.is_empty() {
-        let mut tools = ls("tools")?;
-        let omit_tools: HashSet<String> = no_tool.into_iter().collect();
-        tools.retain(|e| !omit_tools.contains(e));
-        tools.sort();
-        tools
-    } else {
-        if !no_tool.is_empty() {
-            bail!("`--no-tool` cannot be used together with `--tool`");
-        }
-        tool
-    };
-    let mut newline = false;
-    for eval in &evals {
-        println!("{} {}", "building eval".blue().bold(), eval);
-        match build_eval(eval, None, Verbosity::Quiet) {
-            Ok(Caching::Cached) => newline = false,
-            Ok(Caching::Uncached) => {
-                println!();
-                newline = true;
+    let mut evals = process_run_items(RunItemKind::Eval, eval, no_eval, || ls("evals"))?;
+    let mut tools = process_run_items(RunItemKind::Tool, tool, no_tool, || ls("tools"))?;
+    let mut need_newline = false;
+    for eval_item in &evals {
+        if let Some(eval) = &eval_item.build {
+            println!("{} {}", "building eval".blue().bold(), eval);
+            match build_eval(eval, None, Verbosity::Quiet) {
+                Ok(Caching::Cached) => need_newline = true,
+                Ok(Caching::Uncached) => {
+                    println!();
+                    need_newline = false;
+                }
+                Err(code) => return Ok(Err(code)),
             }
-            Err(code) => return Ok(Err(code)),
         }
     }
-    if !newline {
+    if need_newline {
         println!();
+        need_newline = false;
     }
-    for tool in &tools {
-        println!("{} {}", "building tool".magenta().bold(), tool);
-        match build_tool(tool, None, Verbosity::Quiet) {
-            Ok(Caching::Cached) => newline = false,
-            Ok(Caching::Uncached) => {
-                println!();
-                newline = true;
+    for tool_item in &tools {
+        if let Some(tool) = &tool_item.build {
+            println!("{} {}", "building tool".magenta().bold(), tool);
+            match build_tool(tool, None, Verbosity::Quiet) {
+                Ok(Caching::Cached) => need_newline = true,
+                Ok(Caching::Uncached) => {
+                    println!();
+                    need_newline = false;
+                }
+                Err(code) => return Ok(Err(code)),
             }
-            Err(code) => return Ok(Err(code)),
         }
-    }
-    if !newline {
-        println!();
     }
     if let Some(dir) = &output {
         fs::create_dir_all(dir)?;
     }
+    if need_newline {
+        println!();
+    }
     let mut first = true;
-    for eval in &evals {
-        for tool in &tools {
+    for eval in &mut evals {
+        for tool in &mut tools {
             if !first {
                 println!();
             }
             first = false;
-            println!("{} {} {}", "running".bold(), "eval".blue().bold(), eval);
-            println!("{} {} {}", "   with".bold(), "tool".magenta().bold(), tool);
-            let outcome = match (
-                {
-                    let mut cmd = eval_cmd(eval, None, None, &[]);
-                    #[cfg(unix)]
-                    std::os::unix::process::CommandExt::process_group(&mut cmd, 0);
-                    cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn()
-                },
-                {
-                    let mut cmd = tool_cmd(tool, None, None, &[]);
-                    #[cfg(unix)]
-                    std::os::unix::process::CommandExt::process_group(&mut cmd, 0);
-                    cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn()
-                },
-            ) {
+            println!(
+                "{} {} {}",
+                "running".bold(),
+                "eval".blue().bold(),
+                eval.string,
+            );
+            println!(
+                "{} {} {}",
+                "   with".bold(),
+                "tool".magenta().bold(),
+                tool.string,
+            );
+            let outcome = match (eval.cmd.spawn(), tool.cmd.spawn()) {
                 (Ok(mut eval_child), Ok(mut tool_child)) => {
                     let result = intermediary::run_with_ctrlc_handler(
                         &mut io::sink(),
