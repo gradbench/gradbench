@@ -4,14 +4,30 @@
 # who can possibly know why...
 
 CompileFlags:
-  Add: [--std=c++17, -Icpp]
+  Add:  -Icpp
+
+---
+# enforce c++17 if relevant
+If:
+  PathMatch: .*\/.*\.(hpp|cpp)
+
+CompileFlags:
+  Add: --std=c++17
 
 ---
 # ad-hpp 
 If:
   # use leading * to allow clangd to pick up the right files
   # since clangd doesn't support relative paths to .clangd files
-  PathMatch: */tools/ad-hpp/*\.cpp
+  PathMatch: .*tools\/ad-hpp\/.*\.(hpp|cpp)
 
 CompileFlags:
   Add: -Itools/ad-hpp/include
+
+---
+# tapenade-c
+If:
+  PathMatch: .*tools\/tapenade\/evals\/.*\.(h|c)
+
+CompileFlags:
+  Add: -Itools/tapenade/utils
