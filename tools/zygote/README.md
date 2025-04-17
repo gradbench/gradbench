@@ -25,12 +25,12 @@ $ julia --project=tools/zygote tools/zygote/run.jl
 Some of the implementations of the ADBench evals (`gmm`, `ht`, `ba`,
 `lstm`) have been improved compared to the original implementations.
 
-* `gmm` has been vectorised. This slightly reduces primal performance,
+- `gmm` has been vectorised. This slightly reduces primal performance,
   but significantly helps Zygote.
 
-* `ht` has been vectorised, and now exploits sparsity when computing
+- `ht` has been vectorised, and now exploits sparsity when computing
   the Jacobian - this improves performance of the "complicated"
   variant by orders of magnitude. It still suffers slightly by Zygote
   not supporting the forward mode of AD.
 
-* `ba` has been lightly micro-optimised, but but impact is not major.
+- `ba` has been lightly micro-optimised, but but impact is not major.
