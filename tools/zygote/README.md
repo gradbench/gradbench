@@ -22,8 +22,15 @@ $ julia --project=tools/zygote tools/zygote/run.jl
 
 ## Commentary
 
-The implementations of the ADBench evals (`gmm`, `ht`, `ba`, `lstm`)
-are generally not very efficient when it comes to computing Jacobians.
+Some of the implementations of the ADBench evals (`gmm`, `ht`, `ba`,
+`lstm`) have been improved compared to the original implementations.
 
-The "complicated" variant of `ht` is very slow, but the "simple" one
-is pretty fast.
+* `gmm` has been vectorised. This slightly reduces primal performance,
+  but significantly helps Zygote.
+
+* `ht` has been vectorised, and now exploits sparsity when computing
+  the Jacobian - this improves performance of the "complicated"
+  variant by orders of magnitude. It still suffers slightly by Zygote
+  not supporting the forward mode of AD.
+
+* `ba` has been lightly micro-optimised, but but impact is not major.
