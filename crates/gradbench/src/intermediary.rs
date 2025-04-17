@@ -394,7 +394,7 @@ fn timeout_reader(reader: ChildStdout, timeout: Option<Duration>) -> impl io::Re
     }
 }
 
-/// Run an eval and a tool together with an optional `SIGINT` handler`, returning the outcome.
+/// Run an eval and a tool together with an optional `SIGINT` handler, returning the outcome.
 pub fn run_with_ctrlc_handler(
     log: impl Write,
     eval: &mut Child,
