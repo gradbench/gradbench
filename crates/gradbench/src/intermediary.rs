@@ -15,6 +15,7 @@ use crate::{
     protocol::{
         AnalysisResponse, DefineResponse, EvaluateResponse, Id, Message, StartResponse, Timing,
     },
+    util::try_read_line,
     BadOutcome,
 };
 
@@ -175,14 +176,7 @@ impl<
         let mut failure = 0;
         let mut invalid = 0;
         let mut line = Line::new();
-        while let Some(eval_line) = {
-            let mut s = String::new();
-            if self.eval_out.read_line(&mut s)? == 0 {
-                None
-            } else {
-                Some(s)
-            }
-        } {
+        while let Some(eval_line) = try_read_line(&mut self.eval_out)? {
             let message_time = (self.clock)();
             writeln!(
                 self.log,

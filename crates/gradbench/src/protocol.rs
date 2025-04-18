@@ -133,3 +133,29 @@ pub struct AnalysisResponse {
     /// The message ID.
     pub id: Id,
 }
+
+/// A nanoseconds object.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Nanoseconds {
+    pub nanoseconds: u128,
+}
+
+/// A message entry in a log file.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct LogMessage {
+    /// The timestamp in nanoseconds.
+    pub elapsed: Nanoseconds,
+
+    /// The contained message.
+    pub message: Message,
+}
+
+/// A response entry in a log file.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct LogResponse<T> {
+    /// The timestamp in nanoseconds.
+    pub elapsed: Nanoseconds,
+
+    /// The contained response.
+    pub response: T,
+}

@@ -1,3 +1,4 @@
+use std::io::BufRead;
 use std::time::Duration;
 
 use anyhow::Context;
@@ -9,6 +10,15 @@ pub fn nanos_duration(nanoseconds: u128) -> anyhow::Result<Duration> {
         u64::try_from(nanoseconds / BILLION).context("too many seconds")?,
         u32::try_from(nanoseconds % BILLION).unwrap(),
     ))
+}
+
+pub fn try_read_line(file: &mut impl BufRead) -> anyhow::Result<Option<String>> {
+    let mut s = String::new();
+    if file.read_line(&mut s)? == 0 {
+        Ok(None)
+    } else {
+        Ok(Some(s))
+    }
 }
 
 #[cfg(test)]

@@ -1,4 +1,5 @@
 mod intermediary;
+mod log;
 mod protocol;
 mod stats;
 mod util;
@@ -119,6 +120,12 @@ enum Commands {
         #[command(subcommand)]
         command: RepoCommands,
     },
+
+    /// Perform useful operations on the log files produced by `gradbench run`.
+    Log {
+        #[command(subcommand)]
+        command: LogCommands,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -206,6 +213,25 @@ enum RepoCommands {
         /// The source Git commit SHA
         #[clap(long)]
         commit: Option<String>,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum LogCommands {
+    /// Change input/output fields of "evaluate" messages to null.
+    ///
+    /// Writes to stdout unless the `--output` option is used. It is
+    /// expected that the input log file is well-formed, but not that
+    /// it corresponds to a successful run. In particular, the final
+    /// message may not have a response - this occurs when the tool
+    /// crashes or times out before it gets to respond.
+    Trim {
+        /// The input log file.
+        input: PathBuf,
+
+        /// The output log file.
+        #[clap(short, long)]
+        output: Option<PathBuf>,
     },
 }
 
@@ -675,6 +701,21 @@ fn cli() -> Result<(), ExitCode> {
                 }
             }
         }
+        Commands::Log { command } => match command {
+            LogCommands::Trim { input, output } => {
+                let input_file = fs::File::open(input).map_err(|err| err_fail(anyhow!(err)))?;
+                let mut output_file : Box<dyn std::io::Write> = match output {
+                    Some(path) => {
+                        Box::new(fs::File::create(&path).map_err(|err| err_fail(anyhow!(err)))?)
+                    }
+                    None => {
+                        Box::new(io::stdout())
+                    }
+                };
+                log::trim(&mut io::BufReader::new(input_file), &mut output_file)
+                    .map_err(err_fail)
+            }
+        },
     }
 }
 
