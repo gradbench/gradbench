@@ -8,6 +8,7 @@ include("run_ht.jl")
 include("run_llsq.jl")
 include("run_lse.jl")
 include("run_lstm.jl")
+include("run_ode.jl")
 
 GradBench.main("zygote")
 

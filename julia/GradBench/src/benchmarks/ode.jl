@@ -17,47 +17,30 @@ struct Input
     s::Int
 end
 
-function ode_fun(n, x, y, z)
-    z[1] = x[1]
-    for i in 2:n
-        z[i] = x[i] * y[i-1]
-    end
+function ode_fun(x::Vector{T}, y::Vector{T}) where {T}
+    return [x[1]; x[2:end] .* y[1:end-1]]
 end
 
-function primal(n, xi::Vector{T}, s, yf::Vector{T}) where {T}
-    tf = T(2)
-    h = tf / T(s)
-
-    k1 = Vector{T}(undef, n)
-    k2 = Vector{T}(undef, n)
-    k3 = Vector{T}(undef, n)
-    k4 = Vector{T}(undef, n)
-    y_tmp = Vector{T}(undef, n)
-
-    yf .= T(0)
+function runge_kutta(x::Vector{T}, yf::Vector{T}, tf::Float64, s::Int) where {T}
+    h = tf / s
 
     for _ in 1:s
-        ode_fun(n, xi, yf, k1)
+        k1 = ode_fun(x, yf)
+        k2 = ode_fun(x, yf .+ (h / 2) .* k1)
+        k3 = ode_fun(x, yf .+ (h / 2) .* k2)
+        k4 = ode_fun(x, yf .+ h .* k3)
 
-        for i in 1:n
-            y_tmp[i] = yf[i] + h * k1[i] / T(2)
-        end
-        ode_fun(n, xi, y_tmp, k2)
-
-        for i in 1:n
-            y_tmp[i] = yf[i] + h * k2[i] / T(2)
-        end
-        ode_fun(n, xi, y_tmp, k3)
-
-        for i in 1:n
-            y_tmp[i] = yf[i] + h * k3[i]
-        end
-        ode_fun(n, xi, y_tmp, k4)
-
-        for i in 1:n
-            yf[i] += h * (k1[i] + T(2) * k2[i] + T(2) * k3[i] + k4[i]) / T(6)
-        end
+        increment = (h / 6) .* (k1 .+ 2 .* k2 .+ 2 .* k3 .+ k4)
+        yf = yf .+ increment
     end
+
+    return yf
+end
+
+function primal(x::Vector{T}, s::Int) where {T}
+    tf = 2.0
+    yi = fill(0.0, length(x))
+    return runge_kutta(x, yi, tf, s)
 end
 
 end # module ode
