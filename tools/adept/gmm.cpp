@@ -26,8 +26,8 @@ void compute_gmm_J(const gmm::Input& input, gmm::JacOutput& output) {
 
   stack.new_recording();
   adouble aerr;
-  gmm::objective(input.d, input.k, input.n, aalphas, ameans, aicf,
-                 input.x.data(), input.wishart, &aerr);
+  gmm::objective<adouble>(input.d, input.k, input.n, aalphas, ameans, aicf,
+                          input.x.data(), input.wishart, &aerr);
   aerr.set_gradient(1.);  // only one J row here
   stack.reverse();
 

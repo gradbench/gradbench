@@ -37,6 +37,7 @@ in pkgs.stdenv.mkDerivation rec {
     pkgs.llvmPackages_19.lld
     pkgs.llvmPackages_19.clang-tools # Must come before clang for clangd to work.
     pkgs.llvmPackages_19.clang
+    pkgs.llvmPackages_19.openmp
     pkgs.blas
     pkgs.lapack
     pkgs.openblas

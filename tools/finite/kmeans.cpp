@@ -1,5 +1,5 @@
 #include "gradbench/evals/kmeans.hpp"
-#include "finite.h"
+#include "finite.hpp"
 #include "gradbench/main.hpp"
 
 class Dir : public Function<kmeans::Input, kmeans::DirOutput> {

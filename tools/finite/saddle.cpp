@@ -5,7 +5,7 @@
 // the case for most benchmarks.
 
 #include "gradbench/evals/saddle.hpp"
-#include "finite.h"
+#include "finite.hpp"
 #include "gradbench/gd.hpp"
 #include "gradbench/main.hpp"
 

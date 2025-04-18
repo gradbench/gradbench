@@ -1,5 +1,5 @@
 #include "gradbench/evals/lse.hpp"
-#include "finite.h"
+#include "finite.hpp"
 #include "gradbench/main.hpp"
 #include <algorithm>
 

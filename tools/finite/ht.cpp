@@ -5,7 +5,7 @@
 // https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/cpp/modules/finite/FiniteHand.cpp
 
 #include "gradbench/evals/ht.hpp"
-#include "finite.h"
+#include "finite.hpp"
 #include "gradbench/main.hpp"
 #include <algorithm>
 
@@ -43,11 +43,9 @@ public:
         _engine.finite_differences(
             1,
             [&](double* us_in, double* err) {
-              // us_in points into the middle of __input.us.data()
-              ht::objective(_input.theta.data(), _input.us.data(), &_input.data,
-                            err);
+              ht::objective(_input.theta.data(), us_in, &_input.data, err);
             },
-            &_input.us.data()[j * 2], 2, _objective.size(),
+            _input.us.data(), _input.us.size(), j * 2, 2, _objective.size(),
             _jacobian_by_us.data());
 
         for (int k = 0; k < 3; ++k) {

@@ -1,3 +1,4 @@
+import argparse
 import json
 import sys
 import traceback
@@ -17,6 +18,13 @@ def run(params):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--multithreaded", action="store_true")
+    args = parser.parse_args()
+
+    if args.multithreaded:
+        print("multithreading not yet implemented", file=sys.stderr)
+
     for line in sys.stdin:
         message = json.loads(line)
         response = {}

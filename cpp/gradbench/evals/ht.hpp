@@ -99,6 +99,7 @@ void apply_global_transform(const LightMatrix<T>& pose_params,
 
   LightMatrix<T> tmp;
   mat_mult(R, *positions, &tmp);
+#pragma omp parallel for collapse(2)
   for (int j = 0; j < positions->ncols_; j++)
     for (int i = 0; i < positions->nrows_; i++)
       (*positions)(i, j) = tmp(i, j) + pose_params(i, 2);
@@ -176,6 +177,7 @@ void get_skinned_vertex_positions(const ModelLightMatrix& model,
 
   // Get bone transforms.
   transforms.resize(absolutes.size());
+#pragma omp parallel for
   for (size_t i = 0; i < absolutes.size(); i++) {
     mat_mult(absolutes[i], model.inverse_base_absolutes[i], &transforms[i]);
   }
@@ -185,12 +187,16 @@ void get_skinned_vertex_positions(const ModelLightMatrix& model,
   positions.resize(3, model.base_positions.ncols_);
   positions.fill(0.);
   LightMatrix<T> curr_positions(4, model.base_positions.ncols_);
+#pragma omp parallel for firstprivate(curr_positions)
   for (size_t i_bone = 0; i_bone < transforms.size(); i_bone++) {
     mat_mult(transforms[i_bone], model.base_positions, &curr_positions);
     for (int i_vert = 0; i_vert < positions.ncols_; i_vert++)
-      for (int i = 0; i < 3; i++)
-        positions(i, i_vert) +=
+      for (int i = 0; i < 3; i++) {
+        T change =
             curr_positions(i, i_vert) * model.weights((int)i_bone, i_vert);
+#pragma omp atomic
+        positions(i, i_vert) += change;
+      }
   }
 
   if (model.is_mirrored)
@@ -241,6 +247,7 @@ void objective(const T* const theta, const DataLightMatrix* data, T* err) {
   get_skinned_vertex_positions(data->model, pose_params, &vertex_positions,
                                true);
 
+#pragma omp parallel for
   for (size_t i = 0; i < data->correspondences.size(); i++)
     for (int j = 0; j < 3; j++)
       err[i * 3 + j] =
@@ -257,6 +264,7 @@ void objective(const T* const theta, const T* const us,
   get_skinned_vertex_positions(data->model, pose_params, &vertex_positions,
                                true);
 
+#pragma omp parallel for
   for (size_t i = 0; i < data->correspondences.size(); i++) {
     const auto& verts = data->model.triangles[data->correspondences[i]].verts;
     const T* const u  = &us[2 * i];

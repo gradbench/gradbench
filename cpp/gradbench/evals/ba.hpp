@@ -172,6 +172,7 @@ template <typename T>
 void objective(int n, int m, int p, const T* const cams, const T* const X,
                const T* const w, const int* const obs,
                const double* const feats, T* reproj_err, T* w_err) {
+#pragma omp parallel for
   for (int i = 0; i < p; i++) {
     int camIdx = obs[i * 2 + 0];
     int ptIdx  = obs[i * 2 + 1];
@@ -179,6 +180,7 @@ void objective(int n, int m, int p, const T* const cams, const T* const X,
                        &feats[i * 2], &reproj_err[2 * i]);
   }
 
+#pragma omp parallel for
   for (int i = 0; i < p; i++) {
     computeZachWeightError(&w[i], &w_err[i]);
   }

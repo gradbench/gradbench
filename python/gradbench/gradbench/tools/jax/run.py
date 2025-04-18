@@ -1,4 +1,6 @@
+import argparse
 import json
+import os
 import sys
 import traceback
 from importlib import import_module
@@ -17,6 +19,15 @@ def run(params):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--multithreaded", action="store_true")
+    args = parser.parse_args()
+
+    # It is very difficult to restrict Jax to a single thread, but we
+    # can at least pin ourselves to the first CPU.
+    if not args.multithreaded:
+        os.sched_setaffinity(os.getpid(), [0])
+
     for line in sys.stdin:
         message = json.loads(line)
         response = {}

@@ -1,5 +1,5 @@
 #include "gradbench/evals/hello.hpp"
-#include "finite.h"
+#include "finite.hpp"
 #include "gradbench/main.hpp"
 
 class Double : public Function<hello::Input, hello::DoubleOutput> {

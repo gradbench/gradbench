@@ -10,5 +10,5 @@ RUN uv sync --no-default-groups --group gradbench --group jax
 # `COPY` the rest of the files.
 COPY python python
 
-ENTRYPOINT ["taskset", "-c", "1", "uv", "run", "--no-sync", "python/gradbench/gradbench/tools/jax/run.py"]
+ENTRYPOINT ["uv", "run", "--no-sync", "python/gradbench/gradbench/tools/jax/run.py"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
