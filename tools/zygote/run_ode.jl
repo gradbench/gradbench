@@ -8,14 +8,14 @@ function primal(message)
     x = convert(Vector{Float64}, message["x"])
     s = message["s"]
 
-    return GradBench.ODE.primal(x, s)
+    return GradBench.ODE.Pure.primal(x, s)
 end
 
 function gradient(message)
     x = convert(Vector{Float64}, message["x"])
     s = message["s"]
 
-    z, = Zygote.gradient(x -> GradBench.ODE.primal(x, s)[end],
+    z, = Zygote.gradient(x -> GradBench.ODE.Pure.primal(x, s)[end],
                          x)
     return z
 end
