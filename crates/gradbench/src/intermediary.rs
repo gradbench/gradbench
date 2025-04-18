@@ -368,7 +368,7 @@ fn handle_ctrlc<'a>(
 ) -> anyhow::Result<CtrlCHandler<'a>> {
     #[cfg(not(unix))]
     {
-        Ok(crl_c.handle(Box::new(|| {})))
+        Ok(ctrl_c.handle(Box::new(|| {})))
     }
     #[cfg(unix)]
     {
