@@ -973,13 +973,19 @@ pub fn main() -> ExitCode {
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, io::Write, path::Path, process::ExitCode};
+    use std::{
+        fs,
+        io::Write,
+        iter,
+        path::Path,
+        process::{Command, ExitCode},
+    };
 
     use goldenfile::Mint;
     use pretty_assertions::assert_eq;
     use strum::IntoEnumIterator;
 
-    use crate::{BadOutcome, OUTCOME_HELP};
+    use crate::{process_run_items, tool_cmd, BadOutcome, RunItem, RunItemKind, OUTCOME_HELP};
 
     #[test]
     fn test_outcome_help() {
@@ -1011,6 +1017,121 @@ mod tests {
     #[test]
     fn test_outcome_error_exit_code_failure() {
         assert_eq!(ExitCode::from(BadOutcome::Error), ExitCode::FAILURE);
+    }
+
+    fn str_err<T>(s: &str) -> Result<T, String> {
+        Err(s.to_string())
+    }
+
+    fn strings(strs: &[&str]) -> Vec<String> {
+        strs.iter().map(|s| s.to_string()).collect()
+    }
+
+    fn simplify_cmd(cmd: &Command) -> Vec<String> {
+        iter::once(cmd.get_program())
+            .chain(cmd.get_args())
+            .map(|part| part.to_string_lossy().to_string())
+            .collect()
+    }
+
+    fn simple_tool_cmd(name: &str, args: &[&str]) -> Vec<String> {
+        simplify_cmd(&tool_cmd(name, None, None, &strings(args)))
+    }
+
+    #[derive(Debug, PartialEq)]
+    struct RunItemSimplified {
+        string: String,
+        build: Option<String>,
+        cmd: Vec<String>,
+    }
+
+    impl RunItemSimplified {
+        fn list<const N: usize>(items: [(&str, Option<&str>, Vec<String>); N]) -> Vec<Self> {
+            items
+                .into_iter()
+                .map(|(string, build, cmd)| RunItemSimplified {
+                    string: string.to_string(),
+                    build: build.map(|name| name.to_string()),
+                    cmd,
+                })
+                .collect()
+        }
+    }
+
+    impl From<RunItem> for RunItemSimplified {
+        fn from(RunItem { string, build, cmd }: RunItem) -> Self {
+            let cmd = simplify_cmd(&cmd);
+            RunItemSimplified { string, build, cmd }
+        }
+    }
+
+    fn process_tools(
+        items: &[&str],
+        omit: &[&str],
+        default: &[&str],
+    ) -> Result<Vec<RunItemSimplified>, String> {
+        match process_run_items(RunItemKind::Tool, strings(items), strings(omit), || {
+            Ok(strings(default))
+        }) {
+            Ok(processed) => Ok(processed.into_iter().map(RunItemSimplified::from).collect()),
+            Err(error) => Err(format!("{error:#}")),
+        }
+    }
+
+    const DEFAULT_TOOLS: [&str; 3] = ["foo", "bar", "baz"];
+
+    #[test]
+    fn test_run_items_omit() {
+        let actual = process_tools(&[], &["baz", "foo", "baz"], &DEFAULT_TOOLS);
+        let expected = Ok(RunItemSimplified::list([(
+            "bar",
+            Some("bar"),
+            simple_tool_cmd("bar", &[]),
+        )]));
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_run_items_args() {
+        let actual = process_tools(&["foo --bar --baz=qux"], &[], &DEFAULT_TOOLS);
+        let expected = Ok(RunItemSimplified::list([(
+            "foo --bar --baz=qux",
+            Some("foo"),
+            simple_tool_cmd("foo", &["--bar", "--baz=qux"]),
+        )]));
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_run_items_cmd() {
+        let actual = process_tools(&["$ echo 'an example'"], &[], &DEFAULT_TOOLS);
+        let expected = Ok(RunItemSimplified::list([(
+            "$ echo 'an example'",
+            None,
+            strings(&["echo", "an example"]),
+        )]));
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_run_items_conflict() {
+        let actual = process_tools(&["foo"], &["foo"], &[]);
+        let expected = str_err("`--no-tool` cannot be used together with `--tool`");
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_run_items_split_empty() {
+        let actual = process_tools(&[""], &[], &[]);
+        let expected = str_err("empty `--tool` after splitting: \"\"");
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_run_items_split_cmd_empty() {
+        let actual = process_tools(&["$"], &[], &[]);
+        let expected = str_err("empty `--tool` after `$`: \"$\"");
+        assert_eq!(actual, expected);
     }
 
     fn join_lines(lines: &[&str]) -> String {
