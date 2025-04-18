@@ -218,7 +218,7 @@ enum RepoCommands {
 
 #[derive(Debug, Subcommand)]
 enum LogCommands {
-    /// Change input/output fields of "evaluate" messages to null.
+    /// Remove input/output fields from "evaluate" messages and responses.
     ///
     /// Writes to stdout unless the `--output` option is used. It is
     /// expected that the input log file is well-formed, but not that

@@ -23,10 +23,10 @@ pub fn trim(input: &mut impl BufRead, out: &mut impl Write) -> anyhow::Result<()
                         id,
                         module,
                         function,
-                        input: serde_json::Value::Null,
+                        input: None,
                         description,
                     };
-                    response.response.output = Some(serde_json::Value::Null);
+                    response.response.output = None;
                     writeln!(out, "{}", serde_json::to_string(&message)?)?;
                     writeln!(out, "{}", serde_json::to_string(&response)?)?;
                 }

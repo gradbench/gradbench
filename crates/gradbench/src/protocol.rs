@@ -45,7 +45,12 @@ pub enum Message {
         function: String,
 
         /// The input to the function.
-        input: serde_json::Value,
+        #[serde(
+            default, // Deserialize as `None` if missing.
+            deserialize_with = "deserialize_optional_json", // Deserialize as `Some` if present.
+            skip_serializing_if = "Option::is_none" // Serialize as missing if `None`.
+        )]
+        input: Option<serde_json::Value>,
 
         /// A short human-readable description of the input.
         description: Option<String>,
