@@ -1,4 +1,10 @@
-use std::time::Duration;
+use std::{
+    collections::HashMap,
+    mem::take,
+    ops::DerefMut,
+    sync::{Arc, Mutex, MutexGuard},
+    time::Duration,
+};
 
 use anyhow::Context;
 
@@ -9,6 +15,58 @@ pub fn nanos_duration(nanoseconds: u128) -> anyhow::Result<Duration> {
         u64::try_from(nanoseconds / BILLION).context("too many seconds")?,
         u32::try_from(nanoseconds % BILLION).unwrap(),
     ))
+}
+
+pub fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<T> {
+    match mutex.lock() {
+        Ok(guard) => guard,
+        Err(poison_error) => poison_error.into_inner(),
+    }
+}
+
+type CtrlCHandlers = HashMap<usize, Box<dyn FnOnce() + Send>>;
+
+pub struct CtrlC {
+    handlers: Arc<Mutex<CtrlCHandlers>>,
+    next_key: usize,
+}
+
+impl CtrlC {
+    pub fn new() -> Result<Self, ctrlc::Error> {
+        let handlers = Arc::new(Mutex::new(HashMap::new()));
+        let obj = Self {
+            handlers: Arc::clone(&handlers),
+            next_key: 0,
+        };
+        ctrlc::set_handler(move || {
+            let map = {
+                let mut guard = lock(&handlers);
+                take(guard.deref_mut())
+            };
+            for handler in map.into_values() {
+                handler();
+            }
+        })?;
+        Ok(obj)
+    }
+
+    pub fn handle(&mut self, f: Box<dyn FnOnce() + Send>) -> CtrlCHandler {
+        let key = self.next_key;
+        lock(&self.handlers).insert(key, f);
+        self.next_key += 1;
+        CtrlCHandler { ctrl_c: self, key }
+    }
+}
+
+pub struct CtrlCHandler<'a> {
+    ctrl_c: &'a CtrlC,
+    key: usize,
+}
+
+impl Drop for CtrlCHandler<'_> {
+    fn drop(&mut self) {
+        lock(&self.ctrl_c.handlers).remove(&self.key);
+    }
 }
 
 #[cfg(test)]

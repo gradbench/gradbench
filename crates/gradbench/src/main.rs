@@ -23,6 +23,7 @@ use regex::Regex;
 use serde::Serialize;
 use stats::StatsMetadata;
 use strum::{EnumIter, EnumString, IntoStaticStr};
+use util::CtrlC;
 
 /// CLI utilities for GradBench, a benchmark suite for differentiable programming across languages
 /// and domains.
@@ -638,6 +639,7 @@ fn process_run_items(
 
 /// Build and run one or more evals against one or more tools.
 fn run_multiple(
+    ctrl_c: &mut CtrlC,
     RunConfig {
         eval,
         tool,
@@ -706,12 +708,12 @@ fn run_multiple(
             );
             let outcome = match (eval.cmd.spawn(), tool.cmd.spawn()) {
                 (Ok(mut eval_child), Ok(mut tool_child)) => {
-                    let result = intermediary::run_with_ctrlc_handler(
+                    let result = intermediary::run(
+                        ctrl_c,
                         &mut io::sink(),
                         &mut eval_child,
                         &mut tool_child,
                         None,
-                        false,
                     );
                     let _ = eval_child.wait();
                     let _ = tool_child.wait();
@@ -838,6 +840,7 @@ fn matrix() -> anyhow::Result<()> {
 
 /// Run the GradBench CLI, returning a `Result`.
 fn cli() -> Result<(), ExitCode> {
+    let mut ctrl_c = CtrlC::new().map_err(|error| err_fail(anyhow!(error)))?;
     match Cli::parse().command {
         Commands::Eval {
             eval,
@@ -877,11 +880,21 @@ fn cli() -> Result<(), ExitCode> {
             let outcome = match output {
                 Some(path) => {
                     let mut file = fs::File::create(&path).map_err(|err| err_fail(anyhow!(err)))?;
-                    intermediary::run(&mut file, &mut eval_child, &mut tool_child, timeout)
+                    intermediary::run(
+                        &mut ctrl_c,
+                        &mut file,
+                        &mut eval_child,
+                        &mut tool_child,
+                        timeout,
+                    )
                 }
-                None => {
-                    intermediary::run(&mut io::sink(), &mut eval_child, &mut tool_child, timeout)
-                }
+                None => intermediary::run(
+                    &mut ctrl_c,
+                    &mut io::sink(),
+                    &mut eval_child,
+                    &mut tool_child,
+                    timeout,
+                ),
             };
             let eval_wait = eval_child.wait();
             let tool_wait = tool_child.wait();
@@ -915,13 +928,16 @@ fn cli() -> Result<(), ExitCode> {
                     no_eval,
                     no_tool,
                     output,
-                } => match run_multiple(RunConfig {
-                    eval,
-                    tool,
-                    no_eval,
-                    no_tool,
-                    output,
-                }) {
+                } => match run_multiple(
+                    &mut ctrl_c,
+                    RunConfig {
+                        eval,
+                        tool,
+                        no_eval,
+                        no_tool,
+                        output,
+                    },
+                ) {
                     Ok(res) => res,
                     Err(err) => Err(err_fail(err)),
                 },
