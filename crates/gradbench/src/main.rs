@@ -727,6 +727,10 @@ fn run_multiple(
                 Err(bad_outcome) => {
                     let stringified: &str = bad_outcome.into();
                     println!("{}", stringified);
+                    if let BadOutcome::Interrupt = bad_outcome {
+                        // This process is about to exit, so don't try to start the next one.
+                        return Ok(Ok(()));
+                    }
                 }
             }
         }
