@@ -31,47 +31,48 @@
   <text x="640" y="80" fill="white" font-family="sans-serif" font-weight="bold" font-size="12" text-anchor="end" dominant-baseline="middle" transform="rotate(90 640 80)">tapenade</text>
   <text x="675" y="80" fill="white" font-family="sans-serif" font-weight="bold" font-size="12" text-anchor="end" dominant-baseline="middle" transform="rotate(90 675 80)">tensorflow</text>
   <text x="710" y="80" fill="white" font-family="sans-serif" font-weight="bold" font-size="12" text-anchor="end" dominant-baseline="middle" transform="rotate(90 710 80)">zygote</text>
-  <rect x="65" y="85" width="30" height="30" fill="hsl(240 100% 77.98001461428078%)" />
-  <rect x="100" y="85" width="30" height="30" fill="hsl(240 100% 83.10167111514849%)" />
-  <rect x="135" y="85" width="30" height="30" fill="hsl(240 100% 97.76763691670506%)" />
-  <rect x="170" y="85" width="30" height="30" fill="hsl(240 100% 88.7605317935751%)" />
-  <rect x="205" y="85" width="30" height="30" fill="hsl(240 100% 98.87399618399756%)" />
+  <rect x="65" y="85" width="30" height="30" fill="hsl(240 100% 78.05255432326672%)" />
+  <rect x="100" y="85" width="30" height="30" fill="hsl(240 100% 82.89454019760304%)" />
+  <rect x="135" y="85" width="30" height="30" fill="hsl(240 100% 97.79970283339642%)" />
+  <rect x="170" y="85" width="30" height="30" fill="hsl(240 100% 88.85663098412661%)" />
+  <rect x="205" y="85" width="30" height="30" fill="hsl(240 100% 98.8815747602574%)" />
   <rect x="240" y="85" width="30" height="30" fill="hsl(240 100% 50%)" />
-  <rect x="310" y="85" width="30" height="30" fill="hsl(240 100% 92.46438372276756%)" />
-  <rect x="380" y="85" width="30" height="30" fill="hsl(240 100% 67.7794631679771%)" />
-  <rect x="485" y="85" width="30" height="30" fill="hsl(240 100% 51.170787173652585%)" />
+  <rect x="310" y="85" width="30" height="30" fill="hsl(240 100% 92.50696855814087%)" />
+  <rect x="380" y="85" width="30" height="30" fill="hsl(240 100% 67.96446399033515%)" />
+  <rect x="485" y="85" width="30" height="30" fill="hsl(240 100% 51.35134845061299%)" />
   <rect x="555" y="85" width="30" height="30" fill="rgb(255 255 255 / 50%)" />
-  <rect x="625" y="85" width="30" height="30" fill="hsl(240 100% 72.06383038334917%)" />
+  <rect x="625" y="85" width="30" height="30" fill="hsl(240 100% 72.19017481352316%)" />
   <rect x="660" y="85" width="30" height="30" fill="rgb(255 255 255 / 50%)" />
-  <rect x="695" y="85" width="30" height="30" fill="rgb(255 255 255 / 50%)" />
+  <rect x="695" y="85" width="30" height="30" fill="hsl(240 100% 99.6959319580543%)" />
   <rect x="65" y="120" width="30" height="30" fill="hsl(240 100% 50%)" />
-  <rect x="100" y="120" width="30" height="30" fill="hsl(240 100% 83.8115714585104%)" />
-  <rect x="135" y="120" width="30" height="30" fill="hsl(240 100% 85.35030877218252%)" />
-  <rect x="170" y="120" width="30" height="30" fill="hsl(240 100% 50.51878932791284%)" />
-  <rect x="205" y="120" width="30" height="30" fill="hsl(240 100% 92.80097126220826%)" />
-  <rect x="240" y="120" width="30" height="30" fill="hsl(240 100% 91.86536415547877%)" />
-  <rect x="275" y="120" width="30" height="30" fill="hsl(240 100% 99.21526212729538%)" />
-  <rect x="310" y="120" width="30" height="30" fill="hsl(240 100% 98.98525811448727%)" />
-  <rect x="380" y="120" width="30" height="30" fill="hsl(240 100% 94.7484096544009%)" />
-  <rect x="415" y="120" width="30" height="30" fill="hsl(240 100% 97.9570820217215%)" />
-  <rect x="485" y="120" width="30" height="30" fill="hsl(240 100% 91.26700616351897%)" />
+  <rect x="100" y="120" width="30" height="30" fill="hsl(240 100% 83.7126927730928%)" />
+  <rect x="135" y="120" width="30" height="30" fill="hsl(240 100% 86.11099103877451%)" />
+  <rect x="170" y="120" width="30" height="30" fill="hsl(240 100% 50.53319779055992%)" />
+  <rect x="205" y="120" width="30" height="30" fill="hsl(240 100% 93.00931491910552%)" />
+  <rect x="240" y="120" width="30" height="30" fill="hsl(240 100% 91.98747862795992%)" />
+  <rect x="275" y="120" width="30" height="30" fill="hsl(240 100% 99.18670437525434%)" />
+  <rect x="310" y="120" width="30" height="30" fill="hsl(240 100% 98.99407735367261%)" />
+  <rect x="380" y="120" width="30" height="30" fill="hsl(240 100% 94.78898190035461%)" />
+  <rect x="415" y="120" width="30" height="30" fill="hsl(240 100% 97.95862973529%)" />
+  <rect x="485" y="120" width="30" height="30" fill="hsl(240 100% 79.87829753884662%)" />
   <rect x="695" y="120" width="30" height="30" fill="rgb(255 255 255 / 50%)" />
-  <rect x="65" y="155" width="30" height="30" fill="hsl(240 100% 97.19382452038866%)" />
-  <rect x="100" y="155" width="30" height="30" fill="hsl(240 100% 98.3246913821281%)" />
-  <rect x="135" y="155" width="30" height="30" fill="hsl(240 100% 98.90250595394104%)" />
-  <rect x="170" y="155" width="30" height="30" fill="hsl(240 100% 97.35128999315087%)" />
-  <rect x="205" y="155" width="30" height="30" fill="hsl(240 100% 99.78224709730203%)" />
-  <rect x="240" y="155" width="30" height="30" fill="hsl(240 100% 87.54980065687738%)" />
+  <rect x="65" y="155" width="30" height="30" fill="hsl(240 100% 97.45342344536041%)" />
+  <rect x="100" y="155" width="30" height="30" fill="hsl(240 100% 98.25370470339179%)" />
+  <rect x="135" y="155" width="30" height="30" fill="hsl(240 100% 98.84500262612339%)" />
+  <rect x="170" y="155" width="30" height="30" fill="hsl(240 100% 97.202234608517%)" />
+  <rect x="205" y="155" width="30" height="30" fill="hsl(240 100% 99.76760237230766%)" />
+  <rect x="240" y="155" width="30" height="30" fill="hsl(240 100% 86.61154001690281%)" />
+  <rect x="275" y="155" width="30" height="30" fill="hsl(240 100% 99.82467716084324%)" />
   <rect x="310" y="155" width="30" height="30" fill="rgb(255 255 255 / 50%)" />
-  <rect x="380" y="155" width="30" height="30" fill="hsl(240 100% 90.31152428195547%)" />
-  <rect x="450" y="155" width="30" height="30" fill="hsl(240 100% 71.22343035177258%)" />
-  <rect x="485" y="155" width="30" height="30" fill="hsl(240 100% 76.3548033774201%)" />
-  <rect x="520" y="155" width="30" height="30" fill="hsl(240 100% 99.39614265522944%)" />
+  <rect x="380" y="155" width="30" height="30" fill="hsl(240 100% 89.86281721408108%)" />
+  <rect x="450" y="155" width="30" height="30" fill="hsl(240 100% 69.05199367124243%)" />
+  <rect x="485" y="155" width="30" height="30" fill="hsl(240 100% 75.15384491439059%)" />
+  <rect x="520" y="155" width="30" height="30" fill="hsl(240 100% 99.34133890484146%)" />
   <rect x="555" y="155" width="30" height="30" fill="hsl(240 100% 50%)" />
-  <rect x="590" y="155" width="30" height="30" fill="hsl(240 100% 93.02135218209719%)" />
-  <rect x="625" y="155" width="30" height="30" fill="hsl(240 100% 76.98924744032962%)" />
-  <rect x="660" y="155" width="30" height="30" fill="hsl(240 100% 89.2143277963484%)" />
-  <rect x="695" y="155" width="30" height="30" fill="rgb(255 255 255 / 50%)" />
+  <rect x="590" y="155" width="30" height="30" fill="hsl(240 100% 92.65195522565742%)" />
+  <rect x="625" y="155" width="30" height="30" fill="hsl(240 100% 75.90787772256705%)" />
+  <rect x="660" y="155" width="30" height="30" fill="hsl(240 100% 88.84081299442917%)" />
+  <rect x="695" y="155" width="30" height="30" fill="hsl(240 100% 99.32171099432755%)" />
   <rect x="65" y="190" width="30" height="30" fill="hsl(240 100% 50%)" />
   <rect x="100" y="190" width="30" height="30" fill="hsl(240 100% 50%)" />
   <rect x="135" y="190" width="30" height="30" fill="hsl(240 100% 50%)" />
@@ -91,85 +92,87 @@
   <rect x="625" y="190" width="30" height="30" fill="hsl(240 100% 50%)" />
   <rect x="660" y="190" width="30" height="30" fill="hsl(240 100% 50%)" />
   <rect x="695" y="190" width="30" height="30" fill="hsl(240 100% 50%)" />
-  <rect x="100" y="225" width="30" height="30" fill="hsl(240 100% 96.13978193641897%)" />
-  <rect x="135" y="225" width="30" height="30" fill="hsl(240 100% 90.38064184376911%)" />
-  <rect x="170" y="225" width="30" height="30" fill="hsl(240 100% 88.85651027246585%)" />
-  <rect x="240" y="225" width="30" height="30" fill="hsl(240 100% 90.56583779726476%)" />
+  <rect x="100" y="225" width="30" height="30" fill="hsl(240 100% 96.0929445123808%)" />
+  <rect x="135" y="225" width="30" height="30" fill="hsl(240 100% 89.69525850923722%)" />
+  <rect x="170" y="225" width="30" height="30" fill="hsl(240 100% 88.55820064812369%)" />
+  <rect x="240" y="225" width="30" height="30" fill="hsl(240 100% 90.4226625299871%)" />
   <rect x="310" y="225" width="30" height="30" fill="rgb(255 255 255 / 50%)" />
-  <rect x="380" y="225" width="30" height="30" fill="hsl(240 100% 89.90297855069801%)" />
+  <rect x="380" y="225" width="30" height="30" fill="hsl(240 100% 89.70662246396617%)" />
   <rect x="485" y="225" width="30" height="30" fill="hsl(240 100% 50%)" />
   <rect x="555" y="225" width="30" height="30" fill="rgb(255 255 255 / 50%)" />
   <rect x="625" y="225" width="30" height="30" fill="rgb(255 255 255 / 50%)" />
   <rect x="660" y="225" width="30" height="30" fill="rgb(255 255 255 / 50%)" />
-  <rect x="695" y="225" width="30" height="30" fill="rgb(255 255 255 / 50%)" />
-  <rect x="135" y="260" width="30" height="30" fill="hsl(240 100% 99.87995563210106%)" />
-  <rect x="170" y="260" width="30" height="30" fill="hsl(240 100% 99.36786061651267%)" />
+  <rect x="695" y="225" width="30" height="30" fill="hsl(240 100% 99.44379541496015%)" />
+  <rect x="135" y="260" width="30" height="30" fill="hsl(240 100% 99.89117004596956%)" />
+  <rect x="170" y="260" width="30" height="30" fill="hsl(240 100% 99.35282277171824%)" />
   <rect x="205" y="260" width="30" height="30" fill="rgb(255 255 255 / 50%)" />
-  <rect x="240" y="260" width="30" height="30" fill="hsl(240 100% 87.53747547992654%)" />
+  <rect x="240" y="260" width="30" height="30" fill="hsl(240 100% 87.94927787361866%)" />
   <rect x="310" y="260" width="30" height="30" fill="rgb(255 255 255 / 50%)" />
-  <rect x="380" y="260" width="30" height="30" fill="hsl(240 100% 82.95600741953464%)" />
+  <rect x="380" y="260" width="30" height="30" fill="hsl(240 100% 83.09543555866168%)" />
   <rect x="415" y="260" width="30" height="30" fill="rgb(255 255 255 / 50%)" />
   <rect x="450" y="260" width="30" height="30" fill="hsl(240 100% 50%)" />
-  <rect x="485" y="260" width="30" height="30" fill="hsl(240 100% 76.40857026753459%)" />
-  <rect x="555" y="260" width="30" height="30" fill="hsl(240 100% 96.94975110664247%)" />
-  <rect x="590" y="260" width="30" height="30" fill="hsl(240 100% 94.08869123419579%)" />
-  <rect x="65" y="295" width="30" height="30" fill="hsl(240 100% 58.92060303295841%)" />
-  <rect x="100" y="295" width="30" height="30" fill="hsl(240 100% 66.80438305144348%)" />
-  <rect x="135" y="295" width="30" height="30" fill="hsl(240 100% 59.60611270486764%)" />
-  <rect x="170" y="295" width="30" height="30" fill="hsl(240 100% 60.07030787943349%)" />
-  <rect x="205" y="295" width="30" height="30" fill="hsl(240 100% 91.68137763403716%)" />
+  <rect x="485" y="260" width="30" height="30" fill="hsl(240 100% 76.56376101844386%)" />
+  <rect x="555" y="260" width="30" height="30" fill="hsl(240 100% 96.96325542169724%)" />
+  <rect x="590" y="260" width="30" height="30" fill="hsl(240 100% 94.13722842425646%)" />
+  <rect x="65" y="295" width="30" height="30" fill="hsl(240 100% 58.769566666327414%)" />
+  <rect x="100" y="295" width="30" height="30" fill="hsl(240 100% 65.98364692345186%)" />
+  <rect x="135" y="295" width="30" height="30" fill="hsl(240 100% 59.48034454554716%)" />
+  <rect x="170" y="295" width="30" height="30" fill="hsl(240 100% 60.0369591726377%)" />
+  <rect x="205" y="295" width="30" height="30" fill="hsl(240 100% 91.564099843061%)" />
   <rect x="240" y="295" width="30" height="30" fill="hsl(240 100% 50%)" />
-  <rect x="310" y="295" width="30" height="30" fill="hsl(240 100% 99.43090678517862%)" />
-  <rect x="380" y="295" width="30" height="30" fill="hsl(240 100% 50.597877172693046%)" />
-  <rect x="415" y="295" width="30" height="30" fill="hsl(240 100% 89.83258120399739%)" />
-  <rect x="485" y="295" width="30" height="30" fill="hsl(240 100% 53.48098875729485%)" />
-  <rect x="590" y="295" width="30" height="30" fill="hsl(240 100% 55.225725142055616%)" />
-  <rect x="65" y="330" width="30" height="30" fill="hsl(240 100% 89.36567963653371%)" />
-  <rect x="100" y="330" width="30" height="30" fill="hsl(240 100% 94.71673813796576%)" />
-  <rect x="135" y="330" width="30" height="30" fill="hsl(240 100% 97.3152177878587%)" />
-  <rect x="170" y="330" width="30" height="30" fill="hsl(240 100% 89.54885896264882%)" />
-  <rect x="205" y="330" width="30" height="30" fill="hsl(240 100% 99.22172729109242%)" />
-  <rect x="240" y="330" width="30" height="30" fill="hsl(240 100% 81.9247929113755%)" />
-  <rect x="275" y="330" width="30" height="30" fill="hsl(240 100% 99.83043042004337%)" />
+  <rect x="275" y="295" width="30" height="30" fill="hsl(240 100% 98.87156353449575%)" />
+  <rect x="310" y="295" width="30" height="30" fill="hsl(240 100% 99.42722559230305%)" />
+  <rect x="380" y="295" width="30" height="30" fill="hsl(240 100% 50.66276633694628%)" />
+  <rect x="415" y="295" width="30" height="30" fill="hsl(240 100% 89.53213225469929%)" />
+  <rect x="485" y="295" width="30" height="30" fill="hsl(240 100% 53.54236784606459%)" />
+  <rect x="590" y="295" width="30" height="30" fill="hsl(240 100% 55.39872787794624%)" />
+  <rect x="695" y="295" width="30" height="30" fill="hsl(240 100% 99.73105147025662%)" />
+  <rect x="65" y="330" width="30" height="30" fill="hsl(240 100% 89.16480661776883%)" />
+  <rect x="100" y="330" width="30" height="30" fill="hsl(240 100% 94.7977125471137%)" />
+  <rect x="135" y="330" width="30" height="30" fill="hsl(240 100% 97.25675899974296%)" />
+  <rect x="170" y="330" width="30" height="30" fill="hsl(240 100% 89.47777310432109%)" />
+  <rect x="205" y="330" width="30" height="30" fill="hsl(240 100% 99.21835740257539%)" />
+  <rect x="240" y="330" width="30" height="30" fill="hsl(240 100% 81.60936303284235%)" />
+  <rect x="275" y="330" width="30" height="30" fill="hsl(240 100% 99.83030567550067%)" />
   <rect x="310" y="330" width="30" height="30" fill="rgb(255 255 255 / 50%)" />
-  <rect x="380" y="330" width="30" height="30" fill="hsl(240 100% 85.88531756503126%)" />
-  <rect x="415" y="330" width="30" height="30" fill="hsl(240 100% 99.81292597832503%)" />
-  <rect x="450" y="330" width="30" height="30" fill="hsl(240 100% 71.77754952891009%)" />
-  <rect x="485" y="330" width="30" height="30" fill="hsl(240 100% 78.99277711373178%)" />
-  <rect x="520" y="330" width="30" height="30" fill="hsl(240 100% 93.99409464127929%)" />
+  <rect x="380" y="330" width="30" height="30" fill="hsl(240 100% 85.95758961152889%)" />
+  <rect x="415" y="330" width="30" height="30" fill="hsl(240 100% 99.80039442980083%)" />
+  <rect x="450" y="330" width="30" height="30" fill="hsl(240 100% 71.85136634617005%)" />
+  <rect x="485" y="330" width="30" height="30" fill="hsl(240 100% 79.09445773162307%)" />
+  <rect x="520" y="330" width="30" height="30" fill="hsl(240 100% 94.12817457405083%)" />
   <rect x="555" y="330" width="30" height="30" fill="hsl(240 100% 50%)" />
-  <rect x="660" y="330" width="30" height="30" fill="hsl(240 100% 88.98778009660717%)" />
-  <rect x="695" y="330" width="30" height="30" fill="hsl(240 100% 98.86859734153518%)" />
-  <rect x="65" y="365" width="30" height="30" fill="hsl(240 100% 53.42264534541282%)" />
-  <rect x="100" y="365" width="30" height="30" fill="hsl(240 100% 68.81452390600488%)" />
-  <rect x="135" y="365" width="30" height="30" fill="hsl(240 100% 80.89616071815992%)" />
+  <rect x="660" y="330" width="30" height="30" fill="hsl(240 100% 89.10843199332946%)" />
+  <rect x="695" y="330" width="30" height="30" fill="hsl(240 100% 95.05062153292621%)" />
+  <rect x="65" y="365" width="30" height="30" fill="hsl(240 100% 53.57533888316837%)" />
+  <rect x="100" y="365" width="30" height="30" fill="hsl(240 100% 69.04259266228594%)" />
+  <rect x="135" y="365" width="30" height="30" fill="hsl(240 100% 80.86948114829124%)" />
   <rect x="170" y="365" width="30" height="30" fill="hsl(240 100% 50%)" />
-  <rect x="205" y="365" width="30" height="30" fill="hsl(240 100% 95.77887747423912%)" />
-  <rect x="240" y="365" width="30" height="30" fill="hsl(240 100% 50.82412355899937%)" />
-  <rect x="310" y="365" width="30" height="30" fill="hsl(240 100% 99.85187716303223%)" />
-  <rect x="380" y="365" width="30" height="30" fill="hsl(240 100% 63.10965411617812%)" />
-  <rect x="485" y="365" width="30" height="30" fill="hsl(240 100% 84.53780422371453%)" />
-  <rect x="555" y="365" width="30" height="30" fill="hsl(240 100% 99.59849027957233%)" />
-  <rect x="625" y="365" width="30" height="30" fill="hsl(240 100% 60.01673705768432%)" />
-  <rect x="660" y="365" width="30" height="30" fill="hsl(240 100% 97.93204549951608%)" />
-  <rect x="695" y="365" width="30" height="30" fill="hsl(240 100% 99.10994517497132%)" />
-  <rect x="65" y="400" width="30" height="30" fill="hsl(240 100% 98.01190205742883%)" />
-  <rect x="100" y="400" width="30" height="30" fill="hsl(240 100% 99.20606845127536%)" />
-  <rect x="135" y="400" width="30" height="30" fill="hsl(240 100% 99.57495674733146%)" />
-  <rect x="170" y="400" width="30" height="30" fill="hsl(240 100% 93.80107754786214%)" />
-  <rect x="205" y="400" width="30" height="30" fill="hsl(240 100% 98.99292028695052%)" />
-  <rect x="240" y="400" width="30" height="30" fill="hsl(240 100% 86.06067234758386%)" />
-  <rect x="275" y="400" width="30" height="30" fill="hsl(240 100% 99.06999240332486%)" />
+  <rect x="205" y="365" width="30" height="30" fill="hsl(240 100% 95.84521663784024%)" />
+  <rect x="240" y="365" width="30" height="30" fill="hsl(240 100% 51.02916031658081%)" />
+  <rect x="310" y="365" width="30" height="30" fill="hsl(240 100% 99.85113028907983%)" />
+  <rect x="380" y="365" width="30" height="30" fill="hsl(240 100% 63.01252232643705%)" />
+  <rect x="485" y="365" width="30" height="30" fill="hsl(240 100% 84.68338747805376%)" />
+  <rect x="555" y="365" width="30" height="30" fill="hsl(240 100% 99.60026081029366%)" />
+  <rect x="625" y="365" width="30" height="30" fill="hsl(240 100% 59.8621279893022%)" />
+  <rect x="660" y="365" width="30" height="30" fill="hsl(240 100% 97.94829734452186%)" />
+  <rect x="695" y="365" width="30" height="30" fill="hsl(240 100% 99.09178318781109%)" />
+  <rect x="65" y="400" width="30" height="30" fill="hsl(240 100% 97.50618521375932%)" />
+  <rect x="100" y="400" width="30" height="30" fill="hsl(240 100% 99.19086264560978%)" />
+  <rect x="135" y="400" width="30" height="30" fill="hsl(240 100% 99.56380855564632%)" />
+  <rect x="170" y="400" width="30" height="30" fill="hsl(240 100% 93.72993591105973%)" />
+  <rect x="205" y="400" width="30" height="30" fill="hsl(240 100% 98.97174706340303%)" />
+  <rect x="240" y="400" width="30" height="30" fill="hsl(240 100% 85.95758293305367%)" />
+  <rect x="275" y="400" width="30" height="30" fill="hsl(240 100% 98.9862168994341%)" />
   <rect x="310" y="400" width="30" height="30" fill="rgb(255 255 255 / 50%)" />
-  <rect x="380" y="400" width="30" height="30" fill="hsl(240 100% 95.45965204558499%)" />
-  <rect x="415" y="400" width="30" height="30" fill="hsl(240 100% 99.96667408099012%)" />
+  <rect x="380" y="400" width="30" height="30" fill="hsl(240 100% 95.38886769278679%)" />
+  <rect x="415" y="400" width="30" height="30" fill="hsl(240 100% 99.96575997173281%)" />
   <rect x="485" y="400" width="30" height="30" fill="hsl(240 100% 50%)" />
   <rect x="240" y="435" width="30" height="30" fill="hsl(240 100% 50%)" />
-  <rect x="310" y="435" width="30" height="30" fill="hsl(240 100% 95.20060738900528%)" />
-  <rect x="380" y="435" width="30" height="30" fill="hsl(240 100% 87.92458858523722%)" />
-  <rect x="415" y="435" width="30" height="30" fill="hsl(240 100% 99.764005928588%)" />
+  <rect x="310" y="435" width="30" height="30" fill="hsl(240 100% 95.20127592487968%)" />
+  <rect x="380" y="435" width="30" height="30" fill="hsl(240 100% 87.92099290997213%)" />
+  <rect x="415" y="435" width="30" height="30" fill="hsl(240 100% 99.77036561186216%)" />
   <rect x="240" y="470" width="30" height="30" fill="hsl(240 100% 50%)" />
-  <rect x="310" y="470" width="30" height="30" fill="hsl(240 100% 95.9287802551091%)" />
-  <rect x="380" y="470" width="30" height="30" fill="hsl(240 100% 89.27566816290154%)" />
-  <rect x="415" y="470" width="30" height="30" fill="hsl(240 100% 99.58273386206925%)" />
+  <rect x="310" y="470" width="30" height="30" fill="hsl(240 100% 95.8274597798597%)" />
+  <rect x="380" y="470" width="30" height="30" fill="hsl(240 100% 89.05897964025421%)" />
+  <rect x="415" y="470" width="30" height="30" fill="hsl(240 100% 99.56680994034318%)" />
 </svg>
