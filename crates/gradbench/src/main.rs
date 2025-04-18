@@ -704,16 +704,13 @@ fn cli() -> Result<(), ExitCode> {
         Commands::Log { command } => match command {
             LogCommands::Trim { input, output } => {
                 let input_file = fs::File::open(input).map_err(|err| err_fail(anyhow!(err)))?;
-                let mut output_file : Box<dyn std::io::Write> = match output {
+                let mut output_file: Box<dyn std::io::Write> = match output {
                     Some(path) => {
                         Box::new(fs::File::create(&path).map_err(|err| err_fail(anyhow!(err)))?)
                     }
-                    None => {
-                        Box::new(io::stdout())
-                    }
+                    None => Box::new(io::stdout()),
                 };
-                log::trim(&mut io::BufReader::new(input_file), &mut output_file)
-                    .map_err(err_fail)
+                log::trim(&mut io::BufReader::new(input_file), &mut output_file).map_err(err_fail)
             }
         },
     }
