@@ -610,7 +610,7 @@ mod tests {
                     id: 2,
                     module: "foo".to_string(),
                     function: "bar".to_string(),
-                    input: json!(PI),
+                    input: Some(json!(PI)),
                     description: None,
                 },
                 Response::Evaluate {
@@ -638,7 +638,7 @@ mod tests {
                     id: 4,
                     module: "foo".to_string(),
                     function: "baz".to_string(),
-                    input: json!({"mynumber": 121}),
+                    input: Some(json!({"mynumber": 121})),
                     description: None,
                 },
                 Response::Evaluate {
@@ -885,7 +885,7 @@ mod tests {
                     id: 2,
                     module: "foo".to_string(),
                     function: "bar".to_string(),
-                    input: json!(42),
+                    input: Some(json!(42)),
                     description: None,
                 },
                 Response::Evaluate {
@@ -937,7 +937,7 @@ mod tests {
                     id: 2,
                     module: "foo".to_string(),
                     function: "bar".to_string(),
-                    input: json!(42),
+                    input: Some(json!(42)),
                     description: None,
                 },
                 Response::Evaluate {
@@ -989,7 +989,7 @@ mod tests {
                     id: 2,
                     module: "foo".to_string(),
                     function: "bar".to_string(),
-                    input: json!(42),
+                    input: Some(json!(42)),
                     description: None,
                 },
                 Response::Evaluate {
@@ -1041,7 +1041,7 @@ mod tests {
                     id: 2,
                     module: "foo".to_string(),
                     function: "bar".to_string(),
-                    input: json!(42),
+                    input: Some(json!(42)),
                     description: None,
                 },
                 Response::Evaluate {
@@ -1093,7 +1093,7 @@ mod tests {
                     id: 2,
                     module: "foo".to_string(),
                     function: "null".to_string(),
-                    input: json!(null),
+                    input: Some(json!(null)),
                     description: None,
                 },
                 Response::Evaluate {
