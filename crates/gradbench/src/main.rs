@@ -593,6 +593,7 @@ fn matrix() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Run a subcommand from the "Log" command group.
 fn log_command(command: LogCommands) -> anyhow::Result<()> {
     match command {
         LogCommands::Trim { input, output } => match (input, output) {
