@@ -112,6 +112,12 @@ enum Commands {
         outcome: String,
     },
 
+    /// Perform useful operations on the log files produced by `gradbench run`.
+    Log {
+        #[command(subcommand)]
+        command: LogCommands,
+    },
+
     /// Perform a task in a clone of the https://github.com/gradbench/gradbench repository.
     ///
     /// These subcommands will first attempt to check that the current working directory is the root
@@ -119,12 +125,6 @@ enum Commands {
     Repo {
         #[command(subcommand)]
         command: RepoCommands,
-    },
-
-    /// Perform useful operations on the log files produced by `gradbench run`.
-    Log {
-        #[command(subcommand)]
-        command: LogCommands,
     },
 }
 
