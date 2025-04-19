@@ -86,6 +86,14 @@ You should see a bunch of green and blue and magenta build output, followed by s
 
 Congrats, this means everything worked correctly! Now you can try running other combinations from our set of available [evals](evals) and [tools](tools). The raw message log has been stored in `log.jsonl` in the [JSON Lines][] format, such that each line is a valid JSON object. The file consists of message/response pairs sent from the message and received from the tool, and can be analysed using other scripts. Since a log file contains all inputs and outputs, it can be quite large.
 
+The `run` subcommand is the more verbose and basic form; to use the more concise and flexible form, try `repo run` instead; for instance, here's an example running the `hello` eval with _all_ tools, creating a `run/hello` directory to store all the resulting logs:
+
+```sh
+./gradbench repo run --eval hello -o run
+```
+
+You're encouraged to pass `--help` to any command or subcommand to see other possible options.
+
 This was just a quickstart summary; see [`CONTRIBUTING.md`](CONTRIBUTING.md) for more details.
 
 ### Without using Docker
