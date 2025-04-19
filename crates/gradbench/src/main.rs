@@ -529,17 +529,25 @@ fn check_git() -> Result<(), ExitCode> {
 }
 
 /// Return a command that runs its argument as a shell command.
-fn shell(command: &str) -> Command {
-    // TODO: replace with shlex
-    if cfg!(windows) {
-        let mut cmd = Command::new("powershell");
-        cmd.arg("-Command").arg(command);
-        cmd
-    } else {
-        let mut cmd = Command::new("sh");
-        cmd.arg("-c").arg(command);
-        cmd
+fn shell(command: &str) -> anyhow::Result<Command> {
+    match shlex::split(command).map(VecDeque::from) {
+        Some(mut parts) => match parts.pop_front() {
+            Some(first) => {
+                let mut cmd = Command::new(first);
+                cmd.args(parts);
+                Ok(cmd)
+            }
+            None => Err(anyhow!("empty command")),
+        },
+        None => Err(anyhow!("failed to split command")),
     }
+}
+
+/// Configure a subcommand to be run by the intermediary.
+fn configure_intermediary_subcommand(cmd: &mut Command) {
+    cmd.stdin(Stdio::piped()).stdout(Stdio::piped());
+    #[cfg(unix)]
+    std::os::unix::process::CommandExt::process_group(cmd, 0);
 }
 
 /// List the entries in a directory.
@@ -595,7 +603,6 @@ fn process_run_items(
     omit: Vec<String>,
     default: impl FnOnce() -> anyhow::Result<Vec<String>>,
 ) -> anyhow::Result<(Vec<String>, Vec<RunItem>)> {
-    // TODO: test this function
     let kind = match item_kind {
         RunItemKind::Eval => "eval",
         RunItemKind::Tool => "tool",
@@ -638,9 +645,7 @@ fn process_run_items(
             for arg in parts {
                 cmd.arg(arg);
             }
-            cmd.stdin(Stdio::piped()).stdout(Stdio::piped());
-            #[cfg(unix)]
-            std::os::unix::process::CommandExt::process_group(&mut cmd, 0);
+            configure_intermediary_subcommand(&mut cmd);
             Ok((build, (string, cmd)))
         })
         .process_results::<_, _, anyhow::Error, (BTreeSet<Option<String>>, Vec<RunItem>)>(|it| {
@@ -929,22 +934,20 @@ fn cli() -> Result<(), ExitCode> {
             output,
             timeout,
         } => {
-            let (Ok(mut eval_child), Ok(mut tool_child)) = (
-                {
-                    let mut cmd = shell(&eval);
-                    #[cfg(unix)]
-                    std::os::unix::process::CommandExt::process_group(&mut cmd, 0);
-                    cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn()
-                },
-                {
-                    let mut cmd = shell(&tool);
-                    #[cfg(unix)]
-                    std::os::unix::process::CommandExt::process_group(&mut cmd, 0);
-                    cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn()
-                },
-            ) else {
-                return Err(err_fail(anyhow!("error starting eval and tool commands")));
-            };
+            let mut eval_child = shell(&eval)
+                .and_then(|mut cmd| {
+                    configure_intermediary_subcommand(&mut cmd);
+                    Ok(cmd.spawn()?)
+                })
+                .context("eval")
+                .map_err(err_fail)?;
+            let mut tool_child = shell(&tool)
+                .and_then(|mut cmd| {
+                    configure_intermediary_subcommand(&mut cmd);
+                    Ok(cmd.spawn()?)
+                })
+                .context("tool")
+                .map_err(err_fail)?;
             let timeout = timeout.map(Duration::from_secs);
             let outcome = match output {
                 Some(path) => {
