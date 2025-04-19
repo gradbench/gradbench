@@ -728,7 +728,7 @@ fn cli() -> Result<(), ExitCode> {
                 }
             }
         }
-        Commands::Log { command } => log_command(command).map_err(|err| err_fail(anyhow!(err))),
+        Commands::Log { command } => log_command(command).map_err(err_fail),
     }
 }
 
