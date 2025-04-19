@@ -6,7 +6,7 @@ mod util;
 use std::{
     backtrace::BacktraceStatus,
     collections::{BTreeMap, BTreeSet, HashSet, VecDeque},
-    fs,
+    env, fs,
     io::{self, BufRead},
     mem::take,
     path::{Path, PathBuf},
@@ -24,7 +24,7 @@ use regex::Regex;
 use serde::Serialize;
 use stats::StatsMetadata;
 use strum::{EnumIter, EnumString, IntoStaticStr};
-use util::CtrlC;
+use util::{stringify_cmd, CtrlC};
 
 /// CLI utilities for GradBench, a benchmark suite for differentiable programming across languages
 /// and domains.
@@ -158,6 +158,10 @@ enum RepoCommands {
         /// Output directory
         #[clap(short, long)]
         output: Option<PathBuf>,
+
+        /// Print commands to stdout instead of running anything
+        #[clap(long)]
+        dry_run: bool,
     },
 
     /// Build and run an eval using Docker.
@@ -286,6 +290,34 @@ fn run(command: &mut Command) -> Result<Output, ExitCode> {
     Ok(output)
 }
 
+/// Get a command to build the Docker image for an eval.
+fn build_eval_cmd(name: &str, platform: Option<&str>) -> Command {
+    let mut cmd = Command::new("docker");
+    cmd.arg("build");
+    if let Some(platform) = platform {
+        cmd.args(["--platform", platform]);
+    }
+    cmd.args([".", "--file"])
+        .arg(format!("evals/{name}/Dockerfile"))
+        .arg("--tag")
+        .arg(format!("ghcr.io/gradbench/eval-{name}"));
+    cmd
+}
+
+/// Get a command to build the Docker image for a tool.
+fn build_tool_cmd(name: &str, platform: Option<&str>) -> Command {
+    let mut cmd = Command::new("docker");
+    cmd.arg("build");
+    if let Some(platform) = platform {
+        cmd.args(["--platform", platform]);
+    }
+    cmd.args([".", "--file"])
+        .arg(format!("tools/{name}/Dockerfile"))
+        .arg("--tag")
+        .arg(format!("ghcr.io/gradbench/tool-{name}"));
+    cmd
+}
+
 /// Get a command to run an eval using Docker.
 fn eval_cmd(name: &str, tag: Option<&str>, platform: Option<&str>, args: &[String]) -> Command {
     let t = tag.unwrap_or("latest");
@@ -407,15 +439,7 @@ fn build_eval(
     if name.is_empty() || !fs::exists(Path::new("evals").join(name)).unwrap_or(false) {
         return Err(err_fail(anyhow!("can't find eval to build: {name:?}")));
     }
-    let mut cmd = Command::new("docker");
-    cmd.arg("build");
-    if let Some(platform) = platform {
-        cmd.args(["--platform", platform]);
-    }
-    cmd.args([".", "--file"])
-        .arg(format!("evals/{name}/Dockerfile"))
-        .arg("--tag")
-        .arg(format!("ghcr.io/gradbench/eval-{name}"));
+    let mut cmd = build_eval_cmd(name, platform);
     match verbosity {
         Verbosity::Normal => {
             run(&mut cmd)?;
@@ -440,15 +464,7 @@ fn build_tool(
     if name.is_empty() || !fs::exists(Path::new("tools").join(name)).unwrap_or(false) {
         return Err(err_fail(anyhow!("can't find tool to build: {name:?}")));
     }
-    let mut cmd = Command::new("docker");
-    cmd.arg("build");
-    if let Some(platform) = platform {
-        cmd.args(["--platform", platform]);
-    }
-    cmd.args([".", "--file"])
-        .arg(format!("tools/{name}/Dockerfile"))
-        .arg("--tag")
-        .arg(format!("ghcr.io/gradbench/tool-{name}"));
+    let mut cmd = build_tool_cmd(name, platform);
     match verbosity {
         Verbosity::Normal => {
             cmd.arg("--progress=plain");
@@ -555,6 +571,9 @@ struct RunConfig {
 
     /// Output directory.
     output: Option<PathBuf>,
+
+    /// Don't actually run anything, just print commands to stdout.
+    dry_run: bool,
 }
 
 /// Choice between talking about evals or talking about tools.
@@ -630,6 +649,45 @@ fn process_run_items(
     Ok((builds.into_iter().flatten().collect(), runs))
 }
 
+/// Print the commands for building and running one more evals against one or more tools.
+fn run_dry(
+    stdout: &mut impl io::Write,
+    this: &str,
+    output: Option<&Path>,
+    evals_build: &[String],
+    tools_build: &[String],
+    evals_run: &[RunItem],
+    tools_run: &[RunItem],
+) -> anyhow::Result<()> {
+    for eval in evals_build {
+        let cmd = shlex::try_join(stringify_cmd(&build_eval_cmd(eval, None))?)?;
+        writeln!(stdout, "{cmd}")?;
+    }
+    for tool in tools_build {
+        let cmd = shlex::try_join(stringify_cmd(&build_tool_cmd(tool, None))?)?;
+        writeln!(stdout, "{cmd}")?;
+    }
+    if let Some(dir) = output {
+        let dir_str = dir
+            .to_str()
+            .ok_or_else(|| anyhow!("failed to convert output directory path to a string"))?;
+        writeln!(stdout, "{}", shlex::try_join(["mkdir", "-p", dir_str])?)?;
+    }
+    for (_, eval) in evals_run {
+        for (_, tool) in tools_run {
+            let eval_cmd = shlex::try_join(stringify_cmd(eval)?)?;
+            let tool_cmd = shlex::try_join(stringify_cmd(tool)?)?;
+            writeln!(
+                stdout,
+                "{this} run --eval {} --tool {}",
+                shlex::try_quote(&eval_cmd)?,
+                shlex::try_quote(&tool_cmd)?,
+            )?;
+        }
+    }
+    Ok(())
+}
+
 /// Build and run one or more evals against one or more tools.
 fn run_multiple(
     ctrl_c: &mut CtrlC,
@@ -639,12 +697,28 @@ fn run_multiple(
         no_eval,
         no_tool,
         output,
+        dry_run,
     }: RunConfig,
 ) -> anyhow::Result<Result<(), ExitCode>> {
     let (evals_build, mut evals_run) =
         process_run_items(RunItemKind::Eval, eval, no_eval, || ls("evals"))?;
     let (tools_build, mut tools_run) =
         process_run_items(RunItemKind::Tool, tool, no_tool, || ls("tools"))?;
+    if dry_run {
+        let this = env::args()
+            .next()
+            .ok_or_else(|| anyhow!("failed to get the name of this program"))?;
+        run_dry(
+            &mut io::stdout(),
+            &this,
+            output.as_deref(),
+            &evals_build,
+            &tools_build,
+            &evals_run,
+            &tools_run,
+        )?;
+        return Ok(Ok(()));
+    }
     let mut need_newline = false;
     for eval in evals_build {
         println!("{} {}", "building eval".blue().bold(), eval);
@@ -923,6 +997,7 @@ fn cli() -> Result<(), ExitCode> {
                     no_eval,
                     no_tool,
                     output,
+                    dry_run,
                 } => match run_multiple(
                     &mut ctrl_c,
                     RunConfig {
@@ -931,6 +1006,7 @@ fn cli() -> Result<(), ExitCode> {
                         no_eval,
                         no_tool,
                         output,
+                        dry_run,
                     },
                 ) {
                     Ok(res) => res,
@@ -984,19 +1060,16 @@ pub fn main() -> ExitCode {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        fs,
-        io::Write,
-        iter,
-        path::Path,
-        process::{Command, ExitCode},
-    };
+    use std::{fs, io::Write, path::Path, process::ExitCode};
 
     use goldenfile::Mint;
     use pretty_assertions::assert_eq;
     use strum::IntoEnumIterator;
 
-    use crate::{process_run_items, tool_cmd, BadOutcome, RunItemKind, OUTCOME_HELP};
+    use crate::{
+        process_run_items, run_dry, tool_cmd, util::stringify_cmd, BadOutcome, RunItemKind,
+        OUTCOME_HELP,
+    };
 
     #[test]
     fn test_outcome_help() {
@@ -1038,15 +1111,8 @@ mod tests {
         strs.iter().map(|s| s.to_string()).collect()
     }
 
-    fn simplify_cmd(cmd: &Command) -> Vec<String> {
-        iter::once(cmd.get_program())
-            .chain(cmd.get_args())
-            .map(|part| part.to_string_lossy().to_string())
-            .collect()
-    }
-
     fn simple_tool_cmd(name: &str, args: &[&str]) -> Vec<String> {
-        simplify_cmd(&tool_cmd(name, None, None, &strings(args)))
+        strings(&stringify_cmd(&tool_cmd(name, None, None, &strings(args))).unwrap())
     }
 
     type RunItemSimplified = (String, Vec<String>);
@@ -1069,18 +1135,19 @@ mod tests {
             Ok((builds, runs)) => Ok((
                 builds,
                 runs.into_iter()
-                    .map(|(string, cmd)| (string, simplify_cmd(&cmd)))
+                    .map(|(string, cmd)| (string, strings(&stringify_cmd(&cmd).unwrap())))
                     .collect(),
             )),
             Err(error) => Err(format!("{error:#}")),
         }
     }
 
-    const DEFAULT_TOOLS: [&str; 3] = ["foo", "bar", "baz"];
+    const DEFAULT_EVALS: &[&str] = &["qux", "norf"];
+    const DEFAULT_TOOLS: &[&str] = &["foo", "bar", "baz"];
 
     #[test]
     fn test_run_items_omit() {
-        let actual = process_tools(&[], &["baz", "foo", "baz"], &DEFAULT_TOOLS);
+        let actual = process_tools(&[], &["baz", "foo", "baz"], DEFAULT_TOOLS);
         let expected = Ok((
             strings(&["bar"]),
             run_items([("bar", simple_tool_cmd("bar", &[]))]),
@@ -1093,7 +1160,7 @@ mod tests {
         let actual = process_tools(
             &["foo --bar --baz=qux", "foo --baz=norf"],
             &[],
-            &DEFAULT_TOOLS,
+            DEFAULT_TOOLS,
         );
         let expected = Ok((
             strings(&["foo"]),
@@ -1110,7 +1177,7 @@ mod tests {
 
     #[test]
     fn test_run_items_cmd() {
-        let actual = process_tools(&["$ echo 'an example'"], &[], &DEFAULT_TOOLS);
+        let actual = process_tools(&["$ echo 'an example'"], &[], DEFAULT_TOOLS);
         let expected = Ok((
             strings(&[]),
             run_items([("$ echo 'an example'", strings(&["echo", "an example"]))]),
@@ -1137,6 +1204,32 @@ mod tests {
         let actual = process_tools(&["$"], &[], &[]);
         let expected = str_err("empty `--tool` after `$`: \"$\"");
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_run_dry() {
+        let mut mint = Mint::new("src/outputs");
+        let mut stdout = mint.new_goldenfile("dry_run.txt").unwrap();
+        let (evals_build, evals_run) =
+            process_run_items(RunItemKind::Eval, strings(&[]), strings(&[]), || {
+                Ok(strings(DEFAULT_EVALS))
+            })
+            .unwrap();
+        let (tools_build, tools_run) =
+            process_run_items(RunItemKind::Tool, strings(&[]), strings(&[]), || {
+                Ok(strings(DEFAULT_TOOLS))
+            })
+            .unwrap();
+        run_dry(
+            &mut stdout,
+            "gradbench",
+            None,
+            &evals_build,
+            &tools_build,
+            &evals_run,
+            &tools_run,
+        )
+        .unwrap();
     }
 
     fn join_lines(lines: &[&str]) -> String {

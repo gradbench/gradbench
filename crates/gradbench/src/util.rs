@@ -1,12 +1,14 @@
 use std::{
     collections::HashMap,
+    iter,
     mem::take,
     ops::DerefMut,
+    process::Command,
     sync::{Arc, Mutex, MutexGuard},
     time::Duration,
 };
 
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 
 const BILLION: u128 = 1_000_000_000;
 
@@ -22,6 +24,16 @@ pub fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<T> {
         Ok(guard) => guard,
         Err(poison_error) => poison_error.into_inner(),
     }
+}
+
+pub fn stringify_cmd(cmd: &Command) -> anyhow::Result<Vec<&str>> {
+    iter::once(cmd.get_program())
+        .chain(cmd.get_args())
+        .map(|part| {
+            part.to_str()
+                .ok_or_else(|| anyhow!("failed to convert part of command to string: {part:?}"))
+        })
+        .collect()
 }
 
 type CtrlCHandlers = HashMap<usize, Box<dyn FnOnce() + Send>>;
