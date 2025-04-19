@@ -15,7 +15,7 @@ use crate::{
     protocol::{
         AnalysisResponse, DefineResponse, EvaluateResponse, Id, Message, StartResponse, Timing,
     },
-    util::try_read_line,
+    util::{nanostring, try_read_line},
     BadOutcome,
 };
 
@@ -65,22 +65,6 @@ const WIDTH_NAME: usize = 15;
 
 /// Width to print the description of an input.
 const WIDTH_DESCRIPTION: usize = 15;
-
-/// Return an 11-character human-readable string for the given number of nanoseconds.
-fn nanostring(nanoseconds: u128) -> String {
-    let ms = nanoseconds / 1_000_000;
-    let sec = ms / 1000;
-    let min = sec / 60;
-    if sec == 0 {
-        format!("{:2} {:2} {:3}ms", "", "", ms)
-    } else if min == 0 {
-        format!("{:2} {:2}.{:03} s", "", sec, ms % 1000)
-    } else if min < 60 {
-        format!("{:2}:{:02}.{:03}  ", min, sec % 60, ms % 1000)
-    } else {
-        format!("{:2} {:2}>{:3}hr", "", "", " 1 ")
-    }
-}
 
 /// An intermediary that runs an eval and a tool, logging their output and timing their execution.
 struct Intermediary<IE, IT, OE, OT, C, T, L> {
@@ -251,7 +235,7 @@ impl<
             let response_time = (self.clock)();
             let nanos = (response_time - message_time).as_nanos();
             match message {
-                Message::Start { id, eval } => {
+                Message::Start { id, eval, .. } => {
                     let response: StartResponse = self.parse_response(&tool_line)?;
                     // OK now that we know the tool won't do anything weird with the terminal.
                     line.start(&mut self.out, id)?;
@@ -446,59 +430,9 @@ mod tests {
     use serde_json::json;
 
     use crate::intermediary::{
-        nanostring, AnalysisResponse, BadOutcome, DefineResponse, EvaluateResponse, Id,
-        Intermediary, Message, StartResponse, Timing,
+        AnalysisResponse, BadOutcome, DefineResponse, EvaluateResponse, Id, Intermediary, Message,
+        StartResponse, Timing,
     };
-
-    fn nanostring_test(expected: &str, duration: Duration) {
-        assert_eq!(expected.len(), 11);
-        assert_eq!(nanostring(duration.as_nanos()), expected);
-    }
-
-    #[test]
-    fn test_nanostring_0() {
-        nanostring_test("        0ms", Duration::ZERO);
-    }
-
-    #[test]
-    fn test_nanostring_999_microseconds() {
-        nanostring_test("        0ms", Duration::from_micros(999));
-    }
-
-    #[test]
-    fn test_nanostring_1_millisecond() {
-        nanostring_test("        1ms", Duration::from_millis(1));
-    }
-
-    #[test]
-    fn test_nanostring_999_milliseconds() {
-        nanostring_test("      999ms", Duration::from_millis(999));
-    }
-
-    #[test]
-    fn test_nanostring_1_second() {
-        nanostring_test("    1.000 s", Duration::from_secs(1));
-    }
-
-    #[test]
-    fn test_nanostring_59_seconds() {
-        nanostring_test("   59.000 s", Duration::from_secs(59));
-    }
-
-    #[test]
-    fn test_nanostring_1_minute() {
-        nanostring_test(" 1:00.000  ", Duration::from_secs(60));
-    }
-
-    #[test]
-    fn test_nanostring_59_minutes() {
-        nanostring_test("59:00.000  ", Duration::from_secs(59 * 60));
-    }
-
-    #[test]
-    fn test_nanostring_1_hour() {
-        nanostring_test("     > 1 hr", Duration::from_secs(3600));
-    }
 
     enum Response {
         Start {
@@ -532,6 +466,7 @@ mod tests {
                 Response::Start { id, tool } => StartResponse {
                     id: *id,
                     tool: tool.clone(),
+                    config: None,
                 }
                 .serialize(serializer),
                 Response::Define {
@@ -590,7 +525,11 @@ mod tests {
     fn test_intermediary_readme_example() {
         let (eval_out, tool_out) = session(&[
             (
-                Message::Start { id: 0, eval: None },
+                Message::Start {
+                    id: 0,
+                    eval: None,
+                    config: None,
+                },
                 Response::Start { id: 0, tool: None },
             ),
             (
@@ -690,6 +629,7 @@ mod tests {
             Message::Start {
                 id: 0,
                 eval: Some("foo".to_string()),
+                config: None,
             },
             Response::Start {
                 id: 0,
@@ -715,7 +655,11 @@ mod tests {
     fn test_intermediary_define_timings() {
         let (eval_out, tool_out) = session(&[
             (
-                Message::Start { id: 0, eval: None },
+                Message::Start {
+                    id: 0,
+                    eval: None,
+                    config: None,
+                },
                 Response::Start { id: 0, tool: None },
             ),
             (
@@ -793,7 +737,11 @@ mod tests {
     fn test_intermediary_define_error() {
         let (eval_out, tool_out) = session(&[
             (
-                Message::Start { id: 0, eval: None },
+                Message::Start {
+                    id: 0,
+                    eval: None,
+                    config: None,
+                },
                 Response::Start { id: 0, tool: None },
             ),
             (
@@ -829,7 +777,11 @@ mod tests {
     fn test_intermediary_define_success_error() {
         let (eval_out, tool_out) = session(&[
             (
-                Message::Start { id: 0, eval: None },
+                Message::Start {
+                    id: 0,
+                    eval: None,
+                    config: None,
+                },
                 Response::Start { id: 0, tool: None },
             ),
             (
@@ -865,7 +817,11 @@ mod tests {
     fn test_intermediary_evaluate_error() {
         let (eval_out, tool_out) = session(&[
             (
-                Message::Start { id: 0, eval: None },
+                Message::Start {
+                    id: 0,
+                    eval: None,
+                    config: None,
+                },
                 Response::Start { id: 0, tool: None },
             ),
             (
@@ -917,7 +873,11 @@ mod tests {
     fn test_intermediary_evaluate_failure_no_error() {
         let (eval_out, tool_out) = session(&[
             (
-                Message::Start { id: 0, eval: None },
+                Message::Start {
+                    id: 0,
+                    eval: None,
+                    config: None,
+                },
                 Response::Start { id: 0, tool: None },
             ),
             (
@@ -969,7 +929,11 @@ mod tests {
     fn test_intermediary_evaluate_success_error() {
         let (eval_out, tool_out) = session(&[
             (
-                Message::Start { id: 0, eval: None },
+                Message::Start {
+                    id: 0,
+                    eval: None,
+                    config: None,
+                },
                 Response::Start { id: 0, tool: None },
             ),
             (
@@ -1021,7 +985,11 @@ mod tests {
     fn test_intermediary_evaluate_success_no_output() {
         let (eval_out, tool_out) = session(&[
             (
-                Message::Start { id: 0, eval: None },
+                Message::Start {
+                    id: 0,
+                    eval: None,
+                    config: None,
+                },
                 Response::Start { id: 0, tool: None },
             ),
             (
@@ -1073,7 +1041,11 @@ mod tests {
     fn test_intermediary_evaluate_null_output() {
         let (eval_out, tool_out) = session(&[
             (
-                Message::Start { id: 0, eval: None },
+                Message::Start {
+                    id: 0,
+                    eval: None,
+                    config: None,
+                },
                 Response::Start { id: 0, tool: None },
             ),
             (
@@ -1158,7 +1130,11 @@ mod tests {
     fn test_intermediary_timeout() {
         let (mut eval_out, tool_out) = session(&[
             (
-                Message::Start { id: 0, eval: None },
+                Message::Start {
+                    id: 0,
+                    eval: None,
+                    config: None,
+                },
                 Response::Start { id: 0, tool: None },
             ),
             (
