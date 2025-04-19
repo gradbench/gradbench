@@ -5,7 +5,7 @@ mod util;
 
 use std::{
     backtrace::BacktraceStatus,
-    collections::{BTreeMap, HashSet, VecDeque},
+    collections::{BTreeMap, BTreeSet, HashSet, VecDeque},
     fs,
     io::{self, BufRead},
     mem::take,
@@ -19,6 +19,7 @@ use std::{
 use anyhow::{anyhow, bail, Context};
 use clap::{Parser, Subcommand};
 use colored::{Color, Colorize};
+use itertools::Itertools;
 use regex::Regex;
 use serde::Serialize;
 use stats::StatsMetadata;
@@ -565,25 +566,16 @@ enum RunItemKind {
     Tool,
 }
 
-/// A processed eval or tool command that can be optionally built, and then run.
-struct RunItem {
-    /// The raw user-provided string.
-    string: String,
+/// A raw `String` and the processed `Command` representing its semantics.
+type RunItem = (String, Command);
 
-    /// The name of the eval or tool to build, if any.
-    build: Option<String>,
-
-    /// The command to run.
-    cmd: Command,
-}
-
-/// Process a human-friendly list of evals or tools into a list of commands and things to build.
+/// Process a human-friendly list of evals or tools into a deduplicated build list and a run list.
 fn process_run_items(
     item_kind: RunItemKind,
     items: Vec<String>,
     omit: Vec<String>,
     default: impl FnOnce() -> anyhow::Result<Vec<String>>,
-) -> anyhow::Result<Vec<RunItem>> {
+) -> anyhow::Result<(Vec<String>, Vec<RunItem>)> {
     // TODO: test this function
     let kind = match item_kind {
         RunItemKind::Eval => "eval",
@@ -601,7 +593,7 @@ fn process_run_items(
         }
         items
     };
-    strings
+    let (builds, runs) = strings
         .into_iter()
         .map(|string| {
             let mut parts = VecDeque::from(
@@ -611,30 +603,31 @@ fn process_run_items(
             let first = parts
                 .pop_front()
                 .ok_or_else(|| anyhow!("empty `--{kind}` after splitting: {string:?}"))?;
-            let mut item = if first == "$" {
+            let (build, mut cmd) = if first == "$" {
                 let program = parts
                     .pop_front()
                     .ok_or_else(|| anyhow!("empty `--{kind}` after `$`: {string:?}"))?;
-                let build = None;
                 let cmd = Command::new(program);
-                RunItem { string, build, cmd }
+                (None, cmd)
             } else {
                 let cmd = (match item_kind {
                     RunItemKind::Eval => eval_cmd,
                     RunItemKind::Tool => tool_cmd,
                 })(&first, None, None, &[]);
-                let build = Some(first);
-                RunItem { string, build, cmd }
+                (Some(first), cmd)
             };
             for arg in parts {
-                item.cmd.arg(arg);
+                cmd.arg(arg);
             }
-            item.cmd.stdin(Stdio::piped()).stdout(Stdio::piped());
+            cmd.stdin(Stdio::piped()).stdout(Stdio::piped());
             #[cfg(unix)]
-            std::os::unix::process::CommandExt::process_group(&mut item.cmd, 0);
-            Ok(item)
+            std::os::unix::process::CommandExt::process_group(&mut cmd, 0);
+            Ok((build, (string, cmd)))
         })
-        .collect()
+        .process_results::<_, _, anyhow::Error, (BTreeSet<Option<String>>, Vec<RunItem>)>(|it| {
+            it.unzip()
+        })?;
+    Ok((builds.into_iter().flatten().collect(), runs))
 }
 
 /// Build and run one or more evals against one or more tools.
@@ -648,37 +641,35 @@ fn run_multiple(
         output,
     }: RunConfig,
 ) -> anyhow::Result<Result<(), ExitCode>> {
-    let mut evals = process_run_items(RunItemKind::Eval, eval, no_eval, || ls("evals"))?;
-    let mut tools = process_run_items(RunItemKind::Tool, tool, no_tool, || ls("tools"))?;
+    let (evals_build, mut evals_run) =
+        process_run_items(RunItemKind::Eval, eval, no_eval, || ls("evals"))?;
+    let (tools_build, mut tools_run) =
+        process_run_items(RunItemKind::Tool, tool, no_tool, || ls("tools"))?;
     let mut need_newline = false;
-    for eval_item in &evals {
-        if let Some(eval) = &eval_item.build {
-            println!("{} {}", "building eval".blue().bold(), eval);
-            match build_eval(eval, None, Verbosity::Quiet) {
-                Ok(Caching::Cached) => need_newline = true,
-                Ok(Caching::Uncached) => {
-                    println!();
-                    need_newline = false;
-                }
-                Err(code) => return Ok(Err(code)),
+    for eval in evals_build {
+        println!("{} {}", "building eval".blue().bold(), eval);
+        match build_eval(&eval, None, Verbosity::Quiet) {
+            Ok(Caching::Cached) => need_newline = true,
+            Ok(Caching::Uncached) => {
+                println!();
+                need_newline = false;
             }
+            Err(code) => return Ok(Err(code)),
         }
     }
     if need_newline {
         println!();
         need_newline = false;
     }
-    for tool_item in &tools {
-        if let Some(tool) = &tool_item.build {
-            println!("{} {}", "building tool".magenta().bold(), tool);
-            match build_tool(tool, None, Verbosity::Quiet) {
-                Ok(Caching::Cached) => need_newline = true,
-                Ok(Caching::Uncached) => {
-                    println!();
-                    need_newline = false;
-                }
-                Err(code) => return Ok(Err(code)),
+    for tool in tools_build {
+        println!("{} {}", "building tool".magenta().bold(), tool);
+        match build_tool(&tool, None, Verbosity::Quiet) {
+            Ok(Caching::Cached) => need_newline = true,
+            Ok(Caching::Uncached) => {
+                println!();
+                need_newline = false;
             }
+            Err(code) => return Ok(Err(code)),
         }
     }
     if let Some(dir) = &output {
@@ -688,8 +679,8 @@ fn run_multiple(
         println!();
     }
     let mut first = true;
-    for eval in &mut evals {
-        for tool in &mut tools {
+    for (eval_string, eval_cmd) in &mut evals_run {
+        for (tool_string, tool_cmd) in &mut tools_run {
             if !first {
                 println!();
             }
@@ -698,15 +689,15 @@ fn run_multiple(
                 "{} {} {}",
                 "running".bold(),
                 "eval".blue().bold(),
-                eval.string,
+                eval_string,
             );
             println!(
                 "{} {} {}",
                 "   with".bold(),
                 "tool".magenta().bold(),
-                tool.string,
+                tool_string,
             );
-            let outcome = match (eval.cmd.spawn(), tool.cmd.spawn()) {
+            let outcome = match (eval_cmd.spawn(), tool_cmd.spawn()) {
                 (Ok(mut eval_child), Ok(mut tool_child)) => {
                     let result = intermediary::run(
                         ctrl_c,
@@ -1005,7 +996,7 @@ mod tests {
     use pretty_assertions::assert_eq;
     use strum::IntoEnumIterator;
 
-    use crate::{process_run_items, tool_cmd, BadOutcome, RunItem, RunItemKind, OUTCOME_HELP};
+    use crate::{process_run_items, tool_cmd, BadOutcome, RunItemKind, OUTCOME_HELP};
 
     #[test]
     fn test_outcome_help() {
@@ -1058,42 +1049,29 @@ mod tests {
         simplify_cmd(&tool_cmd(name, None, None, &strings(args)))
     }
 
-    #[derive(Debug, PartialEq)]
-    struct RunItemSimplified {
-        string: String,
-        build: Option<String>,
-        cmd: Vec<String>,
-    }
+    type RunItemSimplified = (String, Vec<String>);
 
-    impl RunItemSimplified {
-        fn list<const N: usize>(items: [(&str, Option<&str>, Vec<String>); N]) -> Vec<Self> {
-            items
-                .into_iter()
-                .map(|(string, build, cmd)| RunItemSimplified {
-                    string: string.to_string(),
-                    build: build.map(|name| name.to_string()),
-                    cmd,
-                })
-                .collect()
-        }
-    }
-
-    impl From<RunItem> for RunItemSimplified {
-        fn from(RunItem { string, build, cmd }: RunItem) -> Self {
-            let cmd = simplify_cmd(&cmd);
-            RunItemSimplified { string, build, cmd }
-        }
+    fn run_items<const N: usize>(items: [(&str, Vec<String>); N]) -> Vec<RunItemSimplified> {
+        items
+            .into_iter()
+            .map(|(string, cmd)| (string.to_string(), cmd))
+            .collect()
     }
 
     fn process_tools(
         items: &[&str],
         omit: &[&str],
         default: &[&str],
-    ) -> Result<Vec<RunItemSimplified>, String> {
+    ) -> Result<(Vec<String>, Vec<RunItemSimplified>), String> {
         match process_run_items(RunItemKind::Tool, strings(items), strings(omit), || {
             Ok(strings(default))
         }) {
-            Ok(processed) => Ok(processed.into_iter().map(RunItemSimplified::from).collect()),
+            Ok((builds, runs)) => Ok((
+                builds,
+                runs.into_iter()
+                    .map(|(string, cmd)| (string, simplify_cmd(&cmd)))
+                    .collect(),
+            )),
             Err(error) => Err(format!("{error:#}")),
         }
     }
@@ -1103,33 +1081,40 @@ mod tests {
     #[test]
     fn test_run_items_omit() {
         let actual = process_tools(&[], &["baz", "foo", "baz"], &DEFAULT_TOOLS);
-        let expected = Ok(RunItemSimplified::list([(
-            "bar",
-            Some("bar"),
-            simple_tool_cmd("bar", &[]),
-        )]));
+        let expected = Ok((
+            strings(&["bar"]),
+            run_items([("bar", simple_tool_cmd("bar", &[]))]),
+        ));
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn test_run_items_args() {
-        let actual = process_tools(&["foo --bar --baz=qux"], &[], &DEFAULT_TOOLS);
-        let expected = Ok(RunItemSimplified::list([(
-            "foo --bar --baz=qux",
-            Some("foo"),
-            simple_tool_cmd("foo", &["--bar", "--baz=qux"]),
-        )]));
+        let actual = process_tools(
+            &["foo --bar --baz=qux", "foo --baz=norf"],
+            &[],
+            &DEFAULT_TOOLS,
+        );
+        let expected = Ok((
+            strings(&["foo"]),
+            run_items([
+                (
+                    "foo --bar --baz=qux",
+                    simple_tool_cmd("foo", &["--bar", "--baz=qux"]),
+                ),
+                ("foo --baz=norf", simple_tool_cmd("foo", &["--baz=norf"])),
+            ]),
+        ));
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn test_run_items_cmd() {
         let actual = process_tools(&["$ echo 'an example'"], &[], &DEFAULT_TOOLS);
-        let expected = Ok(RunItemSimplified::list([(
-            "$ echo 'an example'",
-            None,
-            strings(&["echo", "an example"]),
-        )]));
+        let expected = Ok((
+            strings(&[]),
+            run_items([("$ echo 'an example'", strings(&["echo", "an example"]))]),
+        ));
         assert_eq!(actual, expected);
     }
 

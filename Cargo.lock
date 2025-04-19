@@ -695,6 +695,7 @@ dependencies = [
  "ctrlc",
  "goldenfile",
  "indexmap",
+ "itertools",
  "nix",
  "pretty_assertions",
  "regex",
