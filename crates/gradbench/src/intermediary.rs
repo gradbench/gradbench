@@ -1,4 +1,5 @@
 use std::{
+    fs,
     io::{self, BufRead, Write},
     process::{Child, ChildStdout},
     sync::{Arc, Mutex},
@@ -400,7 +401,7 @@ fn timeout_reader(reader: ChildStdout, timeout: Option<Duration>) -> impl io::Re
 }
 
 /// Run an eval and a tool together, returning the outcome.
-pub fn run(
+fn run_helper(
     ctrl_c: &mut CtrlC,
     log: impl Write,
     eval: &mut Child,
@@ -442,6 +443,20 @@ pub fn run(
         }
     }
     outcome
+}
+
+/// Run an eval and a tool together, returning the outcome.
+pub fn run(
+    ctrl_c: &mut CtrlC,
+    log: Option<fs::File>,
+    eval: &mut Child,
+    tool: &mut Child,
+    timeout: Option<Duration>,
+) -> Result<(), BadOutcome> {
+    match log {
+        Some(file) => run_helper(ctrl_c, file, eval, tool, timeout),
+        None => run_helper(ctrl_c, &mut io::sink(), eval, tool, timeout),
+    }
 }
 
 #[cfg(test)]

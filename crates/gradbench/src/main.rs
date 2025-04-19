@@ -596,6 +596,40 @@ enum RunItemKind {
 /// A raw `String` and the processed `Command` representing its semantics.
 type RunItem = (String, Command);
 
+/// Return a string like the input but with a restricted alphabet.
+///
+/// The returned string consists only of ASCII letters, digits, and hyphens, and does not start or
+/// end with a hyphen. All ASCII alphanumeric characters included in the string; any sequence of
+/// other characters is converted to a single hyphen.
+fn mangle(string: &str) -> String {
+    let mut mangled = String::new();
+    let mut pending = false;
+    for c in string.chars() {
+        if c.is_ascii_alphanumeric() {
+            if pending {
+                mangled.push('-');
+                pending = false;
+            }
+            mangled.push(c);
+        } else if !mangled.is_empty() {
+            pending = true;
+        }
+    }
+    mangled
+}
+
+/// Given a log directory and a raw eval command string, return a path for that eval's logs.
+fn eval_subpath(dir: &Path, eval: &str) -> PathBuf {
+    dir.join(mangle(eval))
+}
+
+/// Given a log directory and raw eval/tool command strings, return a path for that log.
+fn log_subpath(dir: &Path, eval: &str, tool: &str) -> PathBuf {
+    let mut path = eval_subpath(dir, eval).join(mangle(tool));
+    path.set_extension("jsonl");
+    path
+}
+
 /// Process a human-friendly list of evals or tools into a deduplicated build list and a run list.
 fn process_run_items(
     item_kind: RunItemKind,
@@ -673,21 +707,35 @@ fn run_dry(
         writeln!(stdout, "{cmd}")?;
     }
     if let Some(dir) = output {
-        let dir_str = dir
-            .to_str()
-            .ok_or_else(|| anyhow!("failed to convert output directory path to a string"))?;
-        writeln!(stdout, "{}", shlex::try_join(["mkdir", "-p", dir_str])?)?;
+        write!(stdout, "mkdir -p")?;
+        for (eval_string, _) in evals_run {
+            let subdir = eval_subpath(dir, eval_string);
+            let subdir_str = subdir.to_str().ok_or_else(|| {
+                anyhow!("failed to convert output directory path to a string: {subdir:?}")
+            })?;
+            write!(stdout, " {}", shlex::try_quote(subdir_str)?)?;
+        }
+        writeln!(stdout)?;
     }
-    for (_, eval) in evals_run {
-        for (_, tool) in tools_run {
-            let eval_cmd = shlex::try_join(stringify_cmd(eval)?)?;
-            let tool_cmd = shlex::try_join(stringify_cmd(tool)?)?;
-            writeln!(
+    for (eval_string, eval_cmd) in evals_run {
+        for (tool_string, tool_cmd) in tools_run {
+            let eval = shlex::try_join(stringify_cmd(eval_cmd)?)?;
+            let tool = shlex::try_join(stringify_cmd(tool_cmd)?)?;
+            write!(
                 stdout,
                 "{this} run --eval {} --tool {}",
-                shlex::try_quote(&eval_cmd)?,
-                shlex::try_quote(&tool_cmd)?,
+                shlex::try_quote(&eval)?,
+                shlex::try_quote(&tool)?,
             )?;
+            if let Some(dir) = output {
+                let path = log_subpath(dir, eval_string, tool_string);
+                let path_str = path.to_str().ok_or_else(|| {
+                    anyhow!("failed to convert output file path to a string: {path:?}")
+                })?;
+                writeln!(stdout, " -o {}", shlex::try_quote(path_str)?)?;
+            } else {
+                writeln!(stdout)?;
+            }
         }
     }
     Ok(())
@@ -757,6 +805,11 @@ fn run_multiple(
     if need_newline {
         println!();
     }
+    if let Some(dir) = &output {
+        for (eval_string, _) in &evals_run {
+            fs::create_dir_all(eval_subpath(dir, eval_string))?;
+        }
+    }
     let mut first = true;
     for (eval_string, eval_cmd) in &mut evals_run {
         for (tool_string, tool_cmd) in &mut tools_run {
@@ -776,15 +829,14 @@ fn run_multiple(
                 "tool".magenta().bold(),
                 tool_string,
             );
+            let log_file = output
+                .as_ref()
+                .map(|dir| fs::File::create(log_subpath(dir, eval_string, tool_string)))
+                .transpose()?;
             let outcome = match (eval_cmd.spawn(), tool_cmd.spawn()) {
                 (Ok(mut eval_child), Ok(mut tool_child)) => {
-                    let result = intermediary::run(
-                        ctrl_c,
-                        &mut io::sink(),
-                        &mut eval_child,
-                        &mut tool_child,
-                        None,
-                    );
+                    let result =
+                        intermediary::run(ctrl_c, log_file, &mut eval_child, &mut tool_child, None);
                     let _ = eval_child.wait();
                     let _ = tool_child.wait();
                     result
@@ -934,6 +986,10 @@ fn cli() -> Result<(), ExitCode> {
             output,
             timeout,
         } => {
+            let log_file = output
+                .map(fs::File::create)
+                .transpose()
+                .map_err(|err| err_fail(anyhow!(err)))?;
             let mut eval_child = shell(&eval)
                 .and_then(|mut cmd| {
                     configure_intermediary_subcommand(&mut cmd);
@@ -949,25 +1005,13 @@ fn cli() -> Result<(), ExitCode> {
                 .context("tool")
                 .map_err(err_fail)?;
             let timeout = timeout.map(Duration::from_secs);
-            let outcome = match output {
-                Some(path) => {
-                    let mut file = fs::File::create(&path).map_err(|err| err_fail(anyhow!(err)))?;
-                    intermediary::run(
-                        &mut ctrl_c,
-                        &mut file,
-                        &mut eval_child,
-                        &mut tool_child,
-                        timeout,
-                    )
-                }
-                None => intermediary::run(
-                    &mut ctrl_c,
-                    &mut io::sink(),
-                    &mut eval_child,
-                    &mut tool_child,
-                    timeout,
-                ),
-            };
+            let outcome = intermediary::run(
+                &mut ctrl_c,
+                log_file,
+                &mut eval_child,
+                &mut tool_child,
+                timeout,
+            );
             let eval_wait = eval_child.wait();
             let tool_wait = tool_child.wait();
             match outcome {
@@ -1070,7 +1114,7 @@ mod tests {
     use strum::IntoEnumIterator;
 
     use crate::{
-        process_run_items, run_dry, tool_cmd, util::stringify_cmd, BadOutcome, RunItemKind,
+        mangle, process_run_items, run_dry, tool_cmd, util::stringify_cmd, BadOutcome, RunItemKind,
         OUTCOME_HELP,
     };
 
@@ -1104,6 +1148,26 @@ mod tests {
     #[test]
     fn test_outcome_error_exit_code_failure() {
         assert_eq!(ExitCode::from(BadOutcome::Error), ExitCode::FAILURE);
+    }
+
+    #[test]
+    fn test_mangle_empty() {
+        assert_eq!(mangle(""), "");
+    }
+
+    #[test]
+    fn test_mangle_word() {
+        assert_eq!(mangle("foo"), "foo");
+    }
+
+    #[test]
+    fn test_mangle_args() {
+        assert_eq!(mangle("foo --bar --baz=qux"), "foo-bar-baz-qux");
+    }
+
+    #[test]
+    fn test_mangle_cmd() {
+        assert_eq!(mangle("$ echo 'an example'"), "echo-an-example");
     }
 
     fn str_err<T>(s: &str) -> Result<T, String> {
@@ -1226,7 +1290,7 @@ mod tests {
         run_dry(
             &mut stdout,
             "gradbench",
-            None,
+            Some(Path::new("a directory")),
             &evals_build,
             &tools_build,
             &evals_run,
