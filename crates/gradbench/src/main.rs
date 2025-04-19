@@ -143,8 +143,9 @@ enum RepoCommands {
     ///
     /// - A dollar sign followed by any command, e.g. `--eval "$ echo 'an example'"`.
     ///
-    /// The output directory will contain a `run-<EVAL>-<TOOL>/log.jsonl` file for each `<EVAL>` and
-    /// each `<TOOL>`.
+    /// The output directory will contain a `<EVAL>/<TOOL>.jsonl` file for each `<EVAL>` and each
+    /// `<TOOL>`, where the eval and tool names are mangled to only contain ASCII letters, digits,
+    /// and hyphens. It is an error for two mangled names to conflict.
     Run {
         /// One or more evals to run, or all evals by default
         #[clap(short, long)]
@@ -679,9 +680,14 @@ fn process_run_items(
         }
         items
     };
+    let mut mangled = HashSet::new();
     let (builds, runs) = strings
         .into_iter()
         .map(|string| {
+            if !mangled.insert(mangle(&string)) {
+                let mang = mangle(&string);
+                bail!("another `--{kind}` got the same mangled name {mang}: {string:?}");
+            }
             let mut parts = VecDeque::from(
                 shlex::split(&string)
                     .ok_or_else(|| anyhow!("failed to split `--{kind}`: {string:?}"))?,
@@ -1311,6 +1317,13 @@ mod tests {
     fn test_run_items_conflict() {
         let actual = process_tools(&["foo"], &["foo"], &[]);
         let expected = str_err("`--no-tool` cannot be used together with `--tool`");
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_run_items_mangled_duplicate() {
+        let actual = process_tools(&["foo", "foo"], &[], &[]);
+        let expected = str_err("another `--tool` got the same mangled name foo: \"foo\"");
         assert_eq!(actual, expected);
     }
 
