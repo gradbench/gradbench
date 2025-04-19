@@ -6,6 +6,7 @@ use crate::{
 use crate::util::nanostring;
 use anyhow::anyhow;
 use std::io::{BufRead, Write};
+use colored::{Colorize};
 
 pub fn trim(input: &mut impl BufRead, out: &mut impl Write) -> anyhow::Result<()> {
     while let Some(line) = try_read_line(input)? {
@@ -108,30 +109,31 @@ pub fn summary(input: &mut impl BufRead) -> anyhow::Result<()> {
     }
 
     if let Some(eval) = eval_name {
-        println!("eval: {}", eval)
+        println!("{:>11}: {}", "eval".blue().bold(), eval)
     } else {
-        println!("eval: unknown")
+        println!("{:>11}: {}", "eval".blue().bold(), "unknown")
     }
     if let Some(config) = eval_config {
-        println!("config: {}", config)
+        println!("{:>11}: {}", "config".blue().bold(), config)
     }
 
     if let Some(tool) = tool_name {
-        println!("tool: {}", tool)
+        println!("{:>11}: {}", "tool".magenta().bold(), tool)
     } else {
-        println!("tool: unknown")
+        println!("{:>11}: unknown", "tool".magenta().bold())
     }
     if let Some(config) = tool_config {
-        println!("config: {}", config)
+        println!("{:>11}: {}", "config".magenta().bold(), config)
     }
 
-    println!("evaluations: {}", num_evaluation);
-    println!("      valid: {}", num_valid);
-    println!("    invalid: {}", num_invalid);
-    println!("elapsed: {}", nanostring(elapsed_ns));
+    println!("{:>11}: {}", "evaluations".bold(), num_evaluation);
+    println!("{:>11}: {}", "valid".bold(), num_valid);
+    println!("{:>11}: {}", "invalid".bold(), num_invalid);
+    println!("{:>11}: {}", "elapsed".bold(), nanostring(elapsed_ns));
 
     if interrupted {
-        println!("Tool did not respond to last evaluation message - this implies crash or timeout.")
+        println!("{}",
+                 "Tool did not respond to last evaluation message - this implies crash or timeout.".red())
     }
 
     Ok(())
