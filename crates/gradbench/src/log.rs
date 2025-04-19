@@ -29,6 +29,8 @@ pub fn trim(input: &mut impl BufRead, out: &mut impl Write) -> anyhow::Result<()
                     response.response.output = None;
                     writeln!(out, "{}", serde_json::to_string(&message)?)?;
                     writeln!(out, "{}", serde_json::to_string(&response)?)?;
+                } else {
+                    write!(out, "{}", line)?;
                 }
             }
             _ => {
