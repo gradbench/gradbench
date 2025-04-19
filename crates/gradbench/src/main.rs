@@ -233,6 +233,16 @@ enum LogCommands {
         #[clap(short, long)]
         output: Option<PathBuf>,
     },
+
+    /// Print a human-readable summary of the log file, including the
+    /// eval, tool, configuration, etc.
+    ///
+    /// Will fail with a not necessarily very friendly error if the
+    /// log file is malformed.
+    Summary {
+        /// The input log file.
+        input: Option<PathBuf>,
+    },
 }
 
 /// Print `error` to stderr, then return [`ExitCode::FAILURE`].
@@ -615,6 +625,16 @@ fn log_command(command: LogCommands) -> anyhow::Result<()> {
             }
             (None, None) => {
                 log::trim(&mut io::BufReader::new(io::stdin()), &mut io::stdout())?;
+                Ok(())
+            }
+        },
+        LogCommands::Summary { input } => match input {
+            Some(input_path) => {
+                log::summary(&mut io::BufReader::new(fs::File::open(input_path)?))?;
+                Ok(())
+            }
+            None => {
+                log::summary(&mut io::BufReader::new(io::stdin()))?;
                 Ok(())
             }
         },
