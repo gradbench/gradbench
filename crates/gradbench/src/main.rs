@@ -227,7 +227,7 @@ enum LogCommands {
     /// crashes or times out before it gets to respond.
     Trim {
         /// The input log file.
-        input: PathBuf,
+        input: Option<PathBuf>,
 
         /// The output log file.
         #[clap(short, long)]
@@ -593,19 +593,30 @@ fn matrix() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn log_command(command : LogCommands) -> anyhow::Result<()> {
+fn log_command(command: LogCommands) -> anyhow::Result<()> {
     match command {
-        LogCommands::Trim { input, output } => {
-            let input_file = fs::File::open(input)?;
-            let mut output_file: Box<dyn std::io::Write> = match output {
-                Some(path) => {
-                    Box::new(fs::File::create(&path)?)
-                }
-                None => Box::new(io::stdout()),
-            };
-            log::trim(&mut io::BufReader::new(input_file), &mut output_file)?;
-            Ok(())
-        }
+        LogCommands::Trim { input, output } => match (input, output) {
+            (Some(input_path), Some(output_path)) => {
+                let input_file = fs::File::open(input_path)?;
+                let mut output_file = fs::File::create(&output_path)?;
+                log::trim(&mut io::BufReader::new(input_file), &mut output_file)?;
+                Ok(())
+            }
+            (Some(input_path), None) => {
+                let input_file = fs::File::open(input_path)?;
+                log::trim(&mut io::BufReader::new(input_file), &mut io::stdout())?;
+                Ok(())
+            }
+            (None, Some(output_path)) => {
+                let mut output_file = fs::File::create(&output_path)?;
+                log::trim(&mut io::BufReader::new(io::stdin()), &mut output_file)?;
+                Ok(())
+            }
+            (None, None) => {
+                log::trim(&mut io::BufReader::new(io::stdin()), &mut io::stdout())?;
+                Ok(())
+            }
+        },
     }
 }
 
@@ -717,9 +728,7 @@ fn cli() -> Result<(), ExitCode> {
                 }
             }
         }
-        Commands::Log { command } => {
-            log_command(command).map_err(|err| err_fail(anyhow!(err)))
-        },
+        Commands::Log { command } => log_command(command).map_err(|err| err_fail(anyhow!(err))),
     }
 }
 
