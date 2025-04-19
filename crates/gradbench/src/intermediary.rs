@@ -15,6 +15,7 @@ use crate::{
     protocol::{
         AnalysisResponse, DefineResponse, EvaluateResponse, Id, Message, StartResponse, Timing,
     },
+    util::try_read_line,
     BadOutcome,
 };
 
@@ -175,14 +176,7 @@ impl<
         let mut failure = 0;
         let mut invalid = 0;
         let mut line = Line::new();
-        while let Some(eval_line) = {
-            let mut s = String::new();
-            if self.eval_out.read_line(&mut s)? == 0 {
-                None
-            } else {
-                Some(s)
-            }
-        } {
+        while let Some(eval_line) = try_read_line(&mut self.eval_out)? {
             let message_time = (self.clock)();
             writeln!(
                 self.log,
@@ -616,7 +610,7 @@ mod tests {
                     id: 2,
                     module: "foo".to_string(),
                     function: "bar".to_string(),
-                    input: json!(PI),
+                    input: Some(json!(PI)),
                     description: None,
                 },
                 Response::Evaluate {
@@ -644,7 +638,7 @@ mod tests {
                     id: 4,
                     module: "foo".to_string(),
                     function: "baz".to_string(),
-                    input: json!({"mynumber": 121}),
+                    input: Some(json!({"mynumber": 121})),
                     description: None,
                 },
                 Response::Evaluate {
@@ -891,7 +885,7 @@ mod tests {
                     id: 2,
                     module: "foo".to_string(),
                     function: "bar".to_string(),
-                    input: json!(42),
+                    input: Some(json!(42)),
                     description: None,
                 },
                 Response::Evaluate {
@@ -943,7 +937,7 @@ mod tests {
                     id: 2,
                     module: "foo".to_string(),
                     function: "bar".to_string(),
-                    input: json!(42),
+                    input: Some(json!(42)),
                     description: None,
                 },
                 Response::Evaluate {
@@ -995,7 +989,7 @@ mod tests {
                     id: 2,
                     module: "foo".to_string(),
                     function: "bar".to_string(),
-                    input: json!(42),
+                    input: Some(json!(42)),
                     description: None,
                 },
                 Response::Evaluate {
@@ -1047,7 +1041,7 @@ mod tests {
                     id: 2,
                     module: "foo".to_string(),
                     function: "bar".to_string(),
-                    input: json!(42),
+                    input: Some(json!(42)),
                     description: None,
                 },
                 Response::Evaluate {
@@ -1099,7 +1093,7 @@ mod tests {
                     id: 2,
                     module: "foo".to_string(),
                     function: "null".to_string(),
-                    input: json!(null),
+                    input: Some(json!(null)),
                     description: None,
                 },
                 Response::Evaluate {
