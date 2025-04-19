@@ -593,6 +593,22 @@ fn matrix() -> anyhow::Result<()> {
     Ok(())
 }
 
+fn log_command(command : LogCommands) -> anyhow::Result<()> {
+    match command {
+        LogCommands::Trim { input, output } => {
+            let input_file = fs::File::open(input)?;
+            let mut output_file: Box<dyn std::io::Write> = match output {
+                Some(path) => {
+                    Box::new(fs::File::create(&path)?)
+                }
+                None => Box::new(io::stdout()),
+            };
+            log::trim(&mut io::BufReader::new(input_file), &mut output_file)?;
+            Ok(())
+        }
+    }
+}
+
 /// Run the GradBench CLI, returning a `Result`.
 fn cli() -> Result<(), ExitCode> {
     match Cli::parse().command {
@@ -701,17 +717,8 @@ fn cli() -> Result<(), ExitCode> {
                 }
             }
         }
-        Commands::Log { command } => match command {
-            LogCommands::Trim { input, output } => {
-                let input_file = fs::File::open(input).map_err(|err| err_fail(anyhow!(err)))?;
-                let mut output_file: Box<dyn std::io::Write> = match output {
-                    Some(path) => {
-                        Box::new(fs::File::create(&path).map_err(|err| err_fail(anyhow!(err)))?)
-                    }
-                    None => Box::new(io::stdout()),
-                };
-                log::trim(&mut io::BufReader::new(input_file), &mut output_file).map_err(err_fail)
-            }
+        Commands::Log { command } => {
+            log_command(command).map_err(|err| err_fail(anyhow!(err)))
         },
     }
 }
