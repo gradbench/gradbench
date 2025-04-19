@@ -5,8 +5,8 @@ use crate::{
 
 use crate::util::nanostring;
 use anyhow::anyhow;
+use colored::Colorize;
 use std::io::{BufRead, Write};
-use colored::{Colorize};
 
 pub fn trim(input: &mut impl BufRead, out: &mut impl Write) -> anyhow::Result<()> {
     while let Some(line) = try_read_line(input)? {
@@ -111,7 +111,7 @@ pub fn summary(input: &mut impl BufRead) -> anyhow::Result<()> {
     if let Some(eval) = eval_name {
         println!("{:>11}: {}", "eval".blue().bold(), eval)
     } else {
-        println!("{:>11}: {}", "eval".blue().bold(), "unknown")
+        println!("{:>11}: unknown", "eval".blue().bold())
     }
     if let Some(config) = eval_config {
         println!("{:>11}: {}", "config".blue().bold(), config)
@@ -132,8 +132,11 @@ pub fn summary(input: &mut impl BufRead) -> anyhow::Result<()> {
     println!("{:>11}: {}", "elapsed".bold(), nanostring(elapsed_ns));
 
     if interrupted {
-        println!("{}",
-                 "Tool did not respond to last evaluation message - this implies crash or timeout.".red())
+        println!(
+            "{}",
+            "Tool did not respond to last evaluation message - this implies crash or timeout."
+                .red()
+        )
     }
 
     Ok(())
