@@ -1209,7 +1209,7 @@ mod tests {
     #[test]
     fn test_run_dry() {
         let mut mint = Mint::new("src/outputs");
-        let mut stdout = mint.new_goldenfile("dry_run.txt").unwrap();
+        let mut stdout = mint.new_goldenfile("dry_run.sh").unwrap();
         let (evals_build, evals_run) =
             process_run_items(RunItemKind::Eval, strings(&[]), strings(&[]), || {
                 Ok(strings(DEFAULT_EVALS))
