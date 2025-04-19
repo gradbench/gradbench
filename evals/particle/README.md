@@ -5,15 +5,16 @@ The benchmark models a charged particle accelerated by an electric field formed 
 ## Specification
 
 A particle is modeled by position $\mathbf{x}(t)$ and velocity
-$\dot{\mathbf{x}}(t)$ where $t$ is the time, and the acceleration is
-given by
+$\dot{\mathbf{x}}(t)$ where $t$ is the time, $\mathbf{x}(0)=(0,8)$,
+and the acceleration is given by
 
 ```math
 p(\mathbf{x};w) = \Vert\mathbf{x}-(10,10-w)\Vert^{-1} + \Vert\mathbf{x}-(10,0)\Vert^{-1}
 ```
 
 where $w$ is a control parameter that we can adjust. The particle hits
-the $x$-axis at position $\mathbf{x}(t_f)$. We desire to compute
+the $x$-axis at some time $t_f$ (which depends on $w$) at position
+$\mathbf{x}(t_f)$. We desire to compute
 
 ```math
 \text{min}_w\ x_0(t_f)^2

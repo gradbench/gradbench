@@ -148,6 +148,7 @@ Specifically, the following are required:
 
 - `numpy`
 - `pydantic`
+- `dataclasses-json`
 
 You may want to install these in a `virtualenv`.
 
