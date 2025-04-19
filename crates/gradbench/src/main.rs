@@ -1341,6 +1341,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    #[cfg(unix)]
     #[test]
     fn test_run_dry() {
         let mut mint = Mint::new("src/outputs");
