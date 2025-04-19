@@ -57,6 +57,7 @@ in pkgs.stdenv.mkDerivation rec {
     pkgs.clippy
     pkgs.rustc
     pkgs.rustfmt
+    pkgs.rust-analyzer
 
     # OCaml
     pkgs.opam
