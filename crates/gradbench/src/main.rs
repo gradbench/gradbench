@@ -1,4 +1,5 @@
 mod intermediary;
+mod log;
 mod protocol;
 mod stats;
 mod util;
@@ -111,6 +112,12 @@ enum Commands {
     ExitCode {
         #[clap(help = OUTCOME_HELP)]
         outcome: String,
+    },
+
+    /// Perform useful operations on the log files produced by `gradbench run`.
+    Log {
+        #[command(subcommand)]
+        command: LogCommands,
     },
 
     /// Perform a task in a clone of the https://github.com/gradbench/gradbench repository.
@@ -247,6 +254,25 @@ enum RepoCommands {
         /// The source Git commit SHA
         #[clap(long)]
         commit: Option<String>,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum LogCommands {
+    /// Remove input/output fields from "evaluate" messages and responses.
+    ///
+    /// Writes to stdout unless the `--output` option is used. It is
+    /// expected that the input log file is well-formed, but not that
+    /// it corresponds to a successful run. In particular, the final
+    /// message may not have a response - this occurs when the tool
+    /// crashes or times out before it gets to respond.
+    Trim {
+        /// The input log file.
+        input: Option<PathBuf>,
+
+        /// The output log file.
+        #[clap(short, long)]
+        output: Option<PathBuf>,
     },
 }
 
@@ -964,6 +990,34 @@ fn matrix() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Run a subcommand from the "Log" command group.
+fn log_command(command: LogCommands) -> anyhow::Result<()> {
+    match command {
+        LogCommands::Trim { input, output } => match (input, output) {
+            (Some(input_path), Some(output_path)) => {
+                let input_file = fs::File::open(input_path)?;
+                let mut output_file = fs::File::create(&output_path)?;
+                log::trim(&mut io::BufReader::new(input_file), &mut output_file)?;
+                Ok(())
+            }
+            (Some(input_path), None) => {
+                let input_file = fs::File::open(input_path)?;
+                log::trim(&mut io::BufReader::new(input_file), &mut io::stdout())?;
+                Ok(())
+            }
+            (None, Some(output_path)) => {
+                let mut output_file = fs::File::create(&output_path)?;
+                log::trim(&mut io::BufReader::new(io::stdin()), &mut output_file)?;
+                Ok(())
+            }
+            (None, None) => {
+                log::trim(&mut io::BufReader::new(io::stdin()), &mut io::stdout())?;
+                Ok(())
+            }
+        },
+    }
+}
+
 /// Run the GradBench CLI, returning a `Result`.
 fn cli() -> Result<(), ExitCode> {
     let mut ctrl_c = CtrlC::new().map_err(|error| err_fail(anyhow!(error)))?;
@@ -1094,6 +1148,7 @@ fn cli() -> Result<(), ExitCode> {
                 }
             }
         }
+        Commands::Log { command } => log_command(command).map_err(err_fail),
     }
 }
 
