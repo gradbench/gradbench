@@ -41,3 +41,9 @@ public:
     }
   }
 };
+
+int main(int argc, char* argv[]) {
+  return generic_main(
+      argc, argv,
+      {{"cost", function_main<kmeans::Cost>}, {"dir", function_main<Dir>}});
+}

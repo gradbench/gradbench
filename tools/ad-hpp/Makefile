@@ -4,7 +4,7 @@ CC?=cc
 CFLAGS=-std=c++17 -O3 -Wall -I../../cpp -Iinclude
 LDFLAGS=-lm
 
-EXECUTABLES=hello llsq
+EXECUTABLES=hello ba det gmm llsq lse lstm ode particle
 
 all: $(EXECUTABLES)
 
