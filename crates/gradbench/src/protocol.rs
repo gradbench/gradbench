@@ -21,6 +21,10 @@ pub enum Message {
         id: Id,
 
         /// The eval name.
+        #[serde(
+            default, // Deserialize as `None` if missing.
+            skip_serializing_if = "Option::is_none" // Serialize as missing if `None`.
+        )]
         eval: Option<String>,
     },
 
@@ -45,9 +49,18 @@ pub enum Message {
         function: String,
 
         /// The input to the function.
-        input: serde_json::Value,
+        #[serde(
+            default, // Deserialize as `None` if missing.
+            deserialize_with = "deserialize_optional_json", // Deserialize as `Some` if present.
+            skip_serializing_if = "Option::is_none" // Serialize as missing if `None`.
+        )]
+        input: Option<serde_json::Value>,
 
-        /// A short human-readable description of the input.
+        /// An optional and short human-readable description of the input.
+        #[serde(
+            default, // Deserialize as `None` if missing.
+            skip_serializing_if = "Option::is_none" // Serialize as missing if `None`.
+        )]
         description: Option<String>,
     },
 
@@ -63,6 +76,10 @@ pub enum Message {
         valid: bool,
 
         /// An optional error message if the tool's response was invalid.
+        #[serde(
+            default, // Deserialize as `None` if missing.
+            skip_serializing_if = "Option::is_none" // Serialize as missing if `None`.
+        )]
         error: Option<String>,
     },
 }
@@ -84,6 +101,10 @@ pub struct StartResponse {
     pub id: Id,
 
     /// The tool name.
+    #[serde(
+        default, // Deserialize as `None` if missing.
+        skip_serializing_if = "Option::is_none" // Serialize as missing if `None`.
+    )]
     pub tool: Option<String>,
 }
 
@@ -97,9 +118,17 @@ pub struct DefineResponse {
     pub success: bool,
 
     /// Subtask timings.
+    #[serde(
+        default, // Deserialize as `None` if missing.
+        skip_serializing_if = "Option::is_none" // Serialize as missing if `None`.
+    )]
     pub timings: Option<Vec<Timing>>,
 
     /// An optional error message, if definition failed.
+    #[serde(
+        default, // Deserialize as `None` if missing.
+        skip_serializing_if = "Option::is_none" // Serialize as missing if `None`.
+    )]
     pub error: Option<String>,
 }
 
@@ -124,6 +153,10 @@ pub struct EvaluateResponse {
     pub timings: Option<Vec<Timing>>,
 
     /// An optional error message, if evaluation failed.
+    #[serde(
+        default, // Deserialize as `None` if missing.
+        skip_serializing_if = "Option::is_none" // Serialize as missing if `None`.
+    )]
     pub error: Option<String>,
 }
 
@@ -132,4 +165,30 @@ pub struct EvaluateResponse {
 pub struct AnalysisResponse {
     /// The message ID.
     pub id: Id,
+}
+
+/// A nanoseconds object.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Nanoseconds {
+    pub nanoseconds: u128,
+}
+
+/// A message entry in a log file.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct LogMessage {
+    /// The timestamp in nanoseconds.
+    pub elapsed: Nanoseconds,
+
+    /// The contained message.
+    pub message: Message,
+}
+
+/// A response entry in a log file.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct LogResponse<T> {
+    /// The timestamp in nanoseconds.
+    pub elapsed: Nanoseconds,
+
+    /// The contained response.
+    pub response: T,
 }

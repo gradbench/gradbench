@@ -24,8 +24,8 @@ function run(params)
     mod = DISPATCH_TABLE[params["module"]]
     func = mod[params["function"]]
     arg = params["input"]
-    min_runs = get(params, "min_runs", 1)
-    min_seconds = get(params, "min_seconds", 0)
+    min_runs = arg isa Dict ? get(arg, "min_runs", 1) : 1
+    min_seconds = arg isa Dict ? get(arg, "min_seconds", 0) : 0
     @assert min_runs > 0
 
     # TODO: Prepare (parse JSON?)
@@ -63,8 +63,14 @@ function main(tool)
     return
 end
 
+include("benchmarks/ba.jl")
+include("benchmarks/det.jl")
+include("benchmarks/gmm.jl")
 include("benchmarks/hello.jl")
-include("benchmarks/ode.jl")
+include("benchmarks/ht.jl")
+include("benchmarks/llsq.jl")
 include("benchmarks/lse.jl")
+include("benchmarks/lstm.jl")
+include("benchmarks/ode.jl")
 
 end # module GradBench

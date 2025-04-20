@@ -35,6 +35,7 @@ in pkgs.stdenv.mkDerivation rec {
     pkgs.enzyme
     pkgs.pkg-config
     pkgs.llvmPackages_19.lld
+    pkgs.llvmPackages_19.clang-tools # Must come before clang for clangd to work.
     pkgs.llvmPackages_19.clang
     pkgs.blas
     pkgs.lapack
@@ -56,6 +57,7 @@ in pkgs.stdenv.mkDerivation rec {
     pkgs.clippy
     pkgs.rustc
     pkgs.rustfmt
+    pkgs.rust-analyzer
 
     # OCaml
     pkgs.opam
@@ -67,7 +69,7 @@ in pkgs.stdenv.mkDerivation rec {
     pkgs.wasm-tools
   ] ++
     # Nixpkgs marks Julia as broken on Apple Silicon
-    (if isX86 then [ pkgs.julia ] else [ ]);
+    (if isX86 then [ pkgs.julia_110 ] else [ ]);
 
   # The following are environment variables used by various tools.
   RUST_SRC_PATH = pkgs.rustPlatform.rustLibSrc;

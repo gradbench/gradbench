@@ -1,5 +1,5 @@
-#include "gradbench/main.hpp"
 #include "gradbench/evals/hello.hpp"
+#include "gradbench/main.hpp"
 #include <codi.hpp>
 
 class Double : public Function<hello::Input, hello::DoubleOutput> {
@@ -15,8 +15,8 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-  return generic_main(argc, argv, {
-      {"square", function_main<hello::Square>},
-      {"double", function_main<Double>}
-    });;
+  return generic_main(argc, argv,
+                      {{"square", function_main<hello::Square>},
+                       {"double", function_main<Double>}});
+  ;
 }

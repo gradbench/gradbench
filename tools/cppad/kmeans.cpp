@@ -5,31 +5,20 @@
 typedef CppAD::AD<double> ADdouble;
 
 class Dir : public Function<kmeans::Input, kmeans::DirOutput> {
-  CppAD::ADFun<double> *_tape;
-  std::vector<double> _H, _J;
+  CppAD::ADFun<double>*      _tape;
+  std::vector<double>        _H, _J;
   CppAD::sparse_hessian_work _work;
-  std::vector<bool> _p;
-  std::vector<size_t> _row, _col;
-  std::vector<ADdouble> _apoints, _acentroids;
+  std::vector<bool>          _p;
+  std::vector<size_t>        _row, _col;
+  std::vector<ADdouble>      _acentroids;
+
 public:
   Dir(kmeans::Input& input)
-    : Function(input),
-      _H(input.k*input.d),
-      _J(input.k*input.d),
-      _p((input.k*input.d)*(input.k*input.d)),
-      _row(input.k*input.d),
-      _col(input.k*input.d),
-      _apoints(_input.points.size()),
-      _acentroids(_input.centroids.size())
-  {
-    std::copy(_input.points.begin(),
-              _input.points.end(),
-              _apoints.begin());
-
-    std::copy(_input.centroids.begin(),
-              _input.centroids.end(),
+      : Function(input), _H(input.k * input.d), _J(input.k * input.d),
+        _p((input.k * input.d) * (input.k * input.d)), _row(input.k * input.d),
+        _col(input.k * input.d), _acentroids(_input.centroids.size()) {
+    std::copy(_input.centroids.begin(), _input.centroids.end(),
               _acentroids.data());
-
 
     size_t input_size = _input.k * _input.d;
 
@@ -38,7 +27,7 @@ public:
     // SparseHessian.
     for (size_t i = 0; i < input_size; i++) {
       for (size_t j = 0; j < input_size; j++) {
-        _p[i*input_size+j] = i==j;
+        _p[i * input_size + j] = i == j;
       }
     }
 
@@ -54,13 +43,12 @@ public:
     output.d = _input.d;
     output.dir.resize(_input.k * _input.d);
 
-
     CppAD::Independent(_acentroids);
 
     std::vector<ADdouble> err(1);
 
     kmeans::objective<ADdouble>(_input.n, _input.k, _input.d,
-                                _apoints.data(), _acentroids.data(),
+                                _input.points.data(), _acentroids.data(),
                                 &err[0]);
 
     CppAD::ADFun<double> f(_acentroids, err);
@@ -72,8 +60,8 @@ public:
     w[0] = 1;
 
     size_t nsweep =
-      f.SparseHessian(_input.centroids, w, _p, _row, _col, _H, _work);
-    assert(nsweep == 1); // Just a precaution.
+        f.SparseHessian(_input.centroids, w, _p, _row, _col, _H, _work);
+    assert(nsweep == 1);  // Just a precaution.
 
     for (int i = 0; i < _input.k * _input.d; i++) {
       output.dir[i] = _J[i] / _H[i];
@@ -82,8 +70,7 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-  return generic_main(argc, argv, {
-      {"cost", function_main<kmeans::Cost>},
-      {"dir", function_main<Dir>}
-    });
+  return generic_main(
+      argc, argv,
+      {{"cost", function_main<kmeans::Cost>}, {"dir", function_main<Dir>}});
 }

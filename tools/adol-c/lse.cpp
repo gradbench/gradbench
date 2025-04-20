@@ -1,7 +1,7 @@
+#include "gradbench/evals/lse.hpp"
+#include "gradbench/main.hpp"
 #include <algorithm>
 #include <vector>
-#include "gradbench/main.hpp"
-#include "gradbench/evals/lse.hpp"
 
 #include <adolc/adouble.h>
 #include <adolc/drivers/drivers.h>
@@ -39,8 +39,7 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-  return generic_main(argc, argv, {
-      {"primal", function_main<lse::Primal>},
-      {"gradient", function_main<Gradient>}
-    });
+  return generic_main(argc, argv,
+                      {{"primal", function_main<lse::Primal>},
+                       {"gradient", function_main<Gradient>}});
 }

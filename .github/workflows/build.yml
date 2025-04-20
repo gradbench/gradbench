@@ -10,6 +10,16 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  check-cpp:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install clang-format 19
+        run: sudo apt-get install -y clang-format-19
+      - name: Check C/C++ formatting
+        run: git ls-files '*.c' '*.cpp' '*.h' '*.hpp' | xargs clang-format-19 --dry-run -Werror
+
   check-js:
     runs-on: ubuntu-24.04
     steps:
