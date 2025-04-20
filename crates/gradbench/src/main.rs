@@ -167,6 +167,10 @@ enum RepoCommands {
         #[clap(short, long)]
         output: Option<PathBuf>,
 
+        /// The timeout, in seconds, for tool responses (not implemented on Windows)
+        #[clap(long)]
+        timeout: Option<u64>,
+
         /// Print commands to stdout instead of running anything
         #[clap(long)]
         dry_run: bool,
@@ -607,6 +611,9 @@ struct RunConfig {
     /// Output directory.
     output: Option<PathBuf>,
 
+    /// The timeout, in seconds, for tool responses (not implemented on Windows).
+    timeout: Option<u64>,
+
     /// Don't actually run anything, just print commands to stdout.
     dry_run: bool,
 }
@@ -720,15 +727,33 @@ fn process_run_items(
     Ok((builds.into_iter().flatten().collect(), runs))
 }
 
+/// Eval and tool outputs from [`process_run_items`].
+struct ProcessedRunItems<'a> {
+    /// Evals to build.
+    evals_build: &'a [String],
+
+    /// Tools to build.
+    tools_build: &'a [String],
+
+    /// Evals to run.
+    evals_run: &'a [RunItem],
+
+    /// Tools to run.
+    tools_run: &'a [RunItem],
+}
+
 /// Print the commands for building and running one more evals against one or more tools.
 fn run_dry(
     stdout: &mut impl io::Write,
     this: &str,
     output: Option<&Path>,
-    evals_build: &[String],
-    tools_build: &[String],
-    evals_run: &[RunItem],
-    tools_run: &[RunItem],
+    timeout: Option<u64>,
+    ProcessedRunItems {
+        evals_build,
+        tools_build,
+        evals_run,
+        tools_run,
+    }: ProcessedRunItems,
 ) -> anyhow::Result<()> {
     for eval in evals_build {
         let cmd = shlex::try_join(stringify_cmd(&build_eval_cmd(eval, None))?)?;
@@ -753,21 +778,20 @@ fn run_dry(
         for (tool_string, tool_cmd) in tools_run {
             let eval = shlex::try_join(stringify_cmd(eval_cmd)?)?;
             let tool = shlex::try_join(stringify_cmd(tool_cmd)?)?;
-            write!(
-                stdout,
-                "{this} run --eval {} --tool {}",
-                shlex::try_quote(&eval)?,
-                shlex::try_quote(&tool)?,
-            )?;
+            write!(stdout, "{this} run")?;
+            if let Some(seconds) = timeout {
+                write!(stdout, " --timeout {seconds}")?;
+            }
+            write!(stdout, " --eval {}", shlex::try_quote(&eval)?)?;
+            write!(stdout, " --tool {}", shlex::try_quote(&tool)?)?;
             if let Some(dir) = output {
                 let path = log_subpath(dir, eval_string, tool_string);
                 let path_str = path.to_str().ok_or_else(|| {
                     anyhow!("failed to convert output file path to a string: {path:?}")
                 })?;
-                writeln!(stdout, " -o {}", shlex::try_quote(path_str)?)?;
-            } else {
-                writeln!(stdout)?;
+                write!(stdout, " -o {}", shlex::try_quote(path_str)?)?;
             }
+            writeln!(stdout)?;
         }
     }
     Ok(())
@@ -782,6 +806,7 @@ fn run_multiple(
         no_eval,
         no_tool,
         output,
+        timeout,
         dry_run,
     }: RunConfig,
 ) -> anyhow::Result<Result<(), ExitCode>> {
@@ -797,10 +822,13 @@ fn run_multiple(
             &mut io::stdout(),
             &this,
             output.as_deref(),
-            &evals_build,
-            &tools_build,
-            &evals_run,
-            &tools_run,
+            timeout,
+            ProcessedRunItems {
+                evals_build: &evals_build,
+                tools_build: &tools_build,
+                evals_run: &evals_run,
+                tools_run: &tools_run,
+            },
         )?;
         return Ok(Ok(()));
     }
@@ -867,8 +895,13 @@ fn run_multiple(
                 .transpose()?;
             let outcome = match (eval_cmd.spawn(), tool_cmd.spawn()) {
                 (Ok(mut eval_child), Ok(mut tool_child)) => {
-                    let result =
-                        intermediary::run(ctrl_c, log_file, &mut eval_child, &mut tool_child, None);
+                    let result = intermediary::run(
+                        ctrl_c,
+                        log_file,
+                        &mut eval_child,
+                        &mut tool_child,
+                        timeout.map(Duration::from_secs),
+                    );
                     let _ = eval_child.wait();
                     let _ = tool_child.wait();
                     result
@@ -1104,6 +1137,7 @@ fn cli() -> Result<(), ExitCode> {
                     no_eval,
                     no_tool,
                     output,
+                    timeout,
                     dry_run,
                 } => match run_multiple(
                     &mut ctrl_c,
@@ -1113,6 +1147,7 @@ fn cli() -> Result<(), ExitCode> {
                         no_eval,
                         no_tool,
                         output,
+                        timeout,
                         dry_run,
                     },
                 ) {
@@ -1175,8 +1210,8 @@ mod tests {
     use strum::IntoEnumIterator;
 
     use crate::{
-        mangle, process_run_items, run_dry, tool_cmd, util::stringify_cmd, BadOutcome, RunItemKind,
-        OUTCOME_HELP,
+        mangle, process_run_items, run_dry, tool_cmd, util::stringify_cmd, BadOutcome,
+        ProcessedRunItems, RunItemKind, OUTCOME_HELP,
     };
 
     #[test]
@@ -1341,31 +1376,60 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    fn simple_dry_run(
+        stdout: &mut fs::File,
+        evals: &[&str],
+        tools: &[&str],
+        output: Option<&Path>,
+        timeout: Option<u64>,
+    ) {
+        let (evals_build, evals_run) =
+            process_run_items(RunItemKind::Eval, strings(evals), strings(&[]), || {
+                Ok(strings(DEFAULT_EVALS))
+            })
+            .unwrap();
+        let (tools_build, tools_run) =
+            process_run_items(RunItemKind::Tool, strings(tools), strings(&[]), || {
+                Ok(strings(DEFAULT_TOOLS))
+            })
+            .unwrap();
+        run_dry(
+            stdout,
+            "gradbench",
+            output,
+            timeout,
+            ProcessedRunItems {
+                evals_build: &evals_build,
+                tools_build: &tools_build,
+                evals_run: &evals_run,
+                tools_run: &tools_run,
+            },
+        )
+        .unwrap();
+    }
+
     #[cfg(unix)]
     #[test]
     fn test_run_dry() {
         let mut mint = Mint::new("src/outputs");
         let mut stdout = mint.new_goldenfile("dry_run.sh").unwrap();
-        let (evals_build, evals_run) =
-            process_run_items(RunItemKind::Eval, strings(&[]), strings(&[]), || {
-                Ok(strings(DEFAULT_EVALS))
-            })
-            .unwrap();
-        let (tools_build, tools_run) =
-            process_run_items(RunItemKind::Tool, strings(&[]), strings(&[]), || {
-                Ok(strings(DEFAULT_TOOLS))
-            })
-            .unwrap();
-        run_dry(
-            &mut stdout,
-            "gradbench",
-            Some(Path::new("a directory")),
-            &evals_build,
-            &tools_build,
-            &evals_run,
-            &tools_run,
-        )
-        .unwrap();
+        simple_dry_run(&mut stdout, &[], &[], None, None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_run_dry_output() {
+        let mut mint = Mint::new("src/outputs");
+        let mut stdout = mint.new_goldenfile("dry_run_output.sh").unwrap();
+        simple_dry_run(&mut stdout, &[], &[], Some(Path::new("a directory")), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_run_dry_timeout() {
+        let mut mint = Mint::new("src/outputs");
+        let mut stdout = mint.new_goldenfile("dry_run_timeout.sh").unwrap();
+        simple_dry_run(&mut stdout, &[], &[], None, Some(42));
     }
 
     fn join_lines(lines: &[&str]) -> String {
