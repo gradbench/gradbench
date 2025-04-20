@@ -66,35 +66,44 @@ Make sure you have the following tools available on your system:
 All the command-line scripts for working with GradBench are packaged into the _GradBench CLI_, which you can run using the [`./gradbench`](gradbench) script at the root of this repository. For example, you can use the following command to run [PyTorch][] on our simplest eval:
 
 ```sh
-./gradbench run --eval "./gradbench repo eval hello" --tool "./gradbench repo tool pytorch" -o log.jsonl
+./gradbench repo run --eval hello --tool pytorch -o run
 ```
 
 You should see a bunch of green and blue and magenta build output, followed by something like this:
 
 ```
+running eval hello
+   with tool pytorch
   [0] start hello (pytorch)
-  [1] def   hello                               1.122 s ✓
+  [1] def   hello                               1.948 s ✓
   [2] eval  hello::square   1.0                     8ms ~         2ms evaluate ✓
-  [4] eval  hello::double   1.0                     4ms ~         3ms evaluate ✓
+  [4] eval  hello::double   1.0                     7ms ~         6ms evaluate ✓
   [6] eval  hello::square   2.0                     0ms ~         0ms evaluate ✓
   [8] eval  hello::double   4.0                     0ms ~         0ms evaluate ✓
  [10] eval  hello::square   8.0                     0ms ~         0ms evaluate ✓
- [12] eval  hello::double   64.0                    1ms ~         0ms evaluate ✓
+ [12] eval  hello::double   64.0                    0ms ~         0ms evaluate ✓
  [14] eval  hello::square   128.0                   0ms ~         0ms evaluate ✓
  [16] eval  hello::double   16384.0                 0ms ~         0ms evaluate ✓
+outcome success
 ```
 
-Congrats, this means everything worked correctly! Now you can try running other combinations from our set of available [evals](evals) and [tools](tools). The raw message log has been stored in `log.jsonl` in the [JSON Lines][] format, such that each line is a valid JSON object. The file consists of message/response pairs sent from the message and received from the tool, and can be analysed using other scripts. Since a log file contains all inputs and outputs, it can be quite large.
+Congrats, this means everything worked correctly! The raw message log has been stored in `run/hello/pytorch.jsonl` in the [JSON Lines][] format, such that each line is a valid JSON object. The file consists of message/response pairs sent from the message and received from the tool, and can be analysed using other scripts. Since a log file contains all inputs and outputs, it can be quite large.
 
-This was just a quickstart summary; see [`CONTRIBUTING.md`](CONTRIBUTING.md) for more details.
+Now you can try running other combinations from our set of available [evals](evals) and [tools](tools). For instance, here's an example running the `hello` eval with _all_ tools (except one which doesn't work on ARM; feel free to include it if your machine is x86), putting the log files into the same `run/hello` directory as before:
+
+```sh
+./gradbench repo run --eval hello --no-tool scilean -o run
+```
+
+This was just a quickstart summary; see [`CONTRIBUTING.md`](CONTRIBUTING.md) for more details. You can also pass `--help` to any command or subcommand to see other possible options:
+
+```sh
+./gradbench repo run --help
+```
 
 ### Without using Docker
 
-The `--eval` and `--tool` options passed to the `gradbench` CLI are
-arbitrary shell commands, and the default use of Docker is merely a
-convenience. It is possible to run GradBench without using Docker,
-although it requires you to set up the necessary dependencies on your
-system. This section describes how to do that.
+The `--eval` and `--tool` options passed to the `repo run` subcommand use named evals and tools in this repository by default, but they can also take arbitrary shell commands when prefixed with a `$`, so the default use of Docker is merely a convenience. It is possible to run GradBench without using Docker, although it requires you to set up the necessary dependencies on your system. This section describes how to do that.
 
 While the dependencies required for the evals are somewhat restrained,
 tool dependencies can be very diverse and difficult to install.
@@ -211,13 +220,13 @@ Putting it all together, we can run the `hello` eval with the `manual`
 tool as follows:
 
 ```sh
-./gradbench run --eval "uv run python/gradbench/gradbench/evals/hello/run.py" --tool "python3 python/gradbench/gradbench/cpp.py manual"
+./gradbench repo run --eval "$ uv run python/gradbench/gradbench/evals/hello/run.py" --tool "$ python3 python/gradbench/gradbench/cpp.py manual"
 ```
 
 Or without using uv:
 
 ```sh
-PYTHONPATH=python/gradbench/:$PYTHONPATH ./gradbench run --eval "python3 python/gradbench/gradbench/evals/hello/run.py" --tool "python3 python/gradbench/gradbench/cpp.py manual"
+PYTHONPATH=python/gradbench/:$PYTHONPATH ./gradbench repo run --eval "$ python3 python/gradbench/gradbench/evals/hello/run.py" --tool "$ python3 python/gradbench/gradbench/cpp.py manual"
 ```
 
 [You can also run the C++ executables completely separately from
