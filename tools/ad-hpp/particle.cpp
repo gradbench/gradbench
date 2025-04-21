@@ -140,8 +140,6 @@ class ParticleFF : Function<particle::Input, particle::Output> {
     euler_driver_t  inner_driver;
     argmin_driver_t outer_driver;
 
-    size_t input_size() const { return 1; }
-
     template <typename T = double, typename DRIVER>
     void _objective(T const* w, T* out, DRIVER const& driver) const {
       T x1_0 = PARTICLE_X1_0;
@@ -154,6 +152,8 @@ class ParticleFF : Function<particle::Input, particle::Output> {
     }
 
   public:
+    size_t input_size() const { return 1; }
+
     void objective(double const* w, double* out) const {
       _objective(w, out, inner_driver);
     }
@@ -178,14 +178,23 @@ public:
 class ParticleRF : Function<particle::Input, particle::Output> {
   class optim_wrapper {
 
-    using euler_driver_t = acceleration_tangent_driver<double>;
-    using argmin_driver_t =
-        acceleration_adjoint_driver<euler_driver_t::active_t>;
+    using argmin_active_t       = ad::adjoint_t<double>;
+    using argmin_adjoint        = ad::adjoint<double>;
+    using argmin_tape_t         = argmin_adjoint::tape_t;
+    using argmin_tape_options_t = argmin_adjoint::tape_options_t;
+    /**
+     * @brief The driver type for Euler's method when evaluating the objective.
+     */
+    using euler_obj_driver_t = acceleration_tangent_driver<double>;
+    /**
+     * @brief The driver type for Euler's method when evaluating the gradient.
+     */
+    using euler_grad_driver_t = acceleration_adjoint_driver<argmin_active_t>;
 
-    euler_driver_t  inner_driver;
-    argmin_driver_t outer_driver;
+    euler_obj_driver_t  accel_driver_obj;
+    euler_grad_driver_t accel_driver_grad;
 
-    size_t input_size() const { return 1; }
+    argmin_tape_t* _tape;
 
     template <typename T = double, typename DRIVER>
     void _objective(T const* w, T* out, DRIVER const& driver) const {
@@ -199,16 +208,27 @@ class ParticleRF : Function<particle::Input, particle::Output> {
     }
 
   public:
+    optim_wrapper() {
+      argmin_tape_options_t opts(AD_DEFAULT_TAPE_SIZE);
+      _tape = argmin_tape_t::create(opts);
+    }
+    ~optim_wrapper() { argmin_tape_t::remove(_tape); }
+
+    size_t input_size() const { return 1; }
+
     void objective(double const* w, double* out) const {
-      _objective(w, out, inner_driver);
+      _objective(w, out, accel_driver_obj);
     }
 
     void gradient(double const* w, double* out) const {
-      using active_t = argmin_driver_t::active_t;
-      active_t o_active;
-      active_t w_active = w[0];
-      _objective(&w_active, &o_active, outer_driver);
-      *out = ad::derivative(o_active);
+      argmin_active_t o_active;
+      argmin_active_t w_active = w[0];
+      _tape->reset();
+      _tape->register_variable(w_active);
+      _objective(&w_active, &o_active, accel_driver_grad);
+      ad::derivative(o_active) = 1.0;
+      _tape->interpret_adjoint();
+      *out = ad::derivative(w_active);
     }
   };
 
