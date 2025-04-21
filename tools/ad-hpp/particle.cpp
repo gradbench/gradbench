@@ -127,9 +127,114 @@ T compute_particle_intersection_with_xaxis_sqr(T x1, T x2, T v1, T v2,
   return x1_final * x1_final;
 }
 
-class ParticleRR : Function<particle::Input, particle::Output> {};
+class ParticleFR : Function<particle::Input, particle::Output> {
+  class optim_wrapper {
+    using argmin_active_t = ad::tangent_t<double>;
 
-class ParticleFR : Function<particle::Input, particle::Output> {};
+    using euler_driver_t  = acceleration_adjoint_driver<double>;
+    using argmin_driver_t = acceleration_adjoint_driver<argmin_active_t>;
+
+    euler_driver_t  inner_driver;
+    argmin_driver_t outer_driver;
+
+    template <typename T = double, typename DRIVER>
+    void _objective(T const* w, T* out, DRIVER const& driver) const {
+      T x1_0 = PARTICLE_X1_0;
+      T x2_0 = PARTICLE_X2_0;
+      T v1_0 = PARTICLE_V1_0;
+      T v2_0 = PARTICLE_V2_0;
+
+      *out = compute_particle_intersection_with_xaxis_sqr(
+          x1_0, x2_0, v1_0, v2_0, w[0], DELTA_T, driver);
+    }
+
+  public:
+    size_t input_size() const { return 1; }
+
+    void objective(double const* w, double* out) const {
+      _objective(w, out, inner_driver);
+    }
+
+    void gradient(double const* w, double* out) const {
+      argmin_active_t o_active;
+      argmin_active_t w_active = w[0];
+      _objective(&w_active, &o_active, outer_driver);
+      *out = ad::derivative(o_active);
+    }
+  };
+
+public:
+  ParticleFR(particle::Input& input) : Function(input) {};
+
+  void compute(particle::Output& output) {
+    output = multivariate_argmin(optim_wrapper(), &_input.w0)[0];
+  }
+};
+
+class ParticleRR : Function<particle::Input, particle::Output> {
+  class optim_wrapper {
+
+    using argmin_active_t       = ad::adjoint_t<double>;
+    using argmin_adjoint        = ad::adjoint<double>;
+    using argmin_tape_t         = argmin_adjoint::tape_t;
+    using argmin_tape_options_t = argmin_adjoint::tape_options_t;
+    /**
+     * @brief The driver type for Euler's method when evaluating the objective.
+     */
+    using euler_obj_driver_t = acceleration_adjoint_driver<double>;
+    /**
+     * @brief The driver type for Euler's method when evaluating the gradient.
+     */
+    using euler_grad_driver_t = acceleration_adjoint_driver<argmin_active_t>;
+
+    euler_obj_driver_t  accel_driver_obj;
+    euler_grad_driver_t accel_driver_grad;
+
+    argmin_tape_t* _tape;
+
+    template <typename T = double, typename DRIVER>
+    void _objective(T const* w, T* out, DRIVER const& driver) const {
+      T x1_0 = PARTICLE_X1_0;
+      T x2_0 = PARTICLE_X2_0;
+      T v1_0 = PARTICLE_V1_0;
+      T v2_0 = PARTICLE_V2_0;
+
+      *out = compute_particle_intersection_with_xaxis_sqr(
+          x1_0, x2_0, v1_0, v2_0, w[0], DELTA_T, driver);
+    }
+
+  public:
+    optim_wrapper() {
+      argmin_tape_options_t opts(AD_DEFAULT_TAPE_SIZE);
+      _tape = argmin_tape_t::create(opts);
+    }
+    ~optim_wrapper() { argmin_tape_t::remove(_tape); }
+
+    size_t input_size() const { return 1; }
+
+    void objective(double const* w, double* out) const {
+      _objective(w, out, accel_driver_obj);
+    }
+
+    void gradient(double const* w, double* out) const {
+      argmin_active_t o_active;
+      argmin_active_t w_active = w[0];
+      _tape->reset();
+      _tape->register_variable(w_active);
+      _objective(&w_active, &o_active, accel_driver_grad);
+      ad::derivative(o_active) = 1.0;
+      _tape->interpret_adjoint();
+      *out = ad::derivative(w_active);
+    }
+  };
+
+public:
+  ParticleRR(particle::Input& input) : Function(input) {};
+
+  void compute(particle::Output& output) {
+    output = multivariate_argmin(optim_wrapper(), &_input.w0)[0];
+  }
+};
 
 class ParticleFF : Function<particle::Input, particle::Output> {
   class optim_wrapper {
