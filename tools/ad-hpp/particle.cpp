@@ -127,16 +127,20 @@ T compute_particle_intersection_with_xaxis_sqr(T x1, T x2, T v1, T v2,
   return x1_final * x1_final;
 }
 
-class ParticleFR : Function<particle::Input, particle::Output> {
+class ParticleFR : public Function<particle::Input, particle::Output> {
   class optim_wrapper {
     using argmin_active_t = ad::tangent_t<double>;
+    /**
+     * @brief The driver type for Euler's method when evaluating the objective.
+     */
+    using euler_obj_driver_t = acceleration_tangent_driver<double>;
+    /**
+     * @brief The driver type for Euler's method when evaluating the gradient.
+     */
+    using euler_grad_driver_t = acceleration_adjoint_driver<argmin_active_t>;
 
-    using euler_driver_t  = acceleration_adjoint_driver<double>;
-    using argmin_driver_t = acceleration_adjoint_driver<argmin_active_t>;
-
-    euler_driver_t  inner_driver;
-    argmin_driver_t outer_driver;
-
+    euler_obj_driver_t  accel_driver_obj;
+    euler_grad_driver_t accel_driver_grad;
     template <typename T = double, typename DRIVER>
     void _objective(T const* w, T* out, DRIVER const& driver) const {
       T x1_0 = PARTICLE_X1_0;
@@ -152,13 +156,13 @@ class ParticleFR : Function<particle::Input, particle::Output> {
     size_t input_size() const { return 1; }
 
     void objective(double const* w, double* out) const {
-      _objective(w, out, inner_driver);
+      _objective(w, out, accel_driver_obj);
     }
 
     void gradient(double const* w, double* out) const {
       argmin_active_t o_active;
       argmin_active_t w_active = w[0];
-      _objective(&w_active, &o_active, outer_driver);
+      _objective(&w_active, &o_active, accel_driver_grad);
       *out = ad::derivative(o_active);
     }
   };
@@ -171,9 +175,8 @@ public:
   }
 };
 
-class ParticleRR : Function<particle::Input, particle::Output> {
+class ParticleRR : public Function<particle::Input, particle::Output> {
   class optim_wrapper {
-
     using argmin_active_t       = ad::adjoint_t<double>;
     using argmin_adjoint        = ad::adjoint<double>;
     using argmin_tape_t         = argmin_adjoint::tape_t;
@@ -236,14 +239,20 @@ public:
   }
 };
 
-class ParticleFF : Function<particle::Input, particle::Output> {
+class ParticleFF : public Function<particle::Input, particle::Output> {
   class optim_wrapper {
-    using euler_driver_t = acceleration_tangent_driver<double>;
-    using argmin_driver_t =
-        acceleration_tangent_driver<euler_driver_t::active_t>;
+    using argmin_active_t = ad::tangent_t<double>;
+    /**
+     * @brief The driver type for Euler's method when evaluating the objective.
+     */
+    using euler_obj_driver_t = acceleration_tangent_driver<double>;
+    /**
+     * @brief The driver type for Euler's method when evaluating the gradient.
+     */
+    using euler_grad_driver_t = acceleration_adjoint_driver<argmin_active_t>;
 
-    euler_driver_t  inner_driver;
-    argmin_driver_t outer_driver;
+    euler_obj_driver_t  accel_driver_obj;
+    euler_grad_driver_t accel_driver_grad;
 
     template <typename T = double, typename DRIVER>
     void _objective(T const* w, T* out, DRIVER const& driver) const {
@@ -260,14 +269,13 @@ class ParticleFF : Function<particle::Input, particle::Output> {
     size_t input_size() const { return 1; }
 
     void objective(double const* w, double* out) const {
-      _objective(w, out, inner_driver);
+      _objective(w, out, accel_driver_obj);
     }
 
     void gradient(double const* w, double* out) const {
-      using active_t = ad::tangent_t<double>;
-      active_t o_active;
-      active_t w_active = w[0];
-      _objective(&w_active, &o_active, outer_driver);
+      argmin_active_t o_active;
+      argmin_active_t w_active = w[0];
+      _objective(&w_active, &o_active, accel_driver_grad);
       *out = ad::derivative(o_active);
     }
   };
@@ -280,9 +288,8 @@ public:
   }
 };
 
-class ParticleRF : Function<particle::Input, particle::Output> {
+class ParticleRF : public Function<particle::Input, particle::Output> {
   class optim_wrapper {
-
     using argmin_active_t       = ad::adjoint_t<double>;
     using argmin_adjoint        = ad::adjoint<double>;
     using argmin_tape_t         = argmin_adjoint::tape_t;
@@ -298,8 +305,7 @@ class ParticleRF : Function<particle::Input, particle::Output> {
 
     euler_obj_driver_t  accel_driver_obj;
     euler_grad_driver_t accel_driver_grad;
-
-    argmin_tape_t* _tape;
+    argmin_tape_t*      _tape;
 
     template <typename T = double, typename DRIVER>
     void _objective(T const* w, T* out, DRIVER const& driver) const {
