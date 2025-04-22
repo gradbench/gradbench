@@ -18,42 +18,51 @@ let
   cppad = pkgs.callPackage ./nix/cppad.nix { };
   adept = pkgs.callPackage ./nix/adept.nix { };
   codipack = pkgs.callPackage ./nix/codipack.nix { };
+  floretta = pkgs.callPackage ./nix/floretta.nix { };
   GRADBENCH_PATH = builtins.getEnv "PWD";
 
   isX86 = builtins.currentSystem == "x86_64-linux";
 in pkgs.stdenv.mkDerivation rec {
   name = "gradbench";
   buildInputs = [
+    # Required
     pkgs.bun
-    pkgs.gh
+    pkgs.cargo
     pkgs.niv
-    pkgs.nixfmt-classic
     pkgs.python311
     pkgs.uv
 
-    pkgs.futhark
-    pkgs.enzyme
-    pkgs.pkg-config
-    pkgs.llvmPackages_19.lld
     pkgs.llvmPackages_19.clang-tools # Must come before clang for clangd to work.
-    pkgs.llvmPackages_19.clang
-    pkgs.blas
-    pkgs.lapack
-    pkgs.openblas
-    pkgs.zlib
+
+    # Convenient
     pkgs.adolc
+    pkgs.blas
     pkgs.eigen
+    pkgs.enzyme
+    pkgs.futhark
+    pkgs.gh
+    pkgs.lapack
+    pkgs.llvmPackages_19.clang
+    pkgs.llvmPackages_19.lld
+    pkgs.nixfmt-classic
+    pkgs.nodejs
+    pkgs.openblas
+    pkgs.pkg-config
+    pkgs.wasm-tools
     pkgs.wget
+    pkgs.zlib
+
+    # Custom
     adept
     cppad
     codipack
+    floretta
 
     # Haskell
     pkgs.cabal-install
     pkgs.ghc
 
     # Rust
-    pkgs.cargo
     pkgs.clippy
     pkgs.rustc
     pkgs.rustfmt
@@ -63,10 +72,6 @@ in pkgs.stdenv.mkDerivation rec {
     pkgs.opam
     pkgs.ocamlPackages.dune_3
     pkgs.ocamlPackages.ocaml
-
-    # Floretta
-    pkgs.nodejs
-    pkgs.wasm-tools
   ] ++
     # Nixpkgs marks Julia as broken on Apple Silicon
     (if isX86 then [ pkgs.julia_110 ] else [ ]);
@@ -76,8 +81,4 @@ in pkgs.stdenv.mkDerivation rec {
   ENZYME_LIB = "${pkgs.enzyme}/lib";
   LD_LIBRARY_PATH =
     "${pkgs.lib.makeLibraryPath buildInputs}:${pkgs.stdenv.cc.cc.lib}/lib";
-
-  shellHook = ''
-    export PATH="/Users/samueles/github/samestep/floretta/target/release:$PATH"
-  '';
 }
