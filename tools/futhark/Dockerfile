@@ -1,5 +1,5 @@
 FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim
-ARG FUTHARK_VER=0.25.29
+ARG FUTHARK_VER=0.25.30
 WORKDIR /gradbench
 
 # Install build dependencies.
