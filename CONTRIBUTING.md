@@ -201,10 +201,10 @@ bun run toc
 We use [Vite][] for the website. To develop the website locally, run this command:
 
 ```sh
-bun run --filter=gradbench dev
+bun run --filter=@gradbench/website dev
 ```
 
-This will log a `localhost` URL to your terminal; open that URL in your browser. Any changes you make to files in `packages/gradbench/src` should automatically appear.
+This will log a `localhost` URL to your terminal; open that URL in your browser. Any changes you make to files in `js/website/src` should automatically appear.
 
 ## Python
 
