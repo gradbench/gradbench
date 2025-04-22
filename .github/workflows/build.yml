@@ -73,13 +73,13 @@ jobs:
       - name: Install npm dependencies
         run: bun install
       - name: Lint website
-        run: bun run --filter=gradbench lint
+        run: bun run --filter=@gradbench/website lint
       - name: Build website
-        run: bun run --filter=gradbench build
+        run: bun run --filter=@gradbench/website build
       - name: Upload website artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: packages/gradbench/dist
+          path: js/website/dist
 
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
