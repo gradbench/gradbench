@@ -25,8 +25,8 @@ struct HTInput
     correspondences::Vector{Int}
     points::Matrix{Float64}
     theta::Vector{Float64}
-    "Is present only for 'complicated' kind of problems."
-    us::Union{Vector{Vector{Float64}}, Nothing}
+    "Has nonzero size only for 'complicated' kind of problems."
+    us::Matrix{Float64}
 end
 
 "Turn a vector of rows into the corresponding matrix."
@@ -38,8 +38,10 @@ function input_from_json(json)
     theta = json["theta"]
     us = json["us"]
 
-    if size(us, 1) == 1
-        us = nothing
+    if size(us, 1) == 0
+        us = Matrix{Float64}(undef, 0, 0)
+    else
+        us = vecvecToMatrix(convert(Vector{Vector{Float64}}, us))
     end
 
     correspondences = json["data"]["correspondences"]
@@ -203,22 +205,29 @@ function objective_simple(model::HTModel, correspondences::Vector{Int}, points::
     vcat([ points[:, i] - vertex_positions[:, correspondences[i]] for i ∈ 1:n_corr ]...)
 end
 
-function objective_complicated(model::HTModel, correspondences::Vector{Int}, points::Matrix{T1}, theta::Vector{T2}, us::Vector{Vector{T3}}) where {T1, T2, T3}
+function objective_complicated(model::HTModel,
+                               correspondences::Vector{Int},
+                               points::Matrix{T1},
+                               theta::Vector{T2},
+                               us::Matrix{T3}) where {T1, T2, T3}
     pose_params = to_pose_params(theta, length(model.bone_names))
-
     vertex_positions = get_skinned_vertex_positions(model, pose_params)
 
-    n_corr = length(correspondences)
-    vcat([
-        begin
-            verts = model.triangles[correspondences[i]]
-            u = us[i]
-            hand_point = u[1] * vertex_positions[:, verts[1]] + u[2] * vertex_positions[:, verts[2]] +
-                (1. - u[1] - u[2]) * vertex_positions[:, verts[3]]
-            points[:, i] - hand_point
-        end
-            for i ∈ 1:n_corr
-    ]...)
+    verts_all = model.triangles[correspondences]
+
+    # Extract the vertex indices as separate vectors
+    verts1 = getindex.(verts_all, 1)
+    verts2 = getindex.(verts_all, 2)
+    verts3 = getindex.(verts_all, 3)
+
+    # Compute the hand points in vectorized form
+    hand_points = vertex_positions[:, verts1] .* us[:, 1]' .+
+                  vertex_positions[:, verts2] .* us[:, 2]' .+
+                  vertex_positions[:, verts3] .* (1 .- us[:, 1] .- us[:, 2])'
+
+    # Compute the residuals and flatten to a vector
+    residuals = points - hand_points
+    return vec(residuals)
 end
 
 end

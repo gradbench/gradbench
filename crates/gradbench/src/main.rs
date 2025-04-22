@@ -1,12 +1,13 @@
 mod intermediary;
+mod log;
 mod protocol;
 mod stats;
 mod util;
 
 use std::{
     backtrace::BacktraceStatus,
-    collections::BTreeMap,
-    fs,
+    collections::{BTreeMap, BTreeSet, HashSet, VecDeque},
+    env, fs,
     io::{self, BufRead},
     mem::take,
     path::{Path, PathBuf},
@@ -16,13 +17,15 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context};
 use clap::{Parser, Subcommand};
 use colored::{Color, Colorize};
+use itertools::Itertools;
 use regex::Regex;
 use serde::Serialize;
 use stats::StatsMetadata;
 use strum::{EnumIter, EnumString, IntoStaticStr};
+use util::{stringify_cmd, CtrlC};
 
 /// CLI utilities for GradBench, a benchmark suite for differentiable programming across languages
 /// and domains.
@@ -111,6 +114,12 @@ enum Commands {
         outcome: String,
     },
 
+    /// Perform useful operations on the log files produced by `gradbench run`.
+    Log {
+        #[command(subcommand)]
+        command: LogCommands,
+    },
+
     /// Perform a task in a clone of the https://github.com/gradbench/gradbench repository.
     ///
     /// These subcommands will first attempt to check that the current working directory is the root
@@ -123,6 +132,50 @@ enum Commands {
 
 #[derive(Debug, Subcommand)]
 enum RepoCommands {
+    /// Build and run one or more evals against one of more tools, using Docker.
+    ///
+    /// The `--eval` and `--tool` arguments can each be repeated any number of times, and each
+    /// instance can take any of the following forms:
+    ///
+    /// - A name, e.g. `--eval foo`.
+    ///
+    /// - A name followed by some arguments, e.g. `--tool "foo --bar --baz=qux"`.
+    ///
+    /// - A dollar sign followed by any command, e.g. `--eval "$ echo 'an example'"`.
+    ///
+    /// The output directory will contain a `<EVAL>/<TOOL>.jsonl` file for each `<EVAL>` and each
+    /// `<TOOL>`, where the eval and tool names are mangled to only contain ASCII letters, digits,
+    /// and hyphens. It is an error for two mangled names to conflict.
+    Run {
+        /// One or more evals to run, or all evals by default
+        #[clap(short, long)]
+        eval: Vec<String>,
+
+        /// One or more tools to run, or all tools by default
+        #[clap(short, long)]
+        tool: Vec<String>,
+
+        /// Evals to omit
+        #[clap(long, value_name = "EVAL")]
+        no_eval: Vec<String>,
+
+        /// Tools to omit
+        #[clap(long, value_name = "TOOL")]
+        no_tool: Vec<String>,
+
+        /// Output directory
+        #[clap(short, long)]
+        output: Option<PathBuf>,
+
+        /// The timeout, in seconds, for tool responses (not implemented on Windows)
+        #[clap(long)]
+        timeout: Option<u64>,
+
+        /// Print commands to stdout instead of running anything
+        #[clap(long)]
+        dry_run: bool,
+    },
+
     /// Build and run an eval using Docker.
     ///
     /// If the build is not already cached, any output will be printed in blue.
@@ -209,6 +262,25 @@ enum RepoCommands {
     },
 }
 
+#[derive(Debug, Subcommand)]
+enum LogCommands {
+    /// Remove input/output fields from "evaluate" messages and responses.
+    ///
+    /// Writes to stdout unless the `--output` option is used. It is
+    /// expected that the input log file is well-formed, but not that
+    /// it corresponds to a successful run. In particular, the final
+    /// message may not have a response - this occurs when the tool
+    /// crashes or times out before it gets to respond.
+    Trim {
+        /// The input log file.
+        input: Option<PathBuf>,
+
+        /// The output log file.
+        #[clap(short, long)]
+        output: Option<PathBuf>,
+    },
+}
+
 /// Print `error` to stderr, then return [`ExitCode::FAILURE`].
 fn err_fail(error: anyhow::Error) -> ExitCode {
     eprintln!("{error:#}");
@@ -249,13 +321,36 @@ fn run(command: &mut Command) -> Result<Output, ExitCode> {
     Ok(output)
 }
 
-/// Run an eval using Docker.
-fn run_eval(
-    name: &str,
-    tag: Option<&str>,
-    platform: Option<&str>,
-    args: &[String],
-) -> Result<(), ExitCode> {
+/// Get a command to build the Docker image for an eval.
+fn build_eval_cmd(name: &str, platform: Option<&str>) -> Command {
+    let mut cmd = Command::new("docker");
+    cmd.arg("build");
+    if let Some(platform) = platform {
+        cmd.args(["--platform", platform]);
+    }
+    cmd.args([".", "--file"])
+        .arg(format!("evals/{name}/Dockerfile"))
+        .arg("--tag")
+        .arg(format!("ghcr.io/gradbench/eval-{name}"));
+    cmd
+}
+
+/// Get a command to build the Docker image for a tool.
+fn build_tool_cmd(name: &str, platform: Option<&str>) -> Command {
+    let mut cmd = Command::new("docker");
+    cmd.arg("build");
+    if let Some(platform) = platform {
+        cmd.args(["--platform", platform]);
+    }
+    cmd.args([".", "--file"])
+        .arg(format!("tools/{name}/Dockerfile"))
+        .arg("--tag")
+        .arg(format!("ghcr.io/gradbench/tool-{name}"));
+    cmd
+}
+
+/// Get a command to run an eval using Docker.
+fn eval_cmd(name: &str, tag: Option<&str>, platform: Option<&str>, args: &[String]) -> Command {
     let t = tag.unwrap_or("latest");
     let mut cmd = Command::new("docker");
     cmd.arg("run");
@@ -265,6 +360,31 @@ fn run_eval(
     cmd.args(["--rm", "--interactive"])
         .arg(format!("ghcr.io/gradbench/eval-{name}:{t}"))
         .args(args);
+    cmd
+}
+
+/// Get a command to run a tool using Docker.
+fn tool_cmd(name: &str, tag: Option<&str>, platform: Option<&str>, args: &[String]) -> Command {
+    let t = tag.unwrap_or("latest");
+    let mut cmd = Command::new("docker");
+    cmd.arg("run");
+    if let Some(platform) = platform {
+        cmd.args(["--platform", platform]);
+    }
+    cmd.args(["--rm", "--interactive"])
+        .arg(format!("ghcr.io/gradbench/tool-{name}:{t}"))
+        .args(args);
+    cmd
+}
+
+/// Run an eval using Docker.
+fn run_eval(
+    name: &str,
+    tag: Option<&str>,
+    platform: Option<&str>,
+    args: &[String],
+) -> Result<(), ExitCode> {
+    let mut cmd = eval_cmd(name, tag, platform, args);
     run(&mut cmd)?;
     Ok(())
 }
@@ -276,30 +396,22 @@ fn run_tool(
     platform: Option<&str>,
     args: &[String],
 ) -> Result<(), ExitCode> {
-    let t = tag.unwrap_or("latest");
-    let mut cmd = Command::new("docker");
-    cmd.arg("run");
-    if let Some(platform) = platform {
-        cmd.args(["--platform", platform]);
-    }
-    cmd.args(["--rm", "--interactive"])
-        .arg(format!("ghcr.io/gradbench/tool-{name}:{t}"))
-        .args(args);
+    let mut cmd = tool_cmd(name, tag, platform, args);
     run(&mut cmd)?;
     Ok(())
 }
 
-/// A level of verbosity for building a Docker image.
-enum Verbosity {
-    /// Normal output.
-    Normal,
+/// Whether or not Docker output was suppressed due to detected caching.
+enum Caching {
+    /// Everything seemed to be cached; output was suppressed.
+    Cached,
 
-    /// No output except for errors.
-    Quiet,
+    /// Not everything seemed to be cached; output was not suppressed.
+    Uncached,
 }
 
 /// Run a `docker build` command but don't print output if everything is cached.
-fn docker_build_quiet(color: Color, mut cmd: Command) -> anyhow::Result<ExitStatus> {
+fn docker_build_quiet(color: Color, mut cmd: Command) -> anyhow::Result<(Caching, ExitStatus)> {
     let mut child = cmd
         .arg("--progress=plain")
         // Podman-based Dockers print build logs to stdout, which will
@@ -328,65 +440,75 @@ fn docker_build_quiet(color: Color, mut cmd: Command) -> anyhow::Result<ExitStat
             eprintln!("{}", line.color(color));
         }
     }
+    let caching = if cached {
+        Caching::Cached
+    } else {
+        Caching::Uncached
+    };
     let status = child.wait()?;
     if !status.success() {
         eprint!("{}", take(&mut buffer).color(color));
     }
-    Ok(status)
+    Ok((caching, status))
+}
+
+/// A level of verbosity for building a Docker image.
+enum Verbosity {
+    /// Normal output.
+    Normal,
+
+    /// No output except for errors.
+    Quiet,
 }
 
 /// Build the Docker image for an eval.
-fn build_eval(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Result<(), ExitCode> {
+fn build_eval(
+    name: &str,
+    platform: Option<&str>,
+    verbosity: Verbosity,
+) -> Result<Caching, ExitCode> {
     if name.is_empty() || !fs::exists(Path::new("evals").join(name)).unwrap_or(false) {
         return Err(err_fail(anyhow!("can't find eval to build: {name:?}")));
     }
-    let mut cmd = Command::new("docker");
-    cmd.arg("build");
-    if let Some(platform) = platform {
-        cmd.args(["--platform", platform]);
-    }
-    cmd.args([".", "--file"])
-        .arg(format!("evals/{name}/Dockerfile"))
-        .arg("--tag")
-        .arg(format!("ghcr.io/gradbench/eval-{name}"));
+    let mut cmd = build_eval_cmd(name, platform);
     match verbosity {
         Verbosity::Normal => {
             run(&mut cmd)?;
-            Ok(())
+            Ok(Caching::Uncached)
         }
-        Verbosity::Quiet => status_code(
-            docker_build_quiet(Color::Blue, cmd)
+        Verbosity::Quiet => {
+            let (caching, status) = docker_build_quiet(Color::Blue, cmd)
                 .with_context(|| format!("error building eval {name}"))
-                .map_err(err_fail)?,
-        ),
+                .map_err(err_fail)?;
+            status_code(status)?;
+            Ok(caching)
+        }
     }
 }
 
 /// Build the Docker image for a tool.
-fn build_tool(name: &str, platform: Option<&str>, verbosity: Verbosity) -> Result<(), ExitCode> {
+fn build_tool(
+    name: &str,
+    platform: Option<&str>,
+    verbosity: Verbosity,
+) -> Result<Caching, ExitCode> {
     if name.is_empty() || !fs::exists(Path::new("tools").join(name)).unwrap_or(false) {
         return Err(err_fail(anyhow!("can't find tool to build: {name:?}")));
     }
-    let mut cmd = Command::new("docker");
-    cmd.arg("build");
-    if let Some(platform) = platform {
-        cmd.args(["--platform", platform]);
-    }
-    cmd.args([".", "--file"])
-        .arg(format!("tools/{name}/Dockerfile"))
-        .arg("--tag")
-        .arg(format!("ghcr.io/gradbench/tool-{name}"));
+    let mut cmd = build_tool_cmd(name, platform);
     match verbosity {
         Verbosity::Normal => {
             cmd.arg("--progress=plain");
             run(&mut cmd)?;
-            Ok(())
+            Ok(Caching::Uncached)
         }
-        Verbosity::Quiet => status_code(
-            docker_build_quiet(Color::Magenta, cmd)
+        Verbosity::Quiet => {
+            let (caching, status) = docker_build_quiet(Color::Magenta, cmd)
                 .with_context(|| format!("error building tool {name}"))
-                .map_err(err_fail)?,
-        ),
+                .map_err(err_fail)?;
+            status_code(status)?;
+            Ok(caching)
+        }
     }
 }
 
@@ -438,16 +560,25 @@ fn check_git() -> Result<(), ExitCode> {
 }
 
 /// Return a command that runs its argument as a shell command.
-fn shell(command: &str) -> Command {
-    if cfg!(windows) {
-        let mut cmd = Command::new("powershell");
-        cmd.arg("-Command").arg(command);
-        cmd
-    } else {
-        let mut cmd = Command::new("sh");
-        cmd.arg("-c").arg(command);
-        cmd
+fn shell(command: &str) -> anyhow::Result<Command> {
+    match shlex::split(command).map(VecDeque::from) {
+        Some(mut parts) => match parts.pop_front() {
+            Some(first) => {
+                let mut cmd = Command::new(first);
+                cmd.args(parts);
+                Ok(cmd)
+            }
+            None => Err(anyhow!("empty command")),
+        },
+        None => Err(anyhow!("failed to split command")),
     }
+}
+
+/// Configure a subcommand to be run by the intermediary.
+fn configure_intermediary_subcommand(cmd: &mut Command) {
+    cmd.stdin(Stdio::piped()).stdout(Stdio::piped());
+    #[cfg(unix)]
+    std::os::unix::process::CommandExt::process_group(cmd, 0);
 }
 
 /// List the entries in a directory.
@@ -461,6 +592,337 @@ fn ls(dir: &str) -> anyhow::Result<Vec<String>> {
                 .map_err(|name| anyhow!("invalid file name {name:?}"))
         })
         .collect()
+}
+
+/// Config for running one or more evals against one or more tools.
+struct RunConfig {
+    /// Evals to run, or all by default.
+    eval: Vec<String>,
+
+    /// Tools to run, or all by default.
+    tool: Vec<String>,
+
+    /// Evals to omit.
+    no_eval: Vec<String>,
+
+    /// Tools to omit.
+    no_tool: Vec<String>,
+
+    /// Output directory.
+    output: Option<PathBuf>,
+
+    /// The timeout, in seconds, for tool responses (not implemented on Windows).
+    timeout: Option<u64>,
+
+    /// Don't actually run anything, just print commands to stdout.
+    dry_run: bool,
+}
+
+/// Choice between talking about evals or talking about tools.
+enum RunItemKind {
+    /// Evals.
+    Eval,
+
+    /// Tools.
+    Tool,
+}
+
+/// A raw `String` and the processed `Command` representing its semantics.
+type RunItem = (String, Command);
+
+/// Return a string like the input but with a restricted alphabet.
+///
+/// The returned string consists only of ASCII letters, digits, and hyphens, and does not start or
+/// end with a hyphen. All ASCII alphanumeric characters included in the string; any sequence of
+/// other characters is converted to a single hyphen.
+fn mangle(string: &str) -> String {
+    let mut mangled = String::new();
+    let mut pending = false;
+    for c in string.chars() {
+        if c.is_ascii_alphanumeric() {
+            if pending {
+                mangled.push('-');
+                pending = false;
+            }
+            mangled.push(c);
+        } else if !mangled.is_empty() {
+            pending = true;
+        }
+    }
+    mangled
+}
+
+/// Given a log directory and a raw eval command string, return a path for that eval's logs.
+fn eval_subpath(dir: &Path, eval: &str) -> PathBuf {
+    dir.join(mangle(eval))
+}
+
+/// Given a log directory and raw eval/tool command strings, return a path for that log.
+fn log_subpath(dir: &Path, eval: &str, tool: &str) -> PathBuf {
+    let mut path = eval_subpath(dir, eval).join(mangle(tool));
+    path.set_extension("jsonl");
+    path
+}
+
+/// Process a human-friendly list of evals or tools into a deduplicated build list and a run list.
+fn process_run_items(
+    item_kind: RunItemKind,
+    items: Vec<String>,
+    omit: Vec<String>,
+    default: impl FnOnce() -> anyhow::Result<Vec<String>>,
+) -> anyhow::Result<(Vec<String>, Vec<RunItem>)> {
+    let kind = match item_kind {
+        RunItemKind::Eval => "eval",
+        RunItemKind::Tool => "tool",
+    };
+    let strings = if items.is_empty() {
+        let mut all = default()?;
+        let set: HashSet<String> = omit.into_iter().collect();
+        all.retain(|e| !set.contains(e));
+        all.sort();
+        all
+    } else {
+        if !omit.is_empty() {
+            bail!("`--no-{kind}` cannot be used together with `--{kind}`");
+        }
+        items
+    };
+    let mut mangled = HashSet::new();
+    let (builds, runs) = strings
+        .into_iter()
+        .map(|string| {
+            if !mangled.insert(mangle(&string)) {
+                let mang = mangle(&string);
+                bail!("another `--{kind}` got the same mangled name {mang}: {string:?}");
+            }
+            let mut parts = VecDeque::from(
+                shlex::split(&string)
+                    .ok_or_else(|| anyhow!("failed to split `--{kind}`: {string:?}"))?,
+            );
+            let first = parts
+                .pop_front()
+                .ok_or_else(|| anyhow!("empty `--{kind}` after splitting: {string:?}"))?;
+            let (build, mut cmd) = if first == "$" {
+                let program = parts
+                    .pop_front()
+                    .ok_or_else(|| anyhow!("empty `--{kind}` after `$`: {string:?}"))?;
+                let cmd = Command::new(program);
+                (None, cmd)
+            } else {
+                let cmd = (match item_kind {
+                    RunItemKind::Eval => eval_cmd,
+                    RunItemKind::Tool => tool_cmd,
+                })(&first, None, None, &[]);
+                (Some(first), cmd)
+            };
+            for arg in parts {
+                cmd.arg(arg);
+            }
+            configure_intermediary_subcommand(&mut cmd);
+            Ok((build, (string, cmd)))
+        })
+        .process_results::<_, _, anyhow::Error, (BTreeSet<Option<String>>, Vec<RunItem>)>(|it| {
+            it.unzip()
+        })?;
+    Ok((builds.into_iter().flatten().collect(), runs))
+}
+
+/// Eval and tool outputs from [`process_run_items`].
+struct ProcessedRunItems<'a> {
+    /// Evals to build.
+    evals_build: &'a [String],
+
+    /// Tools to build.
+    tools_build: &'a [String],
+
+    /// Evals to run.
+    evals_run: &'a [RunItem],
+
+    /// Tools to run.
+    tools_run: &'a [RunItem],
+}
+
+/// Print the commands for building and running one more evals against one or more tools.
+fn run_dry(
+    stdout: &mut impl io::Write,
+    this: &str,
+    output: Option<&Path>,
+    timeout: Option<u64>,
+    ProcessedRunItems {
+        evals_build,
+        tools_build,
+        evals_run,
+        tools_run,
+    }: ProcessedRunItems,
+) -> anyhow::Result<()> {
+    for eval in evals_build {
+        let cmd = shlex::try_join(stringify_cmd(&build_eval_cmd(eval, None))?)?;
+        writeln!(stdout, "{cmd}")?;
+    }
+    for tool in tools_build {
+        let cmd = shlex::try_join(stringify_cmd(&build_tool_cmd(tool, None))?)?;
+        writeln!(stdout, "{cmd}")?;
+    }
+    if let Some(dir) = output {
+        write!(stdout, "mkdir -p")?;
+        for (eval_string, _) in evals_run {
+            let subdir = eval_subpath(dir, eval_string);
+            let subdir_str = subdir.to_str().ok_or_else(|| {
+                anyhow!("failed to convert output directory path to a string: {subdir:?}")
+            })?;
+            write!(stdout, " {}", shlex::try_quote(subdir_str)?)?;
+        }
+        writeln!(stdout)?;
+    }
+    for (eval_string, eval_cmd) in evals_run {
+        for (tool_string, tool_cmd) in tools_run {
+            let eval = shlex::try_join(stringify_cmd(eval_cmd)?)?;
+            let tool = shlex::try_join(stringify_cmd(tool_cmd)?)?;
+            write!(stdout, "{this} run")?;
+            if let Some(seconds) = timeout {
+                write!(stdout, " --timeout {seconds}")?;
+            }
+            write!(stdout, " --eval {}", shlex::try_quote(&eval)?)?;
+            write!(stdout, " --tool {}", shlex::try_quote(&tool)?)?;
+            if let Some(dir) = output {
+                let path = log_subpath(dir, eval_string, tool_string);
+                let path_str = path.to_str().ok_or_else(|| {
+                    anyhow!("failed to convert output file path to a string: {path:?}")
+                })?;
+                write!(stdout, " -o {}", shlex::try_quote(path_str)?)?;
+            }
+            writeln!(stdout)?;
+        }
+    }
+    Ok(())
+}
+
+/// Build and run one or more evals against one or more tools.
+fn run_multiple(
+    ctrl_c: &mut CtrlC,
+    RunConfig {
+        eval,
+        tool,
+        no_eval,
+        no_tool,
+        output,
+        timeout,
+        dry_run,
+    }: RunConfig,
+) -> anyhow::Result<Result<(), ExitCode>> {
+    let (evals_build, mut evals_run) =
+        process_run_items(RunItemKind::Eval, eval, no_eval, || ls("evals"))?;
+    let (tools_build, mut tools_run) =
+        process_run_items(RunItemKind::Tool, tool, no_tool, || ls("tools"))?;
+    if dry_run {
+        let this = env::args()
+            .next()
+            .ok_or_else(|| anyhow!("failed to get the name of this program"))?;
+        run_dry(
+            &mut io::stdout(),
+            &this,
+            output.as_deref(),
+            timeout,
+            ProcessedRunItems {
+                evals_build: &evals_build,
+                tools_build: &tools_build,
+                evals_run: &evals_run,
+                tools_run: &tools_run,
+            },
+        )?;
+        return Ok(Ok(()));
+    }
+    let mut need_newline = false;
+    for eval in evals_build {
+        println!("{} {}", "building eval".blue().bold(), eval);
+        match build_eval(&eval, None, Verbosity::Quiet) {
+            Ok(Caching::Cached) => need_newline = true,
+            Ok(Caching::Uncached) => {
+                println!();
+                need_newline = false;
+            }
+            Err(code) => return Ok(Err(code)),
+        }
+    }
+    if need_newline {
+        println!();
+        need_newline = false;
+    }
+    for tool in tools_build {
+        println!("{} {}", "building tool".magenta().bold(), tool);
+        match build_tool(&tool, None, Verbosity::Quiet) {
+            Ok(Caching::Cached) => need_newline = true,
+            Ok(Caching::Uncached) => {
+                println!();
+                need_newline = false;
+            }
+            Err(code) => return Ok(Err(code)),
+        }
+    }
+    if let Some(dir) = &output {
+        fs::create_dir_all(dir)?;
+    }
+    if need_newline {
+        println!();
+    }
+    if let Some(dir) = &output {
+        for (eval_string, _) in &evals_run {
+            fs::create_dir_all(eval_subpath(dir, eval_string))?;
+        }
+    }
+    let mut first = true;
+    for (eval_string, eval_cmd) in &mut evals_run {
+        for (tool_string, tool_cmd) in &mut tools_run {
+            if !first {
+                println!();
+            }
+            first = false;
+            println!(
+                "{} {} {}",
+                "running".bold(),
+                "eval".blue().bold(),
+                eval_string,
+            );
+            println!(
+                "{} {} {}",
+                "   with".bold(),
+                "tool".magenta().bold(),
+                tool_string,
+            );
+            let log_file = output
+                .as_ref()
+                .map(|dir| fs::File::create(log_subpath(dir, eval_string, tool_string)))
+                .transpose()?;
+            let outcome = match (eval_cmd.spawn(), tool_cmd.spawn()) {
+                (Ok(mut eval_child), Ok(mut tool_child)) => {
+                    let result = intermediary::run(
+                        ctrl_c,
+                        log_file,
+                        &mut eval_child,
+                        &mut tool_child,
+                        timeout.map(Duration::from_secs),
+                    );
+                    let _ = eval_child.wait();
+                    let _ = tool_child.wait();
+                    result
+                }
+                _ => Err(BadOutcome::Error),
+            };
+            print!("{} ", "outcome".bold());
+            match outcome {
+                Ok(()) => println!("success"),
+                Err(bad_outcome) => {
+                    let stringified: &str = bad_outcome.into();
+                    println!("{}", stringified);
+                    if let BadOutcome::Interrupt = bad_outcome {
+                        // This process is about to exit, so don't try to start the next one.
+                        return Ok(Ok(()));
+                    }
+                }
+            }
+        }
+    }
+    Ok(Ok(()))
 }
 
 /// Print a JSON `value` with a `name` for GitHub Actions.
@@ -567,8 +1029,37 @@ fn matrix() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Run a subcommand from the "Log" command group.
+fn log_command(command: LogCommands) -> anyhow::Result<()> {
+    match command {
+        LogCommands::Trim { input, output } => match (input, output) {
+            (Some(input_path), Some(output_path)) => {
+                let input_file = fs::File::open(input_path)?;
+                let mut output_file = fs::File::create(&output_path)?;
+                log::trim(&mut io::BufReader::new(input_file), &mut output_file)?;
+                Ok(())
+            }
+            (Some(input_path), None) => {
+                let input_file = fs::File::open(input_path)?;
+                log::trim(&mut io::BufReader::new(input_file), &mut io::stdout())?;
+                Ok(())
+            }
+            (None, Some(output_path)) => {
+                let mut output_file = fs::File::create(&output_path)?;
+                log::trim(&mut io::BufReader::new(io::stdin()), &mut output_file)?;
+                Ok(())
+            }
+            (None, None) => {
+                log::trim(&mut io::BufReader::new(io::stdin()), &mut io::stdout())?;
+                Ok(())
+            }
+        },
+    }
+}
+
 /// Run the GradBench CLI, returning a `Result`.
 fn cli() -> Result<(), ExitCode> {
+    let mut ctrl_c = CtrlC::new().map_err(|error| err_fail(anyhow!(error)))?;
     match Cli::parse().command {
         Commands::Eval {
             eval,
@@ -588,32 +1079,32 @@ fn cli() -> Result<(), ExitCode> {
             output,
             timeout,
         } => {
-            let (Ok(mut eval_child), Ok(mut tool_child)) = (
-                {
-                    let mut cmd = shell(&eval);
-                    #[cfg(unix)]
-                    std::os::unix::process::CommandExt::process_group(&mut cmd, 0);
-                    cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn()
-                },
-                {
-                    let mut cmd = shell(&tool);
-                    #[cfg(unix)]
-                    std::os::unix::process::CommandExt::process_group(&mut cmd, 0);
-                    cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn()
-                },
-            ) else {
-                return Err(err_fail(anyhow!("error starting eval and tool commands")));
-            };
+            let log_file = output
+                .map(fs::File::create)
+                .transpose()
+                .map_err(|err| err_fail(anyhow!(err)))?;
+            let mut eval_child = shell(&eval)
+                .and_then(|mut cmd| {
+                    configure_intermediary_subcommand(&mut cmd);
+                    Ok(cmd.spawn()?)
+                })
+                .context("eval")
+                .map_err(err_fail)?;
+            let mut tool_child = shell(&tool)
+                .and_then(|mut cmd| {
+                    configure_intermediary_subcommand(&mut cmd);
+                    Ok(cmd.spawn()?)
+                })
+                .context("tool")
+                .map_err(err_fail)?;
             let timeout = timeout.map(Duration::from_secs);
-            let outcome = match output {
-                Some(path) => {
-                    let mut file = fs::File::create(&path).map_err(|err| err_fail(anyhow!(err)))?;
-                    intermediary::run(&mut file, &mut eval_child, &mut tool_child, timeout)
-                }
-                None => {
-                    intermediary::run(&mut io::sink(), &mut eval_child, &mut tool_child, timeout)
-                }
-            };
+            let outcome = intermediary::run(
+                &mut ctrl_c,
+                log_file,
+                &mut eval_child,
+                &mut tool_child,
+                timeout,
+            );
             let eval_wait = eval_child.wait();
             let tool_wait = tool_child.wait();
             match outcome {
@@ -640,6 +1131,29 @@ fn cli() -> Result<(), ExitCode> {
         Commands::Repo { command } => {
             check_git()?;
             match command {
+                RepoCommands::Run {
+                    eval,
+                    tool,
+                    no_eval,
+                    no_tool,
+                    output,
+                    timeout,
+                    dry_run,
+                } => match run_multiple(
+                    &mut ctrl_c,
+                    RunConfig {
+                        eval,
+                        tool,
+                        no_eval,
+                        no_tool,
+                        output,
+                        timeout,
+                        dry_run,
+                    },
+                ) {
+                    Ok(res) => res,
+                    Err(err) => Err(err_fail(err)),
+                },
                 RepoCommands::Eval {
                     eval,
                     platform,
@@ -659,10 +1173,10 @@ fn cli() -> Result<(), ExitCode> {
                     Ok(())
                 }
                 RepoCommands::BuildEval { eval, platform } => {
-                    build_eval(&eval, platform.as_deref(), Verbosity::Normal)
+                    build_eval(&eval, platform.as_deref(), Verbosity::Normal).map(|_| ())
                 }
                 RepoCommands::BuildTool { tool, platform } => {
-                    build_tool(&tool, platform.as_deref(), Verbosity::Normal)
+                    build_tool(&tool, platform.as_deref(), Verbosity::Normal).map(|_| ())
                 }
                 RepoCommands::Matrix => matrix().map_err(err_fail),
                 RepoCommands::Stats {
@@ -675,6 +1189,7 @@ fn cli() -> Result<(), ExitCode> {
                 }
             }
         }
+        Commands::Log { command } => log_command(command).map_err(err_fail),
     }
 }
 
@@ -694,7 +1209,10 @@ mod tests {
     use pretty_assertions::assert_eq;
     use strum::IntoEnumIterator;
 
-    use crate::{BadOutcome, OUTCOME_HELP};
+    use crate::{
+        mangle, process_run_items, run_dry, tool_cmd, util::stringify_cmd, BadOutcome,
+        ProcessedRunItems, RunItemKind, OUTCOME_HELP,
+    };
 
     #[test]
     fn test_outcome_help() {
@@ -726,6 +1244,192 @@ mod tests {
     #[test]
     fn test_outcome_error_exit_code_failure() {
         assert_eq!(ExitCode::from(BadOutcome::Error), ExitCode::FAILURE);
+    }
+
+    #[test]
+    fn test_mangle_empty() {
+        assert_eq!(mangle(""), "");
+    }
+
+    #[test]
+    fn test_mangle_word() {
+        assert_eq!(mangle("foo"), "foo");
+    }
+
+    #[test]
+    fn test_mangle_args() {
+        assert_eq!(mangle("foo --bar --baz=qux"), "foo-bar-baz-qux");
+    }
+
+    #[test]
+    fn test_mangle_cmd() {
+        assert_eq!(mangle("$ echo 'an example'"), "echo-an-example");
+    }
+
+    fn str_err<T>(s: &str) -> Result<T, String> {
+        Err(s.to_string())
+    }
+
+    fn strings(strs: &[&str]) -> Vec<String> {
+        strs.iter().map(|s| s.to_string()).collect()
+    }
+
+    fn simple_tool_cmd(name: &str, args: &[&str]) -> Vec<String> {
+        strings(&stringify_cmd(&tool_cmd(name, None, None, &strings(args))).unwrap())
+    }
+
+    type RunItemSimplified = (String, Vec<String>);
+
+    fn run_items<const N: usize>(items: [(&str, Vec<String>); N]) -> Vec<RunItemSimplified> {
+        items
+            .into_iter()
+            .map(|(string, cmd)| (string.to_string(), cmd))
+            .collect()
+    }
+
+    fn process_tools(
+        items: &[&str],
+        omit: &[&str],
+        default: &[&str],
+    ) -> Result<(Vec<String>, Vec<RunItemSimplified>), String> {
+        match process_run_items(RunItemKind::Tool, strings(items), strings(omit), || {
+            Ok(strings(default))
+        }) {
+            Ok((builds, runs)) => Ok((
+                builds,
+                runs.into_iter()
+                    .map(|(string, cmd)| (string, strings(&stringify_cmd(&cmd).unwrap())))
+                    .collect(),
+            )),
+            Err(error) => Err(format!("{error:#}")),
+        }
+    }
+
+    const DEFAULT_EVALS: &[&str] = &["qux", "norf"];
+    const DEFAULT_TOOLS: &[&str] = &["foo", "bar", "baz"];
+
+    #[test]
+    fn test_run_items_omit() {
+        let actual = process_tools(&[], &["baz", "foo", "baz"], DEFAULT_TOOLS);
+        let expected = Ok((
+            strings(&["bar"]),
+            run_items([("bar", simple_tool_cmd("bar", &[]))]),
+        ));
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_run_items_args() {
+        let actual = process_tools(
+            &["foo --bar --baz=qux", "foo --baz=norf"],
+            &[],
+            DEFAULT_TOOLS,
+        );
+        let expected = Ok((
+            strings(&["foo"]),
+            run_items([
+                (
+                    "foo --bar --baz=qux",
+                    simple_tool_cmd("foo", &["--bar", "--baz=qux"]),
+                ),
+                ("foo --baz=norf", simple_tool_cmd("foo", &["--baz=norf"])),
+            ]),
+        ));
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_run_items_cmd() {
+        let actual = process_tools(&["$ echo 'an example'"], &[], DEFAULT_TOOLS);
+        let expected = Ok((
+            strings(&[]),
+            run_items([("$ echo 'an example'", strings(&["echo", "an example"]))]),
+        ));
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_run_items_conflict() {
+        let actual = process_tools(&["foo"], &["foo"], &[]);
+        let expected = str_err("`--no-tool` cannot be used together with `--tool`");
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_run_items_mangled_duplicate() {
+        let actual = process_tools(&["foo", "foo"], &[], &[]);
+        let expected = str_err("another `--tool` got the same mangled name foo: \"foo\"");
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_run_items_split_empty() {
+        let actual = process_tools(&[""], &[], &[]);
+        let expected = str_err("empty `--tool` after splitting: \"\"");
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_run_items_split_cmd_empty() {
+        let actual = process_tools(&["$"], &[], &[]);
+        let expected = str_err("empty `--tool` after `$`: \"$\"");
+        assert_eq!(actual, expected);
+    }
+
+    fn simple_dry_run(
+        stdout: &mut fs::File,
+        evals: &[&str],
+        tools: &[&str],
+        output: Option<&Path>,
+        timeout: Option<u64>,
+    ) {
+        let (evals_build, evals_run) =
+            process_run_items(RunItemKind::Eval, strings(evals), strings(&[]), || {
+                Ok(strings(DEFAULT_EVALS))
+            })
+            .unwrap();
+        let (tools_build, tools_run) =
+            process_run_items(RunItemKind::Tool, strings(tools), strings(&[]), || {
+                Ok(strings(DEFAULT_TOOLS))
+            })
+            .unwrap();
+        run_dry(
+            stdout,
+            "gradbench",
+            output,
+            timeout,
+            ProcessedRunItems {
+                evals_build: &evals_build,
+                tools_build: &tools_build,
+                evals_run: &evals_run,
+                tools_run: &tools_run,
+            },
+        )
+        .unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_run_dry() {
+        let mut mint = Mint::new("src/outputs");
+        let mut stdout = mint.new_goldenfile("dry_run.sh").unwrap();
+        simple_dry_run(&mut stdout, &[], &[], None, None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_run_dry_output() {
+        let mut mint = Mint::new("src/outputs");
+        let mut stdout = mint.new_goldenfile("dry_run_output.sh").unwrap();
+        simple_dry_run(&mut stdout, &[], &[], Some(Path::new("a directory")), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_run_dry_timeout() {
+        let mut mint = Mint::new("src/outputs");
+        let mut stdout = mint.new_goldenfile("dry_run_timeout.sh").unwrap();
+        simple_dry_run(&mut stdout, &[], &[], None, Some(42));
     }
 
     fn join_lines(lines: &[&str]) -> String {

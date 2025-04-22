@@ -1,4 +1,4 @@
-module ODE
+module LSE
 
 using Enzyme
 import GradBench

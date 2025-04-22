@@ -27,23 +27,54 @@ function objective(j)
     end
 end
 
+function interleave_rows(A, B, C)
+    stacked = cat(A, B, C; dims=3)                 # Stack into a 3D array (rows × cols × 3)
+    permuted = permutedims(stacked, (3, 1, 2))     # Now shape is (3 × rows × cols)
+    reshaped = reshape(permuted, :, size(A, 2))    # Interleave rows by reshaping
+    return reshaped
+end
+
 function jacobian(j)
     input = GradBench.HT.input_from_json(j)
-    complicated = size(input.us, 1) != 0
+    complicated = !isempty(input.us)
+
     if complicated
-        wrapper = theta -> GradBench.HT.objective_complicated(input.model, input.correspondences, input.points, theta, input.us)
-        y, jacobian_theta = Zygote.forward_jacobian(wrapper, input.theta)
-        ylen = size(y, 1)
-        jacobian_us = hcat([
-            begin
-                _, ju = Zygote.forward_jacobian(u -> GradBench.HT.objective_complicated(input.model, input.correspondences, input.points, input.theta, vcat(input.us[1:j-1], [u], input.us[j+1:end])), input.us[j])
-                ju[:, 3j-2:3j]
-            end
-            for j ∈ 1:size(input.us, 1)
-                ]...)
-        vcat(jacobian_us, jacobian_theta)
+        # Jacobian w.r.t. theta
+        wrapper_theta = θ -> GradBench.HT.objective_complicated(
+            input.model, input.correspondences, input.points, θ, input.us)
+        _, J_theta = Zygote.forward_jacobian(wrapper_theta, input.theta)
+
+        # Jacobian w.r.t. each u in us
+        n_us = size(input.us, 1)
+
+        wrapper_u = us -> GradBench.HT.objective_complicated(
+            input.model,
+            input.correspondences,
+            input.points,
+            input.theta,
+            us)
+        _, back = Zygote.pullback(wrapper_u, input.us)
+
+        seed = zeros(n_us*3)
+        seed[1:3:end] .= 1
+        x = back(reshape(seed, n_us, 3))[1]
+
+        seed = zeros(n_us*3)
+        seed[2:3:end] .= 1
+        y = back(reshape(seed, n_us, 3))[1]
+
+        seed = zeros(n_us*3)
+        seed[3:3:end] .= 1
+        z = back(reshape(seed, n_us, 3))[1]
+
+        us_theta = interleave_rows(x,y,z)
+
+        return vcat(us_theta', J_theta)
     else
-        Zygote.forward_jacobian(theta -> GradBench.HT.objective_simple(input.model, input.correspondences, input.points, theta), input.theta)[2]
+        # Simple case: only theta matters
+        _, J_theta = Zygote.forward_jacobian(θ -> GradBench.HT.objective_simple(
+            input.model, input.correspondences, input.points, θ), input.theta)
+        return J_theta
     end
 end
 
