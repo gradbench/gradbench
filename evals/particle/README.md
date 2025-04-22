@@ -20,7 +20,7 @@ $\mathbf{x}(t_f)$. We desire to compute
 
 ```math
 \text{min}_w\ x_0(t_f)^2
-```j
+```
 
 which makes the particle intersect the origin (this is an _argmin_
 operation).
