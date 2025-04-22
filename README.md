@@ -199,8 +199,9 @@ make -C tools/foo bar
 
 However, you do not need to do this in advance - compilation is done
 by a Python module `cpp.py` that implements the GradBench protocol and
-runs the executables (except for `manual`, see above). Specifically,
-to run tool `foo` we would do:
+runs the executables (except for `manual`, [see
+above](#running-evals-outside-of-docker)). Specifically, to run tool
+`foo` we would do:
 
 ```sh
 uv run python/gradbench/gradbench/cpp.py foo
