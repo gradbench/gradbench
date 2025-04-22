@@ -7,11 +7,13 @@ import "./Stats.css";
 // They are not picked to make a particularly pleasing scheme, and
 // some are unfortunately a little close to each other.
 const colors = {
-  adept: "#d8702f",
+  "ad-hpp": "#f6a800",
   "adol-c": "#9da117",
+  adept: "#d8702f",
   codipack: "#d02718",
   cppad: "#eeb10f",
   enzyme: "#173559",
+  "enzyme-jl": "#0094e8",
   finite: "#aaaaaa",
   floretta: "#f10537",
   futhark: "#5f021f",

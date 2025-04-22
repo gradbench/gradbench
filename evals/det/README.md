@@ -60,8 +60,21 @@ type GradientOutput = double[];
 The `GradientOutput` is the gradient in row-major order, its length is
 equal to the length of the input field `A`.
 
+## Commentary
+
+This benchmark is best implemented with reverse mode. The main
+challenge (for some tools) is that the direct formulation of this
+problem is extremely scalar-oriented, and based on recursion. This
+makes it difficult or impossible for tools to bundle up the work in
+larger chunks, which particularly hinders systems such as PyTorch. One
+solution is to refactor the computation to be nonrecursive, and
+instead directly compute all of the necessary $O(n!)$ permutations of
+multiplications. This is overall more expensive, but is for some tools
+the only way to express this problem. See [det.fut][] for an example.
+
 [cmpad]: https://github.com/bradbell/cmpad
 [original documentation]: https://cmpad.readthedocs.io/det_by_minor.html
 [expansion by minors]: https://mathworld.wolfram.com/DeterminantExpansionbyMinors.html
 [protocol]: /CONTRIBUTING.md#types
 [typescript]: https://www.typescriptlang.org/
+[det.fut]: /tools/futhark/det.fut

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "gradbench/main.hpp"
 #include "json.hpp"
 
 namespace particle {
@@ -19,22 +20,22 @@ public:
 
 template <typename T>
 Point<T> operator+(const T& k, const Point<T>& p) {
-  return Point(k+p.x, k+p.y);
+  return Point(k + p.x, k + p.y);
 }
 
 template <typename T>
 Point<T> operator*(const T& k, const Point<T>& p) {
-  return Point(k*p.x, k*p.y);
+  return Point(k * p.x, k * p.y);
 }
 
 template <typename T>
 Point<T> operator*(const Point<T>& u, const Point<T>& v) {
-  return Point(u.x*v.x, u.y*v.y);
+  return Point(u.x * v.x, u.y * v.y);
 }
 
 template <typename T>
 Point<T> operator+(const Point<T>& u, const Point<T>& v) {
-  return Point(u.x+v.x, u.y+v.y);
+  return Point(u.x + v.x, u.y + v.y);
 }
 
 template <typename T>
@@ -46,22 +47,19 @@ Point<T> operator+=(Point<T>& u, const Point<T>& v) {
 
 template <typename T>
 double dist(const Point<T>& u, const Point<T>& v) {
-  return sqrt((u.x-v.x)*(u.x-v.x) + (u.y-v.y)*(u.y-v.y));
+  return sqrt((u.x - v.x) * (u.x - v.x) + (u.y - v.y) * (u.y - v.y));
 }
 
 template <typename T>
-T accel(const std::vector<Point<T>>& charges,
-        const Point<T>& x) {
+T accel(const std::vector<Point<T>>& charges, const Point<T>& x) {
   T a = 0;
   for (auto p : charges) {
-    a += 1/dist(p,x);
+    a += 1 / dist(p, x);
   }
   return a;
 }
 
 using json = nlohmann::json;
 
-void from_json(const json& j, Input& p) {
-  p.w0 = j.at("w");
-}
-}
+void from_json(const json& j, Input& p) { p.w0 = j.at("w"); }
+}  // namespace particle

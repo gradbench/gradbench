@@ -7,6 +7,7 @@ __pycache__/
 /.config/dotnet-tools.json
 /.direnv/
 /.envrc
+/bin/
 /log.jsonl
 /packages/vscode/bin/
 /run/

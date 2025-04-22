@@ -7,15 +7,13 @@
 
 #pragma once
 
-typedef struct
-{
-    double gamma;
-    int m;
+typedef struct {
+  double gamma;
+  int    m;
 } Wishart;
 
-typedef struct
-{
-    int verts[3];
+typedef struct {
+  int verts[3];
 } Triangle;
 
 #ifndef PI

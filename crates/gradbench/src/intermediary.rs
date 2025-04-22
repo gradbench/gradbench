@@ -1,4 +1,5 @@
 use std::{
+    fs,
     io::{self, BufRead, Write},
     process::{Child, ChildStdout},
     sync::{Arc, Mutex},
@@ -15,6 +16,7 @@ use crate::{
     protocol::{
         AnalysisResponse, DefineResponse, EvaluateResponse, Id, Message, StartResponse, Timing,
     },
+    util::{lock, try_read_line, CtrlC, CtrlCHandler},
     BadOutcome,
 };
 
@@ -175,14 +177,7 @@ impl<
         let mut failure = 0;
         let mut invalid = 0;
         let mut line = Line::new();
-        while let Some(eval_line) = {
-            let mut s = String::new();
-            if self.eval_out.read_line(&mut s)? == 0 {
-                None
-            } else {
-                Some(s)
-            }
-        } {
+        while let Some(eval_line) = try_read_line(&mut self.eval_out)? {
             let message_time = (self.clock)();
             writeln!(
                 self.log,
@@ -298,16 +293,21 @@ impl<
                     if let Some(timings) = response.timings {
                         self.print_timings(&timings)?;
                     }
-                    if let Some(error) = response.error {
+                    if response.success {
+                        if let Some(error) = response.error {
+                            line.end(&mut self.out)?;
+                            writeln!(self.out, "{}", error.red())?;
+                            return Err(anyhow!("tool reported success but gave an error"));
+                        } else if response.output.is_none() {
+                            line.end(&mut self.out)?;
+                            return Err(anyhow!("tool reported success but gave no output"));
+                        }
+                    } else {
                         self.print_status(false)?;
                         line.end(&mut self.out)?;
-                        writeln!(self.out, "{}", error.red())?;
-                        if response.success {
-                            return Err(anyhow!("tool reported success but gave an error"));
+                        if let Some(error) = response.error {
+                            writeln!(self.out, "{}", error.red())?;
                         }
-                    } else if response.output.is_none() {
-                        writeln!(self.out)?;
-                        return Err(anyhow!("tool reported success but gave no output"));
                     }
                 }
                 Message::Analysis { .. } => {
@@ -339,7 +339,7 @@ impl<
     /// Run the intermediary.
     fn run(&mut self) -> Result<(), BadOutcome> {
         let result = self.run_inner();
-        if let Some(outcome) = self.outcome.lock().unwrap().take() {
+        if let Some(outcome) = lock(&self.outcome).take() {
             return Err(outcome);
         }
         match result {
@@ -354,27 +354,31 @@ impl<
 }
 
 /// Handle Ctrl-C by killing the eval and tool and setting a status flag.
-fn handle_ctrlc(
+fn handle_ctrlc<'a>(
+    ctrl_c: &'a mut CtrlC,
     eval: &mut Child,
     tool: &mut Child,
     outcome: Arc<Mutex<Option<BadOutcome>>>,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<CtrlCHandler<'a>> {
+    #[cfg(not(unix))]
+    {
+        Ok(ctrl_c.handle(Box::new(|| {})))
+    }
     #[cfg(unix)]
     {
         use nix::{sys::signal, unistd};
         let eval_pid = unistd::Pid::from_raw(eval.id().try_into()?);
         let tool_pid = unistd::Pid::from_raw(tool.id().try_into()?);
-        ctrlc::set_handler(move || {
+        Ok(ctrl_c.handle(Box::new(move || {
             if let Ok(pgid) = unistd::getpgid(Some(eval_pid)) {
                 let _ = signal::killpg(pgid, signal::Signal::SIGKILL);
             }
             if let Ok(pgid) = unistd::getpgid(Some(tool_pid)) {
                 let _ = signal::killpg(pgid, signal::Signal::SIGKILL);
             }
-            *outcome.lock().unwrap() = Some(BadOutcome::Interrupt);
-        })?;
+            *lock(&outcome) = Some(BadOutcome::Interrupt);
+        })))
     }
-    Ok(())
 }
 
 /// Return a reader that times out after a given duration, if possible.
@@ -390,20 +394,21 @@ fn timeout_reader(reader: ChildStdout, timeout: Option<Duration>) -> impl io::Re
 }
 
 /// Run an eval and a tool together, returning the outcome.
-pub fn run(
+fn run_helper(
+    ctrl_c: &mut CtrlC,
     log: impl Write,
     eval: &mut Child,
     tool: &mut Child,
     timeout: Option<Duration>,
 ) -> Result<(), BadOutcome> {
     let outcome_mutex = Arc::new(Mutex::new(None));
-    match handle_ctrlc(eval, tool, Arc::clone(&outcome_mutex)) {
-        Ok(()) => {}
+    let ctrl_c_handler = match handle_ctrlc(ctrl_c, eval, tool, Arc::clone(&outcome_mutex)) {
+        Ok(handler) => handler,
         Err(err) => {
             err_fail(err);
             return Err(BadOutcome::Error);
         }
-    }
+    };
     let start = Instant::now();
     let outcome = Intermediary {
         outcome: outcome_mutex,
@@ -416,6 +421,7 @@ pub fn run(
         log,
     }
     .run();
+    drop(ctrl_c_handler);
     // If fail due to a timeout, the tool may still be running. Kill
     // its process group to ensure that we will not be hanging in a
     // wait() call in main.rs.
@@ -430,6 +436,20 @@ pub fn run(
         }
     }
     outcome
+}
+
+/// Run an eval and a tool together, returning the outcome.
+pub fn run(
+    ctrl_c: &mut CtrlC,
+    log: Option<fs::File>,
+    eval: &mut Child,
+    tool: &mut Child,
+    timeout: Option<Duration>,
+) -> Result<(), BadOutcome> {
+    match log {
+        Some(file) => run_helper(ctrl_c, file, eval, tool, timeout),
+        None => run_helper(ctrl_c, &mut io::sink(), eval, tool, timeout),
+    }
 }
 
 #[cfg(test)]
@@ -611,7 +631,7 @@ mod tests {
                     id: 2,
                     module: "foo".to_string(),
                     function: "bar".to_string(),
-                    input: json!(PI),
+                    input: Some(json!(PI)),
                     description: None,
                 },
                 Response::Evaluate {
@@ -639,7 +659,7 @@ mod tests {
                     id: 4,
                     module: "foo".to_string(),
                     function: "baz".to_string(),
-                    input: json!({"mynumber": 121}),
+                    input: Some(json!({"mynumber": 121})),
                     description: None,
                 },
                 Response::Evaluate {
@@ -886,7 +906,7 @@ mod tests {
                     id: 2,
                     module: "foo".to_string(),
                     function: "bar".to_string(),
-                    input: json!(42),
+                    input: Some(json!(42)),
                     description: None,
                 },
                 Response::Evaluate {
@@ -915,6 +935,58 @@ mod tests {
     }
 
     #[test]
+    fn test_intermediary_evaluate_failure_no_error() {
+        let (eval_out, tool_out) = session(&[
+            (
+                Message::Start { id: 0, eval: None },
+                Response::Start { id: 0, tool: None },
+            ),
+            (
+                Message::Define {
+                    id: 1,
+                    module: "foo".to_string(),
+                },
+                Response::Define {
+                    id: 1,
+                    success: true,
+                    timings: None,
+                    error: None,
+                },
+            ),
+            (
+                Message::Evaluate {
+                    id: 2,
+                    module: "foo".to_string(),
+                    function: "bar".to_string(),
+                    input: Some(json!(42)),
+                    description: None,
+                },
+                Response::Evaluate {
+                    id: 2,
+                    success: false,
+                    output: None,
+                    timings: None,
+                    error: None,
+                },
+            ),
+        ]);
+        let mut intermediary = Intermediary {
+            outcome: Arc::new(Mutex::new(None)),
+            eval_in: io::sink(),
+            tool_in: io::sink(),
+            eval_out: eval_out.as_bytes(),
+            tool_out: tool_out.as_bytes(),
+            clock: || Duration::ZERO,
+            out: Vec::new(),
+            log: io::sink(),
+        };
+        colored::control::set_override(false);
+        let result = intermediary.run();
+        write_goldenfile("evaluate_failure_no_error.txt", &intermediary.out);
+        assert_eq!(result, Err(BadOutcome::Failure));
+    }
+
+    #[test]
     fn test_intermediary_evaluate_success_error() {
         let (eval_out, tool_out) = session(&[
             (
@@ -938,7 +1010,7 @@ mod tests {
                     id: 2,
                     module: "foo".to_string(),
                     function: "bar".to_string(),
-                    input: json!(42),
+                    input: Some(json!(42)),
                     description: None,
                 },
                 Response::Evaluate {
@@ -990,7 +1062,7 @@ mod tests {
                     id: 2,
                     module: "foo".to_string(),
                     function: "bar".to_string(),
-                    input: json!(42),
+                    input: Some(json!(42)),
                     description: None,
                 },
                 Response::Evaluate {
@@ -1042,7 +1114,7 @@ mod tests {
                     id: 2,
                     module: "foo".to_string(),
                     function: "null".to_string(),
-                    input: json!(null),
+                    input: Some(json!(null)),
                     description: None,
                 },
                 Response::Evaluate {
