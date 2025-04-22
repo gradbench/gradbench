@@ -14,10 +14,6 @@ export const primal = multipleRuns(({ x }) => {
   };
 });
 
-// const wasmGrad = await sh("wasm-tools parse tools/floretta/lse_grad.wat");
-// const moduleGrad = await WebAssembly.instantiate(wasmGrad, {
-//   math: { exp: Math.exp, log: Math.log },
-// });
 const wasmGrad = await sh(
   "floretta --reverse tools/floretta/lse.wat --import math exp math exp_bwd --import math log math log_bwd --export memory memory_bwd --export logsumexp backprop",
 );
@@ -34,13 +30,12 @@ const moduleGrad = await WebAssembly.instantiate(wasmGrad, {
       return dy * y;
     },
     log: (x) => {
-      const y = Math.log(x);
-      tape.push(y);
-      return y;
+      tape.push(x);
+      return Math.log(x);
     },
     log_bwd: (dy) => {
-      const y = tape.pop();
-      return dy / y;
+      const x = tape.pop();
+      return dy / x;
     },
   },
 });
