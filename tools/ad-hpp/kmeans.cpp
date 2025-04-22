@@ -11,23 +11,22 @@ class Dir : public Function<kmeans::Input, kmeans::DirOutput> {
   using tape_t         = adjoint::tape_t;
   using tape_options_t = adjoint::tape_options_t;
 
-  tape_t* _tape;
-
 public:
   Dir(kmeans::Input& input) : Function(input) {
-    // 500 MiB???
-    // long int       tape_size = 1024 * 1024 * 500;
-    tape_options_t opts(AD_DEFAULT_TAPE_SIZE);
-    _tape = tape_t::create(opts);
+    // 800 MiB?!?!
+    long int       tape_size = 1024 * 1024 * 800;
+    tape_options_t opts(tape_size);
+    adjoint::global_tape = tape_t::create(opts);
   }
-  ~Dir() { tape_t::remove(_tape); }
+  ~Dir() { tape_t::remove(adjoint::global_tape); }
 
   void compute(kmeans::DirOutput& output) {
     output.k = _input.k;
     output.d = _input.d;
     output.dir.resize(_input.k * _input.d);
 
-    _tape->reset();
+    tape_t* gtape = adjoint::global_tape;
+    gtape->reset();
     std::vector<active_t> centroids_active(_input.centroids.size());
     for (size_t i = 0; i < centroids_active.size(); i++) {
       // set value
@@ -38,7 +37,7 @@ public:
       ad::derivative(ad::value(centroids_active[i])) = 1.0;
       // clear {c_i}_(1)^(2)
       ad::derivative(ad::derivative(centroids_active[i])) = 0;
-      _tape->register_variable(centroids_active[i]);
+      gtape->register_variable(centroids_active[i]);
     }
 
     active_t active_err;
@@ -46,7 +45,7 @@ public:
                       centroids_active.data(), &active_err);
 
     ad::value(ad::derivative(active_err)) = 1.0;
-    _tape->interpret_adjoint();
+    gtape->interpret_adjoint();
     for (size_t i = 0; i < centroids_active.size(); i++) {
       // compute J_i * H^-1_{ii} and write to out.dir[i]
       output.dir[i] = ad::value(ad::derivative(centroids_active[i])) /
