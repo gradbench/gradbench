@@ -15,6 +15,8 @@ class Dir : public Function<kmeans::Input, kmeans::DirOutput> {
 
 public:
   Dir(kmeans::Input& input) : Function(input) {
+    // 500 MiB???
+    // long int       tape_size = 1024 * 1024 * 500;
     tape_options_t opts(AD_DEFAULT_TAPE_SIZE);
     _tape = tape_t::create(opts);
   }

@@ -96,12 +96,14 @@ struct acceleration_adjoint_driver {
 template <typename T, typename DRIVER>
 std::tuple<T, T, T, T> step_fwd_euler(T x1, T x2, T v1, T v2, T w, double dt,
                                       DRIVER const& driver) {
-  T a1, a2;
-  std::tie(a1, a2) = driver(x1, x2, w);
-
+  T dp_dx1, dp_dx2;
+  std::tie(dp_dx1, dp_dx2) = driver(x1, x2, w);
+  // compute acceleration as mass * charge * -grad p
+  T a1 = -dp_dx1;
+  T a2 = -dp_dx2;
+  // forward euler step
   x1 += dt * v1;
   x2 += dt * v2;
-
   v1 += dt * a1;
   v2 += dt * a2;
 
