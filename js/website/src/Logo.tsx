@@ -47,7 +47,8 @@ export const Logo = (props: { colors: string[]; gradientId?: string }) => {
         <linearGradient id={gradientId}>
           {colors.map((color, index) => {
             const proportion = index / (colors.length - 1);
-            return <stop offset={`${proportion * 100}%`} stopColor={color} />;
+            const offset = `${proportion * 100}%`;
+            return <stop key={offset} offset={offset} stopColor={color} />;
           })}
         </linearGradient>
       </defs>
