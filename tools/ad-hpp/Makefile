@@ -1,18 +1,11 @@
-GIT_TAG=v1.7
-CXX?=c++
-CC?=cc
-CFLAGS=-std=c++17 -O3 -Wall -I../../cpp -Iinclude
-LDFLAGS=-lm
-
 EXECUTABLES=hello ba det gmm kmeans llsq lse lstm ode particle
 
-all: $(EXECUTABLES)
+EXTRA_DEPS=include/ad.hpp
 
-%: %.cpp include/ad.hpp
-	$(CXX) -o $@ $< $(LDFLAGS) $(CFLAGS)
+include ../../cpp/common.mk
 
-clean:
-	rm -f $(EXECUTABLES)
+GIT_TAG=v1.7
+CXXFLAGS+=-Iinclude
 
 include/ad.hpp:
 	mkdir -p include
