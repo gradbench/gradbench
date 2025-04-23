@@ -38,6 +38,8 @@ jobs:
           [ -z "$CHANGES" ]
       - name: Check Prettier formatting
         run: bun run prettier --check .
+      - name: Run TypeScript
+        run: bun run --filter='*' typecheck
 
   check-py:
     runs-on: ubuntu-24.04

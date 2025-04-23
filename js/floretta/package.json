@@ -1,0 +1,8 @@
+{
+  "name": "@gradbench/floretta",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc"
+  }
+}
