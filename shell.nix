@@ -45,7 +45,7 @@ in pkgs.stdenv.mkDerivation rec {
     pkgs.llvmPackages_19.clang
     pkgs.llvmPackages_19.lld
     pkgs.nixfmt-classic
-    pkgs.nodejs
+    pkgs.nodejs_23
     pkgs.openblas
     pkgs.pkg-config
     pkgs.wasm-tools

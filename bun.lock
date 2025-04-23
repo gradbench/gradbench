@@ -3,6 +3,7 @@
   "workspaces": {
     "": {
       "devDependencies": {
+        "@types/node": "^22",
         "@types/react": "^18",
         "@types/react-dom": "^18",
         "@typescript-eslint/eslint-plugin": "^7",
@@ -17,6 +18,9 @@
         "typescript": ">=5",
         "vite": "^5",
       },
+    },
+    "js/floretta": {
+      "name": "@gradbench/floretta",
     },
     "js/website": {
       "name": "@gradbench/website",
@@ -83,6 +87,8 @@
     "@eslint/eslintrc": ["@eslint/eslintrc@2.1.4", "", { "dependencies": { "ajv": "^6.12.4", "debug": "^4.3.2", "espree": "^9.6.0", "globals": "^13.19.0", "ignore": "^5.2.0", "import-fresh": "^3.2.1", "js-yaml": "^4.1.0", "minimatch": "^3.1.2", "strip-json-comments": "^3.1.1" } }, "sha512-269Z39MS6wVJtsoUl10L60WdkhJVdPG24Q4eZTH3nnF6lpvSShEK3wQjDX9JRWAUPvPh7COouPpU9IrqaZFvtQ=="],
 
     "@eslint/js": ["@eslint/js@8.57.0", "", {}, "sha512-Ys+3g2TaW7gADOJzPt83SJtCDhMjndcDMFVQ/Tj9iA1BfJzFKD9mAUXT3OenpuPHbI6P/myECxRJrofUsDx/5g=="],
+
+    "@gradbench/floretta": ["@gradbench/floretta@workspace:js/floretta"],
 
     "@gradbench/website": ["@gradbench/website@workspace:js/website"],
 

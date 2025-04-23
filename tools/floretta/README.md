@@ -5,7 +5,7 @@
 To run this outside Docker, use the following command:
 
 ```sh
-node tools/floretta/run.js
+node --disable-warning=ExperimentalWarning js/floretta/run.ts
 ```
 
 [floretta]: https://github.com/samestep/floretta

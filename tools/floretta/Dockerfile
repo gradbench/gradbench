@@ -18,6 +18,7 @@ RUN chmod +x bin/floretta
 
 # `COPY` the rest of the files.
 COPY tools/floretta tools/floretta
+COPY js/floretta js/floretta
 
-ENTRYPOINT ["node", "tools/floretta/run.js"]
+ENTRYPOINT ["node", "--disable-warning=ExperimentalWarning", "js/floretta/run.ts"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
