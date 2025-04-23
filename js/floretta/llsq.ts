@@ -29,9 +29,7 @@ export const primal = multipleRuns(({ x, n }: Input): (() => number) => {
   };
 });
 
-const wasmGrad = await sh(
-  "floretta --reverse tools/floretta/llsq.wat --export memory memory_bwd --export llsq backprop",
-);
+const wasmGrad = await sh("wasm-tools parse tools/floretta/llsq_grad.wat");
 const moduleGrad = await WebAssembly.instantiate(wasmGrad);
 export const gradient = multipleRuns(({ x, n }: Input): (() => number[]) => {
   const m = x.length;
