@@ -1,4 +1,4 @@
-<div align="center"><img height="192" src="js/website/src/logo.svg" /></div>
+<div align="center"><img height="192" src="https://gradben.ch/logo.svg" /></div>
 <h1 align="center">GradBench</h1>
 <p align="center"><a href="LICENSE"><img src="https://img.shields.io/github/license/rose-lang/rose" alt="license" /></a> <a href="https://github.com/gradbench/gradbench/actions/workflows/nightly.yml"><img src="https://github.com/gradbench/gradbench/actions/workflows/nightly.yml/badge.svg" alt="Nightly" /></a> <a href="https://discord.gg/nPXmPzeykS"><img src="https://dcbadge.vercel.app/api/server/nPXmPzeykS?style=flat" alt="Discord" /></a></p>
 

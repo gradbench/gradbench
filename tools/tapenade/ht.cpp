@@ -136,12 +136,11 @@ void Jacobian::calculate_jacobian_complicated(ht::JacOutput& output) {
   theta_d.back() = 0.0;
 
   // calculate us jacobian part
-  for (size_t i = 0; i < us_d.size(); i++) {
-    if (i > 0) {
-      us_d[i - 1] = 0.0;
+  for (size_t i = 0; i < 2; i++) {
+    for (size_t j = 0; j < us_d.size(); j++) {
+      us_d[j] = (1 + i + j) % 2;
     }
 
-    us_d[i] = 1.0;
     hand_objective_complicated_d(
         _input.theta.data(), theta_d.data(), _input.us.data(), us_d.data(),
         _objective_input->bone_count, _objective_input->bone_names,
@@ -154,15 +153,13 @@ void Jacobian::calculate_jacobian_complicated(ht::JacOutput& output) {
         &_objective_input->points, _objective.data(),
         us_jacobian_column.data());
 
-    if (i % 2 == 0) {
-      for (int j = 0; j < 3; j++) {
-        output.jacobian[3 * (i / 2) + j] = us_jacobian_column[3 * (i / 2) + j];
-      }
-    } else {
-      for (int j = 0; j < 3; j++) {
-        output.jacobian[nrows + 3 * ((i - 1) / 2) + j] =
-            us_jacobian_column[3 * ((i - 1) / 2) + j];
-      }
+    int Jrows = 3 * _input.data.correspondences.size();
+    for (size_t j = 0; j < us_jacobian_column.size(); j++) {
+      (output.jacobian)[i * Jrows + j] = us_jacobian_column[j];
+    }
+
+    for (size_t j = 0; j < us_d.size(); j++) {
+      us_d[j] = 0;
     }
   }
 
