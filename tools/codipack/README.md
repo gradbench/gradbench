@@ -6,3 +6,5 @@ expression templates to perform very efficient evaluation of adjoints
 or forward derivatives.
 
 [CoDiPack]: https://scicomp.rptu.de/software/codi/
+
+Implementation has been checked by Max Sagebaum (main CoDiPack developer).
