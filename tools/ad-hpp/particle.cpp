@@ -112,18 +112,13 @@ template <typename T, typename POTENTIAL_DRIVER>
 std::tuple<T, T, T, T>
 step_fwd_euler(T x1, T x2, T v1, T v2, T w, double dt,
                POTENTIAL_DRIVER const& grad_x_potential) {
-  T dp_dx1, dp_dx2;
+  T dp_dx1, dp_dx2, a1, a2;
   std::tie(dp_dx1, dp_dx2) = grad_x_potential(x1, x2, w);
   // compute acceleration as mass * charge * -grad p
-  T a1 = -dp_dx1;
-  T a2 = -dp_dx2;
-  // forward euler step
-  x1 += dt * v1;
-  x2 += dt * v2;
-  v1 += dt * a1;
-  v2 += dt * a2;
-
-  return {x1, x2, v1, v2};
+  a1 = -dp_dx1;
+  a2 = -dp_dx2;
+  // euler step x^{k+1} = x^k+dt*v^k; v^{k+1} = v^k+dt*a^k
+  return {x1 + dt * v1, x2 + dt * v2, v1 + dt * a1, v2 + dt * a2};
 }
 
 template <typename T, typename DRIVER>
@@ -139,6 +134,10 @@ T compute_particle_intersection_with_xaxis_sqr(T x1, T x2, T v1, T v2,
     if (x2_next < 0) {
       break;
     }
+    x1 = x1_next;
+    x2 = x2_next;
+    v1 = v1_next;
+    v2 = v2_next;
   }
   T dt_final = -x2 / v2;
   T x1_final = x1 + dt_final * v1;
