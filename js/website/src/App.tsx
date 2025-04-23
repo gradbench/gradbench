@@ -252,7 +252,7 @@ const App = () => {
   };
   return (
     <>
-      <div id="logo">
+      <div className="logo">
         <Logo colors={[randomColor(), randomColor()]} />
       </div>
       <h1>
