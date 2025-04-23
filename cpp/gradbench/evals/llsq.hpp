@@ -26,8 +26,10 @@ void primal(size_t n, size_t m, const T* __restrict__ x, T* __restrict__ out) {
   for (size_t i = 0; i < n; i++) {
     T ti        = t(i, n);
     T inner_sum = s(ti);
+    T acc       = 1;
     for (size_t j = 0; j < m; j++) {
-      inner_sum -= x[j] * pow(ti, j);
+      inner_sum -= x[j] * acc;
+      acc *= ti;
     }
     sum += inner_sum * inner_sum;
   }
