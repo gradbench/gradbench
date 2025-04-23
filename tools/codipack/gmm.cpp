@@ -1,8 +1,9 @@
-#include "gradbench/main.hpp"
 #include "gradbench/evals/gmm.hpp"
 #include "codi_impl.hpp"
+#include "gradbench/main.hpp"
 
-class Jacobian : public Function<gmm::Input, gmm::JacOutput>, CoDiReverseRunner {
+class Jacobian : public Function<gmm::Input, gmm::JacOutput>,
+                 CoDiReverseRunner {
   using Real = typename CoDiReverseRunner::Real;
 
   std::vector<Real> alphas_d;
@@ -12,13 +13,9 @@ class Jacobian : public Function<gmm::Input, gmm::JacOutput>, CoDiReverseRunner 
   Real error;
 
 public:
-  Jacobian(gmm::Input& input) :
-    Function(input),
-    alphas_d(_input.k),
-    means_d(_input.d*_input.k),
-    icf_d((_input.d*(_input.d + 1) / 2)*_input.k),
-    error()
-  {
+  Jacobian(gmm::Input& input)
+      : Function(input), alphas_d(_input.k), means_d(_input.d * _input.k),
+        icf_d((_input.d * (_input.d + 1) / 2) * _input.k), error() {
 
     for (size_t i = 0; i < alphas_d.size(); i++) {
       alphas_d[i] = _input.alphas[i];
@@ -47,14 +44,9 @@ public:
       codiAddInput(icf_d[i]);
     }
 
-
-    gmm::objective(_input.d, _input.k, _input.n,
-                   alphas_d.data(),
-                   means_d.data(),
-                   icf_d.data(),
-                   _input.x.data(),
-                   _input.wishart,
-                   &error);
+    gmm::objective(_input.d, _input.k, _input.n, alphas_d.data(),
+                   means_d.data(), icf_d.data(), _input.x.data(),
+                   _input.wishart, &error);
 
     codiAddOutput(error);
     codiStopRecording();
@@ -78,8 +70,8 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-  return generic_main(argc, argv, {
-      {"objective", function_main<gmm::Objective>},
-      {"jacobian", function_main<Jacobian>}
-    });;
+  return generic_main(argc, argv,
+                      {{"objective", function_main<gmm::Objective>},
+                       {"jacobian", function_main<Jacobian>}});
+  ;
 }

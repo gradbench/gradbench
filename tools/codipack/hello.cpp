@@ -1,9 +1,11 @@
-#include "gradbench/main.hpp"
 #include "gradbench/evals/hello.hpp"
 #include "codi_impl.hpp"
+#include "gradbench/main.hpp"
 
-class Double : public Function<hello::Input, hello::DoubleOutput>, CoDiForwardRunner {
+class Double : public Function<hello::Input, hello::DoubleOutput>,
+               CoDiForwardRunner {
   using Real = typename CoDiForwardRunner::Real;
+
 public:
   Double(hello::Input& input) : Function(input) {}
 
@@ -16,8 +18,8 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-  return generic_main(argc, argv, {
-      {"square", function_main<hello::Square>},
-      {"double", function_main<Double>}
-    });;
+  return generic_main(argc, argv,
+                      {{"square", function_main<hello::Square>},
+                       {"double", function_main<Double>}});
+  ;
 }

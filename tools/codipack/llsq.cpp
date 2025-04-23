@@ -1,18 +1,18 @@
-#include <algorithm>
-#include "gradbench/main.hpp"
 #include "gradbench/evals/llsq.hpp"
 #include "codi_impl.hpp"
+#include "gradbench/main.hpp"
+#include <algorithm>
 
-class Gradient : public Function<llsq::Input, llsq::GradientOutput>, CoDiReverseRunner {
+class Gradient : public Function<llsq::Input, llsq::GradientOutput>,
+                 CoDiReverseRunner {
   using Real = typename CoDiReverseRunner::Real;
 
   std::vector<Real> _x_d;
-  Real error;
+  Real              error;
+
 public:
-  Gradient(llsq::Input& input) :
-    Function(input),
-    _x_d(_input.x.size()),
-    error() {
+  Gradient(llsq::Input& input)
+      : Function(input), _x_d(_input.x.size()), error() {
     std::copy(_input.x.begin(), _input.x.end(), _x_d.begin());
   }
 
@@ -24,7 +24,7 @@ public:
 
     codiStartRecording();
 
-    for (auto &x : _x_d) {
+    for (auto& x : _x_d) {
       codiAddInput(x);
     }
 
@@ -45,8 +45,10 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-  return generic_main(argc, argv, {
-      {"primal", function_main<llsq::Primal>},
-      {"gradient", function_main<Gradient>},
-    });;
+  return generic_main(argc, argv,
+                      {
+                          {"primal", function_main<llsq::Primal>},
+                          {"gradient", function_main<Gradient>},
+                      });
+  ;
 }

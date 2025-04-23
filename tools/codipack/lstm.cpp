@@ -1,10 +1,11 @@
-#include <algorithm>
-#include "gradbench/main.hpp"
 #include "gradbench/evals/lstm.hpp"
+#include "gradbench/main.hpp"
+#include <algorithm>
 
 #include "codi_impl.hpp"
 
-class Jacobian : public Function<lstm::Input, lstm::JacOutput>, CoDiReverseRunner {
+class Jacobian : public Function<lstm::Input, lstm::JacOutput>,
+                 CoDiReverseRunner {
   using Real = typename CoDiReverseRunner::Real;
 
   std::vector<Real> main_params_d;
@@ -13,14 +14,13 @@ class Jacobian : public Function<lstm::Input, lstm::JacOutput>, CoDiReverseRunne
   std::vector<Real> sequence_d;
 
   Real loss;
+
 public:
-  Jacobian(lstm::Input& input) :
-    Function(input),
-    main_params_d(_input.main_params.size()),
-    extra_params_d(_input.extra_params.size()),
-    state_d(_input.state.size()),
-    sequence_d(_input.sequence.size()),
-    loss() {
+  Jacobian(lstm::Input& input)
+      : Function(input), main_params_d(_input.main_params.size()),
+        extra_params_d(_input.extra_params.size()),
+        state_d(_input.state.size()), sequence_d(_input.sequence.size()),
+        loss() {
 
     for (size_t i = 0; i < main_params_d.size(); i++) {
       main_params_d[i] = _input.main_params[i];
@@ -52,9 +52,8 @@ public:
       codiAddInput(extra_params_d[i]);
     }
 
-    lstm::objective(_input.l, _input.c, _input.b,
-                    main_params_d.data(), extra_params_d.data(),
-                    state_d.data(), sequence_d.data(),
+    lstm::objective(_input.l, _input.c, _input.b, main_params_d.data(),
+                    extra_params_d.data(), state_d.data(), sequence_d.data(),
                     &loss);
 
     codiAddOutput(loss);
@@ -76,8 +75,8 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-  return generic_main(argc, argv, {
-      {"objective", function_main<lstm::Objective>},
-      {"jacobian", function_main<Jacobian>}
-    });;
+  return generic_main(argc, argv,
+                      {{"objective", function_main<lstm::Objective>},
+                       {"jacobian", function_main<Jacobian>}});
+  ;
 }

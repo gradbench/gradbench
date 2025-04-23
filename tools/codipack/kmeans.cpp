@@ -1,20 +1,17 @@
 #include "gradbench/evals/kmeans.hpp"
-#include "gradbench/main.hpp"
 #include "codi_impl.hpp"
+#include "gradbench/main.hpp"
 
-
-class Dir : public Function<kmeans::Input, kmeans::DirOutput>, CoDiReverseRunner2nd {
+class Dir : public Function<kmeans::Input, kmeans::DirOutput>,
+            CoDiReverseRunner2nd {
   using Real = typename CoDiReverseRunner2nd::Real;
 
   std::vector<Real> ad_centroids;
-  Real err;
+  Real              err;
 
 public:
-
-
-  Dir(kmeans::Input& input) : Function(input),
-    ad_centroids(_input.centroids.size()),
-    err() {
+  Dir(kmeans::Input& input)
+      : Function(input), ad_centroids(_input.centroids.size()), err() {
 
     std::copy(_input.centroids.begin(), _input.centroids.end(),
               ad_centroids.begin());
@@ -27,14 +24,12 @@ public:
 
     codiStartRecording();
 
-    for (auto &v : ad_centroids) {
+    for (auto& v : ad_centroids) {
       codiAddInput(v);
     }
 
-    kmeans::objective<Real>(_input.n, _input.k, _input.d,
-                           _input.points.data(),
-                           ad_centroids.data(),
-                           &err);
+    kmeans::objective<Real>(_input.n, _input.k, _input.d, _input.points.data(),
+                            ad_centroids.data(), &err);
 
     codiAddOutput(err);
     codiStopRecording();
@@ -42,10 +37,9 @@ public:
     codiSetGradient(err, 1.0);
     codiEval();
 
-    for (int i = 0; i < _input.k * _input.d; i++){
-      output.dir[i] =
-        codiGetGradient(ad_centroids[i], 1, 1)/
-        codiGetGradient(ad_centroids[i], 2, 0);
+    for (int i = 0; i < _input.k * _input.d; i++) {
+      output.dir[i] = codiGetGradient(ad_centroids[i], 1, 1) /
+                      codiGetGradient(ad_centroids[i], 2, 0);
     }
 
     codiCleanup();
@@ -53,8 +47,7 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-  return generic_main(argc, argv, {
-      {"cost", function_main<kmeans::Cost>},
-      {"dir", function_main<Dir>}
-    });
+  return generic_main(
+      argc, argv,
+      {{"cost", function_main<kmeans::Cost>}, {"dir", function_main<Dir>}});
 }
