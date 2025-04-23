@@ -72,8 +72,7 @@ struct potential_adjoint_driver {
 
   potential_adjoint_driver() {
     _existing_drivers++;
-    // need to see how good / bad this size is
-    tape_options_t opts(AD_DEFAULT_TAPE_SIZE);
+    tape_options_t opts(1024 * 8);
     if (adjoint::global_tape == nullptr) {
       adjoint::global_tape = tape_t::create(opts);
     }
