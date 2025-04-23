@@ -2,12 +2,7 @@
   font-family: sans-serif;
 }
 
-h1 {
-  display: inline;
-}
-
 #logo {
-  margin-bottom: 10px;
   width: 100px;
   height: 100px;
 }
