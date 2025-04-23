@@ -1,14 +1,5 @@
-CXX?=c++
-CC?=cc
-CXXFLAGS=-std=c++17 -O2 -Wall -fopenmp -I../../cpp
-LDFLAGS=-lm -ladept -fopenmp
+EXECUTABLES=hello gmm lstm ba ht ode llsq det lse
 
-EXECUTABLES=hello gmm ht ba lstm ode llsq det
+include ../../cpp/common.mk
 
-all: $(EXECUTABLES)
-
-%: %.cpp
-	$(CXX) -o $@ $^ $(LDFLAGS) $(CXXFLAGS)
-
-clean:
-	rm -f $(EXECUTABLES)
+LDFLAGS+=-lm -ladept

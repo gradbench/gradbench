@@ -36,6 +36,8 @@ def run(params):
             return {"success": False, "error": str(e)}
 
 
+CFLAGS = '-O3 -march=native -fno-math-errno'
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--backend", type=str, default="c")
@@ -60,6 +62,7 @@ def main():
                     ],
                     stderr=subprocess.STDOUT,
                     text=True,
+                    env=os.environ | {'CFLAGS': CFLAGS}
                 )
             except subprocess.CalledProcessError as e:
                 response["success"] = False

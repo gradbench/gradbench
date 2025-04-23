@@ -1,18 +1,9 @@
-CXX?=c++
-CC?=cc
-CFLAGS=-std=c++17 -O3 -Wall -march=native -DCODI_ForcedInlines=1 -I../../cpp
-LDFLAGS=-lm
+EXECUTABLES=hello gmm lstm ba ht kmeans ode llsq det lse
+
+include ../../cpp/common.mk
+
+CXXFLAGS+=-DCODI_ForcedInlines=1
 
 ifdef CODI_TYPE
-  CFLAGS+=-DCODI_TYPE=$(CODI_TYPE)
+  CXXFLAGS+=-DCODI_TYPE=$(CODI_TYPE)
 endif
-
-EXECUTABLES=ba det gmm hello ht kmeans llsq lse lstm ode
-
-all: $(EXECUTABLES)
-
-%: %.cpp
-	$(CXX) -o $@ $^ $(LDFLAGS) $(CFLAGS)
-
-clean:
-	rm -f $(EXECUTABLES)
