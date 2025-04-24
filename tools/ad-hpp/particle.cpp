@@ -13,62 +13,6 @@ constexpr double PARTICLE_V1_0 = 0.75;
 constexpr double PARTICLE_V2_0 = 0.0;
 constexpr double DELTA_T       = 1.0e-1;
 
-// This next line assumes C++17; otherwise, replace it with
-// your own string view implementation
-#include <string_view>
-
-template <typename T>
-constexpr std::string_view type_name();
-
-template <>
-constexpr std::string_view type_name<void>() {
-  return "void";
-}
-
-namespace pretty_typename_detail {
-
-using type_name_prober = void;
-
-template <typename T>
-constexpr std::string_view wrapped_type_name() {
-#if __cplusplus >= 202002L
-  return std::source_location::current().function_name();
-#else
-#if defined(__clang__) || defined(__GNUC__)
-  return __PRETTY_FUNCTION__;
-#elif defined(_MSC_VER)
-  return __FUNCSIG__;
-#else
-#error "Unsupported compiler"
-#endif
-#endif  // __cplusplus >= 202002L
-}
-
-constexpr std::size_t wrapped_type_name_prefix_length() {
-  return wrapped_type_name<type_name_prober>().find(
-      type_name<type_name_prober>());
-}
-
-constexpr std::size_t wrapped_type_name_suffix_length() {
-  return wrapped_type_name<type_name_prober>().length() -
-         wrapped_type_name_prefix_length() -
-         type_name<type_name_prober>().length();
-}
-
-}  // namespace pretty_typename_detail
-
-template <typename T>
-constexpr std::string_view type_name() {
-  constexpr auto wrapped_name = pretty_typename_detail::wrapped_type_name<T>();
-  constexpr auto prefix_length =
-      pretty_typename_detail::wrapped_type_name_prefix_length();
-  constexpr auto suffix_length =
-      pretty_typename_detail::wrapped_type_name_suffix_length();
-  constexpr auto type_name_length =
-      wrapped_name.length() - prefix_length - suffix_length;
-  return wrapped_name.substr(prefix_length, type_name_length);
-}
-
 /**
  * @brief Distance between points (a1, a2) and (b1, b2)
  */
@@ -96,15 +40,6 @@ template <typename T>
 struct potential_tangent_driver {
   using active_t = ad::tangent_t<T>;
 
-  potential_tangent_driver() {
-    std::cerr << "default constructing driver: " << type_name<decltype(*this)>()
-              << "\n";
-  }
-
-  ~potential_tangent_driver() {
-    std::cerr << "destroying driver: " << type_name<decltype(*this)>() << "\n";
-  }
-
   std::tuple<T, T> operator()(T x1, T x2, T w) const {
     active_t x1_t, x2_t, w_t;
     ad::value(x1_t) = x1;
@@ -123,57 +58,6 @@ struct potential_tangent_driver {
   }
 };
 
-// This should be added to the next release of ad.hpp
-template <typename ADJOINT>
-class smart_global_tape_pointer {
-  using tape_t = typename ADJOINT::tape_t;
-  static unsigned int _refs;
-
-public:
-  smart_global_tape_pointer(typename ADJOINT::tape_options_t const& opts) {
-    std::cerr << "constructing smart global tape ptr for tape with options: "
-              << type_name<decltype(*this)>() << "\n";
-    if (_refs == 0) {
-      std::cerr << "  initializing tape.\n";
-      ADJOINT::global_tape = tape_t::create(opts);
-    }
-    _refs++;
-    std::cerr << "  total number of refs to global tape is " << _refs << "\n";
-  }
-
-  smart_global_tape_pointer() {
-    std::cerr << "constructing smart global tape ptr for tape with NO options: "
-              << type_name<decltype(*this)>() << "\n";
-    if (_refs == 0) {
-      std::cerr << "  initializing tape.\n";
-      ADJOINT::global_tape = tape_t::create();
-    }
-    _refs++;
-    std::cerr << "  total number of refs to global tape is " << _refs << "\n";
-  }
-
-  smart_global_tape_pointer(smart_global_tape_pointer const& other) {
-    std::cerr << "constructing smart global tape ptr for tape from other: "
-              << type_name<decltype(*this)>() << "\n";
-    _refs++;
-    std::cerr << "  total number of refs to global tape is " << _refs << "\n";
-  }
-
-  ~smart_global_tape_pointer() {
-    std::cerr << "destructing smart global tape ptr for type: "
-              << type_name<decltype(*this)>() << "\n";
-    _refs--;
-    std::cerr << "  total number of refs to global tape is " << _refs << "\n";
-  }
-
-  tape_t* get() { return ADJOINT::global_tape; }
-  tape_t& operator*() const { return *ADJOINT::global_tape; }
-  tape_t* operator->() const { return ADJOINT::global_tape; }
-};
-
-template <typename T>
-unsigned int smart_global_tape_pointer<T>::_refs = 0;
-
 /**
  * @brief Wrapper struct for an adjoint mode driver for @ref potential
  */
@@ -184,16 +68,9 @@ struct potential_adjoint_driver {
   using tape_t         = typename adjoint::tape_t;
   using tape_options_t = typename adjoint::tape_options_t;
 
-  smart_global_tape_pointer<adjoint> gtape;
+  ad::shared_global_tape_ptr<adjoint> gtape;
 
-  potential_adjoint_driver() : gtape(tape_options_t(AD_DEFAULT_TAPE_SIZE)) {
-    std::cerr << "default constructing driver: " << type_name<decltype(*this)>()
-              << "\n";
-  }
-
-  ~potential_adjoint_driver() {
-    std::cerr << "destroying driver: " << type_name<decltype(*this)>() << "\n";
-  }
+  potential_adjoint_driver() : gtape(tape_options_t(AD_DEFAULT_TAPE_SIZE)) {}
 
   std::tuple<T, T> operator()(T x1, T x2, T w) const {
     gtape->reset();
@@ -318,7 +195,7 @@ class ParticleRR : public Function<particle::Input, particle::Output> {
     euler_obj_driver_t  potential_driver_objective;
     euler_grad_driver_t potential_driver_gradient;
 
-    smart_global_tape_pointer<argmin_adjoint> argmin_global_tape;
+    ad::shared_global_tape_ptr<argmin_adjoint> argmin_global_tape;
 
     template <typename T = double, typename DRIVER>
     void _objective(T const* w, T* out, DRIVER const& driver) const {
@@ -436,7 +313,7 @@ class ParticleRF : public Function<particle::Input, particle::Output> {
     euler_obj_driver_t  potential_driver_objective;
     euler_grad_driver_t potential_driver_gradient;
 
-    smart_global_tape_pointer<argmin_adjoint> gtape;
+    ad::shared_global_tape_ptr<argmin_adjoint> gtape;
 
     template <typename T = double, typename DRIVER>
     void _objective(T const* w, T* out, DRIVER const& driver) const {

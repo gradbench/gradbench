@@ -6,19 +6,20 @@ using adjoint_t = ad::adjoint_t<double>;
 using adjoint   = ad::adjoint<double>;
 
 class Double : public Function<hello::Input, hello::DoubleOutput> {
+  ad::shared_global_tape_ptr<adjoint> _tape;
+
 public:
   Double(hello::Input& input) : Function(input) {}
 
   void compute(hello::DoubleOutput& output) {
-    adjoint::global_tape = adjoint::tape_t::create();
-
+    _tape->reset();
     adjoint_t x = _input;
-    adjoint::global_tape->register_variable(x);
+    _tape->register_variable(x);
 
     adjoint_t y = hello::square(x);
 
     ad::derivative(y) = 1.0;
-    adjoint::global_tape->interpret_adjoint();
+    _tape->interpret_adjoint();
     output = ad::derivative(x);
   }
 };

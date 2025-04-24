@@ -13,9 +13,12 @@ static const int TAPE_SIZE = 1000000000;  // Determined experimentally.
 class Gradient : public Function<det::Input, det::GradientOutput> {
   std::vector<adjoint_t> _A;
 
+  ad::shared_global_tape_ptr<adjoint> _tape;
+
 public:
-  Gradient(det::Input& input) : Function(input), _A(_input.A.size()) {
-    adjoint::global_tape = adjoint::tape_t::create(TAPE_SIZE);
+  Gradient(det::Input& input)
+      : Function(input), _A(_input.A.size()),
+        _tape(adjoint::tape_options_t(TAPE_SIZE)) {
     std::copy(_input.A.begin(), _input.A.end(), _A.begin());
   }
 
@@ -23,7 +26,7 @@ public:
     size_t ell = _input.ell;
     output.resize(ell * ell);
 
-    adjoint::global_tape->reset();
+    _tape->reset();
 
     for (auto& x : _A) {
       adjoint::global_tape->register_variable(x);
@@ -33,7 +36,7 @@ public:
     det::primal(ell, _A.data(), &error);
 
     ad::derivative(error) = 1.0;
-    adjoint::global_tape->interpret_adjoint();
+    _tape->interpret_adjoint();
 
     for (size_t i = 0; i < ell * ell; i++) {
       output[i] = ad::derivative(_A[i]);
