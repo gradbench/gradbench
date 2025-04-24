@@ -1,9 +1,9 @@
-import sys
+from functools import partial
+
 import jax
 import jax.numpy as jnp
 import numpy as np
 from gradbench import wrap
-from functools import partial
 
 jax.config.update("jax_enable_x64", True)
 
@@ -20,7 +20,7 @@ def llsq(x, n):
         ti = t(i, n)
         muls = jnp.full(m, ti).at[0].set(1)
         muls = jnp.cumprod(muls)
-        g = lambda mul, xj: -(xj * mul)
+        def g(mul, xj): return -(xj * mul)
         g_vals = jnp.vectorize(g)(muls, x)
         return (jnp.sign(ti) + jnp.sum(g_vals)) ** 2
 
