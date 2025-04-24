@@ -18,11 +18,8 @@ def llsq(x, n):
 
     def f(i):
         ti = t(i, n)
-        muls = jnp.full(m, ti).at[0].set(1)
-        muls = jnp.cumprod(muls)
-        def g(mul, xj): return -(xj * mul)
-        g_vals = jnp.vectorize(g)(muls, x)
-        return (jnp.sign(ti) + jnp.sum(g_vals)) ** 2
+        muls = jnp.cumprod(jnp.full(m, ti).at[0].set(1))
+        return (jnp.sign(ti) + jnp.sum(-x * muls)) ** 2
 
     i_vals = jnp.arange(n)
     results = jax.vmap(f)(i_vals)
