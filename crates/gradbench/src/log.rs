@@ -204,7 +204,7 @@ mod tests {
         let input_cursor = Cursor::new(input.as_bytes());
         let mut output: Vec<u8> = Vec::new();
         log::summary(&mut BufReader::new(input_cursor), &mut output)?;
-        write_goldenfile("summary_simple.jsonl", &output);
+        write_goldenfile("summary_simple.txt", &output);
         Ok(())
     }
 
@@ -218,7 +218,7 @@ mod tests {
         let input_cursor = Cursor::new(input.as_bytes());
         let mut output: Vec<u8> = Vec::new();
         log::summary(&mut BufReader::new(input_cursor), &mut output)?;
-        write_goldenfile("summary_noevaluations.jsonl", &output);
+        write_goldenfile("summary_noevaluations.txt", &output);
         Ok(())
     }
 
@@ -231,7 +231,7 @@ mod tests {
         let input_cursor = Cursor::new(input.as_bytes());
         let mut output: Vec<u8> = Vec::new();
         log::summary(&mut BufReader::new(input_cursor), &mut output)?;
-        write_goldenfile("summary_noresponse.jsonl", &output);
+        write_goldenfile("summary_noresponse.txt", &output);
         Ok(())
     }
 }
