@@ -52,100 +52,106 @@ impl InOut<anyhow::Result<()>> for Trim {
     }
 }
 
-pub fn summary(input: &mut impl io::BufRead, out: &mut impl io::Write) -> anyhow::Result<()> {
-    let mut eval_name = None;
-    let mut eval_config = None;
-    let mut tool_name = None;
-    let mut tool_config = None;
-    let mut num_evaluation = 0;
-    let mut num_valid = 0;
-    let mut num_invalid = 0;
-    let mut interrupted = false;
-    let mut elapsed_ns = 0;
+pub struct Summary;
 
-    // First read the Start message and get the val name.
-    if let Some(line) = try_read_line(input)? {
-        let message: LogMessage = serde_json::from_str(&line)?;
-        match message.message {
-            Message::Start { eval, config, .. } => {
-                eval_name = eval;
-                eval_config = config;
-            }
-            _ => {
-                return Err(anyhow!("invalid log file: expected start message"));
-            }
-        }
-    }
+impl InOut<anyhow::Result<()>> for Summary {
+    fn run(self, read: impl io::Read, mut out: impl io::Write) -> anyhow::Result<()> {
+        let input = &mut io::BufReader::new(read);
 
-    // Then read the response for the tool name.
-    if let Some(line) = try_read_line(input)? {
-        let response: LogResponse<StartResponse> = serde_json::from_str(&line)?;
-        tool_name = response.response.tool;
-        tool_config = response.response.config;
-    }
+        let mut eval_name = None;
+        let mut eval_config = None;
+        let mut tool_name = None;
+        let mut tool_config = None;
+        let mut num_evaluation = 0;
+        let mut num_valid = 0;
+        let mut num_invalid = 0;
+        let mut interrupted = false;
+        let mut elapsed_ns = 0;
 
-    // Then run through the rest of the messages and collect
-    // statistics. Currently we do not do anything with responses,
-    // except for noting their 'elapsed' field.
-    while let Some(line) = try_read_line(input)? {
-        let message: LogMessage = serde_json::from_str(&line)?;
-        elapsed_ns = message.elapsed.nanoseconds;
-        match message.message {
-            Message::Evaluate { .. } => {
-                num_evaluation += 1;
-            }
-            Message::Analysis { valid, .. } => {
-                if valid {
-                    num_valid += 1;
-                } else {
-                    num_invalid += 1;
+        // First read the Start message and get the val name.
+        if let Some(line) = try_read_line(input)? {
+            let message: LogMessage = serde_json::from_str(&line)?;
+            match message.message {
+                Message::Start { eval, config, .. } => {
+                    eval_name = eval;
+                    eval_config = config;
+                }
+                _ => {
+                    return Err(anyhow!("invalid log file: expected start message"));
                 }
             }
-            _ => (),
         }
-        // Skip the response.
-        if let Some(response_line) = try_read_line(input)? {
-            let response: LogResponse<serde_json::Value> = serde_json::from_str(&response_line)?;
-            elapsed_ns = response.elapsed.nanoseconds;
+
+        // Then read the response for the tool name.
+        if let Some(line) = try_read_line(input)? {
+            let response: LogResponse<StartResponse> = serde_json::from_str(&line)?;
+            tool_name = response.response.tool;
+            tool_config = response.response.config;
+        }
+
+        // Then run through the rest of the messages and collect
+        // statistics. Currently we do not do anything with responses,
+        // except for noting their 'elapsed' field.
+        while let Some(line) = try_read_line(input)? {
+            let message: LogMessage = serde_json::from_str(&line)?;
+            elapsed_ns = message.elapsed.nanoseconds;
+            match message.message {
+                Message::Evaluate { .. } => {
+                    num_evaluation += 1;
+                }
+                Message::Analysis { valid, .. } => {
+                    if valid {
+                        num_valid += 1;
+                    } else {
+                        num_invalid += 1;
+                    }
+                }
+                _ => (),
+            }
+            // Skip the response.
+            if let Some(response_line) = try_read_line(input)? {
+                let response: LogResponse<serde_json::Value> = serde_json::from_str(&response_line)?;
+                elapsed_ns = response.elapsed.nanoseconds;
+            } else {
+                interrupted = true;
+                break;
+            }
+        }
+
+        if let Some(eval) = eval_name {
+            writeln!(out, "{:>11}: {}", "eval".blue().bold(), eval)?
         } else {
-            interrupted = true;
-            break;
+            writeln!(out, "{:>11}: unknown", "eval".blue().bold())?
         }
-    }
+        if let Some(config) = eval_config {
+            writeln!(out, "{:>11}: {}", "config".blue().bold(), config)?
+        }
 
-    if let Some(eval) = eval_name {
-        writeln!(out, "{:>11}: {}", "eval".blue().bold(), eval)?
-    } else {
-        writeln!(out, "{:>11}: unknown", "eval".blue().bold())?
-    }
-    if let Some(config) = eval_config {
-        writeln!(out, "{:>11}: {}", "config".blue().bold(), config)?
-    }
+        if let Some(tool) = tool_name {
+            writeln!(out, "{:>11}: {}", "tool".magenta().bold(), tool)?
+        } else {
+            writeln!(out, "{:>11}: unknown", "tool".magenta().bold())?
+        }
+        if let Some(config) = tool_config {
+            writeln!(out, "{:>11}: {}", "config".magenta().bold(), config)?
+        }
 
-    if let Some(tool) = tool_name {
-        writeln!(out, "{:>11}: {}", "tool".magenta().bold(), tool)?
-    } else {
-        writeln!(out, "{:>11}: unknown", "tool".magenta().bold())?
-    }
-    if let Some(config) = tool_config {
-        writeln!(out, "{:>11}: {}", "config".magenta().bold(), config)?
-    }
+        writeln!(out, "{:>11}: {}", "evaluations".bold(), num_evaluation)?;
+        writeln!(out, "{:>11}: {}", "valid".bold(), num_valid)?;
+        writeln!(out, "{:>11}: {}", "invalid".bold(), num_invalid)?;
+        writeln!(out, "{:>11}: {}", "elapsed".bold(), nanostring(elapsed_ns))?;
 
-    writeln!(out, "{:>11}: {}", "evaluations".bold(), num_evaluation)?;
-    writeln!(out, "{:>11}: {}", "valid".bold(), num_valid)?;
-    writeln!(out, "{:>11}: {}", "invalid".bold(), num_invalid)?;
-    writeln!(out, "{:>11}: {}", "elapsed".bold(), nanostring(elapsed_ns))?;
+        if interrupted {
+            writeln!(
+                out,
+                "{}",
+                "Tool did not respond to last evaluation message - this implies crash or timeout."
+                    .red()
+            )?
+        }
 
-    if interrupted {
-        writeln!(
-            out,
-            "{}",
-            "Tool did not respond to last evaluation message - this implies crash or timeout."
-                .red()
-        )?
+        Ok(())
     }
-
-    Ok(())
 }
 
 #[cfg(test)]
@@ -208,7 +214,7 @@ mod tests {
 "#;
         let input_cursor = Cursor::new(input.as_bytes());
         let mut output: Vec<u8> = Vec::new();
-        log::summary(&mut std::io::BufReader::new(input_cursor), &mut output)?;
+        log::Summary.run(&mut std::io::BufReader::new(input_cursor), &mut output)?;
         write_goldenfile("summary_simple.txt", &output);
         Ok(())
     }
@@ -222,7 +228,7 @@ mod tests {
 "#;
         let input_cursor = Cursor::new(input.as_bytes());
         let mut output: Vec<u8> = Vec::new();
-        log::summary(&mut std::io::BufReader::new(input_cursor), &mut output)?;
+        log::Summary.run(&mut std::io::BufReader::new(input_cursor), &mut output)?;
         write_goldenfile("summary_noevaluations.txt", &output);
         Ok(())
     }
@@ -235,7 +241,7 @@ mod tests {
 "#;
         let input_cursor = Cursor::new(input.as_bytes());
         let mut output: Vec<u8> = Vec::new();
-        log::summary(&mut std::io::BufReader::new(input_cursor), &mut output)?;
+        log::Summary.run(&mut std::io::BufReader::new(input_cursor), &mut output)?;
         write_goldenfile("summary_noresponse.txt", &output);
         Ok(())
     }
