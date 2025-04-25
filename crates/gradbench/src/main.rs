@@ -25,7 +25,7 @@ use regex::Regex;
 use serde::Serialize;
 use stats::StatsMetadata;
 use strum::{EnumIter, EnumString, IntoStaticStr};
-use util::{stringify_cmd, CtrlC};
+use util::{run_in_out, stringify_cmd, CtrlC};
 
 /// CLI utilities for GradBench, a benchmark suite for differentiable programming across languages
 /// and domains.
@@ -180,10 +180,14 @@ enum RepoCommands {
     ///
     /// If the build is not already cached, any output will be printed in blue.
     ///
-    /// The Docker image name is `ghcr.io/gradbench/eval-<EVAL>:latest`.
+    /// The Docker image name is `ghcr.io/gradbench/eval-<EVAL>:<TAG>`.
     Eval {
         /// The name of the eval to run
         eval: String,
+
+        /// The Docker image tag, or `latest` by default. For example: `2024-12-01`
+        #[clap(short, long)]
+        tag: Option<String>,
 
         /// Docker platform, e.g. `linux/amd64` or `linux/arm64`
         #[clap(long)]
@@ -197,10 +201,14 @@ enum RepoCommands {
     ///
     /// If the build is not already cached, any output will be printed in magenta.
     ///
-    /// The Docker image name is `ghcr.io/gradbench/tool-<TOOL>:latest`.
+    /// The Docker image name is `ghcr.io/gradbench/tool-<TOOL>:<TAG>`.
     Tool {
         /// The name of the tool to run
         tool: String,
+
+        /// The Docker image tag, or `latest` by default. For example: `2024-12-01`
+        #[clap(short, long)]
+        tag: Option<String>,
 
         /// Docker platform, e.g. `linux/amd64` or `linux/arm64`
         #[clap(long)]
@@ -212,10 +220,14 @@ enum RepoCommands {
 
     /// Build the Docker image for an eval.
     ///
-    /// The Docker image name is `ghcr.io/gradbench/eval-<EVAL>:latest`.
+    /// The Docker image name is `ghcr.io/gradbench/eval-<EVAL>:<TAG>`.
     BuildEval {
         /// The name of the eval to build
         eval: String,
+
+        /// The Docker image tag, or `latest` by default. For example: `2024-12-01`
+        #[clap(short, long)]
+        tag: Option<String>,
 
         /// Comma-separated list of Docker platforms to build for, e.g. `linux/amd64,linux/arm64`
         #[clap(long)]
@@ -224,10 +236,14 @@ enum RepoCommands {
 
     /// Build the Docker image for a tool.
     ///
-    /// The Docker image name is `ghcr.io/gradbench/tool-<TOOL>:latest`.
+    /// The Docker image name is `ghcr.io/gradbench/tool-<TOOL>:<TAG>`.
     BuildTool {
         /// The name of the tool to build
         tool: String,
+
+        /// The Docker image tag, or `latest` by default. For example: `2024-12-01`
+        #[clap(short, long)]
+        tag: Option<String>,
 
         /// Comma-separated list of Docker platforms to build for, e.g. `linux/amd64,linux/arm64`
         #[clap(long)]
@@ -331,84 +347,158 @@ fn run(command: &mut Command) -> Result<Output, ExitCode> {
     Ok(output)
 }
 
-/// Get a command to build the Docker image for an eval.
-fn build_eval_cmd(name: &str, platform: Option<&str>) -> Command {
-    let mut cmd = Command::new("docker");
-    cmd.arg("build");
-    if let Some(platform) = platform {
-        cmd.args(["--platform", platform]);
+/// A level of verbosity for building a Docker image.
+enum Verbosity {
+    /// Normal output.
+    Normal,
+
+    /// No output except for errors.
+    Quiet,
+}
+
+/// Parameters for a `docker build` or `docker run` command.
+struct Docker<'a> {
+    /// The name of an eval or tool.
+    name: &'a str,
+
+    /// The tag suffix, or `"latest"` by default.
+    tag: Option<&'a str>,
+
+    /// The platform, or native by default.
+    platform: Option<&'a str>,
+}
+
+impl<'a> Docker<'a> {
+    /// Create Docker parameters with the default tag and native platform.
+    fn new(name: &'a str) -> Self {
+        Self {
+            name,
+            tag: None,
+            platform: None,
+        }
     }
-    cmd.args([".", "--file"])
-        .arg(format!("evals/{name}/Dockerfile"))
-        .arg("--tag")
-        .arg(format!("ghcr.io/gradbench/eval-{name}"));
-    cmd
-}
 
-/// Get a command to build the Docker image for a tool.
-fn build_tool_cmd(name: &str, platform: Option<&str>) -> Command {
-    let mut cmd = Command::new("docker");
-    cmd.arg("build");
-    if let Some(platform) = platform {
-        cmd.args(["--platform", platform]);
+    /// Get the tag suffix, or `"latest"` by default.
+    fn get_tag(&self) -> &str {
+        self.tag.unwrap_or("latest")
     }
-    cmd.args([".", "--file"])
-        .arg(format!("tools/{name}/Dockerfile"))
-        .arg("--tag")
-        .arg(format!("ghcr.io/gradbench/tool-{name}"));
-    cmd
-}
 
-/// Get a command to run an eval using Docker.
-fn eval_cmd(name: &str, tag: Option<&str>, platform: Option<&str>, args: &[String]) -> Command {
-    let t = tag.unwrap_or("latest");
-    let mut cmd = Command::new("docker");
-    cmd.arg("run");
-    if let Some(platform) = platform {
-        cmd.args(["--platform", platform]);
+    /// Get a command to build the Docker image for an eval.
+    fn build_eval_cmd(&self) -> Command {
+        let t = self.get_tag();
+        let mut cmd = Command::new("docker");
+        cmd.arg("build");
+        if let Some(platform) = self.platform {
+            cmd.args(["--platform", platform]);
+        }
+        cmd.args([".", "--file"])
+            .arg(format!("evals/{}/Dockerfile", self.name))
+            .arg("--tag")
+            .arg(format!("ghcr.io/gradbench/eval-{}:{t}", self.name));
+        cmd
     }
-    cmd.args(["--rm", "--interactive"])
-        .arg(format!("ghcr.io/gradbench/eval-{name}:{t}"))
-        .args(args);
-    cmd
-}
 
-/// Get a command to run a tool using Docker.
-fn tool_cmd(name: &str, tag: Option<&str>, platform: Option<&str>, args: &[String]) -> Command {
-    let t = tag.unwrap_or("latest");
-    let mut cmd = Command::new("docker");
-    cmd.arg("run");
-    if let Some(platform) = platform {
-        cmd.args(["--platform", platform]);
+    /// Get a command to build the Docker image for a tool.
+    fn build_tool_cmd(&self) -> Command {
+        let t = self.get_tag();
+        let mut cmd = Command::new("docker");
+        cmd.arg("build");
+        if let Some(platform) = self.platform {
+            cmd.args(["--platform", platform]);
+        }
+        cmd.args([".", "--file"])
+            .arg(format!("tools/{}/Dockerfile", self.name))
+            .arg("--tag")
+            .arg(format!("ghcr.io/gradbench/tool-{}:{t}", self.name));
+        cmd
     }
-    cmd.args(["--rm", "--interactive"])
-        .arg(format!("ghcr.io/gradbench/tool-{name}:{t}"))
-        .args(args);
-    cmd
-}
 
-/// Run an eval using Docker.
-fn run_eval(
-    name: &str,
-    tag: Option<&str>,
-    platform: Option<&str>,
-    args: &[String],
-) -> Result<(), ExitCode> {
-    let mut cmd = eval_cmd(name, tag, platform, args);
-    run(&mut cmd)?;
-    Ok(())
-}
+    /// Get a command to run an eval using Docker.
+    fn eval_cmd(&self, args: &[String]) -> Command {
+        let t = self.get_tag();
+        let mut cmd = Command::new("docker");
+        cmd.arg("run");
+        if let Some(platform) = self.platform {
+            cmd.args(["--platform", platform]);
+        }
+        cmd.args(["--rm", "--interactive"])
+            .arg(format!("ghcr.io/gradbench/eval-{}:{t}", self.name))
+            .args(args);
+        cmd
+    }
 
-/// Run a tool using Docker.
-fn run_tool(
-    name: &str,
-    tag: Option<&str>,
-    platform: Option<&str>,
-    args: &[String],
-) -> Result<(), ExitCode> {
-    let mut cmd = tool_cmd(name, tag, platform, args);
-    run(&mut cmd)?;
-    Ok(())
+    /// Get a command to run a tool using Docker.
+    fn tool_cmd(&self, args: &[String]) -> Command {
+        let t = self.get_tag();
+        let mut cmd = Command::new("docker");
+        cmd.arg("run");
+        if let Some(platform) = self.platform {
+            cmd.args(["--platform", platform]);
+        }
+        cmd.args(["--rm", "--interactive"])
+            .arg(format!("ghcr.io/gradbench/tool-{}:{t}", self.name))
+            .args(args);
+        cmd
+    }
+
+    /// Build the Docker image for an eval.
+    fn build_eval(&self, verbosity: Verbosity) -> Result<Caching, ExitCode> {
+        let name = self.name;
+        if name.is_empty() || !fs::exists(Path::new("evals").join(name)).unwrap_or(false) {
+            return Err(err_fail(anyhow!("can't find eval to build: {name:?}")));
+        }
+        let mut cmd = self.build_eval_cmd();
+        match verbosity {
+            Verbosity::Normal => {
+                run(&mut cmd)?;
+                Ok(Caching::Uncached)
+            }
+            Verbosity::Quiet => {
+                let (caching, status) = docker_build_quiet(Color::Blue, cmd)
+                    .with_context(|| format!("error building eval {name}"))
+                    .map_err(err_fail)?;
+                status_code(status)?;
+                Ok(caching)
+            }
+        }
+    }
+
+    /// Build the Docker image for a tool.
+    fn build_tool(&self, verbosity: Verbosity) -> Result<Caching, ExitCode> {
+        let name = self.name;
+        if name.is_empty() || !fs::exists(Path::new("tools").join(name)).unwrap_or(false) {
+            return Err(err_fail(anyhow!("can't find tool to build: {name:?}")));
+        }
+        let mut cmd = self.build_tool_cmd();
+        match verbosity {
+            Verbosity::Normal => {
+                cmd.arg("--progress=plain");
+                run(&mut cmd)?;
+                Ok(Caching::Uncached)
+            }
+            Verbosity::Quiet => {
+                let (caching, status) = docker_build_quiet(Color::Magenta, cmd)
+                    .with_context(|| format!("error building tool {name}"))
+                    .map_err(err_fail)?;
+                status_code(status)?;
+                Ok(caching)
+            }
+        }
+    }
+
+    /// Run an eval using Docker.
+    fn run_eval(&self, args: &[String]) -> Result<(), ExitCode> {
+        let mut cmd = self.eval_cmd(args);
+        run(&mut cmd)?;
+        Ok(())
+    }
+
+    /// Run a tool using Docker.
+    fn run_tool(&self, args: &[String]) -> Result<(), ExitCode> {
+        let mut cmd = self.tool_cmd(args);
+        run(&mut cmd)?;
+        Ok(())
+    }
 }
 
 /// Whether or not Docker output was suppressed due to detected caching.
@@ -460,66 +550,6 @@ fn docker_build_quiet(color: Color, mut cmd: Command) -> anyhow::Result<(Caching
         eprint!("{}", take(&mut buffer).color(color));
     }
     Ok((caching, status))
-}
-
-/// A level of verbosity for building a Docker image.
-enum Verbosity {
-    /// Normal output.
-    Normal,
-
-    /// No output except for errors.
-    Quiet,
-}
-
-/// Build the Docker image for an eval.
-fn build_eval(
-    name: &str,
-    platform: Option<&str>,
-    verbosity: Verbosity,
-) -> Result<Caching, ExitCode> {
-    if name.is_empty() || !fs::exists(Path::new("evals").join(name)).unwrap_or(false) {
-        return Err(err_fail(anyhow!("can't find eval to build: {name:?}")));
-    }
-    let mut cmd = build_eval_cmd(name, platform);
-    match verbosity {
-        Verbosity::Normal => {
-            run(&mut cmd)?;
-            Ok(Caching::Uncached)
-        }
-        Verbosity::Quiet => {
-            let (caching, status) = docker_build_quiet(Color::Blue, cmd)
-                .with_context(|| format!("error building eval {name}"))
-                .map_err(err_fail)?;
-            status_code(status)?;
-            Ok(caching)
-        }
-    }
-}
-
-/// Build the Docker image for a tool.
-fn build_tool(
-    name: &str,
-    platform: Option<&str>,
-    verbosity: Verbosity,
-) -> Result<Caching, ExitCode> {
-    if name.is_empty() || !fs::exists(Path::new("tools").join(name)).unwrap_or(false) {
-        return Err(err_fail(anyhow!("can't find tool to build: {name:?}")));
-    }
-    let mut cmd = build_tool_cmd(name, platform);
-    match verbosity {
-        Verbosity::Normal => {
-            cmd.arg("--progress=plain");
-            run(&mut cmd)?;
-            Ok(Caching::Uncached)
-        }
-        Verbosity::Quiet => {
-            let (caching, status) = docker_build_quiet(Color::Magenta, cmd)
-                .with_context(|| format!("error building tool {name}"))
-                .map_err(err_fail)?;
-            status_code(status)?;
-            Ok(caching)
-        }
-    }
 }
 
 /// An imperfect outcome from running the intermediary.
@@ -720,9 +750,9 @@ fn process_run_items(
                 (None, cmd)
             } else {
                 let cmd = (match item_kind {
-                    RunItemKind::Eval => eval_cmd,
-                    RunItemKind::Tool => tool_cmd,
-                })(&first, None, None, &[]);
+                    RunItemKind::Eval => Docker::eval_cmd,
+                    RunItemKind::Tool => Docker::tool_cmd,
+                })(&Docker::new(&first), &[]);
                 (Some(first), cmd)
             };
             for arg in parts {
@@ -766,11 +796,11 @@ fn run_dry(
     }: ProcessedRunItems,
 ) -> anyhow::Result<()> {
     for eval in evals_build {
-        let cmd = shlex::try_join(stringify_cmd(&build_eval_cmd(eval, None))?)?;
+        let cmd = shlex::try_join(stringify_cmd(&Docker::new(eval).build_eval_cmd())?)?;
         writeln!(stdout, "{cmd}")?;
     }
     for tool in tools_build {
-        let cmd = shlex::try_join(stringify_cmd(&build_tool_cmd(tool, None))?)?;
+        let cmd = shlex::try_join(stringify_cmd(&Docker::new(tool).build_tool_cmd())?)?;
         writeln!(stdout, "{cmd}")?;
     }
     if let Some(dir) = output {
@@ -845,7 +875,7 @@ fn run_multiple(
     let mut need_newline = false;
     for eval in evals_build {
         println!("{} {}", "building eval".blue().bold(), eval);
-        match build_eval(&eval, None, Verbosity::Quiet) {
+        match Docker::new(&eval).build_eval(Verbosity::Quiet) {
             Ok(Caching::Cached) => need_newline = true,
             Ok(Caching::Uncached) => {
                 println!();
@@ -860,7 +890,7 @@ fn run_multiple(
     }
     for tool in tools_build {
         println!("{} {}", "building tool".magenta().bold(), tool);
-        match build_tool(&tool, None, Verbosity::Quiet) {
+        match Docker::new(&tool).build_tool(Verbosity::Quiet) {
             Ok(Caching::Cached) => need_newline = true,
             Ok(Caching::Uncached) => {
                 println!();
@@ -1042,27 +1072,8 @@ fn matrix() -> anyhow::Result<()> {
 /// Run a subcommand from the "Log" command group.
 fn log_command(command: LogCommands) -> anyhow::Result<()> {
     match command {
-        LogCommands::Trim { input, output } => match (input, output) {
-            (Some(input_path), Some(output_path)) => {
-                let input_file = fs::File::open(input_path)?;
-                let mut output_file = fs::File::create(&output_path)?;
-                log::trim(&mut io::BufReader::new(input_file), &mut output_file)?;
-                Ok(())
-            }
-            (Some(input_path), None) => {
-                let input_file = fs::File::open(input_path)?;
-                log::trim(&mut io::BufReader::new(input_file), &mut io::stdout())?;
-                Ok(())
-            }
-            (None, Some(output_path)) => {
-                let mut output_file = fs::File::create(&output_path)?;
-                log::trim(&mut io::BufReader::new(io::stdin()), &mut output_file)?;
-                Ok(())
-            }
-            (None, None) => {
-                log::trim(&mut io::BufReader::new(io::stdin()), &mut io::stdout())?;
-                Ok(())
-            }
+        LogCommands::Trim { input, output } => {
+            run_in_out(log::Trim, input.as_deref(), output.as_deref())
         },
         LogCommands::Summary { input } => match input {
             Some(input_path) => {
@@ -1089,13 +1100,23 @@ fn cli() -> Result<(), ExitCode> {
             tag,
             platform,
             args,
-        } => run_eval(&eval, tag.as_deref(), platform.as_deref(), &args),
+        } => Docker {
+            name: &eval,
+            tag: tag.as_deref(),
+            platform: platform.as_deref(),
+        }
+        .run_eval(&args),
         Commands::Tool {
             tool,
             tag,
             platform,
             args,
-        } => run_tool(&tool, tag.as_deref(), platform.as_deref(), &args),
+        } => Docker {
+            name: &tool,
+            tag: tag.as_deref(),
+            platform: platform.as_deref(),
+        }
+        .run_tool(&args),
         Commands::Run {
             eval,
             tool,
@@ -1179,28 +1200,56 @@ fn cli() -> Result<(), ExitCode> {
                 },
                 RepoCommands::Eval {
                     eval,
+                    tag,
                     platform,
                     args,
                 } => {
-                    build_eval(&eval, platform.as_deref(), Verbosity::Quiet)?;
-                    run_eval(&eval, None, platform.as_deref(), &args)?;
+                    let docker = Docker {
+                        name: &eval,
+                        tag: tag.as_deref(),
+                        platform: platform.as_deref(),
+                    };
+                    docker.build_eval(Verbosity::Quiet)?;
+                    docker.run_eval(&args)?;
                     Ok(())
                 }
                 RepoCommands::Tool {
                     tool,
+                    tag,
                     platform,
                     args,
                 } => {
-                    build_tool(&tool, platform.as_deref(), Verbosity::Quiet)?;
-                    run_tool(&tool, None, platform.as_deref(), &args)?;
+                    let docker = Docker {
+                        name: &tool,
+                        tag: tag.as_deref(),
+                        platform: platform.as_deref(),
+                    };
+                    docker.build_tool(Verbosity::Quiet)?;
+                    docker.run_tool(&args)?;
                     Ok(())
                 }
-                RepoCommands::BuildEval { eval, platform } => {
-                    build_eval(&eval, platform.as_deref(), Verbosity::Normal).map(|_| ())
+                RepoCommands::BuildEval {
+                    eval,
+                    tag,
+                    platform,
+                } => Docker {
+                    name: &eval,
+                    tag: tag.as_deref(),
+                    platform: platform.as_deref(),
                 }
-                RepoCommands::BuildTool { tool, platform } => {
-                    build_tool(&tool, platform.as_deref(), Verbosity::Normal).map(|_| ())
+                .build_eval(Verbosity::Normal)
+                .map(|_| ()),
+                RepoCommands::BuildTool {
+                    tool,
+                    tag,
+                    platform,
+                } => Docker {
+                    name: &tool,
+                    tag: tag.as_deref(),
+                    platform: platform.as_deref(),
                 }
+                .build_tool(Verbosity::Normal)
+                .map(|_| ()),
                 RepoCommands::Matrix => matrix().map_err(err_fail),
                 RepoCommands::Stats {
                     input,
@@ -1233,7 +1282,7 @@ mod tests {
     use strum::IntoEnumIterator;
 
     use crate::{
-        mangle, process_run_items, run_dry, tool_cmd, util::stringify_cmd, BadOutcome,
+        mangle, process_run_items, run_dry, util::stringify_cmd, BadOutcome, Docker,
         ProcessedRunItems, RunItemKind, OUTCOME_HELP,
     };
 
@@ -1298,7 +1347,7 @@ mod tests {
     }
 
     fn simple_tool_cmd(name: &str, args: &[&str]) -> Vec<String> {
-        strings(&stringify_cmd(&tool_cmd(name, None, None, &strings(args))).unwrap())
+        strings(&stringify_cmd(&Docker::new(name).tool_cmd(&strings(args))).unwrap())
     }
 
     type RunItemSimplified = (String, Vec<String>);
