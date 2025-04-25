@@ -1,15 +1,42 @@
 use std::{
     collections::HashMap,
-    io::BufRead,
-    iter,
+    fs, io, iter,
     mem::take,
     ops::DerefMut,
+    path::Path,
     process::Command,
     sync::{Arc, Mutex, MutexGuard},
     time::Duration,
 };
 
 use anyhow::{anyhow, Context};
+
+pub trait InOut<T> {
+    fn run(self, input: impl io::Read, output: impl io::Write) -> T;
+}
+
+fn run_out(
+    f: impl InOut<anyhow::Result<()>>,
+    input: impl io::Read,
+    output: Option<&Path>,
+) -> anyhow::Result<()> {
+    match output {
+        Some(out) => f.run(input, fs::File::create(out)?),
+        None => f.run(input, io::stdout()),
+    }
+}
+
+pub fn run_in_out(
+    f: impl InOut<anyhow::Result<()>>,
+    input: &Path,
+    output: Option<&Path>,
+) -> anyhow::Result<()> {
+    if input.to_str() == Some("-") {
+        run_out(f, io::stdin(), output)
+    } else {
+        run_out(f, fs::File::open(input)?, output)
+    }
+}
 
 const BILLION: u128 = 1_000_000_000;
 
@@ -20,7 +47,7 @@ pub fn nanos_duration(nanoseconds: u128) -> anyhow::Result<Duration> {
     ))
 }
 
-pub fn try_read_line(file: &mut impl BufRead) -> anyhow::Result<Option<String>> {
+pub fn try_read_line(file: &mut impl io::BufRead) -> anyhow::Result<Option<String>> {
     let mut s = String::new();
     if file.read_line(&mut s)? == 0 {
         Ok(None)
