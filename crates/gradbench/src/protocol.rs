@@ -26,6 +26,14 @@ pub enum Message {
             skip_serializing_if = "Option::is_none" // Serialize as missing if `None`.
         )]
         eval: Option<String>,
+
+        /// The optional eval configuration.
+        #[serde(
+            default, // Deserialize as `None` if missing.
+            deserialize_with = "deserialize_optional_json", // Deserialize as `Some` if present.
+            skip_serializing_if = "Option::is_none" // Serialize as missing if `None`.
+        )]
+        config: Option<serde_json::Value>,
     },
 
     /// A request to define a module.
@@ -106,6 +114,14 @@ pub struct StartResponse {
         skip_serializing_if = "Option::is_none" // Serialize as missing if `None`.
     )]
     pub tool: Option<String>,
+
+    /// The optional tool configuration.
+    #[serde(
+        default, // Deserialize as `None` if missing.
+        deserialize_with = "deserialize_optional_json", // Deserialize as `Some` if present.
+        skip_serializing_if = "Option::is_none" // Serialize as missing if `None`.
+    )]
+    pub config: Option<serde_json::Value>,
 }
 
 /// A response from the tool to a `"define"` message.

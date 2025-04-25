@@ -1,0 +1,8 @@
+       eval: hello
+       tool: futhark
+     config: {"backend":"c"}
+evaluations: 0
+      valid: 0
+    invalid: 0
+    elapsed:     1.033 s
+Tool did not respond to last evaluation message - this implies crash or timeout.

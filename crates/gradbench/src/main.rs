@@ -295,6 +295,16 @@ enum LogCommands {
         #[clap(short, long)]
         output: Option<PathBuf>,
     },
+
+    /// Print a human-readable summary of the log file, including the
+    /// eval, tool, configuration, etc.
+    ///
+    /// Will fail with a not necessarily very friendly error if the
+    /// log file is malformed.
+    Summary {
+        /// The input log file.
+        input: Option<PathBuf>,
+    },
 }
 
 /// Print `error` to stderr, then return [`ExitCode::FAILURE`].
@@ -1065,6 +1075,7 @@ fn log_command(command: LogCommands) -> anyhow::Result<()> {
         LogCommands::Trim { input, output } => {
             run_in_out(log::Trim, input.as_deref(), output.as_deref())
         }
+        LogCommands::Summary { input } => run_in_out(log::Summary, input.as_deref(), None),
     }
 }
 
