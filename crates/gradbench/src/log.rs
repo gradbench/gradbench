@@ -3,10 +3,10 @@ use crate::{
     util::{try_read_line, InOut},
 };
 
-use std::io;
 use crate::util::nanostring;
 use anyhow::anyhow;
 use colored::Colorize;
+use std::io;
 
 pub struct Trim;
 
@@ -110,7 +110,8 @@ impl InOut<anyhow::Result<()>> for Summary {
             }
             // Skip the response.
             if let Some(response_line) = try_read_line(input)? {
-                let response: LogResponse<serde_json::Value> = serde_json::from_str(&response_line)?;
+                let response: LogResponse<serde_json::Value> =
+                    serde_json::from_str(&response_line)?;
                 elapsed_ns = response.elapsed.nanoseconds;
             } else {
                 interrupted = true;

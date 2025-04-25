@@ -1074,10 +1074,8 @@ fn log_command(command: LogCommands) -> anyhow::Result<()> {
     match command {
         LogCommands::Trim { input, output } => {
             run_in_out(log::Trim, input.as_deref(), output.as_deref())
-        },
-        LogCommands::Summary { input } => {
-            run_in_out(log::Summary, input.as_deref(), None)
-        },
+        }
+        LogCommands::Summary { input } => run_in_out(log::Summary, input.as_deref(), None),
     }
 }
 
