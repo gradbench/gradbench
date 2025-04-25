@@ -2,28 +2,27 @@
 // similarly.
 
 #include "gradbench/evals/saddle.hpp"
-#include "gradbench/main.hpp"
-#include "gradbench/gd.hpp"
 #include "enzyme.h"
+#include "gradbench/gd.hpp"
+#include "gradbench/main.hpp"
 
-struct double2{ double x, y; };
+struct double2 {
+  double x, y;
+};
 
 struct R2CostR {
-  const double *_p1;
+  const double* _p1;
 
-  R2CostR(const double *p1) : _p1(p1) {}
+  R2CostR(const double* p1) : _p1(p1) {}
 
   void objective(const double* p2, double* out) const {
     *out = saddle::objective(_p1[0], _p1[1], p2[0], p2[1]);
   }
 
   void gradient(const double* p2, double* out) const {
-    auto [p2x, p2y] = __enzyme_autodiff_template<double2>
-      ((void*)saddle::objective<double>,
-       enzyme_const, _p1[0],
-       enzyme_const, _p1[1],
-       enzyme_out, p2[0],
-       enzyme_out, p2[1]);
+    auto [p2x, p2y] = __enzyme_autodiff_template<double2>(
+        (void*)saddle::objective<double>, enzyme_const, _p1[0], enzyme_const,
+        _p1[1], enzyme_out, p2[0], enzyme_out, p2[1]);
     out[0] = p2x;
     out[1] = p2y;
   }
@@ -31,42 +30,34 @@ struct R2CostR {
   size_t input_size() const { return 2; }
 };
 
-double max_primal_r(double p1x, double p1y,
-                    double p2x, double p2y) {
+double max_primal_r(double p1x, double p1y, double p2x, double p2y) {
   double p1[2] = {p1x, p1y};
   double p2[2] = {p2x, p2y};
   return multivariate_max(R2CostR(p1), p2);
 }
 
 struct R2CostF {
-  const double *_p1;
+  const double* _p1;
 
-  R2CostF(const double *p1) : _p1(p1) {}
+  R2CostF(const double* p1) : _p1(p1) {}
 
   void objective(const double* p2, double* out) const {
     *out = saddle::objective(_p1[0], _p1[1], p2[0], p2[1]);
   }
 
   void gradient(const double* p2, double* out) const {
-    out[0] = __enzyme_fwddiff_template<double>
-      ((void*)saddle::objective<double>,
-       enzyme_const, _p1[0],
-       enzyme_const, _p1[1],
-       enzyme_dup, p2[0], 1.0,
-       enzyme_dup, p2[1], 0.0);
-    out[1] = __enzyme_fwddiff_template<double>
-      ((void*)saddle::objective<double>,
-       enzyme_const, _p1[0],
-       enzyme_const, _p1[1],
-       enzyme_dup, p2[0], 0.0,
-       enzyme_dup, p2[1], 1.0);
+    out[0] = __enzyme_fwddiff_template<double>(
+        (void*)saddle::objective<double>, enzyme_const, _p1[0], enzyme_const,
+        _p1[1], enzyme_dup, p2[0], 1.0, enzyme_dup, p2[1], 0.0);
+    out[1] = __enzyme_fwddiff_template<double>(
+        (void*)saddle::objective<double>, enzyme_const, _p1[0], enzyme_const,
+        _p1[1], enzyme_dup, p2[0], 0.0, enzyme_dup, p2[1], 1.0);
   }
 
   size_t input_size() const { return 2; }
 };
 
-double max_primal_f(double p1x, double p1y,
-                    double p2x, double p2y) {
+double max_primal_f(double p1x, double p1y, double p2x, double p2y) {
   double p1[2] = {p1x, p1y};
   double p2[2] = {p2x, p2y};
   return multivariate_max(R2CostF(p1), p2);
@@ -85,12 +76,9 @@ struct R1CostRR {
   }
 
   void gradient(const double* p1, double* out) const {
-    auto [p1x, p1y] = __enzyme_autodiff_template<double2>
-      ((void*)max_primal_r,
-       enzyme_out, p1[0],
-       enzyme_out, p1[1],
-       enzyme_const, _start[0],
-       enzyme_const, _start[1]);
+    auto [p1x, p1y] = __enzyme_autodiff_template<double2>(
+        (void*)max_primal_r, enzyme_out, p1[0], enzyme_out, p1[1], enzyme_const,
+        _start[0], enzyme_const, _start[1]);
     out[0] = p1x;
     out[1] = p1y;
   }
@@ -111,12 +99,9 @@ struct R1CostRF {
   }
 
   void gradient(const double* p1, double* out) const {
-    auto [p1x, p1y] = __enzyme_autodiff_template
-      <double2>((void*)max_primal_f,
-                enzyme_out, p1[0],
-                enzyme_out, p1[1],
-                enzyme_const, _start[0],
-                enzyme_const, _start[1]);
+    auto [p1x, p1y] = __enzyme_autodiff_template<double2>(
+        (void*)max_primal_f, enzyme_out, p1[0], enzyme_out, p1[1], enzyme_const,
+        _start[0], enzyme_const, _start[1]);
     out[0] = p1x;
     out[1] = p1y;
   }
@@ -137,18 +122,12 @@ struct R1CostFF {
   }
 
   void gradient(const double* p1, double* out) const {
-    out[0] = __enzyme_fwddiff_template<double>
-      ((void*)max_primal_f,
-       enzyme_dup, p1[0], 1.0,
-       enzyme_dup, p1[1], 0.0,
-       enzyme_const, _start[0],
-       enzyme_const, _start[1]);
-    out[1] = __enzyme_fwddiff_template<double>
-      ((void*)max_primal_f,
-       enzyme_dup, p1[0], 0.0,
-       enzyme_dup, p1[1], 1.0,
-       enzyme_const, _start[0],
-       enzyme_const, _start[1]);
+    out[0] = __enzyme_fwddiff_template<double>(
+        (void*)max_primal_f, enzyme_dup, p1[0], 1.0, enzyme_dup, p1[1], 0.0,
+        enzyme_const, _start[0], enzyme_const, _start[1]);
+    out[1] = __enzyme_fwddiff_template<double>(
+        (void*)max_primal_f, enzyme_dup, p1[0], 0.0, enzyme_dup, p1[1], 1.0,
+        enzyme_const, _start[0], enzyme_const, _start[1]);
   }
 
   size_t input_size() const { return 2; }
@@ -167,18 +146,12 @@ struct R1CostFR {
   }
 
   void gradient(const double* p1, double* out) const {
-    out[0] = __enzyme_fwddiff_template<double>
-      ((void*)max_primal_r,
-       enzyme_dup, p1[0], 1.0,
-       enzyme_dup, p1[1], 0.0,
-       enzyme_const, _start[0],
-       enzyme_const, _start[1]);
-    out[1] = __enzyme_fwddiff_template<double>
-      ((void*)max_primal_r,
-       enzyme_dup, p1[0], 0.0,
-       enzyme_dup, p1[1], 1.0,
-       enzyme_const, _start[0],
-       enzyme_const, _start[1]);
+    out[0] = __enzyme_fwddiff_template<double>(
+        (void*)max_primal_r, enzyme_dup, p1[0], 1.0, enzyme_dup, p1[1], 0.0,
+        enzyme_const, _start[0], enzyme_const, _start[1]);
+    out[1] = __enzyme_fwddiff_template<double>(
+        (void*)max_primal_r, enzyme_dup, p1[0], 0.0, enzyme_dup, p1[1], 1.0,
+        enzyme_const, _start[0], enzyme_const, _start[1]);
   }
 
   size_t input_size() const { return 2; }
@@ -260,12 +233,10 @@ public:
   }
 };
 
-
 int main(int argc, char* argv[]) {
-  return generic_main(argc, argv, {
-      {"rr", function_main<RR>},
-      {"ff", function_main<FF>},
-      {"fr", function_main<FR>},
-      {"rf", function_main<RF>}
-    });
+  return generic_main(argc, argv,
+                      {{"rr", function_main<RR>},
+                       {"ff", function_main<FF>},
+                       {"fr", function_main<FR>},
+                       {"rf", function_main<RF>}});
 }

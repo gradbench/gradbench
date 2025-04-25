@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Fragment } from "react/jsx-runtime";
 import "./App.css";
+import { Logo } from "./Logo.tsx";
 import { Stats } from "./Stats.tsx";
 
 /** Return a YYYY-MM-DD date string from a `Date` object. */
@@ -115,6 +116,10 @@ const ScoredRow = ({ tools }: Row) => {
       }
     }
   });
+};
+
+const randomColor = () => {
+  return `#${Math.floor(Math.random() * 16777215).toString(16)}`;
 };
 
 const Viz = ({ prefix, summary }: { prefix: string; summary: Summary }) => {
@@ -247,8 +252,13 @@ const App = () => {
   };
   return (
     <>
+      <div className="logo">
+        <Logo colors={[randomColor(), randomColor()]} />
+      </div>
       <h1>
         <a href="https://github.com/gradbench/gradbench">GradBench</a>{" "}
+      </h1>
+      <nav>
         <button
           disabled={state.date === undefined}
           onClick={() => {
@@ -276,7 +286,7 @@ const App = () => {
         >
           ▶
         </button>
-      </h1>
+      </nav>
       {state.summary === undefined ? (
         <p>Downloading...</p>
       ) : state.summary.summary === undefined ? (

@@ -18,44 +18,55 @@ let
   cppad = pkgs.callPackage ./nix/cppad.nix { };
   adept = pkgs.callPackage ./nix/adept.nix { };
   codipack = pkgs.callPackage ./nix/codipack.nix { };
+  floretta = pkgs.callPackage ./nix/floretta.nix { };
   GRADBENCH_PATH = builtins.getEnv "PWD";
 
   isX86 = builtins.currentSystem == "x86_64-linux";
 in pkgs.stdenv.mkDerivation rec {
   name = "gradbench";
   buildInputs = [
+    # Required
     pkgs.bun
-    pkgs.gh
+    pkgs.cargo
     pkgs.niv
-    pkgs.nixfmt-classic
     pkgs.python311
     pkgs.uv
 
-    pkgs.futhark
-    pkgs.enzyme
-    pkgs.pkg-config
-    pkgs.llvmPackages_19.lld
-    pkgs.llvmPackages_19.clang
-    pkgs.blas
-    pkgs.lapack
-    pkgs.openblas
-    pkgs.zlib
+    pkgs.llvmPackages_19.clang-tools # Must come before clang for clangd to work.
+
+    # Convenient
     pkgs.adolc
+    pkgs.blas
     pkgs.eigen
+    pkgs.enzyme
+    pkgs.futhark
+    pkgs.gh
+    pkgs.lapack
+    pkgs.llvmPackages_19.clang
+    pkgs.llvmPackages_19.lld
+    pkgs.nixfmt-classic
+    pkgs.nodejs_23
+    pkgs.openblas
+    pkgs.pkg-config
+    pkgs.wasm-tools
     pkgs.wget
+    pkgs.zlib
+
+    # Custom
     adept
     cppad
     codipack
+    floretta
 
     # Haskell
     pkgs.cabal-install
     pkgs.ghc
 
     # Rust
-    pkgs.cargo
     pkgs.clippy
     pkgs.rustc
     pkgs.rustfmt
+    pkgs.rust-analyzer
 
     # OCaml
     pkgs.opam
@@ -70,4 +81,8 @@ in pkgs.stdenv.mkDerivation rec {
   ENZYME_LIB = "${pkgs.enzyme}/lib";
   LD_LIBRARY_PATH =
     "${pkgs.lib.makeLibraryPath buildInputs}:${pkgs.stdenv.cc.cc.lib}/lib";
+
+  # The Nix C/C++ compilers disable -march=native on purity reasons, but we
+  # don't use them to compile Nix derivations.
+  NIX_ENFORCE_NO_NATIVE=0;
 }

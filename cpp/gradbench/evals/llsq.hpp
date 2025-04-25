@@ -1,40 +1,39 @@
 #include <vector>
+
+#include "gradbench/main.hpp"
 #include "json.hpp"
 
 namespace llsq {
 struct Input {
   std::vector<double> x;
-  size_t n; // Size of 't' and 's'.
+  size_t              n;  // Size of 't' and 's'.
 };
 
 typedef double PrimalOutput;
 
 typedef std::vector<double> GradientOutput;
 
-double t(double i, double n) {
-  return -1 + i*2/(n-1);
-}
+double t(double i, double n) { return -1 + i * 2 / (n - 1); }
 
-template<typename T>
+template <typename T>
 T s(T ti) {
   return (T(0) < ti) - (ti < T(0));
 }
 
-template<typename T>
-void primal(size_t n,
-            size_t m,
-            const T* __restrict__ x,
-            T* __restrict__ out) {
+template <typename T>
+void primal(size_t n, size_t m, const T* __restrict__ x, T* __restrict__ out) {
   T sum = T(0);
   for (size_t i = 0; i < n; i++) {
-    T ti = t(i, n);
+    T ti        = t(i, n);
     T inner_sum = s(ti);
+    T acc       = 1;
     for (size_t j = 0; j < m; j++) {
-      inner_sum -= x[j] * pow(ti, j);
+      inner_sum -= x[j] * acc;
+      acc *= ti;
     }
-    sum += inner_sum*inner_sum;
+    sum += inner_sum * inner_sum;
   }
-  *out = sum/T(2);
+  *out = sum / T(2);
 }
 
 using json = nlohmann::json;
@@ -51,11 +50,8 @@ public:
   void compute(PrimalOutput& output) {
     size_t n = _input.n;
     size_t m = _input.x.size();
-    primal<double>(n,
-                   m,
-                   _input.x.data(),
-                   &output);
+    primal<double>(n, m, _input.x.data(), &output);
   }
 };
 
-}
+}  // namespace llsq

@@ -10,6 +10,16 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  check-cpp:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install clang-format 19
+        run: sudo apt-get install -y clang-format-19
+      - name: Check C/C++ formatting
+        run: git ls-files '*.c' '*.cpp' '*.h' '*.hpp' | xargs clang-format-19 --dry-run -Werror
+
   check-js:
     runs-on: ubuntu-24.04
     steps:
@@ -28,6 +38,8 @@ jobs:
           [ -z "$CHANGES" ]
       - name: Check Prettier formatting
         run: bun run prettier --check .
+      - name: Run TypeScript
+        run: bun run --filter='*' typecheck
 
   check-py:
     runs-on: ubuntu-24.04
@@ -63,13 +75,13 @@ jobs:
       - name: Install npm dependencies
         run: bun install
       - name: Lint website
-        run: bun run --filter=gradbench lint
+        run: bun run --filter=@gradbench/website lint
       - name: Build website
-        run: bun run --filter=gradbench build
+        run: bun run --filter=@gradbench/website build
       - name: Upload website artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: packages/gradbench/dist
+          path: js/website/dist
 
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

@@ -1,17 +1,18 @@
-#include <algorithm>
-#include "gradbench/main.hpp"
 #include "gradbench/evals/llsq.hpp"
-#include <codi.hpp>
+#include "codi_impl.hpp"
+#include "gradbench/main.hpp"
+#include <algorithm>
 
-using Real = codi::RealReverse;
-using Tape = typename Real::Tape;
+class Gradient : public Function<llsq::Input, llsq::GradientOutput>,
+                 CoDiReverseRunner {
+  using Real = typename CoDiReverseRunner::Real;
 
-class Gradient : public Function<llsq::Input, llsq::GradientOutput> {
   std::vector<Real> _x_d;
+  Real              error;
+
 public:
-  Gradient(llsq::Input& input) :
-    Function(input),
-    _x_d(_input.x.size()) {
+  Gradient(llsq::Input& input)
+      : Function(input), _x_d(_input.x.size()), error() {
     std::copy(_input.x.begin(), _input.x.end(), _x_d.begin());
   }
 
@@ -21,31 +22,33 @@ public:
 
     output.resize(m);
 
-    Tape& tape = Real::getTape();
-    tape.reset();
-    tape.setActive();
+    codiStartRecording();
 
-    for (auto &x : _x_d) {
-      tape.registerInput(x);
+    for (auto& x : _x_d) {
+      codiAddInput(x);
     }
 
-    Real error;
     llsq::primal(n, m, _x_d.data(), &error);
 
-    tape.registerOutput(error);
-    tape.setPassive();
-    error.setGradient(1.0);
-    tape.evaluate();
+    codiAddOutput(error);
+    codiStopRecording();
+
+    codiSetGradient(error, 1.0);
+    codiEval();
 
     for (size_t i = 0; i < m; i++) {
-      output[i] = _x_d[i].getGradient();
+      output[i] = codiGetGradient(_x_d[i]);
     }
+
+    codiCleanup();
   }
 };
 
 int main(int argc, char* argv[]) {
-  return generic_main(argc, argv, {
-      {"primal", function_main<llsq::Primal>},
-      {"gradient", function_main<Gradient>},
-    });;
+  return generic_main(argc, argv,
+                      {
+                          {"primal", function_main<llsq::Primal>},
+                          {"gradient", function_main<Gradient>},
+                      });
+  ;
 }

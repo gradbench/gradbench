@@ -201,10 +201,10 @@ bun run toc
 We use [Vite][] for the website. To develop the website locally, run this command:
 
 ```sh
-bun run --filter=gradbench dev
+bun run --filter=@gradbench/website dev
 ```
 
-This will log a `localhost` URL to your terminal; open that URL in your browser. Any changes you make to files in `packages/gradbench/src` should automatically appear.
+This will log a `localhost` URL to your terminal; open that URL in your browser. Any changes you make to files in `js/website/src` should automatically appear.
 
 ## Python
 
@@ -222,6 +222,12 @@ uv run ruff format
 ```
 
 ## C++
+
+We autoformat C++ code using [clang-format 19][]; note that GitHub Actions currently uses version 19.1.1 specifically, so if you have a different version (e.g. `shell.nix` currently provides version 19.1.7) then unfortunately you may experience disagreements in some cases. In any case, if you're using [VS Code][], our configuration in this repository should automatically recommend that you install the clangd extension, as well as automatically run it whenever you save a C++ file. You can also run it manually via the command line:
+
+```sh
+git ls-files '*.c' '*.cpp' '*.h' '*.hpp' | xargs clang-format -i
+```
 
 Some tools make use of C++ code shared in the `cpp` directory; if doing local development with any of those tools, you must first run the following command:
 
@@ -381,6 +387,7 @@ type Session = (MessageLine | ResponseLine)[];
 ```
 
 [bun]: https://bun.sh/
+[clang-format 19]: https://releases.llvm.org/19.1.0/tools/clang/docs/ClangFormat.html
 [containerd]: https://docs.docker.com/storage/containerd/
 [docker]: https://docs.docker.com/engine/install/
 [github cli]: https://github.com/cli/cli#installation

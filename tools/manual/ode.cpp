@@ -1,6 +1,6 @@
-#include <algorithm>
-#include "gradbench/main.hpp"
 #include "gradbench/evals/ode.hpp"
+#include "gradbench/main.hpp"
+#include <algorithm>
 
 class Gradient : public Function<ode::Input, ode::GradientOutput> {
 public:
@@ -10,12 +10,12 @@ public:
     output.resize(_input.x.size());
 
     size_t n = _input.x.size();
-    size_t r = n-1;
+    size_t r = n - 1;
 
     double tf  = 2.0;
     double y_r = _input.x[0] * tf;
-    for(size_t i = 1; i <= r; i++) {
-      y_r = y_r * _input.x[i] * tf / double(i+1);
+    for (size_t i = 1; i <= r; i++) {
+      y_r = y_r * _input.x[i] * tf / double(i + 1);
     }
 
     for (size_t i = 0; i < n; i++) {
@@ -24,10 +24,11 @@ public:
   }
 };
 
-
 int main(int argc, char* argv[]) {
-  return generic_main(argc, argv, {
-      {"primal", function_main<ode::Primal>},
-      {"gradient", function_main<Gradient>},
-    });;
+  return generic_main(argc, argv,
+                      {
+                          {"primal", function_main<ode::Primal>},
+                          {"gradient", function_main<Gradient>},
+                      });
+  ;
 }
