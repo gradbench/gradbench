@@ -19,7 +19,7 @@ f : \mathbb{R}^2 \times \mathbb{R}^2 \rightarrow \mathbb{R}
 is defined as the trivial function
 
 ```math
-f(x,y) = (x_1^2 + y_1^2) - (x_2^2 + y_1^2)
+f(x,y) = (x_1^2 + y_1^2) - (x_2^2 + y_2^2)
 ```
 
 We must produce the two points $x$ and $y$ as the results.
