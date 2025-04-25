@@ -37,8 +37,7 @@ def read_msgs(fname):
             for line in f:
                 msgs.append(json.loads(line))
         if len(msgs) % 2 != 0:
-            print("{fname} contains an odd number of messages.", file=sys.stderr)
-            sys.exit(1)
+            print(f"{fname} contains an odd number of messages.", file=sys.stderr)
         return list(zip(msgs[0::2], msgs[1::2]))
     except Exception as e:
         print(f"Failed to read {fname}:", file=sys.stderr)
