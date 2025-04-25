@@ -21,20 +21,19 @@ fn run_out(
     output: Option<&Path>,
 ) -> anyhow::Result<()> {
     match output {
-        Some(out) => f.run(input, fs::File::create(out)?),
+        Some(path) => f.run(input, fs::File::create(path)?),
         None => f.run(input, io::stdout()),
     }
 }
 
 pub fn run_in_out(
     f: impl InOut<anyhow::Result<()>>,
-    input: &Path,
+    input: Option<&Path>,
     output: Option<&Path>,
 ) -> anyhow::Result<()> {
-    if input.to_str() == Some("-") {
-        run_out(f, io::stdin(), output)
-    } else {
-        run_out(f, fs::File::open(input)?, output)
+    match input {
+        Some(path) => run_out(f, fs::File::open(path)?, output),
+        None => run_out(f, io::stdin(), output),
     }
 }
 

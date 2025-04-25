@@ -272,8 +272,8 @@ enum LogCommands {
     /// message may not have a response - this occurs when the tool
     /// crashes or times out before it gets to respond.
     Trim {
-        /// The input log file, or `-` to read from stdin.
-        input: PathBuf,
+        /// The input log file.
+        input: Option<PathBuf>,
 
         /// The output log file.
         #[clap(short, long)]
@@ -1032,7 +1032,9 @@ fn matrix() -> anyhow::Result<()> {
 /// Run a subcommand from the "Log" command group.
 fn log_command(command: LogCommands) -> anyhow::Result<()> {
     match command {
-        LogCommands::Trim { input, output } => run_in_out(log::Trim, &input, output.as_deref()),
+        LogCommands::Trim { input, output } => {
+            run_in_out(log::Trim, input.as_deref(), output.as_deref())
+        }
     }
 }
 
