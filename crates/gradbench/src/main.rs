@@ -25,7 +25,7 @@ use regex::Regex;
 use serde::Serialize;
 use stats::StatsMetadata;
 use strum::{EnumIter, EnumString, IntoStaticStr};
-use util::{stringify_cmd, CtrlC};
+use util::{run_in_out, stringify_cmd, CtrlC};
 
 /// CLI utilities for GradBench, a benchmark suite for differentiable programming across languages
 /// and domains.
@@ -1062,28 +1062,9 @@ fn matrix() -> anyhow::Result<()> {
 /// Run a subcommand from the "Log" command group.
 fn log_command(command: LogCommands) -> anyhow::Result<()> {
     match command {
-        LogCommands::Trim { input, output } => match (input, output) {
-            (Some(input_path), Some(output_path)) => {
-                let input_file = fs::File::open(input_path)?;
-                let mut output_file = fs::File::create(&output_path)?;
-                log::trim(&mut io::BufReader::new(input_file), &mut output_file)?;
-                Ok(())
-            }
-            (Some(input_path), None) => {
-                let input_file = fs::File::open(input_path)?;
-                log::trim(&mut io::BufReader::new(input_file), &mut io::stdout())?;
-                Ok(())
-            }
-            (None, Some(output_path)) => {
-                let mut output_file = fs::File::create(&output_path)?;
-                log::trim(&mut io::BufReader::new(io::stdin()), &mut output_file)?;
-                Ok(())
-            }
-            (None, None) => {
-                log::trim(&mut io::BufReader::new(io::stdin()), &mut io::stdout())?;
-                Ok(())
-            }
-        },
+        LogCommands::Trim { input, output } => {
+            run_in_out(log::Trim, input.as_deref(), output.as_deref())
+        }
     }
 }
 
