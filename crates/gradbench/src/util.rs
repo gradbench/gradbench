@@ -29,7 +29,6 @@ pub fn try_read_line(file: &mut impl BufRead) -> anyhow::Result<Option<String>> 
     }
 }
 
-
 /// Return an 11-character human-readable string for the given number of nanoseconds.
 pub fn nanostring(nanoseconds: u128) -> String {
     let ms = nanoseconds / 1_000_000;

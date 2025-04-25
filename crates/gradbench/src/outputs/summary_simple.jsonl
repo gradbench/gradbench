@@ -1,0 +1,7 @@
+       eval: hello
+       tool: futhark
+     config: {"backend":"c"}
+evaluations: 1
+      valid: 1
+    invalid: 0
+    elapsed:     2.133 s

@@ -1066,11 +1066,14 @@ fn log_command(command: LogCommands) -> anyhow::Result<()> {
         },
         LogCommands::Summary { input } => match input {
             Some(input_path) => {
-                log::summary(&mut io::BufReader::new(fs::File::open(input_path)?))?;
+                log::summary(
+                    &mut io::BufReader::new(fs::File::open(input_path)?),
+                    &mut io::stdout(),
+                )?;
                 Ok(())
             }
             None => {
-                log::summary(&mut io::BufReader::new(io::stdin()))?;
+                log::summary(&mut io::BufReader::new(io::stdin()), &mut io::stdout())?;
                 Ok(())
             }
         },

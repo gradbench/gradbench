@@ -47,7 +47,7 @@ pub fn trim(input: &mut impl BufRead, out: &mut impl Write) -> anyhow::Result<()
     Ok(())
 }
 
-pub fn summary(input: &mut impl BufRead) -> anyhow::Result<()> {
+pub fn summary(input: &mut impl BufRead, out: &mut impl Write) -> anyhow::Result<()> {
     let mut eval_name = None;
     let mut eval_config = None;
     let mut tool_name = None;
@@ -109,34 +109,35 @@ pub fn summary(input: &mut impl BufRead) -> anyhow::Result<()> {
     }
 
     if let Some(eval) = eval_name {
-        println!("{:>11}: {}", "eval".blue().bold(), eval)
+        writeln!(out, "{:>11}: {}", "eval".blue().bold(), eval)?
     } else {
-        println!("{:>11}: unknown", "eval".blue().bold())
+        writeln!(out, "{:>11}: unknown", "eval".blue().bold())?
     }
     if let Some(config) = eval_config {
-        println!("{:>11}: {}", "config".blue().bold(), config)
+        writeln!(out, "{:>11}: {}", "config".blue().bold(), config)?
     }
 
     if let Some(tool) = tool_name {
-        println!("{:>11}: {}", "tool".magenta().bold(), tool)
+        writeln!(out, "{:>11}: {}", "tool".magenta().bold(), tool)?
     } else {
-        println!("{:>11}: unknown", "tool".magenta().bold())
+        writeln!(out, "{:>11}: unknown", "tool".magenta().bold())?
     }
     if let Some(config) = tool_config {
-        println!("{:>11}: {}", "config".magenta().bold(), config)
+        writeln!(out, "{:>11}: {}", "config".magenta().bold(), config)?
     }
 
-    println!("{:>11}: {}", "evaluations".bold(), num_evaluation);
-    println!("{:>11}: {}", "valid".bold(), num_valid);
-    println!("{:>11}: {}", "invalid".bold(), num_invalid);
-    println!("{:>11}: {}", "elapsed".bold(), nanostring(elapsed_ns));
+    writeln!(out, "{:>11}: {}", "evaluations".bold(), num_evaluation)?;
+    writeln!(out, "{:>11}: {}", "valid".bold(), num_valid)?;
+    writeln!(out, "{:>11}: {}", "invalid".bold(), num_invalid)?;
+    writeln!(out, "{:>11}: {}", "elapsed".bold(), nanostring(elapsed_ns))?;
 
     if interrupted {
-        println!(
+        writeln!(
+            out,
             "{}",
             "Tool did not respond to last evaluation message - this implies crash or timeout."
                 .red()
-        )
+        )?
     }
 
     Ok(())
@@ -186,6 +187,38 @@ mod tests {
         let mut output: Vec<u8> = Vec::new();
         log::trim(&mut BufReader::new(input_cursor), &mut output)?;
         write_goldenfile("trim_missing_response.jsonl", &output);
+        Ok(())
+    }
+
+    #[test]
+    fn summary_simple() -> anyhow::Result<()> {
+        let input = r#"{ "elapsed": { "nanoseconds": 1032662218 }, "message": {"id": 0, "kind": "start", "eval": "hello"} }
+{ "elapsed": { "nanoseconds": 1033286058 }, "response": {"id": 0, "tool": "futhark", "config": {"backend": "c"}} }
+{ "elapsed": { "nanoseconds": 1033761149 }, "message": {"id": 1, "kind": "define", "module": "hello"} }
+{ "elapsed": { "nanoseconds": 2128460174 }, "response": {"id": 1, "success": true} }
+{ "elapsed": { "nanoseconds": 2129140232 }, "message": {"id": 2, "kind": "evaluate", "module": "hello", "function": "square", "input": 1.0} }
+{ "elapsed": { "nanoseconds": 2132741440 }, "response": {"id": 2, "success": true, "output": 1.0, "timings": [{"name": "evaluate", "nanoseconds": 1000}]} }
+{ "elapsed": { "nanoseconds": 2133519757 }, "message": {"id": 3, "kind": "analysis", "of": 2, "valid": true} }
+{ "elapsed": { "nanoseconds": 2133886324 }, "response": {"id": 3} }
+"#;
+        let input_cursor = Cursor::new(input.as_bytes());
+        let mut output: Vec<u8> = Vec::new();
+        log::summary(&mut BufReader::new(input_cursor), &mut output)?;
+        write_goldenfile("summary_simple.jsonl", &output);
+        Ok(())
+    }
+
+    #[test]
+    fn summary_noevaluations() -> anyhow::Result<()> {
+        let input = r#"{ "elapsed": { "nanoseconds": 1032662218 }, "message": {"id": 0, "kind": "start", "eval": "hello"} }
+{ "elapsed": { "nanoseconds": 1033286058 }, "response": {"id": 0, "tool": "futhark", "config": {"backend": "c"}} }
+{ "elapsed": { "nanoseconds": 1033761149 }, "message": {"id": 1, "kind": "define", "module": "hello"} }
+{ "elapsed": { "nanoseconds": 2128460174 }, "response": {"id": 1, "success": true} }
+"#;
+        let input_cursor = Cursor::new(input.as_bytes());
+        let mut output: Vec<u8> = Vec::new();
+        log::summary(&mut BufReader::new(input_cursor), &mut output)?;
+        write_goldenfile("summary_noevaluations.jsonl", &output);
         Ok(())
     }
 }
