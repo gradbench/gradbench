@@ -1,16 +1,19 @@
 #include "gradbench/evals/hello.hpp"
+#include "codi_impl.hpp"
 #include "gradbench/main.hpp"
-#include <codi.hpp>
 
-class Double : public Function<hello::Input, hello::DoubleOutput> {
+class Double : public Function<hello::Input, hello::DoubleOutput>,
+               CoDiForwardRunner {
+  using Real = typename CoDiForwardRunner::Real;
+
 public:
   Double(hello::Input& input) : Function(input) {}
 
   void compute(hello::DoubleOutput& output) {
-    codi::RealForward x(_input);
-    x.setGradient(1);
-    auto y = hello::square<codi::RealForward>(x);
-    output = y.gradient();
+    Real x(_input);
+    codiSetGradient(x, 1.0);
+    auto y = hello::square<Real>(x);
+    output = codiGetGradient(y);
   }
 };
 

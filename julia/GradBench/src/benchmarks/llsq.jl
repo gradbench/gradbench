@@ -16,8 +16,13 @@ function primal(x::Vector{T}, n::Int64) where {T}
 
     f(i) = begin
         ti = t(i, n)
-        sum_g = sum(-x[j] * ti^Float64(j - 1) for j in 1:m)
-        return (sign(ti) + sum_g)^2
+        inner_sum = 0.0
+        mul = 1.0
+        for j in 1:m
+            inner_sum += -x[j] * mul
+            mul *= ti
+        end
+        return (sign(ti) + inner_sum)^2
     end
 
     return sum(f(i) for i in 0:n-1) / 2

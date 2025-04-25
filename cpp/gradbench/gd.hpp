@@ -37,8 +37,18 @@ T vector_dist(const std::vector<T>& u, const std::vector<T>& v) {
   return sqrt(acc);
 }
 
+/**
+ * @brief Finds the multivariate argmin of a function via gradient descent.
+ * @tparam F A function type that has a member functions
+ *  - size_t input_size()
+ *  - void objective(double const * in, double* out), which stores the objective
+ * function result in out
+ *  - void gradient(double const * in, double* out), which stores the gradient
+ * in out
+ * @param xp The starting input.
+ */
 template <typename F>
-std::vector<double> multivariate_argmin(const F f, const double* xp) {
+std::vector<double> multivariate_argmin(const F& f, const double* xp) {
   double              fx;
   std::vector<double> x(f.input_size());
   std::vector<double> gx(f.input_size());
@@ -83,6 +93,16 @@ std::vector<double> multivariate_argmin(const F f, const double* xp) {
   }
 }
 
+/**
+ * @brief Finds the multivariate argmax of a function via gradient descent.
+ * @tparam F A function type that has a member functions
+ *  - size_t input_size()
+ *  - void objective(double const * in, double* out), which stores the objective
+ * function result in out
+ *  - void gradient(double const * in, double* out), which stores the gradient
+ * in out
+ * @param xp The starting input.
+ */
 template <typename F>
 std::vector<double> multivariate_argmax(const F& f, const double* x) {
   struct C {

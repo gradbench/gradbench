@@ -14,7 +14,11 @@ def evaluate_completed_process(proc: subprocess.CompletedProcess[str]) -> Any:
         timings = list(map(json.loads, ls[1:]))
         return {"success": True, "output": output, "timings": timings}
     else:
-        return {"success": False, "status": proc.returncode, "error": proc.stderr}
+        return {
+            "success": False,
+            "status": proc.returncode,
+            "error": f"Command '{' '.join(proc.args)}' terminated with return code {proc.returncode} and stderr:\n{proc.stderr}",
+        }
 
 
 def define(*, tool: str, module: str) -> Any:
@@ -25,7 +29,10 @@ def define(*, tool: str, module: str) -> Any:
             stderr=subprocess.STDOUT,
         )
     except subprocess.CalledProcessError as e:
-        return {"success": False, "error": e.output}
+        return {
+            "success": False,
+            "error": f"Command '{' '.join(e.cmd)}' terminated with return code {e.returncode} and stderr:\n{e.output}",
+        }
     except Exception as e:
         return {"success": False, "error": "".join(traceback.format_exception(e))}
     else:

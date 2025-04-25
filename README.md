@@ -1,4 +1,4 @@
-<div align="center"><img height="192" src="packages/gradbench/src/logo.svg" /></div>
+<div align="center"><img height="192" src="https://gradben.ch/logo.svg" /></div>
 <h1 align="center">GradBench</h1>
 <p align="center"><a href="LICENSE"><img src="https://img.shields.io/github/license/rose-lang/rose" alt="license" /></a> <a href="https://github.com/gradbench/gradbench/actions/workflows/nightly.yml"><img src="https://github.com/gradbench/gradbench/actions/workflows/nightly.yml/badge.svg" alt="Nightly" /></a> <a href="https://discord.gg/nPXmPzeykS"><img src="https://dcbadge.vercel.app/api/server/nPXmPzeykS?style=flat" alt="Discord" /></a></p>
 
@@ -199,8 +199,9 @@ make -C tools/foo bar
 
 However, you do not need to do this in advance - compilation is done
 by a Python module `cpp.py` that implements the GradBench protocol and
-runs the executables (except for `manual`, see above). Specifically,
-to run tool `foo` we would do:
+runs the executables (except for `manual`, [see
+above](#running-evals-outside-of-docker)). Specifically, to run tool
+`foo` we would do:
 
 ```sh
 uv run python/gradbench/gradbench/cpp.py foo

@@ -15,18 +15,25 @@ public:
     for (size_t i = 0; i < n; i++) {
       double ti        = llsq::t(i, n);
       double inner_sum = llsq::s(ti);
+      double acc       = 1;
       for (size_t l = 0; l < m; l++) {
-        inner_sum -= _input.x[l] * pow(ti, l);
+        inner_sum -= _input.x[l] * acc;
+        acc *= ti;
       }
       sums[i] = inner_sum;
     }
+
     for (size_t j = 0; j < m; j++) {
-      double sum = 0;
-      for (size_t i = 0; i < n; i++) {
-        double ti = llsq::t(i, n);
-        sum += sums[i] * pow(ti, j);
+      output[j] = 0;
+    }
+
+    for (size_t i = 0; i < n; i++) {
+      double ti   = llsq::t(i, n);
+      double term = 1.0;
+      for (size_t j = 0; j < m; j++) {
+        output[j] -= sums[i] * term;
+        term *= ti;
       }
-      output[j] = -sum;
     }
   }
 };
