@@ -17,7 +17,7 @@
 template <typename T>
 T magnitude_squared(const std::vector<T>& v) {
   T acc = 0.0;
-  for (auto x : v) {
+  for (auto& x : v) {
     acc += x * x;
   }
   return acc;
@@ -39,20 +39,21 @@ T vector_dist(const std::vector<T>& u, const std::vector<T>& v) {
 
 /**
  * @brief Finds the multivariate argmin of a function via gradient descent.
- * @tparam F A function type that has a member functions
+ * @tparam FUNC A function type that has a member functions
  *  - size_t input_size()
  *  - void objective(double const * in, double* out), which stores the objective
  * function result in out
  *  - void gradient(double const * in, double* out), which stores the gradient
  * in out
+ * @param T The numeric type to use (default double)
  * @param xp The starting input.
  */
-template <typename F>
-std::vector<double> multivariate_argmin(const F& f, const double* xp) {
-  double              fx;
-  std::vector<double> x(f.input_size());
-  std::vector<double> gx(f.input_size());
-  std::vector<double> x_prime(f.input_size());
+template <typename FUNC, typename T = double>
+std::vector<T> multivariate_argmin(FUNC const& f, T const* xp) {
+  T              fx;
+  std::vector<T> x(f.input_size());
+  std::vector<T> gx(f.input_size());
+  std::vector<T> x_prime(f.input_size());
 
   for (size_t j = 0; j < f.input_size(); j++) {
     x[j] = xp[j];
@@ -77,7 +78,7 @@ std::vector<double> multivariate_argmin(const F& f, const double* xp) {
       if (vector_dist(x, x_prime) <= 1e-5) {
         return x;
       } else {
-        double fx_prime;
+        T fx_prime;
         f.objective(x_prime.data(), &fx_prime);
         if (fx_prime < fx) {
           x  = x_prime;
@@ -95,27 +96,28 @@ std::vector<double> multivariate_argmin(const F& f, const double* xp) {
 
 /**
  * @brief Finds the multivariate argmax of a function via gradient descent.
- * @tparam F A function type that has a member functions
+ * @tparam FUNC A function type that has a member functions
  *  - size_t input_size()
  *  - void objective(double const * in, double* out), which stores the objective
  * function result in out
  *  - void gradient(double const * in, double* out), which stores the gradient
  * in out
+ * @tparam T The numeric type to use (default double)
  * @param xp The starting input.
  */
-template <typename F>
-std::vector<double> multivariate_argmax(const F& f, const double* x) {
-  struct C {
-    const F& _f;
+template <typename FUNC, typename T = double>
+std::vector<T> multivariate_argmax(const FUNC& f, T const* xp) {
+  struct multiplicative_inverse {
+    FUNC const& _f;
 
-    C(const F& f) : _f(f) {}
+    multiplicative_inverse(FUNC const& f) : _f(f) {}
 
-    void objective(const double* x, double* out) const {
-      double tmp;
+    void objective(T const* x, T* out) const {
+      T tmp;
       _f.objective(x, &tmp);
       *out = -tmp;
     }
-    void gradient(const double* x, double* out) const {
+    void gradient(T const* x, T* out) const {
       _f.gradient(x, out);
       for (size_t i = 0; i < _f.input_size(); i++) {
         out[i] *= -1;
@@ -123,7 +125,7 @@ std::vector<double> multivariate_argmax(const F& f, const double* x) {
     }
     size_t input_size() const { return _f.input_size(); }
   };
-  return multivariate_argmin(C(f), x);
+  return multivariate_argmin(multiplicative_inverse(f), xp);
 }
 
 template <typename F>
