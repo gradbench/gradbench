@@ -221,4 +221,17 @@ mod tests {
         write_goldenfile("summary_noevaluations.jsonl", &output);
         Ok(())
     }
+
+    #[test]
+    fn summary_noresponse() -> anyhow::Result<()> {
+        let input = r#"{ "elapsed": { "nanoseconds": 1032662218 }, "message": {"id": 0, "kind": "start", "eval": "hello"} }
+{ "elapsed": { "nanoseconds": 1033286058 }, "response": {"id": 0, "tool": "futhark", "config": {"backend": "c"}} }
+{ "elapsed": { "nanoseconds": 1033761149 }, "message": {"id": 1, "kind": "define", "module": "hello"} }
+"#;
+        let input_cursor = Cursor::new(input.as_bytes());
+        let mut output: Vec<u8> = Vec::new();
+        log::summary(&mut BufReader::new(input_cursor), &mut output)?;
+        write_goldenfile("summary_noresponse.jsonl", &output);
+        Ok(())
+    }
 }
