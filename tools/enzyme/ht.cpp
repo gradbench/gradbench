@@ -26,6 +26,8 @@ void compute_ht_complicated_J(const std::vector<double>& theta,
   std::vector<double> d_theta(theta.size());
   std::vector<double> d_err(err->size());
   std::vector<double> d_us(us.size());
+
+#pragma omp parallel for firstprivate(d_theta, d_err, d_us)
   for (int i = 0; i < 2 + theta.size(); i++) {
     if (i >= 2) {
       d_theta[i - 2] = 1;
@@ -67,6 +69,7 @@ void compute_ht_simple_J(const std::vector<double>& theta,
                          std::vector<double>* err, std::vector<double>* pJ) {
   std::vector<double> d_theta(theta.size());
   std::vector<double> d_err(err->size());
+#pragma omp parallel for firstprivate(d_theta, d_err)
   for (int i = 0; i < theta.size(); i++) {
     d_theta[i] = 1;
     d_ht_objective_simple(theta.data(), d_theta.data(), &data, err->data(),

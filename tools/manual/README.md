@@ -46,5 +46,8 @@ exceptions and notes.
 - `ba::jacobian`: not _yet_ multithreaded, as assembling the sparse
   matrix correctly is a little tricky.
 
+- `ht::jacobian`: multithreaded the multiple evaluations of the
+  derivative.
+
 - `lstm::jacobian`: not _yet_ multithreaded, although it should be
   possible.
