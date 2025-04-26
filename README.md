@@ -250,9 +250,9 @@ Multithreading is still a somewhat experimental feature. Many tools
 may still use only a single thread. Some tools may be able to
 multithread their primal code, but not their differentiated code. Some
 tools may fail to work entirely. An eval documents to which extent it
-can be parallelised in its *Commentary*, and a tool similarly
+can be parallelised in its _Commentary_, and a tool similarly
 documents which of its implementations have been parallelised in its
-*Commentary*.
+_Commentary_.
 
 ### Without cloning this repository
 
