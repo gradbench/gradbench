@@ -52,7 +52,19 @@ type HTJacobianOutput = double[][];
 
 Because the input extends `Runs`, the tool is expected to run the function some number of times. It should include one timing entry with the name `"evaluate"` for each time it ran the function.
 
+## Commentary
+
+### Parallel execution
+
+The reference implementation of `objective` in [ht.hpp][] has been
+partially parallelised using OpenMP, although the impact is minor on
+most workloads. More work could possibly make it perform better.
+
+Parallelisation of `jacobian` is trivial, as the multiple passes can
+be executed independently.
+
 [adbench]: https://github.com/microsoft/ADBench
 [paper]: https://arxiv.org/abs/1807.10129
 [protocol]: /CONTRIBUTING.md#types
 [typescript]: https://www.typescriptlang.org/
+[ht.hpp]: /cpp/gradbench/evals/ht.hpp

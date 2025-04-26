@@ -29,3 +29,22 @@ implementation of a tool does not do. It is not a goal that the
 It is not expected that we will be able to implement
 hand-differentiated versions of all evals. AD is after all most useful
 for those cases where hand-differentiation is impractical.
+
+### Multithreading
+
+The primal functions use the [C++ reference
+implementations][../../cpp/gradbench/evals] - see the Commentary for
+each individual eval to see how well they have been multithreaded.
+
+All differentiated functions have been implemented with multiple
+threads (although not all lead to speedup), with the following
+exceptions and notes.
+
+* `det::gradient`: no multithreading, on account of the recursive
+  algorithm.
+
+* `ba::jacobian`: not *yet* multithreaded, as assembling the sparse
+  matrix correctly is a little tricky.
+
+* `lstm::jacobian`: not *yet* multithreaded, although it should be
+  possible.

@@ -72,6 +72,18 @@ instead directly compute all of the necessary $O(n!)$ permutations of
 multiplications. This is overall more expensive, but is for some tools
 the only way to express this problem. See [det.fut][] for an example.
 
+### Parallel execution
+
+The recursive algorithm can be parallelised using fork-join
+parallelism, although this is _not_ done in the reference C++
+implementation. The efficiency of the implementation depends on
+destructively mutating certain input structures, which makes
+efficient parallel execution tricky.
+
+The nonrecursive algorithm discussed above is however straightforward
+to execute in parallel, as the loop iterations will be completely
+independent.
+
 [cmpad]: https://github.com/bradbell/cmpad
 [original documentation]: https://cmpad.readthedocs.io/det_by_minor.html
 [expansion by minors]: https://mathworld.wolfram.com/DeterminantExpansionbyMinors.html

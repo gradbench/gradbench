@@ -90,6 +90,11 @@ is [llsq][], which you might consider implementing first. After
 implementing `gmm`, implementing [lstm][] or [ode][] should not be so
 difficult.
 
+### Parallel execution
+
+This eval is straightforward to parallelise. The implementation in
+[gmm.hpp] has been parallelised with OpenMP.
+
 [adbench]: https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87
 [data]: https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87/data/gmm
 [gen]: https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/data/gmm/gmm-data-gen.py

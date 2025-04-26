@@ -99,6 +99,10 @@ The output contains the points `x` and `y` concatenated.
 This benchmark is similar to [particle][], and it is worth reading the
 commentary there.
 
+### Parallel execution
+
+This benchmark has no meaningful potential for parallel execution.
+
 [protocol]: /CONTRIBUTING.md#types
 [typescript]: https://www.typescriptlang.org/
 [particle]: /evals/particle

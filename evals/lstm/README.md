@@ -44,9 +44,19 @@ which will require an AD tool to handle the taping/tracing
 efficiently. An even simpler eval with the same properties is [ode][],
 which you might consider implementing first.
 
+### Parallel execution
+
+Although the reference implementation in [lstm.hpp][] has been
+parallelised with OpenMP, this eval (surprisingly) does not benefit
+much from parallel execution. The reason is that in contrast to real
+machine learning models, it is not _batched_, and so the amount of
+independent work is not large. This goes for both `objective` and
+`jacobian`.
+
 [adbench]: https://github.com/microsoft/ADBench
 [protocol]: /CONTRIBUTING.md#types
 [rename]: https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/ADBench/plot_graphs.py#L89-L92
 [typescript]: https://www.typescriptlang.org/
 [gmm]: /evals/gmm
 [ode]: /evals/ode
+[lstm.hpp]: /cpp/gradbench/evals/lstm.hpp

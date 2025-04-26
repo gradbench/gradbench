@@ -103,6 +103,10 @@ implemented by instantiating some generic function (although some of
 the tools do it like that). It is fine to have four completely
 independent implementations.
 
+### Parallel execution
+
+This benchmark has no meaningful potential for parallel execution.
+
 [protocol]: /CONTRIBUTING.md#types
 [typescript]: https://www.typescriptlang.org/
 [paper]: https://link.springer.com/chapter/10.1007/978-3-540-68942-3_8
