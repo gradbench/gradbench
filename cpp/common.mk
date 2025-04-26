@@ -10,10 +10,11 @@ CC?=cc
 CXXFLAGS?=-std=c++17 -O3 -march=native -Wall -I../../cpp
 LDFLAGS?=-lm
 
-all: $(EXECUTABLES)
+all: $(addprefix bin/, $(EXECUTABLES))
 
-%: %.cpp $(EXTRA_DEPS)
+bin/%: %.cpp $(EXTRA_DEPS)
+	@mkdir -p bin
 	$(CXX) -o $@ $^ $(LDFLAGS) $(CXXFLAGS)
 
 clean:
-	rm -f $(EXECUTABLES)
+	rm -f bin *.o
