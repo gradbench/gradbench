@@ -2,6 +2,11 @@
   font-family: sans-serif;
 }
 
+.logo {
+  width: 100px;
+  height: 100px;
+}
+
 a:link {
   text-decoration: none;
 }

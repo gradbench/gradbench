@@ -11,6 +11,8 @@
 #include "gradbench/main.hpp"
 #include "json.hpp"
 
+#include "../main.hpp"
+
 namespace det {
 
 struct Input {

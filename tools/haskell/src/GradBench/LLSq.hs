@@ -33,8 +33,8 @@ primalPoly x n = 0.5 * sum (map f [0 .. n - 1])
   where
     f i =
       let ti = t i n
-          g acc j xj = acc + negate (xj * ti ** fromIntegral j)
-       in (signum ti + V.ifoldl' g 0 x) ** 2
+          g (acc, mul) xj = (acc + negate (xj * mul), mul * ti)
+       in (signum ti + fst (V.foldl' g (0, 1) x)) ** 2
 
 primal :: Input -> PrimalOutput
 primal (Input x n) = primalPoly x n

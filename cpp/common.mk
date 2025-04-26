@@ -7,23 +7,22 @@
 
 CXX?=c++
 CC?=cc
-CFLAGS?=-std=c++17 -O3 -Wall -I../../cpp
+CXXFLAGS?=-std=c++17 -O3 -march=native -Wall -I../../cpp
 LDFLAGS?=-lm
 
 MULTITHREADED=no
 
 ifeq ($(MULTITHREADED),yes)
-CFLAGS+= -fopenmp
+CXXFLAGS+= -fopenmp
 LDFLAGS+= -fopenmp
 else
-CFLAGS+= -Wno-unknown-pragmas
+CXXFLAGS+= -Wno-unknown-pragmas
 endif
 
 all: $(EXECUTABLES)
 
-%: %.cpp
-	$(CXX) -o $@ $^ $(LDFLAGS) $(CFLAGS)
+%: %.cpp $(EXTRA_DEPS)
+	$(CXX) -o $@ $^ $(LDFLAGS) $(CXXFLAGS)
 
 clean:
 	rm -f $(EXECUTABLES)
-

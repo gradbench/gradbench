@@ -1,0 +1,2 @@
+{"elapsed":{"nanoseconds":3528846445},"message":{"kind":"evaluate","id":2,"module":"hello","function":"square"}}
+{"elapsed":{"nanoseconds":3543823169},"response":{"id":2,"success":true,"timings":[{"name":"evaluate","nanoseconds":0}]}}

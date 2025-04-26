@@ -1,5 +1,5 @@
-EXECUTABLES=hello gmm ht ba lstm ode llsq det
+EXECUTABLES=hello gmm lstm ba ht ode llsq det lse
 
 include ../../cpp/common.mk
 
-LDFLAGS+=-ladept
+LDFLAGS+=-lm -ladept
