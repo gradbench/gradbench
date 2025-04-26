@@ -28,7 +28,7 @@ def define(*, args: argparse.Namespace, module: str) -> Any:
                 "make",
                 "-C",
                 f"tools/{args.tool}",
-                module,
+                f"bin/{module}",
                 "-B",
                 f"MULTITHREADED={'yes' if args.multithreaded else 'no'}",
             ],
@@ -52,7 +52,7 @@ def evaluate(*, tool: str, module: str, function: str, input: Any) -> Any:
         tmp.flush()
         return evaluate_completed_process(
             subprocess.run(
-                [f"tools/{tool}/{module}", tmp.name, function],
+                [f"tools/{tool}/bin/{module}", tmp.name, function],
                 text=True,
                 capture_output=True,
             )

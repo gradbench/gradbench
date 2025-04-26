@@ -13,18 +13,22 @@ HT_OBJECTS=evals/hand/hand.o evals/hand/hand_d.o ht.o
 
 EXECUTABLES=gmm ba lstm ht
 
-all: $(EXECUTABLES)
+all: $(addprefix bin/, $(EXECUTABLES))
 
-ba: $(BA_OBJECTS) $(UTIL_OBJECTS)
+bin/ba: $(BA_OBJECTS) $(UTIL_OBJECTS)
+	@mkdir -p bin
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-gmm: $(GMM_OBJECTS) $(UTIL_OBJECTS)
+bin/gmm: $(GMM_OBJECTS) $(UTIL_OBJECTS)
+	@mkdir -p bin
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-lstm: $(LSTM_OBJECTS) $(UTIL_OBJECTS)
+bin/lstm: $(LSTM_OBJECTS) $(UTIL_OBJECTS)
+	@mkdir -p bin
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-ht: $(HT_OBJECTS) $(UTIL_OBJECTS)
+bin/ht: $(HT_OBJECTS) $(UTIL_OBJECTS)
+	@mkdir -p bin
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 %.o: %.c
@@ -34,4 +38,4 @@ ht: $(HT_OBJECTS) $(UTIL_OBJECTS)
 	$(CXX) $< -c -o $@ $(CXXFLAGS)
 
 clean:
-	rm -f $(UTIL_OBJECTS) $(GMM_OBJECTS) $(BA_OBJECTS) $(LSTM_OBJECTS) $(HT_OBJECTS) $(EXECUTABLES)
+	rm -f $(UTIL_OBJECTS) $(GMM_OBJECTS) $(BA_OBJECTS) $(LSTM_OBJECTS) $(HT_OBJECTS) bin

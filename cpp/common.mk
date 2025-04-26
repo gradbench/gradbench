@@ -19,10 +19,11 @@ else
 CXXFLAGS+= -Wno-unknown-pragmas
 endif
 
-all: $(EXECUTABLES)
+all: $(addprefix bin/, $(EXECUTABLES))
 
-%: %.cpp $(EXTRA_DEPS)
+bin/%: %.cpp $(EXTRA_DEPS)
+	@mkdir -p bin
 	$(CXX) -o $@ $^ $(LDFLAGS) $(CXXFLAGS)
 
 clean:
-	rm -f $(EXECUTABLES)
+	rm -f bin *.o

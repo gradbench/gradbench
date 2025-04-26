@@ -195,7 +195,7 @@ make -C cpp
 The executable for a tool `foo` for eval `bar` is compiled with
 
 ```sh
-make -C tools/foo bar
+make -C tools/foo bin/bar
 ```
 
 However, you do not need to do this in advance - compilation is done
