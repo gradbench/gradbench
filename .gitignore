@@ -1,22 +1,33 @@
-__pycache__/
+# macOS
 .DS_Store
-.fake/
-.lake/
-*.vsix
-*~
-/.config/dotnet-tools.json
+
+# Nix
 /.direnv/
 /.envrc
-/bin/
+
+# Vim
+*~
+
+# GradBench
 /log.jsonl
 /run/
 /stats/
-/tapenade_3.16.tar
-/tapenade_3.16/
+
+# Rust
 /target/
+
+# JavaScript
 dist/
 node_modules/
 
-# C++ stuff
+# Python
+__pycache__/
+
+# C++
 *.o
-tools/*/bin/
+/cpp/json.hpp
+bin/
+
+# Tapenade
+/tapenade_3.16.tar
+/tapenade_3.16/
