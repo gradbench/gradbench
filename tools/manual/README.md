@@ -40,11 +40,11 @@ All differentiated functions have been implemented with multiple
 threads (although not all lead to speedup), with the following
 exceptions and notes.
 
-* `det::gradient`: no multithreading, on account of the recursive
+- `det::gradient`: no multithreading, on account of the recursive
   algorithm.
 
-* `ba::jacobian`: not *yet* multithreaded, as assembling the sparse
+- `ba::jacobian`: not _yet_ multithreaded, as assembling the sparse
   matrix correctly is a little tricky.
 
-* `lstm::jacobian`: not *yet* multithreaded, although it should be
+- `lstm::jacobian`: not _yet_ multithreaded, although it should be
   possible.
