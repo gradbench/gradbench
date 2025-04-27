@@ -237,22 +237,30 @@ you to first extract the raw input from a `gradbench` log file.
 
 ### Multithreading
 
-By default, tools use only a single thread. You can ask them to use
-multiple (CPU) threads, if possible, by passing the option
-`--multithread`. If you use `gradbench repo tool`, then remember to
-pass `--` before any tool-specific options. Example:
+By default, tools use only a single thread. You can ask them to use multiple
+(CPU) threads, if possible, by passing the option `--multithread`. If you use
+`gradbench repo tool`, then remember to pass `--` before any tool-specific
+options. Example:
 
 ```sh
 ./gradbench repo tool manual -- --multithread
 ```
 
-Multithreading is still a somewhat experimental feature. Many tools
-may still use only a single thread. Some tools may be able to
-multithread their primal code, but not their differentiated code. Some
-tools may fail to work entirely. An eval documents to which extent it
-can be parallelised in its _Commentary_, and a tool similarly
-documents which of its implementations have been parallelised in its
-_Commentary_.
+Multithreading is still a somewhat experimental feature. Many tools may still
+use only a single thread. Some tools may be able to multithread their primal
+code, but not their differentiated code. Some tools may fail to work entirely.
+An eval documents to which extent it can be parallelised in its _Commentary_,
+and a tool similarly documents which of its implementations have been
+parallelised in its _Commentary_.
+
+The following tools have at least partial support for multithreaded execution of
+their differentiated functions:
+
+- [finite](tools/enzyme)
+- [finite](tools/finite)
+- [futhark](tools/futhark)
+- [jax](tools/jax)
+- [manual](tools/manual)
 
 ### Without cloning this repository
 
