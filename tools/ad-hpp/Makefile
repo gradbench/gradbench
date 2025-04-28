@@ -4,7 +4,7 @@ EXTRA_DEPS=include/ad.hpp
 
 include ../../cpp/common.mk
 
-GIT_TAG=v1.7
+GIT_TAG=v1.7.1
 CXXFLAGS+=-Iinclude
 
 include/ad.hpp:

@@ -30,7 +30,7 @@ template <typename T>
 T potential(T x1, T x2, T w) {
   T distL = dist(x1, x2, (T)10.0, (T)0.0);
   T distR = dist(x1, x2, (T)10.0, (T)(10.0 - w));  // force 10-w to T
-  return 1 / distL + 1 / distR;
+  return 1.0 / distL + 1.0 / distR;
 }
 
 /**
@@ -68,25 +68,11 @@ struct potential_adjoint_driver {
   using tape_t         = typename adjoint::tape_t;
   using tape_options_t = typename adjoint::tape_options_t;
 
-  static int _existing_drivers;
+  ad::shared_global_tape_ptr<adjoint> gtape;
 
-  potential_adjoint_driver() {
-    _existing_drivers++;
-    tape_options_t opts(1024 * 8);
-    if (adjoint::global_tape == nullptr) {
-      adjoint::global_tape = tape_t::create(opts);
-    }
-  }
-
-  ~potential_adjoint_driver() {
-    _existing_drivers--;
-    if (_existing_drivers == 0) {
-      tape_t::remove(adjoint::global_tape);
-    }
-  }
+  potential_adjoint_driver() : gtape(tape_options_t(AD_DEFAULT_TAPE_SIZE)) {}
 
   std::tuple<T, T> operator()(T x1, T x2, T w) const {
-    tape_t* gtape = adjoint::global_tape;
     gtape->reset();
     active_t x1_a, x2_a, w_a;
     ad::value(x1_a) = x1;
@@ -103,9 +89,6 @@ struct potential_adjoint_driver {
     return {ad::derivative(x1_a), ad::derivative(x2_a)};
   }
 };
-
-template <typename T>
-int potential_adjoint_driver<T>::_existing_drivers = 0;
 
 template <typename T, typename POTENTIAL_DRIVER>
 std::tuple<T, T, T, T>
@@ -184,11 +167,13 @@ class ParticleFR : public Function<particle::Input, particle::Output> {
     }
   };
 
+  optim_wrapper objective_wrapper;
+
 public:
   ParticleFR(particle::Input& input) : Function(input) {};
 
   void compute(particle::Output& output) {
-    output = multivariate_argmin(optim_wrapper(), &_input.w0)[0];
+    output = multivariate_argmin(objective_wrapper, &_input.w0)[0];
   }
 };
 
@@ -210,6 +195,8 @@ class ParticleRR : public Function<particle::Input, particle::Output> {
     euler_obj_driver_t  potential_driver_objective;
     euler_grad_driver_t potential_driver_gradient;
 
+    ad::shared_global_tape_ptr<argmin_adjoint> argmin_global_tape;
+
     template <typename T = double, typename DRIVER>
     void _objective(T const* w, T* out, DRIVER const& driver) const {
       T x1_0 = PARTICLE_X1_0;
@@ -222,11 +209,8 @@ class ParticleRR : public Function<particle::Input, particle::Output> {
     }
 
   public:
-    optim_wrapper() {
-      argmin_tape_options_t opts(AD_DEFAULT_TAPE_SIZE);
-      argmin_adjoint::global_tape = argmin_tape_t::create(opts);
-    }
-    ~optim_wrapper() { argmin_tape_t::remove(argmin_adjoint::global_tape); }
+    optim_wrapper()
+        : argmin_global_tape(argmin_tape_options_t(AD_DEFAULT_TAPE_SIZE)) {}
 
     size_t input_size() const { return 1; }
 
@@ -238,23 +222,24 @@ class ParticleRR : public Function<particle::Input, particle::Output> {
       argmin_active_t o_active;
       argmin_active_t w_active = w[0];
 
-      argmin_tape_t* gtape = argmin_adjoint::global_tape;
-      gtape->reset();
-      gtape->register_variable(w_active);
+      argmin_global_tape->reset();
+      argmin_global_tape->register_variable(w_active);
 
       _objective(&w_active, &o_active, potential_driver_gradient);
 
       ad::derivative(o_active) = 1.0;
-      gtape->interpret_adjoint();
+      argmin_global_tape->interpret_adjoint();
       *out = ad::derivative(w_active);
     }
   };
+
+  optim_wrapper objective_wrapper;
 
 public:
   ParticleRR(particle::Input& input) : Function(input) {};
 
   void compute(particle::Output& output) {
-    output = multivariate_argmin(optim_wrapper(), &_input.w0)[0];
+    output = multivariate_argmin(objective_wrapper, &_input.w0)[0];
   }
 };
 
@@ -300,11 +285,13 @@ class ParticleFF : public Function<particle::Input, particle::Output> {
     }
   };
 
+  optim_wrapper objective_wrapper;
+
 public:
   ParticleFF(particle::Input& input) : Function(input) {};
 
   void compute(particle::Output& output) {
-    output = multivariate_argmin(optim_wrapper(), &_input.w0)[0];
+    output = multivariate_argmin(objective_wrapper, &_input.w0)[0];
   }
 };
 
@@ -326,6 +313,8 @@ class ParticleRF : public Function<particle::Input, particle::Output> {
     euler_obj_driver_t  potential_driver_objective;
     euler_grad_driver_t potential_driver_gradient;
 
+    ad::shared_global_tape_ptr<argmin_adjoint> gtape;
+
     template <typename T = double, typename DRIVER>
     void _objective(T const* w, T* out, DRIVER const& driver) const {
       T x1_0 = PARTICLE_X1_0;
@@ -338,11 +327,7 @@ class ParticleRF : public Function<particle::Input, particle::Output> {
     }
 
   public:
-    optim_wrapper() {
-      argmin_tape_options_t opts(AD_DEFAULT_TAPE_SIZE);
-      argmin_adjoint::global_tape = argmin_tape_t::create(opts);
-    }
-    ~optim_wrapper() { argmin_tape_t::remove(argmin_adjoint::global_tape); }
+    optim_wrapper() : gtape(argmin_tape_options_t(AD_DEFAULT_TAPE_SIZE)) {}
 
     size_t input_size() const { return 1; }
 
@@ -353,7 +338,6 @@ class ParticleRF : public Function<particle::Input, particle::Output> {
     void gradient(double const* w, double* out) const {
       argmin_active_t o_active;
       argmin_active_t w_active = w[0];
-      argmin_tape_t*  gtape    = argmin_adjoint::global_tape;
       gtape->reset();
       gtape->register_variable(w_active);
       _objective(&w_active, &o_active, potential_driver_gradient);
@@ -363,11 +347,13 @@ class ParticleRF : public Function<particle::Input, particle::Output> {
     }
   };
 
+  optim_wrapper objective_wrapper;
+
 public:
   ParticleRF(particle::Input& input) : Function(input) {};
 
   void compute(particle::Output& output) {
-    output = multivariate_argmin(optim_wrapper(), &_input.w0)[0];
+    output = multivariate_argmin(objective_wrapper, &_input.w0)[0];
   }
 };
 
