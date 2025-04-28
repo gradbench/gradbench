@@ -24,7 +24,7 @@ def evaluate_completed_process(proc: subprocess.CompletedProcess[str]) -> Any:
 def define(*, tool: str, module: str) -> Any:
     try:
         subprocess.check_output(
-            ["make", "-C", f"tools/{tool}", module, "-B"],
+            ["make", "-C", f"tools/{tool}", f"bin/{module}", "-B"],
             text=True,
             stderr=subprocess.STDOUT,
         )
@@ -45,7 +45,7 @@ def evaluate(*, tool: str, module: str, function: str, input: Any) -> Any:
         tmp.flush()
         return evaluate_completed_process(
             subprocess.run(
-                [f"tools/{tool}/{module}", tmp.name, function],
+                [f"tools/{tool}/bin/{module}", tmp.name, function],
                 text=True,
                 capture_output=True,
             )
