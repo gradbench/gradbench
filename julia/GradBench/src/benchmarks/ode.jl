@@ -9,6 +9,9 @@
 # module and an instantiation for the specific function under
 # consideration. In this implementation, this is all inlined for
 # implementation simplicity. This is follows the style use in "ode.hpp"
+#
+# This module provides two implementations: one that requires
+# mutation, and one that does not.
 
 module ODE
 
@@ -16,6 +19,44 @@ struct Input
     x::Vector{Float64}
     s::Int
 end
+
+# An implementation in a pure and vectorised style.
+module Pure
+
+using ..ODE
+
+function ode_fun(x::Vector{T}, y::Vector{T}) where {T}
+    return [x[1]; x[2:end] .* y[1:end-1]]
+end
+
+function runge_kutta(x::Vector{T}, yf::Vector{T}, tf::Float64, s::Int) where {T}
+    h = tf / s
+
+    for _ in 1:s
+        k1 = ode_fun(x, yf)
+        k2 = ode_fun(x, yf .+ (h / 2) .* k1)
+        k3 = ode_fun(x, yf .+ (h / 2) .* k2)
+        k4 = ode_fun(x, yf .+ h .* k3)
+
+        increment = (h / 6) .* (k1 .+ 2 .* k2 .+ 2 .* k3 .+ k4)
+        yf = yf .+ increment
+    end
+
+    return yf
+end
+
+function primal(x::Vector{T}, s::Int) where {T}
+    tf = 2.0
+    yi = fill(0.0, length(x))
+    return runge_kutta(x, yi, tf, s)
+end
+
+end # module Pure
+
+# An implementation that uses side effects.
+module Impure
+
+using ..ODE
 
 function ode_fun(n, x, y, z)
     z[1] = x[1]
@@ -60,7 +101,7 @@ function primal(n, xi::Vector{T}, s, yf::Vector{T}) where {T}
     end
 end
 
-import ..GradBench
+import ...GradBench
 
 abstract type AbstractODE <: GradBench.Experiment end
 
@@ -79,5 +120,7 @@ function (::PrimalODE)(x, s)
     return output
 end
 
+
+end # module Impure
 
 end # module ode

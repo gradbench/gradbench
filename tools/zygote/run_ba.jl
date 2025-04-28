@@ -49,21 +49,31 @@ function compute_ba_J(cams, X, w, obs, feats)
     m = size(X, 2)
     p = size(obs, 2)
     jacobian = GradBench.BA.SparseMatrix(n, m, p)
-    reproj_err_d = zeros(2 * p, GradBench.BA.N_CAM_PARAMS + 3 + 1)
+
     for i in 1:p
-        compute_reproj_err_d_i = x -> compute_reproj_err_d(x, feats[:, i])
-        camIdx =  obs[1, i]
+        camIdx = obs[1, i]
         ptIdx = obs[2, i]
-        y, back = Zygote._pullback(compute_reproj_err_d_i, pack(cams[:, camIdx], X[:, ptIdx], w[i]))
-        ylen = size(y, 1)
-        J = hcat([ back(1:ylen .== j)[2] for j ∈ 1:ylen ]...)
-        GradBench.BA.insert_reproj_err_block!(jacobian, i, camIdx, ptIdx, J')
+        cam = cams[:, camIdx]
+        pt = X[:, ptIdx]
+        weight = w[i]
+        feat = feats[:, i]
+
+        compute_reproj_err_d_i(x) = compute_reproj_err_d(x, feat)
+        packed_input = pack(cam, pt, weight)
+        y, back = Zygote._pullback(compute_reproj_err_d_i, packed_input)
+
+        # Compute full Jacobian row-wise using pullback
+        J = map(j -> back(reshape(1.0 .* (1:length(y) .== j), size(y)))[2], 1:length(y))
+        Jmat = hcat(J...)'
+
+        GradBench.BA.insert_reproj_err_block!(jacobian, i, camIdx, ptIdx, Jmat)
     end
+
     for i in 1:p
-        w_err_d_i = compute_w_err_d(w[i])
-        GradBench.BA.insert_w_err_block!(jacobian, i, w_err_d_i)
+        GradBench.BA.insert_w_err_block!(jacobian, i, compute_w_err_d(w[i]))
     end
-    jacobian
+
+    return jacobian
 end
 
 function jacobian(j)

@@ -3,7 +3,7 @@ module ODE
 using Enzyme
 import GradBench
 
-struct GradientODE <: GradBench.ODE.AbstractODE end
+struct GradientODE <: GradBench.ODE.Impure.AbstractODE end
 function (::GradientODE)(x, s)
     output = similar(x)
     n = length(x)
@@ -14,7 +14,7 @@ function (::GradientODE)(x, s)
     dx = Enzyme.make_zero(x)
 
     Enzyme.autodiff(
-        Reverse, GradBench.ODE.primal, Const,
+        Reverse, GradBench.ODE.Impure.primal, Const,
         Const(n),
         Duplicated(x, dx),
         Const(s),
@@ -25,7 +25,7 @@ end
 
 GradBench.register!(
     "ode", Dict(
-        "primal" => GradBench.ODE.PrimalODE(),
+        "primal" => GradBench.ODE.Impure.PrimalODE(),
         "gradient" => GradientODE()
     )
 )

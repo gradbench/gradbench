@@ -1,0 +1,33 @@
+# THE compile_flags.txt FILE MUST EXIST IN PROJECT ROOT 
+# AND BE EMPTY FOR THIS TO WORK!
+#
+# who can possibly know why...
+
+CompileFlags:
+  Add:  -Icpp
+
+---
+# enforce c++17 if relevant
+If:
+  PathMatch: .*\/.*\.(hpp|cpp)
+
+CompileFlags:
+  Add: --std=c++17
+
+---
+# ad-hpp 
+If:
+  # use leading * to allow clangd to pick up the right files
+  # since clangd doesn't support relative paths to .clangd files
+  PathMatch: .*tools\/ad-hpp\/.*\.(hpp|cpp)
+
+CompileFlags:
+  Add: -Itools/ad-hpp/include
+
+---
+# tapenade-c
+If:
+  PathMatch: .*tools\/tapenade\/evals\/.*\.(h|c)
+
+CompileFlags:
+  Add: -Itools/tapenade/utils

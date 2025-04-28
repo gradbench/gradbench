@@ -43,13 +43,14 @@ end
 function run(params)
     mod = DISPATCH_TABLE[params["module"]]
     experiment = mod[params["function"]]
-    min_runs = get(params, "min_runs", 1)
-    min_seconds = get(params, "min_seconds", 0)
+    input = params["input"]
+    min_runs = input isa Dict ? get(input, "min_runs", 1) : 1
+    min_seconds = input isa Dict ? get(input, "min_seconds", 0) : 0
     @assert min_runs > 0
 
     timings = Any[]
 
-    args, t = measure(preprocess, experiment, params["input"])
+    args, t = measure(preprocess, experiment, input)
     push!(timings, Dict("name" => "preprocess", "nanoseconds" => t))
 
     ret, t = measure(experiment, args...)
@@ -93,8 +94,9 @@ include("benchmarks/det.jl")
 include("benchmarks/gmm.jl")
 include("benchmarks/hello.jl")
 include("benchmarks/ht.jl")
-include("benchmarks/ode.jl")
+include("benchmarks/llsq.jl")
 include("benchmarks/lse.jl")
 include("benchmarks/lstm.jl")
+include("benchmarks/ode.jl")
 
 end # module GradBench

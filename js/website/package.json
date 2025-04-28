@@ -1,0 +1,19 @@
+{
+  "name": "@gradbench/website",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc",
+    "dev": "vite",
+    "build": "tsc && vite build && bun run src/renderLogo.tsx > dist/logo.svg",
+    "lint": "prettier --check . && eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18",
+    "react-dom": "^18",
+    "react-vega": "^7",
+    "vega-lite": "^5"
+  }
+}
