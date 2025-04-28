@@ -37,15 +37,13 @@ public:
     _tape->register_variable(_main_params);
     _tape->register_variable(_extra_params);
     _input_pos = _tape->get_position();
-    std::cout << "Tape memory is: " << _tape->get_allocated_tape_memory_size()
-              << "\n";
   }
 
   void compute(lstm::JacOutput& output) {
     output.resize(8 * _input.l * _input.b + 3 * _input.b);
     _tape->reset_to(_input_pos);
 
-    std::for_each(_main_params.begin(), _extra_params.end(),
+    std::for_each(_main_params.begin(), _main_params.end(),
                   [&](adjoint_t& v) -> void { ad::derivative(v) = 0.0; });
 
     std::for_each(_extra_params.begin(), _extra_params.end(),
