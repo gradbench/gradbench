@@ -20,6 +20,16 @@ struct Input
     s::Int
 end
 
+import ..GradBench
+
+abstract type AbstractODE <: GradBench.Experiment end
+
+function GradBench.preprocess(::AbstractODE, message)
+    x = convert(Vector{Float64}, message["x"])
+    s = message["s"]
+    (; x, s)
+end
+
 # An implementation in a pure and vectorised style.
 module Pure
 
@@ -49,6 +59,13 @@ function primal(x::Vector{T}, s::Int) where {T}
     tf = 2.0
     yi = fill(0.0, length(x))
     return runge_kutta(x, yi, tf, s)
+end
+
+import ..ODE
+
+struct PrimalODE <: ODE.AbstractODE end
+function (::PrimalODE)(x, s)
+    return primal(x, s)
 end
 
 end # module Pure
@@ -102,16 +119,9 @@ function primal(n, xi::Vector{T}, s, yf::Vector{T}) where {T}
 end
 
 import ...GradBench
+import ..ODE
 
-abstract type AbstractODE <: GradBench.Experiment end
-
-function GradBench.preprocess(::AbstractODE, message)
-    x = convert(Vector{Float64}, message["x"])
-    s = message["s"]
-    (; x, s)
-end
-
-struct PrimalODE <: AbstractODE end
+struct PrimalODE <: ODE.AbstractODE end
 function (::PrimalODE)(x, s)
     output = similar(x)
     n = length(x)

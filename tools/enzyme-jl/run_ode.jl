@@ -3,7 +3,7 @@ module ODE
 using Enzyme
 import GradBench
 
-struct GradientODE <: GradBench.ODE.Impure.AbstractODE end
+struct GradientODE <: GradBench.ODE.AbstractODE end
 function (::GradientODE)(x, s)
     output = similar(x)
     n = length(x)
