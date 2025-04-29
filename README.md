@@ -238,12 +238,10 @@ you to first extract the raw input from a `gradbench` log file.
 ### Multithreading
 
 By default, tools use only a single thread. You can ask them to use multiple
-(CPU) threads, if possible, by passing the option `--multithreaded`. If you use
-`gradbench repo tool`, then remember to pass `--` before any tool-specific
-options. Example:
+(CPU) threads, if possible, by passing the option `--multithreaded`. Example:
 
 ```sh
-./gradbench repo tool manual -- --multithreaded
+./gradbench repo run --eval gmm --tool 'manual --multithreaded'
 ```
 
 Multithreading is still a somewhat experimental feature. Many tools may still
