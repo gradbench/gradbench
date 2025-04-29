@@ -254,7 +254,7 @@ parallelised in its _Commentary_.
 The following tools have at least partial support for multithreaded execution of
 their differentiated functions:
 
-- [finite](tools/enzyme)
+- [enzyme](tools/enzyme)
 - [finite](tools/finite)
 - [futhark](tools/futhark)
 - [jax](tools/jax)
