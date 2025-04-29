@@ -3,16 +3,16 @@ module Det
 using Enzyme
 import GradBench
 
-function gradient(j)
-    input = GradBench.Det.input_from_json(j)
-    M = transpose(reshape(input.A, input.ell, input.ell))
+struct GradientDet <: GradBench.Det.AbstractDet end
+function (::GradientDet)(A, ell)
+    M = transpose(reshape(A, ell, ell))
     z, = Enzyme.gradient(Reverse, GradBench.Det.Impure.det_by_minor, M)
-    return reshape(z', input.ell * input.ell)
+    return reshape(z', ell * ell)
 end
 
 GradBench.register!("det", Dict(
-    "primal" => GradBench.Det.Impure.primal ∘ GradBench.Det.input_from_json,
-    "gradient" => gradient
+    "primal" => GradBench.Det.Impure.PrimalDet(),
+    "gradient" => GradientDet()
 ))
 
 

@@ -15,11 +15,6 @@
 
 module ODE
 
-struct Input
-    x::Vector{Float64}
-    s::Int
-end
-
 import ..GradBench
 
 abstract type AbstractODE <: GradBench.Experiment end
