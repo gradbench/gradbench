@@ -6,10 +6,7 @@
 module BA
 
 using LinearAlgebra
-
-export BAInput, input_from_json, objective, compute_reproj_err, insert_w_err_block, dedup_jacobian
-
-##################### data #############################
+import ..GradBench
 
 const N_CAM_PARAMS = 11
 const ROT_IDX = 1
@@ -29,15 +26,17 @@ struct BAInput
     obs::Matrix{Int}
 end
 
-function input_from_json(j)
-    n = j["n"]
-    m = j["m"]
-    p = j["p"]
+abstract type AbstractBA <: GradBench.Experiment end
 
-    one_cam = convert(Vector{Float64}, j["cam"])
-    one_X = convert(Vector{Float64}, j["x"])
-    one_w = j["w"]
-    one_feat = convert(Vector{Float64}, j["feat"])
+function GradBench.preprocess(::AbstractBA, input)
+    n = input["n"]
+    m = input["m"]
+    p = input["p"]
+
+    one_cam = convert(Vector{Float64}, input["cam"])
+    one_X = convert(Vector{Float64}, input["x"])
+    one_w = input["w"]
+    one_feat = convert(Vector{Float64}, input["feat"])
 
     cams = repeat(one_cam, 1, n)
     X = repeat(one_X, 1, m)
@@ -54,7 +53,7 @@ function input_from_json(j)
         ptIdx = (ptIdx % m) + 1
     end
 
-    return BAInput(n, m, p, cams, X, w, feats, obs)
+    return (BAInput(n, m, p, cams, X, w, feats, obs),)
 end
 
 struct SparseMatrix
@@ -122,8 +121,6 @@ function dedup_jacobian(J)
         "vals" => vcat(J.vals[1:30], [J.vals[end]]))
 end
 
-##################### objective #############################
-
 function rodrigues_rotate_point(rot::Vector{T}, X::Vector{T}) where {T}
     sqtheta = sum(rot .* rot)
     if sqtheta > 1e-10
@@ -166,5 +163,21 @@ function objective(cams, X, w, obs, feats)
     w_err = 1.0 .- w .* w
     (reproj_err, w_err)
 end
+
+struct ObjectiveBA <: BA.AbstractBA end
+function (::ObjectiveBA)(input)
+    (r_err, w_err) =
+        objective(input.cams,
+                  input.X,
+                  input.w,
+                  input.obs,
+                  input.feats)
+    num_r = size(r_err, 2)
+    num_w = size(w_err, 1)
+    Dict("reproj_error" => Dict("elements" => r_err[:,1], "repeated" => num_r),
+         "w_err" => Dict("element" => w_err[1], "repeated" => num_w)
+         )
+end
+
 
 end

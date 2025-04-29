@@ -1,6 +1,6 @@
 import GradBench
 
-# include("run_ba.jl")
+include("run_ba.jl")
 include("run_det.jl")
 # include("run_gmm.jl")
 # include("run_hello.jl")
