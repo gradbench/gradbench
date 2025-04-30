@@ -65,6 +65,15 @@ a number of interesting things:
    function may not be entirely straightforward, as it is "sparse",
    but it is important for performance.
 
+### Parallel execution
+
+The `objective` function is essentially a parallel reduction over the
+_n_ input points, which can be parallelised very efficiently. The
+reference implementation in [kmeans.hpp][] has been parallelised with
+OpenMP. Similarly, `jacobian` is a kind of parallel histogram, which
+also admits efficient parallel execution.
+
 [paper]: https://proceedings.neurips.cc/paper/1994/hash/a1140a3d0df1c81e24ae954d935e8926-Abstract.html
 [protocol]: /CONTRIBUTING.md#types
 [typescript]: https://www.typescriptlang.org/
+[kmeans.hpp]: /cpp/gradbench/evals/kmeans.hpp

@@ -116,6 +116,15 @@ are using another language, and _particularly_ if you want to compute
 the sparse Jacobian in parallel. See [tools/futhark/ba.fut][] for how
 to do this.
 
+### Parallel execution
+
+The `objective` function contains parallelisable loops of size `p`.
+These are parallelised with OpenMP in [ba.hpp][].
+
+For `jacobian`, it is straightforward to parallelise the computation
+of the nonzero blocks, but it is tricky (but doable) to assemble the
+sparse representation of the Jacobian in parallel.
+
 [adbench]: https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87
 [data]: https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87/data/ba
 [io]: https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/shared/BAData.py

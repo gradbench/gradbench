@@ -68,8 +68,15 @@ challenge for this eval is the sequential loop with $s$ steps, which
 requires the AD tool to maintain a tape. The [lstm][] eval is a more
 complicated problem that exercises roughly the same parts of AD.
 
+### Parallel execution
+
+The `primal` function is easily parallelised, and this has been done
+with OpenMP in [ode.hpp][]. This does not show any speedup on our
+workloads, however.
+
 [cmpad]: https://github.com/bradbell/cmpad
 [original documentation]: https://cmpad.readthedocs.io/an_ode.html
 [protocol]: /CONTRIBUTING.md#types
 [typescript]: https://www.typescriptlang.org/
 [lstm]: /evals/lstm
+[ode.hpp]: /cpp/gradbench/evals/ode.hpp

@@ -42,7 +42,11 @@ CFLAGS = "-O3 -march=native -fno-math-errno"
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--backend", type=str, default="c")
+    parser.add_argument("--multithreaded", action="store_true")
     args = parser.parse_args()
+
+    if args.multithreaded:
+        args.backend = "multicore"
 
     for line in sys.stdin:
         message = json.loads(line)

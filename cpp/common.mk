@@ -10,6 +10,15 @@ CC?=cc
 CXXFLAGS?=-std=c++17 -O3 -march=native -Wall -I../../cpp
 LDFLAGS?=-lm
 
+MULTITHREADED=no
+
+ifeq ($(MULTITHREADED),yes)
+CXXFLAGS+= -fopenmp
+LDFLAGS+= -fopenmp
+else
+CXXFLAGS+= -Wno-unknown-pragmas
+endif
+
 all: $(addprefix bin/, $(EXECUTABLES))
 
 bin/%: %.cpp $(EXTRA_DEPS)

@@ -25,6 +25,7 @@ See <https://gradben.ch> for interactive performance charts generated from our l
       - [Not using uv](#not-using-uv)
     - [Running tools outside of Docker](#running-tools-outside-of-docker)
       - [Running C++-based tools](#running-c-based-tools)
+  - [Multithreading](#multithreading)
   - [Without cloning this repository](#without-cloning-this-repository)
 - [License](#license)
 
@@ -233,6 +234,31 @@ PYTHONPATH=python/gradbench/:$PYTHONPATH ./gradbench repo run --eval "$ python3 
 [You can also run the C++ executables completely separately from
 GradBench if you wish.](cpp#from-the-command-line) This does require
 you to first extract the raw input from a `gradbench` log file.
+
+### Multithreading
+
+By default, tools use only a single thread. You can ask them to use multiple
+(CPU) threads, if possible, by passing the option `--multithreaded`. Example:
+
+```sh
+./gradbench repo run --eval gmm --tool 'manual --multithreaded'
+```
+
+Multithreading is still a somewhat experimental feature. Many tools may still
+use only a single thread. Some tools may be able to multithread their primal
+code, but not their differentiated code. Some tools may fail to work entirely.
+An eval documents to which extent it can be parallelised in its _Commentary_,
+and a tool similarly documents which of its implementations have been
+parallelised in its _Commentary_.
+
+The following tools have at least partial support for multithreaded execution of
+their differentiated functions:
+
+- [enzyme](tools/enzyme)
+- [finite](tools/finite)
+- [futhark](tools/futhark)
+- [jax](tools/jax)
+- [manual](tools/manual)
 
 ### Without cloning this repository
 

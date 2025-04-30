@@ -44,6 +44,7 @@ in pkgs.stdenv.mkDerivation rec {
     pkgs.lapack
     pkgs.llvmPackages_19.clang
     pkgs.llvmPackages_19.lld
+    pkgs.llvmPackages_19.openmp
     pkgs.nixfmt-classic
     pkgs.nodejs_23
     pkgs.openblas

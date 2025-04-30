@@ -21,10 +21,17 @@ def evaluate_completed_process(proc: subprocess.CompletedProcess[str]) -> Any:
         }
 
 
-def define(*, tool: str, module: str) -> Any:
+def define(*, args: argparse.Namespace, module: str) -> Any:
     try:
         subprocess.check_output(
-            ["make", "-C", f"tools/{tool}", f"bin/{module}", "-B"],
+            [
+                "make",
+                "-C",
+                f"tools/{args.tool}",
+                f"bin/{module}",
+                "-B",
+                f"MULTITHREADED={'yes' if args.multithreaded else 'no'}",
+            ],
             text=True,
             stderr=subprocess.STDOUT,
         )
@@ -52,18 +59,18 @@ def evaluate(*, tool: str, module: str, function: str, input: Any) -> Any:
         )
 
 
-def run(tool: str) -> None:
+def run(args: argparse.Namespace) -> None:
     for line in sys.stdin:
         message = json.loads(line)
         response = {"id": message["id"]}
         match message["kind"]:
             case "start":
-                response["tool"] = tool
+                response["tool"] = args.tool
             case "define":
-                response |= define(tool=tool, module=message["module"])
+                response |= define(args=args, module=message["module"])
             case "evaluate":
                 response |= evaluate(
-                    tool=tool,
+                    tool=args.tool,
                     module=message["module"],
                     function=message["function"],
                     input=message["input"],
@@ -79,10 +86,11 @@ def main() -> None:
 
     parser = argparse.ArgumentParser()
     parser.add_argument("tool")
+    parser.add_argument("--multithreaded", action="store_true")
     args = parser.parse_args()
 
     try:
-        run(args.tool)
+        run(args)
     except (EOFError, BrokenPipeError):
         pass
 

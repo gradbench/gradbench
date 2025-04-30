@@ -37,6 +37,13 @@ sometimes the parallel style is slower in that case.
   in the expected format as in actually computing it. This part is not
   subject to AD.
 
+### Multithreading
+
+Futhark is a parallel array language and all benchmarks have been implemented in
+a parallel style when at all possible. Passing `--multithreaded` to the tool is
+equivalent to passing `--backend=multicore`, and will make use of Futhark's
+multicore CPU backend.
+
 [futhark]: https://futhark-lang.org/
 [det.fut]: det.fut
 [saddle.fut]: saddle.fut

@@ -14,3 +14,20 @@ Then, to run the tool itself:
 ```sh
 python3 python/gradbench/gradbench/cpp.py finite
 ```
+
+## Commentary
+
+The implementation uses a general-purpose (but very simple) finite
+differences module implemented in the file [finite.hpp][] with support
+for arbitrary higher-order differentiation. This is used in a
+straightforward manner to differentiate the primal functions from the
+[C++ reference implementations][../../cpp/gradbench/evals].
+
+### Multihreading
+
+The finite differences module ([finite.hpp][]) supports parallelism
+over the number of input parameters, implemented with OpenMP. Further,
+depending on the OpenMP configuration, nested parallelism inside the
+primal function may also be utilised.
+
+[finite.hpp]: ./finite.hpp

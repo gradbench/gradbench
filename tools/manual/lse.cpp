@@ -13,11 +13,13 @@ public:
     double max_elem = *std::max_element(_input.x.begin(), _input.x.end());
 
     double sum = 0.0;
+#pragma omp parallel for reduction(+ : sum)
     for (size_t i = 0; i < n; ++i) {
       output[i] = std::exp(_input.x[i] - max_elem);
       sum += output[i];
     }
 
+#pragma omp parallel for
     for (size_t i = 0; i < n; ++i) {
       output[i] /= sum;
     }

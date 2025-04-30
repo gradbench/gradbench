@@ -700,6 +700,7 @@ void get_skinned_vertex_positions_d(const double* const         us,
   // finger parameters
   size_t              ncorresp = corresp.size();
   LightMatrix<double> tmp1(3, 1), tmp2(3, 1);
+#pragma omp parallel for firstprivate(tmp1, tmp2)
   for (int i = 0; i < 4 * 5; ++i) {
     LightMatrix<double> curr_J(3, ncorresp, &pJ[(6 + i) * 3 * ncorresp],
                                false);  // 6 is offset (global params)
@@ -707,9 +708,9 @@ void get_skinned_vertex_positions_d(const double* const         us,
       const auto&         verts = model.triangles[corresp[j]].verts;
       const double* const u     = &us[2 * j];
 
-      // tmp1 = u[0] * positions_d[i].col(verts[0])
-      //      + u[1] * positions_d[i].col(verts[1])
-      //      + (1. - u[0] - u[1]) * positions_d[i].col(verts[2]);
+      // tmp1 = u[0] * positions_d[i].col(verts[0]) + u[1] *
+      // positions_d[i].col(verts[1])
+      //     + (1. - u[0] - u[1]) * positions_d[i].col(verts[2]);
       tmp1.set(positions_d[i].get_col(verts[0]));
       tmp1.scale_col(0, u[0]);
       tmp2.set(positions_d[i].get_col(verts[1]));
@@ -719,7 +720,6 @@ void get_skinned_vertex_positions_d(const double* const         us,
       tmp2.scale_col(0, 1. - u[0] - u[1]);
       tmp1.add(tmp2);
 
-      // curr_J.col(j) = -Rglob * tmp1;
       mat_mult(Rglob, tmp1, &tmp2);
       curr_J.set_col(j, tmp2.get_col(0));
       curr_J.scale_col(j, -1.);
@@ -776,9 +776,8 @@ void ht_objective_d(const double* const theta, const ht::DataLightMatrix& data,
   size_t npts = data.correspondences.size();
   // Map<Matrix3Xd> err(perr, 3, npts);
   LightMatrix<double> err(3, npts, perr, false);
+#pragma omp parallel for
   for (size_t i = 0; i < data.correspondences.size(); ++i) {
-    // err.col(i) = data.points.col(i)
-    //            - vertex_positions.col(data.correspondences[i]);
     subtract(3, data.points.get_col(i),
              vertex_positions.get_col(data.correspondences[i]),
              err.get_col_ptr(i));
@@ -808,6 +807,8 @@ void ht_objective_d(const double* const theta, const double* const us,
   LightMatrix<double> du0(3, npts, &pJ[0], false),
       du1(3, npts, &pJ[3 * npts], false);
   LightMatrix<double> ht_point(3, 1), tmp(3, 1);
+
+#pragma omp parallel for firstprivate(ht_point, tmp)
   for (size_t i = 0; i < data.correspondences.size(); ++i) {
     const auto& verts     = data.model.triangles[data.correspondences[i]].verts;
     const double* const u = &us[2 * i];
@@ -817,9 +818,9 @@ void ht_objective_d(const double* const theta, const double* const us,
     subtract(3, vertex_positions.get_col(verts[2]),
              vertex_positions.get_col(verts[1]), du1.get_col_ptr(i));
 
-    // ht_point = u[0] * vertex_positions.col(verts[0])
-    //          + u[1] * vertex_positions.col(verts[1])
-    //          + (1. - u[0] - u[1]) * vertex_positions.col(verts[2]);
+    // ht_point = u[0] * vertex_positions.col(verts[0]) + u[1] *
+    // vertex_positions.col(verts[1])
+    //     + (1. - u[0] - u[1]) * vertex_positions.col(verts[2]);
     ht_point.set(vertex_positions.get_col(verts[0]));
     ht_point.scale_col(0, u[0]);
     tmp.set(vertex_positions.get_col(verts[1]));

@@ -92,17 +92,18 @@ void gmm_objective_d(int d, int k, int n, const double* alphas,
                      const double* means, const double* icf, const double* x,
                      gmm::Wishart wishart, double* err, double* J) {
   const double CONSTANT = -n * d * 0.5 * log(2 * M_PI);
-  int          icf_sz   = d * (d + 1) / 2;
+  const int    icf_sz   = d * (d + 1) / 2;
 
   std::vector<double> Qdiags(d * k);
   std::vector<double> sum_qs(k);
-  std::vector<double> main_term(k);
-  std::vector<double> xcentered(d);
-  std::vector<double> Qxcentered(d);
 
   gmm::preprocess_qs(d, k, icf, sum_qs.data(), Qdiags.data());
 
   std::fill(J, J + (k + d * k + icf_sz * k), 0.0);
+
+  std::vector<double> main_term(k);
+  std::vector<double> xcentered(d);
+  std::vector<double> Qxcentered(d);
 
   std::vector<double> curr_means_d(d * k);
   std::vector<double> curr_q_d(d * k);
@@ -113,8 +114,11 @@ void gmm_objective_d(int d, int k, int n, const double* alphas,
   double* icf_d    = &J[k + d * k];
 
   double slse = 0.;
+
   for (int ix = 0; ix < n; ix++) {
     const double* const curr_x = &x[ix * d];
+
+#pragma omp parallel for firstprivate(xcentered, Qxcentered)
     for (int ik = 0; ik < k; ik++) {
       int     icf_off = ik * icf_sz;
       double* Qdiag   = &Qdiags[ik * d];
@@ -131,7 +135,11 @@ void gmm_objective_d(int d, int k, int n, const double* alphas,
       main_term[ik] =
           alphas[ik] + sum_qs[ik] - 0.5 * sqnorm(d, Qxcentered.data());
     }
-    slse += logsumexp_d(k, main_term.data(), main_term.data());
+    double lsum = logsumexp_d(k, main_term.data(), main_term.data());
+    ;
+    slse += lsum;
+
+#pragma omp parallel for
     for (int ik = 0; ik < k; ik++) {
       int means_off = ik * d;
       int icf_off   = ik * icf_sz;
@@ -149,6 +157,7 @@ void gmm_objective_d(int d, int k, int n, const double* alphas,
 
   std::vector<double> lse_alphas_d(k);
   double              lse_alphas = logsumexp_d(k, alphas, lse_alphas_d.data());
+#pragma omp parallel for
   for (int ik = 0; ik < k; ik++) {
     alphas_d[ik] -= n * lse_alphas_d[ik];
     for (int id = 0; id < d; id++) {

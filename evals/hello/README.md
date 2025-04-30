@@ -17,5 +17,9 @@ The simplest (real) benchmark is likely [llsq][].
 Note that in contrast to most other evals, `hello` does not have
 `min_runs` and `min_seconds` fields.
 
+### Parallel execution
+
+This eval holds no potential for parallel execution.
+
 [protocol]: /CONTRIBUTING.md#types
 [llsq]: /evals/llsq
