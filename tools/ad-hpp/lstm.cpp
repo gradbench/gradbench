@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <vector>
 
 #include "ad.hpp"
@@ -15,43 +16,38 @@ class Jacobian : public Function<lstm::Input, lstm::JacOutput> {
   std::vector<adjoint_t> _state;
   std::vector<adjoint_t> _sequence;
 
+  ad::shared_global_tape_ptr<adjoint> _tape;
+  adjoint::tape_t::position_t         _input_pos;
+
 public:
   Jacobian(lstm::Input& input)
       : Function(input), _main_params(_input.main_params.size()),
         _extra_params(_input.extra_params.size()), _state(_input.state.size()),
-        _sequence(_input.sequence.size()) {
+        _sequence(_input.sequence.size()),
+        _tape(adjoint::tape_options_t(TAPE_SIZE)) {
 
-    adjoint::global_tape = adjoint::tape_t::create(TAPE_SIZE);
+    std::copy(_input.main_params.begin(), _input.main_params.end(),
+              _main_params.begin());
+    std::copy(_input.extra_params.begin(), _input.extra_params.end(),
+              _extra_params.begin());
+    std::copy(_input.state.begin(), _input.state.end(), _state.begin());
+    std::copy(_input.sequence.begin(), _input.sequence.end(),
+              _sequence.begin());
 
-    for (size_t i = 0; i < _main_params.size(); i++) {
-      _main_params[i] = _input.main_params[i];
-    }
-
-    for (size_t i = 0; i < _extra_params.size(); i++) {
-      _extra_params[i] = _input.extra_params[i];
-    }
-
-    for (size_t i = 0; i < _state.size(); i++) {
-      _state[i] = _input.state[i];
-    }
-
-    for (size_t i = 0; i < _sequence.size(); i++) {
-      _sequence[i] = _input.sequence[i];
-    }
+    _tape->register_variable(_main_params);
+    _tape->register_variable(_extra_params);
+    _input_pos = _tape->get_position();
   }
 
   void compute(lstm::JacOutput& output) {
     output.resize(8 * _input.l * _input.b + 3 * _input.b);
+    _tape->reset_to(_input_pos);
 
-    adjoint::global_tape->reset();
+    std::for_each(_main_params.begin(), _main_params.end(),
+                  [&](adjoint_t& v) -> void { ad::derivative(v) = 0.0; });
 
-    for (size_t i = 0; i < _main_params.size(); i++) {
-      adjoint::global_tape->register_variable(_main_params[i]);
-    }
-
-    for (size_t i = 0; i < _extra_params.size(); i++) {
-      adjoint::global_tape->register_variable(_extra_params[i]);
-    }
+    std::for_each(_extra_params.begin(), _extra_params.end(),
+                  [&](adjoint_t& v) -> void { ad::derivative(v) = 0.0; });
 
     adjoint_t loss;
     lstm::objective(_input.l, _input.c, _input.b, _main_params.data(),
@@ -59,7 +55,7 @@ public:
                     &loss);
 
     ad::derivative(loss) = 1.0;
-    adjoint::global_tape->interpret_adjoint();
+    _tape->interpret_adjoint();
 
     int o = 0;
     for (size_t i = 0; i < _main_params.size(); i++) {

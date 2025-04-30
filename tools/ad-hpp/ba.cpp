@@ -9,10 +9,11 @@ using adjoint_t = ad::adjoint_t<double>;
 using adjoint   = ad::adjoint<double>;
 
 class Jacobian : public Function<ba::Input, ba::JacOutput> {
+  ad::shared_global_tape_ptr<adjoint> _tape;
+
 public:
-  Jacobian(ba::Input& input) : Function(input) {
-    adjoint::global_tape = adjoint::tape_t::create();
-  }
+  Jacobian(ba::Input& input)
+      : Function(input), _tape(adjoint::tape_options_t(AD_DEFAULT_TAPE_SIZE)) {}
 
   void compute(ba::JacOutput& output) {
     output = ba::SparseMat(_input.n, _input.m, _input.p);
@@ -34,18 +35,17 @@ public:
       const int camIdx = _input.obs[i * 2 + 0];
       const int ptIdx  = _input.obs[i * 2 + 1];
 
-      adjoint::global_tape->reset();
+      _tape->reset();
 
       adjoint_t ad_reproj_err[2];
 
       for (size_t j = 0; j < BA_NCAMPARAMS; j++) {
-        adjoint::global_tape->register_variable(
-            ad_cams[camIdx * BA_NCAMPARAMS + j]);
+        _tape->register_variable(ad_cams[camIdx * BA_NCAMPARAMS + j]);
       }
       for (size_t j = 0; j < 3; j++) {
-        adjoint::global_tape->register_variable(ad_X[ptIdx * 3 + j]);
+        _tape->register_variable(ad_X[ptIdx * 3 + j]);
       }
-      adjoint::global_tape->register_variable(ad_w[i]);
+      _tape->register_variable(ad_w[i]);
 
       ba::computeReprojError<adjoint_t>(&ad_cams[camIdx * BA_NCAMPARAMS],
                                         &ad_X[ptIdx * 3], &ad_w[i],
@@ -55,7 +55,7 @@ public:
       {
         ad::derivative(ad_reproj_err[0]) = 1;
         ad::derivative(ad_reproj_err[1]) = 0;
-        adjoint::global_tape->interpret_adjoint();
+        _tape->interpret_adjoint();
 
         int o = 0;
         for (size_t j = 0; j < BA_NCAMPARAMS; j++) {
@@ -70,10 +70,10 @@ public:
 
       // Compute second row.
       {
-        adjoint::global_tape->zero_adjoints();
+        _tape->zero_adjoints();
         ad::derivative(ad_reproj_err[0]) = 0;
         ad::derivative(ad_reproj_err[1]) = 1;
-        adjoint::global_tape->interpret_adjoint();
+        _tape->interpret_adjoint();
 
         int o = 0;
         for (size_t j = 0; j < BA_NCAMPARAMS; j++) {
@@ -90,13 +90,13 @@ public:
     }
 
     for (int i = 0; i < _input.p; i++) {
-      adjoint::global_tape->reset();
+      _tape->reset();
       adjoint_t err;
       adjoint_t w = _input.w[i];
-      adjoint::global_tape->register_variable(w);
+      _tape->register_variable(w);
       ba::computeZachWeightError<adjoint_t>(&w, &err);
       ad::derivative(err) = 1;
-      adjoint::global_tape->interpret_adjoint();
+      _tape->interpret_adjoint();
       output.insert_w_err_block(i, ad::derivative(w));
     }
   }

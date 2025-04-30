@@ -9,22 +9,22 @@ using adjoint_t = ad::adjoint_t<double>;
 using adjoint   = ad::adjoint<double>;
 
 class Gradient : public Function<lse::Input, lse::GradientOutput> {
-  std::vector<adjoint_t> _x_d;
+  std::vector<adjoint_t>              _x_d;
+  ad::shared_global_tape_ptr<adjoint> _tape;
 
 public:
   Gradient(lse::Input& input) : Function(input), _x_d(_input.x.size()) {
     std::copy(_input.x.begin(), _input.x.end(), _x_d.begin());
-    adjoint::global_tape = adjoint::tape_t::create();
   }
 
   void compute(lse::GradientOutput& output) {
     size_t n = _input.x.size();
     output.resize(n);
 
-    adjoint::global_tape->reset();
+    _tape->reset();
 
     for (auto& x : _x_d) {
-      adjoint::global_tape->register_variable(x);
+      _tape->register_variable(x);
     }
 
     adjoint_t error;
@@ -32,7 +32,7 @@ public:
 
     ad::derivative(error) = 1;
 
-    adjoint::global_tape->interpret_adjoint();
+    _tape->interpret_adjoint();
 
     for (size_t i = 0; i < n; i++) {
       output[i] = ad::derivative(_x_d[i]);

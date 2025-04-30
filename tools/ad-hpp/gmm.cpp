@@ -14,11 +14,13 @@ class Jacobian : public Function<gmm::Input, gmm::JacOutput> {
   std::vector<adjoint_t> _means;
   std::vector<adjoint_t> _icf;
 
+  ad::shared_global_tape_ptr<adjoint> _tape;
+
 public:
   Jacobian(gmm::Input& input)
       : Function(input), _alphas(_input.k), _means(_input.d * _input.k),
-        _icf((_input.d * (_input.d + 1) / 2) * _input.k) {
-    adjoint::global_tape = adjoint::tape_t::create(TAPE_SIZE);
+        _icf((_input.d * (_input.d + 1) / 2) * _input.k),
+        _tape(adjoint::tape_options_t(TAPE_SIZE)) {
 
     for (size_t i = 0; i < _alphas.size(); i++) {
       _alphas[i] = _input.alphas[i];
@@ -37,18 +39,18 @@ public:
     int Jcols = (_input.k * (_input.d + 1) * (_input.d + 2)) / 2;
     output.resize(Jcols);
 
-    adjoint::global_tape->reset();
+    _tape->reset();
 
     for (size_t i = 0; i < _alphas.size(); i++) {
-      adjoint::global_tape->register_variable(_alphas[i]);
+      _tape->register_variable(_alphas[i]);
     }
 
     for (size_t i = 0; i < _means.size(); i++) {
-      adjoint::global_tape->register_variable(_means[i]);
+      _tape->register_variable(_means[i]);
     }
 
     for (size_t i = 0; i < _icf.size(); i++) {
-      adjoint::global_tape->register_variable(_icf[i]);
+      _tape->register_variable(_icf[i]);
     }
 
     adjoint_t y;
@@ -57,7 +59,7 @@ public:
                    _icf.data(), _input.x.data(), _input.wishart, &y);
 
     ad::derivative(y) = 1.0;
-    adjoint::global_tape->interpret_adjoint();
+    _tape->interpret_adjoint();
 
     int o = 0;
     for (size_t i = 0; i < _alphas.size(); i++) {
