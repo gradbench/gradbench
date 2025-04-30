@@ -4,7 +4,6 @@ using Enzyme
 import GradBench
 
 struct GradientHello <: GradBench.Hello.AbstractHello end
-
 function (::GradientHello)(x)
     z, = Enzyme.gradient(Reverse, GradBench.Hello.square, x)
     return z
