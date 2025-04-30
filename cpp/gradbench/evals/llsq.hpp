@@ -51,7 +51,7 @@ void primal(size_t n, size_t m, const double* __restrict__ x,
       double inner_sum = s(ti);
       double mul       = 1;
       for (size_t j = 0; j < m; j++) {
-        inner_sum -= x[j] * pow(ti, j);
+        inner_sum -= x[j] * mul;
         mul *= ti;
       }
       sum += inner_sum * inner_sum;
