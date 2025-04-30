@@ -42,7 +42,7 @@ end
 
 function run(params)
     mod = DISPATCH_TABLE[params["module"]]
-    experiment = mod[params["function"]]
+    func = mod[params["function"]]
     input = params["input"]
     min_runs = input isa Dict ? get(input, "min_runs", 1) : 1
     min_seconds = input isa Dict ? get(input, "min_seconds", 0) : 0
@@ -50,20 +50,20 @@ function run(params)
 
     timings = Any[]
 
-    args, t = measure(preprocess, experiment, input)
+    args, t = measure(preprocess, func, input)
     push!(timings, Dict("name" => "preprocess", "nanoseconds" => t))
 
-    ret, t = measure(experiment, args...)
+    ret, t = measure(func, args...)
     push!(timings, Dict("name" => "warmup", "nanoseconds" => t))
 
-    output, t = measure(postprocess, experiment, ret)
+    output, t = measure(postprocess, func, ret)
     push!(timings, Dict("name" => "postprocess", "nanoseconds" => t))
 
     # Measure
     elapsed_seconds = 0
     i = 1
     while i <= min_runs || elapsed_seconds <= min_seconds
-        _, t = measure(experiment, args...)
+        _, t = measure(func, args...)
         push!(timings, Dict("name" => "evaluate", "nanoseconds" => t))
         elapsed_seconds += t / 1e9
         i += 1
