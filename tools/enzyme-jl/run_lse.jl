@@ -5,12 +5,12 @@ import GradBench
 
 struct GradientLSE <: GradBench.LSE.AbstractLSE end
 
-function (::GradientLSE)(x)
-    dx = Enzyme.make_zero(x)
+function (::GradientLSE)(input)
+    dx = Enzyme.make_zero(input.x)
 
     Enzyme.autodiff(
         Reverse, GradBench.LSE.logsumexp, Active,
-        Duplicated(x, dx)
+        Duplicated(input.x, dx)
     )
     return dx
 end

@@ -14,12 +14,11 @@ import ..GradBench
 abstract type AbstractLSE <: GradBench.Experiment end
 
 function GradBench.preprocess(::AbstractLSE, message)
-    x = convert(Vector{Float64}, message["x"])
-    (; x)
+    (Input(convert(Vector{Float64}, message["x"])),)
 end
 
 struct PrimalLSE <: AbstractLSE end
-(::PrimalLSE)(x) = logsumexp(x)
+(::PrimalLSE)(input) = logsumexp(input.x)
 
 
 end # module lse
