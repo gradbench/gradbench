@@ -3,22 +3,22 @@ module LSE
 using Enzyme
 import GradBench
 
-function gradient(message)
-    x = convert(Vector{Float64}, message["x"])
+struct GradientLSE <: GradBench.LSE.AbstractLSE end
 
-    dx = Enzyme.make_zero(x)
+function (::GradientLSE)(input)
+    dx = Enzyme.make_zero(input.x)
 
     Enzyme.autodiff(
         Reverse, GradBench.LSE.logsumexp, Active,
-        Duplicated(x, dx)
+        Duplicated(input.x, dx)
     )
     return dx
 end
 
 GradBench.register!(
     "lse", Dict(
-        "primal" => GradBench.LSE.primal,
-        "gradient" => gradient
+        "primal" => GradBench.LSE.PrimalLSE(),
+        "gradient" => GradientLSE()
     )
 )
 

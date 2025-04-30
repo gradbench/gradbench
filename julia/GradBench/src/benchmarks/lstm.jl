@@ -5,7 +5,7 @@
 
 module LSTM
 
-export LSTMInput, input_from_json, objective
+import GradBench
 
 struct LSTMInput
     main_params::Matrix{Float64}
@@ -14,12 +14,15 @@ struct LSTMInput
     sequence::Matrix{Float64}
 end
 
-function input_from_json(j)
-    main_params = reduce(hcat, convert(Vector{Vector{Float64}}, j["main_params"]))
-    extra_params = reduce(hcat, convert(Vector{Vector{Float64}}, j["extra_params"]))
-    state = reduce(hcat, convert(Vector{Vector{Float64}}, j["state"]))
-    sequence = reduce(hcat, convert(Vector{Vector{Float64}}, j["sequence"]))
-    return LSTMInput(main_params, extra_params, state, sequence)
+abstract type AbstractLSTM <: GradBench.Experiment end
+
+function GradBench.preprocess(::AbstractLSTM, input)
+    main_params = reduce(hcat, convert(Vector{Vector{Float64}}, input["main_params"]))
+    extra_params = reduce(hcat, convert(Vector{Vector{Float64}}, input["extra_params"]))
+    state = reduce(hcat, convert(Vector{Vector{Float64}}, input["state"]))
+    sequence = reduce(hcat, convert(Vector{Vector{Float64}}, input["sequence"]))
+
+    return (LSTMInput(main_params, extra_params, state, sequence),)
 end
 
 function sigmoid(x)
@@ -73,5 +76,14 @@ function objective(main_params::Matrix{Float64},
     end
     -total / count
 end
+
+struct ObjectiveLSTM <: LSTM.AbstractLSTM end
+function (::ObjectiveLSTM)(input)
+    return GradBench.LSTM.objective(input.main_params,
+                                    input.extra_params,
+                                    input.state,
+                                    input.sequence)
+end
+
 
 end

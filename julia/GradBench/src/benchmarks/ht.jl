@@ -5,11 +5,10 @@
 
 module HT
 
+import GradBench
 using LinearAlgebra
 
-export HTModel, HTInput, objective_simple, objective_complicated
-
-struct HTModel
+struct Model
     bone_names::Vector{String}
     parents::Vector{Int}
     base_relatives::Vector{Matrix{Float64}}
@@ -20,8 +19,8 @@ struct HTModel
     is_mirrored::Bool
 end
 
-struct HTInput
-    model::HTModel
+struct Input
+    model::Model
     correspondences::Vector{Int}
     points::Matrix{Float64}
     theta::Vector{Float64}
@@ -29,14 +28,16 @@ struct HTInput
     us::Matrix{Float64}
 end
 
+abstract type AbstractHT <: GradBench.Experiment end
+
 "Turn a vector of rows into the corresponding matrix."
 function vecvecToMatrix(v::Vector{Vector{Float64}}) :: Matrix{Float64}
     transpose(reduce(hcat, v))
 end
 
-function input_from_json(json)
-    theta = json["theta"]
-    us = json["us"]
+function GradBench.preprocess(::AbstractHT, input)
+    theta = input["theta"]
+    us = input["us"]
 
     if size(us, 1) == 0
         us = Matrix{Float64}(undef, 0, 0)
@@ -44,34 +45,34 @@ function input_from_json(json)
         us = vecvecToMatrix(convert(Vector{Vector{Float64}}, us))
     end
 
-    correspondences = json["data"]["correspondences"]
+    correspondences = input["data"]["correspondences"]
     points = vecvecToMatrix(convert(Vector{Vector{Float64}},
-                                    json["data"]["points"]))
+                                    input["data"]["points"]))
 
     base_positions = vecvecToMatrix(convert(Vector{Vector{Float64}},
-                                            json["data"]["model"]["base_positions"]))
+                                            input["data"]["model"]["base_positions"]))
     weights = vecvecToMatrix(convert(Vector{Vector{Float64}},
-                                     json["data"]["model"]["weights"]))
-    triangles = json["data"]["model"]["triangles"]
+                                     input["data"]["model"]["weights"]))
+    triangles = input["data"]["model"]["triangles"]
     base_relatives = map(v -> vecvecToMatrix(convert(Vector{Vector{Float64}},v)),
-                         json["data"]["model"]["base_relatives"])
+                         input["data"]["model"]["base_relatives"])
     inverse_base_absolutes = map(v -> vecvecToMatrix(convert(Vector{Vector{Float64}},v)),
-                                 json["data"]["model"]["inverse_base_absolutes"])
+                                 input["data"]["model"]["inverse_base_absolutes"])
 
-    model = HTModel(json["data"]["model"]["bone_names"],
-                    json["data"]["model"]["parents"] .+ 1, # Julia indexing
+    model = Model(input["data"]["model"]["bone_names"],
+                    input["data"]["model"]["parents"] .+ 1, # Julia indexing
                     base_relatives,
                     inverse_base_absolutes,
                     transpose(base_positions),
                     transpose(weights),
                     [ triangles[i] .+ 1 for i ∈ 1:size(triangles, 1) ], # Julia indexing
-                    json["data"]["model"]["is_mirrored"])
+                    input["data"]["model"]["is_mirrored"])
 
-    HTInput(model,
-            correspondences .+ 1, # Julia indexing
-            transpose(points),
-            theta,
-            us)
+    return (Input(model,
+                  correspondences .+ 1, # Julia indexing
+                  transpose(points),
+                  theta,
+                  us),)
 end
 
 # objective
@@ -133,7 +134,7 @@ function euler_angles_to_rotation_matrix(xyz::Vector{T1})::Matrix{T1} where {T1}
     Rz * Ry * Rx
 end
 
-function get_posed_relatives(model::HTModel, pose_params::Vector{Vector{T1}})::Vector{Matrix{T1}} where {T1}
+function get_posed_relatives(model::Model, pose_params::Vector{Vector{T1}})::Vector{Matrix{T1}} where {T1}
     # default parametrization xzy # Flexion, Abduction, Twist
     order = [1, 3, 2]
     offset = 3
@@ -144,7 +145,7 @@ function get_posed_relatives(model::HTModel, pose_params::Vector{Vector{T1}})::V
     ]
 end
 
-function get_skinned_vertex_positions(model::HTModel, pose_params::Vector{Vector{T1}}, apply_global::Bool = true)::Matrix{T1} where {T1}
+function get_skinned_vertex_positions(model::Model, pose_params::Vector{Vector{T1}}, apply_global::Bool = true)::Matrix{T1} where {T1}
     relatives = get_posed_relatives(model, pose_params)
     absolutes = relatives_to_absolutes(relatives, model.parents)
 
@@ -196,7 +197,7 @@ function to_pose_params(theta::Vector{T1}, n_bones::Int)::Vector{Vector{T1}} whe
     ]
 end
 
-function objective_simple(model::HTModel, correspondences::Vector{Int}, points::Matrix{T1}, theta::Vector{T2}) where {T1, T2}
+function objective_simple(model::Model, correspondences::Vector{Int}, points::Matrix{T1}, theta::Vector{T2}) where {T1, T2}
     pose_params = to_pose_params(theta, length(model.bone_names))
 
     vertex_positions = get_skinned_vertex_positions(model, pose_params)
@@ -205,7 +206,7 @@ function objective_simple(model::HTModel, correspondences::Vector{Int}, points::
     vcat([ points[:, i] - vertex_positions[:, correspondences[i]] for i ∈ 1:n_corr ]...)
 end
 
-function objective_complicated(model::HTModel,
+function objective_complicated(model::Model,
                                correspondences::Vector{Int},
                                points::Matrix{T1},
                                theta::Vector{T2},
@@ -228,6 +229,23 @@ function objective_complicated(model::HTModel,
     # Compute the residuals and flatten to a vector
     residuals = points - hand_points
     return vec(residuals)
+end
+
+struct ObjectiveHT <: HT.AbstractHT end
+function (::ObjectiveHT)(input)
+    complicated = size(input.us, 1) != 0
+    if complicated
+        objective_complicated(input.model,
+                              input.correspondences,
+                              input.points,
+                              input.theta,
+                              input.us)
+    else
+        objective_simple(input.model,
+                         input.correspondences,
+                         input.points,
+                         input.theta)
+    end
 end
 
 end

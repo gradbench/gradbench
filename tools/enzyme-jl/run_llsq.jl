@@ -3,9 +3,10 @@ module LLSQ
 using Enzyme
 import GradBench
 
-function gradient(message)
-    x = convert(Vector{Float64}, message["x"])
-    n = message["n"]
+struct GradientLLSQ <: GradBench.LLSQ.AbstractLLSQ end
+function (::GradientLLSQ)(input)
+    x = input.x
+    n = input.n
 
     dx = Enzyme.make_zero(x)
 
@@ -17,8 +18,8 @@ function gradient(message)
 end
 
 GradBench.register!("llsq", Dict(
-    "primal" => input -> GradBench.LLSQ.primal(input["x"], input["n"]),
-    "gradient" => gradient
+    "primal" => GradBench.LLSQ.PrimalLLSQ(),
+    "gradient" => GradientLLSQ()
 ))
 
 end

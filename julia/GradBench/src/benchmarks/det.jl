@@ -2,15 +2,14 @@
 # mutation, and one that does not.
 module Det
 
-export Input, input_from_json, det_by_minor, primal
+import ..GradBench
 
-struct Input
-    A::Vector{Float64}
-    ell::Int
-end
+abstract type AbstractDet <: GradBench.Experiment end
 
-function input_from_json(j)
-    Input(j["A"], j["ell"])
+function GradBench.preprocess(::AbstractDet, message)
+    A = convert(Vector{Float64}, message["A"])
+    ell = message["ell"]
+    (; A, ell)
 end
 
 module Pure
@@ -38,11 +37,16 @@ function det_by_minor(matrix::AbstractMatrix{T}) where T
     end
 end
 
-function primal(input::Input)
-    return det_by_minor(transpose(reshape(input.A, input.ell, input.ell)))
+function primal(A, ell)
+    return det_by_minor(transpose(reshape(A, ell, ell)))
 end
 
+struct PrimalDet <: Det.AbstractDet end
+function (::PrimalDet)(A, ell)
+    return primal(A, ell)
 end
+
+end # module Pure
 
 # This is written in a very imperative style mirroring the one used
 # for C++.
@@ -100,10 +104,15 @@ function det_by_minor(A)
     return det_of_minor(A, ell, ell, r, c)
 end
 
-function primal(input::Input)
-    return det_by_minor(transpose(reshape(input.A, input.ell, input.ell)))
+function primal(A, ell)
+    return det_by_minor(transpose(reshape(A, ell, ell)))
 end
 
+struct PrimalDet <: Det.AbstractDet end
+function (::PrimalDet)(A, ell)
+    return primal(A, ell)
 end
+
+end # module Impure
 
 end

@@ -8,25 +8,6 @@ module HT
 import Zygote
 import GradBench
 
-# FIXME: it is very expensive to redo all the input parsing here for
-# every run. We absolutely must hoist it out into a "prepare" stage.
-function objective(j)
-    input = GradBench.HT.input_from_json(j)
-    complicated = size(input.us, 1) != 0
-    if complicated
-        GradBench.HT.objective_complicated(input.model,
-                                           input.correspondences,
-                                           input.points,
-                                           input.theta,
-                                           input.us)
-    else
-        GradBench.HT.objective_simple(input.model,
-                                      input.correspondences,
-                                      input.points,
-                                      input.theta)
-    end
-end
-
 function interleave_rows(A, B, C)
     stacked = cat(A, B, C; dims=3)                 # Stack into a 3D array (rows × cols × 3)
     permuted = permutedims(stacked, (3, 1, 2))     # Now shape is (3 × rows × cols)
@@ -34,8 +15,8 @@ function interleave_rows(A, B, C)
     return reshaped
 end
 
-function jacobian(j)
-    input = GradBench.HT.input_from_json(j)
+struct JacobianHT <: GradBench.HT.AbstractHT end
+function (::JacobianHT)(input)
     complicated = !isempty(input.us)
 
     if complicated
@@ -78,9 +59,10 @@ function jacobian(j)
     end
 end
 
+
 GradBench.register!("ht", Dict(
-    "objective" => objective,
-    "jacobian" => jacobian
+    "objective" => GradBench.HT.ObjectiveHT(),
+    "jacobian" => JacobianHT()
 ))
 
 end

@@ -15,9 +15,14 @@
 
 module ODE
 
-struct Input
-    x::Vector{Float64}
-    s::Int
+import ..GradBench
+
+abstract type AbstractODE <: GradBench.Experiment end
+
+function GradBench.preprocess(::AbstractODE, message)
+    x = convert(Vector{Float64}, message["x"])
+    s = message["s"]
+    (; x, s)
 end
 
 # An implementation in a pure and vectorised style.
@@ -51,7 +56,14 @@ function primal(x::Vector{T}, s::Int) where {T}
     return runge_kutta(x, yi, tf, s)
 end
 
+import ..ODE
+
+struct PrimalODE <: ODE.AbstractODE end
+function (::PrimalODE)(x, s)
+    return primal(x, s)
 end
+
+end # module Pure
 
 # An implementation that uses side effects.
 module Impure
@@ -101,6 +113,19 @@ function primal(n, xi::Vector{T}, s, yf::Vector{T}) where {T}
     end
 end
 
+import ...GradBench
+import ..ODE
+
+struct PrimalODE <: ODE.AbstractODE end
+function (::PrimalODE)(x, s)
+    output = similar(x)
+    n = length(x)
+
+    primal(n, x, s, output)
+    return output
 end
+
+
+end # module Impure
 
 end # module ode

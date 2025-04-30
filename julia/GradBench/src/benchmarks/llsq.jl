@@ -1,10 +1,18 @@
 module LLSQ
 
-export Input, primal
+import GradBench
 
 struct Input
     x::Vector{Float64}
     n::Int64
+end
+
+abstract type AbstractLLSQ <: GradBench.Experiment end
+
+function GradBench.preprocess(::AbstractLLSQ, message)
+    x = convert(Vector{Float64}, message["x"])
+    n = message["n"]
+    return (Input(x, n),)
 end
 
 function t(i::Int64, n::Int64)
@@ -27,5 +35,11 @@ function primal(x::Vector{T}, n::Int64) where {T}
 
     return sum(f(i) for i in 0:n-1) / 2
 end
+
+struct PrimalLLSQ <: AbstractLLSQ end
+function (::PrimalLLSQ)(input)
+    return primal(input.x, input.n)
+end
+
 
 end

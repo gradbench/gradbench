@@ -3,15 +3,15 @@ module LSE
 import Zygote
 import GradBench
 
-function gradient(input)
-    x = convert(Vector{Float64}, input["x"])
-    z, = Zygote.gradient(GradBench.LSE.logsumexp, x)
+struct GradientLSE <: GradBench.LSE.AbstractLSE end
+function (::GradientLSE)(input)
+    z, = Zygote.gradient(GradBench.LSE.logsumexp, input.x)
     return z
 end
 
 GradBench.register!("lse", Dict(
-    "primal" => GradBench.LSE.primal,
-    "gradient" => gradient
+    "primal" => GradBench.LSE.PrimalLSE(),
+    "gradient" => GradientLSE()
 ))
 
 
