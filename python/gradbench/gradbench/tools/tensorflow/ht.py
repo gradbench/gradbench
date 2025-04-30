@@ -119,6 +119,14 @@ class TensorflowHT(ITest):
             # where us part is a block diagonal matrix with blocks of
             # size [3, 2]
 
+            # Explicitly fail when the input is large. This is to avoid
+            # flakiness in CI. This particular implementation is so slow that
+            # these numbers are in any case not interesting.
+            if self.nrows > 5000:
+                raise Exception(
+                    "ht disabled due to https://github.com/gradbench/gradbench/issues/390"
+                )
+
             us_J = np.concatenate(
                 [
                     self.jacobian[3 * i : 3 * i + 3, 2 * i : 2 * i + 2]
