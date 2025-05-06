@@ -5,8 +5,6 @@ import jax.numpy as jnp
 import numpy as np
 from gradbench import wrap
 
-jax.config.update("jax_enable_x64", True)
-
 
 def t(i, n):
     return -1.0 + (i * 2.0) / (n - 1.0)
