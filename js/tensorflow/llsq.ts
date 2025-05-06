@@ -25,14 +25,10 @@ interface Input extends Runs {
 }
 
 export const primal = multipleRuns(({ x, n }: Input) => {
-  return () => {
-    return f(n)(tf.tensor(x)).arraySync();
-  };
+  return () => f(n)(tf.tensor(x)).arraySync();
 });
 
 export const gradient = multipleRuns(({ x, n }: Input) => {
   const g = tf.grad(f(n));
-  return () => {
-    return g(tf.tensor(x)).arraySync();
-  };
+  return () => g(tf.tensor(x)).arraySync();
 });
