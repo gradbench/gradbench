@@ -1,0 +1,11 @@
+{
+  "name": "@gradbench/tensorflow",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@tensorflow/tfjs": "^4"
+  },
+  "scripts": {
+    "typecheck": "tsc"
+  }
+}
