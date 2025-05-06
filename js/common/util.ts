@@ -16,7 +16,6 @@ const catchErrors = async <T extends any[]>(
   try {
     return await f(...args);
   } catch (error: any) {
-    console.error(error);
     return { success: false, error: `${error.stack}` };
   }
 };
