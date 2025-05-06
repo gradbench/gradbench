@@ -1,0 +1,8 @@
+{
+  "name": "@gradbench/common",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc"
+  }
+}

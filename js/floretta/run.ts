@@ -1,12 +1,12 @@
-import { stdin } from "node:process";
-import * as readline from "node:readline";
 import type {
   DefineMessage,
   DefineResponse,
   EvaluateMessage,
   EvaluateResponse,
   Message,
-} from "./protocol.ts";
+} from "@gradbench/common/protocol.ts";
+import { stdin } from "node:process";
+import * as readline from "node:readline";
 
 const catchErrors = async <T extends any[]>(
   f: (...args: T) => Promise<{ success: boolean }>,
