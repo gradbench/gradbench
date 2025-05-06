@@ -9,22 +9,23 @@ import { stdin } from "node:process";
 import * as readline from "node:readline";
 import type { Runs, Timing } from "./protocol.ts";
 
+const catchErrors = async <T extends any[]>(
+  f: (...args: T) => Promise<{ success: boolean }>,
+  ...args: T
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    return await f(...args);
+  } catch (error: any) {
+    console.error(error);
+    return { success: false, error: `${error.stack}` };
+  }
+};
+
 export const main = async ({
   getModule,
 }: {
   getModule: (name: string) => Promise<any>;
 }) => {
-  const catchErrors = async <T extends any[]>(
-    f: (...args: T) => Promise<{ success: boolean }>,
-    ...args: T
-  ): Promise<{ success: boolean; error?: string }> => {
-    try {
-      return await f(...args);
-    } catch (error: any) {
-      return { success: false, error: `${error.stack}` };
-    }
-  };
-
   const define = async (
     message: DefineMessage,
   ): Promise<Omit<DefineResponse, "id">> => {
