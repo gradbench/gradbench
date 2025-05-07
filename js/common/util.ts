@@ -1,12 +1,11 @@
 import type {
+  Base,
   DefineMessage,
   DefineResponse,
   EvaluateMessage,
   EvaluateResponse,
   Message,
 } from "@gradbench/common/protocol.ts";
-import { stdin } from "node:process";
-import * as readline from "node:readline";
 import type { Runs, Timing } from "./protocol.ts";
 
 const catchErrors = async <T extends any[]>(
@@ -15,16 +14,21 @@ const catchErrors = async <T extends any[]>(
 ): Promise<{ success: boolean; error?: string }> => {
   try {
     return await f(...args);
-  } catch (error: any) {
-    return { success: false, error: `${error.stack}` };
+  } catch (err: any) {
+    let error = `${err.stack}`;
+    // In Firefox, the `stack` field doesn't contain the actual error message.
+    if (!error.includes(`${err}`)) error = `${err}\n${error}`;
+    return { success: false, error };
   }
 };
 
-export const main = async ({
+export const respond = async ({
+  message,
   getModule,
 }: {
+  message: Message;
   getModule: (name: string) => Promise<any>;
-}) => {
+}): Promise<Base | DefineResponse | EvaluateResponse> => {
   const define = async (
     message: DefineMessage,
   ): Promise<Omit<DefineResponse, "id">> => {
@@ -40,21 +44,18 @@ export const main = async ({
     return { success: true, ...response };
   };
 
-  for await (const line of readline.createInterface({ input: stdin })) {
-    const message: Message = JSON.parse(line);
-    const response = { id: message.id };
-    switch (message.kind) {
-      case "define": {
-        Object.assign(response, await catchErrors(define, message));
-        break;
-      }
-      case "evaluate": {
-        Object.assign(response, await catchErrors(evaluate, message));
-        break;
-      }
+  const response = { id: message.id };
+  switch (message.kind) {
+    case "define": {
+      Object.assign(response, await catchErrors(define, message));
+      break;
     }
-    console.log(JSON.stringify(response));
+    case "evaluate": {
+      Object.assign(response, await catchErrors(evaluate, message));
+      break;
+    }
   }
+  return response;
 };
 
 export const multipleRuns =
@@ -64,14 +65,15 @@ export const multipleRuns =
     const { min_runs, min_seconds } = input;
     let output;
     const timings = [];
-    let elapsed = 0;
+    let seconds = 0;
     do {
-      const start = process.hrtime.bigint();
+      const start = performance.now();
       output = evaluate();
-      const end = process.hrtime.bigint();
-      const nanoseconds = Number(end - start);
+      const end = performance.now();
+      const milliseconds = end - start;
+      const nanoseconds = Math.round(milliseconds * 1e6);
       timings.push({ name: "evaluate", nanoseconds });
-      elapsed += nanoseconds / 1e9;
-    } while (timings.length < min_runs || elapsed < min_seconds);
+      seconds += milliseconds / 1e3;
+    } while (timings.length < min_runs || seconds < min_seconds);
     return { output, timings };
   };

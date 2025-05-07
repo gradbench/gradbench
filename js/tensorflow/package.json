@@ -6,6 +6,7 @@
     "@tensorflow/tfjs": "^4"
   },
   "scripts": {
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "dev": "vite"
   }
 }
