@@ -1,6 +1,6 @@
 type Id = number;
 
-interface Base {
+export interface Base {
   id: Id;
 }
 

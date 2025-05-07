@@ -1,5 +1,6 @@
-import type { Runs } from "./protocol.ts";
-import { accommodate, getExports, multipleRuns, sh } from "./util.ts";
+import type { Runs } from "@gradbench/common/protocol.ts";
+import { multipleRuns } from "@gradbench/common/util.ts";
+import { accommodate, getExports, sh } from "./util.ts";
 
 interface Input extends Runs {
   x: number[];

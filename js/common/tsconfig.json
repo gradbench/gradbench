@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "module": "Node16",
+    "noEmit": true,
+    "strict": true
+  }
+}
