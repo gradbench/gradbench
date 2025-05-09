@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+#
+# Run all evals implemented by a given tool.
+
+import sys
+import argparse
+import subprocess
+import json
+
+
+def eval_cmd(args, eval):
+    if args.no_docker:
+        return f"uv run python/gradbench/gradbench/evals/{eval}/run.py"
+    else:
+        return f"./gradbench repo eval {eval}"
+
+
+def tool_cmd(args, tool):
+    if args.cpp:
+        return f"python python/gradbench/gradbench/cpp.py {tool}"
+    else:
+        return f"./gradbench repo tool {tool}"
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument("tool")
+parser.add_argument("--cpp", action="store_true", help="Run tool with cpp.py")
+parser.add_argument(
+    "--no-docker", action="store_true", help="Run evals and tool without using Docker"
+)
+args = parser.parse_args()
+
+if args.no_docker and not args.cpp:
+    print(f"{sys.argv[0]}: --no-docker requires --cpp", file=sys.stderr)
+    sys.exit(1)
+
+tool = args.tool
+
+matrix_p = subprocess.run(
+    ["./gradbench", "repo", "matrix"], capture_output=True, text=True
+)
+
+matrix_run = json.loads(matrix_p.stdout.split("\n")[3][4:])
+
+evals = set()
+for x in matrix_run:
+    if x["tool"] == args.tool and x["outcome"] == "success":
+        evals.add(x["eval"])
+
+for eval in evals:
+    print(f"Running {eval} with {tool}")
+    subprocess.run(
+        [
+            "./gradbench",
+            "run",
+            "--eval",
+            eval_cmd(args, eval),
+            "--tool",
+            tool_cmd(args, tool),
+            "-o",
+            f"{eval}-{tool}.jsonl",
+        ]
+    )
