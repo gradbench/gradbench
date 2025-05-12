@@ -6,10 +6,7 @@
 module BA
 
 using LinearAlgebra
-
-export BAInput, input_from_json, objective, compute_reproj_err, insert_w_err_block, dedup_jacobian
-
-##################### data #############################
+import ..GradBench
 
 const N_CAM_PARAMS = 11
 const ROT_IDX = 1
@@ -29,32 +26,34 @@ struct BAInput
     obs::Matrix{Int}
 end
 
-function input_from_json(j)
-    n = j["n"]
-    m = j["m"]
-    p = j["p"]
+abstract type AbstractBA <: GradBench.Experiment end
 
-    one_cam = convert(Vector{Float64}, j["cam"])
-    one_X = convert(Vector{Float64}, j["x"])
-    one_w = j["w"]
-    one_feat = convert(Vector{Float64}, j["feat"])
+function GradBench.preprocess(::AbstractBA, input)
+    n = input["n"]
+    m = input["m"]
+    p = input["p"]
 
-    cams = repeat(one_cam,1,n)
-    X = repeat(one_X,1,m)
-    w = repeat([one_w],p)
-    feats = repeat(one_feat,1,p)
+    one_cam = convert(Vector{Float64}, input["cam"])
+    one_X = convert(Vector{Float64}, input["x"])
+    one_w = input["w"]
+    one_feat = convert(Vector{Float64}, input["feat"])
+
+    cams = repeat(one_cam, 1, n)
+    X = repeat(one_X, 1, m)
+    w = repeat([one_w], p)
+    feats = repeat(one_feat, 1, p)
 
     camIdx = 1
     ptIdx = 1
-    obs = zeros(Int,2,p)
+    obs = zeros(Int, 2, p)
     for i in 1:p
-        obs[1,i] = camIdx
-        obs[2,i] = ptIdx
-        camIdx = (camIdx%n) + 1
-        ptIdx = (ptIdx%m) + 1
+        obs[1, i] = camIdx
+        obs[2, i] = ptIdx
+        camIdx = (camIdx % n) + 1
+        ptIdx = (ptIdx % m) + 1
     end
 
-    return BAInput(n, m, p, cams, X, w, feats, obs)
+    return (BAInput(n, m, p, cams, X, w, feats, obs),)
 end
 
 struct SparseMatrix
@@ -96,12 +95,12 @@ function insert_reproj_err_block!(matrix::SparseMatrix, obsIdx::Int, camIdx::Int
         col_offset = N_CAM_PARAMS * matrix.n
         for i ∈ 1:3
             push!(matrix.cols, col_offset + 3 * ptIdxZeroBased + (i - 1))
-            push!(matrix.vals, J[i_row, N_CAM_PARAMS + i])
+            push!(matrix.vals, J[i_row, N_CAM_PARAMS+i])
         end
         col_offset += 3 * matrix.m
         val_offset = N_CAM_PARAMS + 3
-        push!(matrix.cols, col_offset + obsIdxZeroBased);
-        push!(matrix.vals, J[i_row, val_offset + 1]);
+        push!(matrix.cols, col_offset + obsIdxZeroBased)
+        push!(matrix.vals, J[i_row, val_offset+1])
     end
 end
 
@@ -118,23 +117,21 @@ end
 # Jacobian at the end.
 function dedup_jacobian(J)
     Dict("rows" => vcat(J.rows[1:30], [J.rows[end]]),
-         "cols" => vcat(J.cols[1:30], [J.cols[end]]),
-         "vals" => vcat(J.vals[1:30], [J.vals[end]]))
+        "cols" => vcat(J.cols[1:30], [J.cols[end]]),
+        "vals" => vcat(J.vals[1:30], [J.vals[end]]))
 end
 
-##################### objective #############################
-
-function rodrigues_rotate_point(rot :: Vector{T}, X :: Vector{T}) where T
+function rodrigues_rotate_point(rot::Vector{T}, X::Vector{T}) where {T}
     sqtheta = sum(rot .* rot)
     if sqtheta > 1e-10
         theta = sqrt(sqtheta)
         costheta = cos(theta)
         sintheta = sin(theta)
-        theta_inverse = 1. / theta
+        theta_inverse = 1.0 / theta
 
         w = theta_inverse * rot
         w_cross_X = cross(w, X)
-        tmp = dot(w, X) * (1. - costheta)
+        tmp = dot(w, X) * (1.0 - costheta)
 
         X * costheta + w_cross_X * sintheta + w * tmp
     else
@@ -144,7 +141,7 @@ end
 
 function radial_distort(rad_params, proj)
     rsq = sum(proj .* proj)
-    L = 1. + rad_params[1] * rsq + rad_params[2] * rsq * rsq
+    L = 1.0 + rad_params[1] * rsq + rad_params[2] * rsq * rsq
     proj * L
 end
 
@@ -166,5 +163,21 @@ function objective(cams, X, w, obs, feats)
     w_err = 1.0 .- w .* w
     (reproj_err, w_err)
 end
+
+struct ObjectiveBA <: BA.AbstractBA end
+function (::ObjectiveBA)(input)
+    (r_err, w_err) =
+        objective(input.cams,
+                  input.X,
+                  input.w,
+                  input.obs,
+                  input.feats)
+    num_r = size(r_err, 2)
+    num_w = size(w_err, 1)
+    Dict("reproj_error" => Dict("elements" => r_err[:,1], "repeated" => num_r),
+         "w_err" => Dict("element" => w_err[1], "repeated" => num_w)
+         )
+end
+
 
 end

@@ -3,22 +3,8 @@ module ODE
 using Enzyme
 import GradBench
 
-function primal(message)
-    # TODO: move the message parsing into the harness
-    x = convert(Vector{Float64}, message["x"])
-    s = message["s"]
-
-    output = similar(x)
-    n = length(x)
-
-    GradBench.ODE.Impure.primal(n, x, s, output)
-    return output
-end
-
-function gradient(message)
-    x = convert(Vector{Float64}, message["x"])
-    s = message["s"]
-
+struct GradientODE <: GradBench.ODE.AbstractODE end
+function (::GradientODE)(x, s)
     output = similar(x)
     n = length(x)
 
@@ -39,8 +25,8 @@ end
 
 GradBench.register!(
     "ode", Dict(
-        "primal" => primal,
-        "gradient" => gradient
+        "primal" => GradBench.ODE.Impure.PrimalODE(),
+        "gradient" => GradientODE()
     )
 )
 

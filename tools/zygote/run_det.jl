@@ -3,6 +3,14 @@ module Det
 import Zygote
 import GradBench
 
+struct GradientDet <: GradBench.Det.AbstractDet end
+function (::GradientDet)(A, ell)
+    z, = Zygote.gradient(A -> GradBench.Det.Pure.primal(A, ell)[end],
+                         A)
+    return z
+end
+
+
 function gradient(j)
     input = GradBench.Det.input_from_json(j)
     M = transpose(reshape(input.A, input.ell, input.ell))
@@ -11,8 +19,8 @@ function gradient(j)
 end
 
 GradBench.register!("det", Dict(
-    "primal" => GradBench.Det.Pure.primal ∘ GradBench.Det.input_from_json,
-    "gradient" => gradient
+    "primal" => GradBench.Det.Pure.PrimalDet(),
+    "gradient" => GradientDet()
 ))
 
 

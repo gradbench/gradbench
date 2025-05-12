@@ -8,23 +8,6 @@ module BA
 import Zygote
 import GradBench
 
-# FIXME: it is very expensive to redo all the input parsing here for
-# every run. We absolutely must hoist it out into a "prepare" stage.
-function objective(j)
-    input = GradBench.BA.input_from_json(j)
-    (r_err, w_err) =
-        GradBench.BA.objective(input.cams,
-                               input.X,
-                               input.w,
-                               input.obs,
-                               input.feats)
-    num_r = size(r_err, 2)
-    num_w = size(w_err, 1)
-    Dict("reproj_error" => Dict("elements" => r_err[:,1], "repeated" => num_r),
-         "w_err" => Dict("element" => w_err[1], "repeated" => num_w)
-         )
-end
-
 function pack(cam, X, w)
     [cam[:]; X[:]; w]
 end
@@ -76,15 +59,16 @@ function compute_ba_J(cams, X, w, obs, feats)
     return jacobian
 end
 
-function jacobian(j)
-    input = GradBench.BA.input_from_json(j)
+struct JacobianBA <: GradBench.BA.AbstractBA end
+function (::JacobianBA)(input)
     J = compute_ba_J(input.cams, input.X, input.w, input.obs, input.feats)
-    GradBench.BA.dedup_jacobian(J)
+    return GradBench.BA.dedup_jacobian(J)
 end
 
+
 GradBench.register!("ba", Dict(
-    "objective" => objective,
-    "jacobian" => jacobian
+    "objective" => GradBench.BA.ObjectiveBA(),
+    "jacobian" => JacobianBA()
 ))
 
 end
