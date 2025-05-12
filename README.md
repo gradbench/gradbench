@@ -27,6 +27,7 @@ See <https://gradben.ch> for interactive performance charts generated from our l
       - [Running C++-based tools](#running-c-based-tools)
   - [Multithreading](#multithreading)
   - [Without cloning this repository](#without-cloning-this-repository)
+- [Citing](#citing)
 - [License](#license)
 
 <!-- tocstop -->
@@ -277,6 +278,13 @@ Then, you can use the newly installed `gradbench` CLI to download and run our [n
 DATE=$(curl https://raw.githubusercontent.com/gradbench/gradbench/refs/heads/ci/refs/heads/nightly/summary.json | jq --raw-output .date)
 gradbench run --eval "gradbench eval hello --tag $DATE" --tool "gradbench tool pytorch --tag $DATE"
 ```
+
+## Citing
+
+GradBench is largely developed by academics and we appreciate a citation if you
+find it useful for published work. See the *Cite this repository* button in the
+**About** section of the right GitHub sidebar, or view
+[CITATION.cff](CITATION.cff) directly.
 
 ## License
 
