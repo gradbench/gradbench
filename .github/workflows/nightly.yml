@@ -66,7 +66,8 @@ jobs:
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Build eval Docker image
-        run: gradbench repo build-eval --platform linux/amd64,linux/arm64 ${{ matrix.eval }}
+        run: |
+          gradbench repo build-eval --platform linux/amd64,linux/arm64 ${{ matrix.eval }}
       - name: Tag eval Docker image
         run: docker tag $IMAGE $IMAGE:$TAG
       - name: Login to GitHub Container registry
@@ -108,7 +109,8 @@ jobs:
         uses: ./.github/actions/cli
       - name: Build tool Docker image
         if: ${{ matrix.cross }}
-        run: gradbench repo build-tool --platform linux/amd64,linux/arm64 ${{ matrix.tool }}
+        run: |
+          gradbench repo build-tool --platform linux/amd64,linux/arm64 ${{ matrix.tool }}
       - name: Build x86-only Docker image as a fallback
         if: ${{ !matrix.cross }}
         run: gradbench repo build-tool ${{ matrix.tool }}
@@ -162,7 +164,8 @@ jobs:
         run: docker load --input tool-${{ matrix.tool }}.tar
       - name: Run tool on eval
         continue-on-error: true
-        run: gradbench run --eval "gradbench eval ${{ matrix.eval }}" --tool "gradbench tool ${{ matrix.tool }}" --output log.jsonl --timeout 600
+        run: |
+          gradbench run --eval "gradbench eval ${{ matrix.eval }}" --tool "gradbench tool ${{ matrix.tool }}" --output log.jsonl --timeout 600
       - name: Upload log as artifact
         uses: actions/upload-artifact@v4
         with:
@@ -196,7 +199,8 @@ jobs:
       - name: Generate stats
         env:
           DATE: ${{ fromJSON(needs.matrix.outputs.date) }}
-        run: gradbench repo stats run -o stats --date "$DATE" --commit "$GITHUB_SHA"
+        run: |
+          gradbench repo stats run -o stats --date "$DATE" --commit "$GITHUB_SHA"
       - name: Upload stats as artifact
         uses: actions/upload-artifact@v4
         with:

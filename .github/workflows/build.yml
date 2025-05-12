@@ -18,7 +18,8 @@ jobs:
       - name: Install clang-format 19
         run: sudo apt-get install -y clang-format-19
       - name: Check C/C++ formatting
-        run: git ls-files '*.c' '*.cpp' '*.h' '*.hpp' | xargs clang-format-19 --dry-run -Werror
+        run: |
+          git ls-files '*.c' '*.cpp' '*.h' '*.hpp' | xargs clang-format-19 --dry-run -Werror
 
   check-js:
     runs-on: ubuntu-24.04
@@ -159,9 +160,11 @@ jobs:
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Build eval Docker image
-        run: gradbench repo build-eval --platform linux/amd64,linux/arm64 ${{ matrix.eval }}
+        run: |
+          gradbench repo build-eval --platform linux/amd64,linux/arm64 ${{ matrix.eval }}
       - name: Serialize eval Docker image
-        run: docker save --output eval-${{ matrix.eval }}.tar ghcr.io/gradbench/eval-${{ matrix.eval }}
+        run: |
+          docker save --output eval-${{ matrix.eval }}.tar ghcr.io/gradbench/eval-${{ matrix.eval }}
       - name: Upload eval Docker image as artifact
         uses: actions/upload-artifact@v4
         with:
@@ -187,7 +190,8 @@ jobs:
       - name: Build tool Docker image
         run: gradbench repo build-tool ${{ matrix.tool }}
       - name: Serialize tool Docker image
-        run: docker save --output tool-${{ matrix.tool }}.tar ghcr.io/gradbench/tool-${{ matrix.tool }}
+        run: |
+          docker save --output tool-${{ matrix.tool }}.tar ghcr.io/gradbench/tool-${{ matrix.tool }}
       - name: Upload tool Docker image as artifact
         uses: actions/upload-artifact@v4
         with:
@@ -273,7 +277,8 @@ jobs:
         working-directory: stats
         run: git rm -rf .
       - name: Generate stats
-        run: gradbench repo stats run -o stats --commit ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          gradbench repo stats run -o stats --commit ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Upload stats as artifact
         uses: actions/upload-artifact@v4
         with:
