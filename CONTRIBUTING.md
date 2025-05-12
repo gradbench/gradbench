@@ -29,7 +29,7 @@ here on GitHub.
 If you make a PR, you can add yourself to [CITATION.cff](/CITATION.cff) if you
 are not already listed. This is however not mandatory if you would rather not be
 listed as an author for some reason. Your name can always be added or removed
-later if you change not mind.
+later if you change your mind.
 
 Below you can find technical information on how GradBench is implemented, as
 well as advice for making various kinds of contributions.
