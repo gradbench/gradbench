@@ -282,7 +282,7 @@ gradbench run --eval "gradbench eval hello --tag $DATE" --tool "gradbench tool p
 ## Citing
 
 GradBench is largely developed by academics and we appreciate a citation if you
-find it useful for published work. See the *Cite this repository* button in the
+find it useful for published work. See the _Cite this repository_ button in the
 **About** section of the right GitHub sidebar, or view
 [CITATION.cff](CITATION.cff) directly.
 
