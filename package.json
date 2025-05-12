@@ -14,6 +14,7 @@
     "eslint-plugin-react-hooks": "^4",
     "eslint-plugin-react-refresh": "^0.4",
     "markdown-toc": "^1",
+    "markdownlint-cli2": "^0.18",
     "prettier": "^3",
     "prettier-plugin-organize-imports": "^3",
     "typescript": ">=5",
@@ -21,9 +22,20 @@
   },
   "scripts": {
     "format": "prettier --write .",
+    "markdownlint": "markdownlint-cli2 '**/*.md'",
     "toc": "bun run toc-contributing && bun run toc-readme",
     "toc-contributing": "markdown-toc --bullets='-' -i CONTRIBUTING.md",
     "toc-readme": "markdown-toc --bullets='-' -i README.md"
+  },
+  "markdownlint-cli2": {
+    "config": {
+      "MD013": false,
+      "MD024": false,
+      "MD029": false,
+      "MD033": false,
+      "MD041": false
+    },
+    "gitignore": true
   },
   "prettier": {
     "plugins": [

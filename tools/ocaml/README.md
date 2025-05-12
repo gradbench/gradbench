@@ -20,23 +20,23 @@ before.
 
 Standing in the root of the GradBench repository, first run
 
-```
-$ opam install tools/ocaml --deps-only -y
+```sh
+opam install tools/ocaml --deps-only -y
 ```
 
 which will install the necessary dependencies. You only need to do this once.
 
 Then run
 
-```
-$ dune build --root tools/ocaml --profile release
+```sh
+dune build --root tools/ocaml --profile release
 ```
 
 to actually build the tool. You need to do this whenever you change the tool.
 Finally, to run the tool, do
 
-```
-$ tools/ocaml/_build/install/default/bin/gradbench
+```sh
+tools/ocaml/_build/install/default/bin/gradbench
 ```
 
 although unless you enjoy talking JSON to your computer, you will actually want

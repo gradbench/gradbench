@@ -1,4 +1,4 @@
-# Hello, world!
+# Hello, world
 
 The `hello` eval is the simplest one; it first defines a module named `"hello"`
 and then alternates between asking the tool to evaluate one of the two functions

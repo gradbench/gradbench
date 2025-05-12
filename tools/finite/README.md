@@ -23,8 +23,8 @@ python3 python/gradbench/gradbench/cpp.py finite
 The implementation uses a general-purpose (but very simple) finite differences
 module implemented in the file [finite.hpp][] with support for arbitrary
 higher-order differentiation. This is used in a straightforward manner to
-differentiate the primal functions from the [C++ reference
-implementations][../../cpp/gradbench/evals].
+differentiate the primal functions from the
+[C++ reference implementations](/cpp/gradbench/evals).
 
 ### Multihreading
 

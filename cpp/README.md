@@ -42,8 +42,8 @@ You can directly run the implementations that use this interface, without going
 through `gradbench`. If an implementation `foo.cpp` compiles to a program `foo`,
 you can run it as follows:
 
-```
-$ ./foo input.json function
+```sh
+./foo input.json function
 ```
 
 Here _function_ is the name of the evaluation function you wish to run (e.g.
