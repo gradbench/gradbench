@@ -10,6 +10,7 @@
   },
   "[typescript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
   "[typescriptreact]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[yaml]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
   "editor.formatOnSave": true,
   "files.associations": {
     "time.h": "c"
