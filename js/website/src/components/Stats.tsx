@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { PlainObject, VegaLite } from "react-vega";
 import { TopLevelSpec } from "vega-lite";
-import "./Stats.css";
+import "../css/Stats.css";
 
 // These colors have been determined by sampling the tool websites.
 // They are not picked to make a particularly pleasing scheme, and

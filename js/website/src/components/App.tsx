@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Fragment } from "react/jsx-runtime";
-import "./App.css";
+import "../css/App.css";
 import { Logo } from "./Logo.tsx";
 import { Stats } from "./Stats.tsx";
 
