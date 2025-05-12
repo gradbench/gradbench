@@ -322,6 +322,7 @@ protocol, as captured and reported by the intermediary:
 Here is that example from the perspectives of the eval and the tool.
 
 - Output from the eval, or equivalently, input to the tool:
+
   ```jsonl
   { "id": 0, "kind": "start" }
   { "id": 1, "kind": "define", "module": "foo" }
@@ -330,7 +331,9 @@ Here is that example from the perspectives of the eval and the tool.
   { "id": 4, "kind": "evaluate", "module": "foo", "function": "baz", "input": { "mynumber": 121 } }
   { "id": 5, "kind": "analysis", "of": 4, "valid": true }
   ```
+
 - Output from the tool, or equivalently, input to the eval:
+
   ```jsonl
   { "id": 0 }
   { "id": 1, "success": true }
@@ -502,18 +505,14 @@ type Session = (MessageLine | ResponseLine)[];
 [bun]: https://bun.sh/
 [clang-format 19]:
   https://releases.llvm.org/19.1.0/tools/clang/docs/ClangFormat.html
-[containerd]: https://docs.docker.com/storage/containerd/
 [docker]: https://docs.docker.com/engine/install/
 [github cli]: https://github.com/cli/cli#installation
 [json]: https://json.org/
 [make]: https://en.wikipedia.org/wiki/Make_(software)
 [markdown-toc]: https://www.npmjs.com/package/markdown-toc
-[multi-platform images]: https://docs.docker.com/build/building/multi-platform/
 [nix]: https://nixos.org/
 [prettier]: https://prettier.io/
 [python]: https://docs.astral.sh/uv/guides/install-python/
-[qemu]:
-  https://docs.docker.com/build/building/multi-platform/#install-qemu-manually
 [ruff]: https://docs.astral.sh/ruff/
 [rust]: https://www.rust-lang.org/tools/install
 [typescript]: https://www.typescriptlang.org/

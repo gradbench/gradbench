@@ -1,10 +1,11 @@
 {
   "recommendations": [
     "charliermarsh.ruff",
+    "DavidAnson.vscode-markdownlint",
     "dbaeumer.vscode-eslint",
-    "diku.futhark-vscode",
+    "DIKU.futhark-vscode",
     "esbenp.prettier-vscode",
-    "github.vscode-github-actions",
+    "GitHub.vscode-github-actions",
     "julialang.language-julia",
     "llvm-vs-code-extensions.vscode-clangd",
     "ms-azuretools.vscode-docker",

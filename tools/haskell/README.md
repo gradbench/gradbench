@@ -19,20 +19,20 @@ easiest way to get one is to use [ghcup][] or [shell.nix][].
 Then run the following command to populate local knowledge of the Hackage
 package repository:
 
-```
-$ cabal update
+```sh
+cabal update
 ```
 
 Use this command to compile the tool:
 
-```
-$ cabal build --project-dir tools/haskell gradbench
+```sh
+cabal build --project-dir tools/haskell gradbench
 ```
 
 And finally this command to run it:
 
-```
-$ cabal run --project-dir tools/haskell gradbench
+```sh
+cabal run --project-dir tools/haskell gradbench
 ```
 
 The `cabal run` command will actually compile if necessary as well, but its
