@@ -306,8 +306,9 @@ their differentiated functions:
 
 ### Without cloning this repository
 
-> [!WARNING] Only use this method if you have a specific reason not to use the
-> primary method documented above.
+> [!WARNING]  
+> Only use this method if you have a specific reason not to use the primary
+> method documented above.
 
 It's also possible to install and run the GradBench CLI without cloning this
 repository, if you'd prefer. In this case you don't need Python but you still
