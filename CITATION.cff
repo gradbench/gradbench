@@ -8,7 +8,7 @@ authors:
   - given-names: Sam
     family-names: Estep
     email: sam@samestep.com
-    orcid: 'https://orcid.org/0000-0002-7107-7043'
+    orcid: "https://orcid.org/0000-0002-7107-7043"
   - given-names: Maggie
     family-names: Hollis
     email: mhollis@smith.edu
@@ -18,15 +18,15 @@ authors:
   - given-names: Troels
     family-names: Henriksen
     email: athas@sigkill.dk
-    orcid: 'https://orcid.org/0000-0002-1195-9722'
+    orcid: "https://orcid.org/0000-0002-1195-9722"
   - given-names: Sasha
     family-names: Fleming
     email: alexander.fleming@rwth-aachen.de
   - given-names: Max
     family-names: Sagebaum
     email: max.sagebaum@scicomp.uni-kl.de
-repository-code: 'https://github.com/gradbench/gradbench'
-url: 'https://gradben.ch'
+repository-code: "https://github.com/gradbench/gradbench"
+url: "https://gradben.ch"
 abstract: >-
   GradBench is a benchmark suite for differentiable
   programming across languages and domains.
