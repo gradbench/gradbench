@@ -124,7 +124,7 @@ const downloadStats = async (url: string): Promise<Stats | undefined> => {
   }
 };
 
-export const Stats = ({ url }: { url: string }) => {
+const Stats = ({ url }: { url: string }) => {
   const [stats, setStats] = useState<Stats | undefined>(undefined);
   useEffect(() => {
     (async () => setStats(await downloadStats(url)))();
@@ -175,3 +175,5 @@ export const Stats = ({ url }: { url: string }) => {
     </>
   );
 };
+
+export default Stats;

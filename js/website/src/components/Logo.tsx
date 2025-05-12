@@ -31,7 +31,7 @@ const bench = () => {
   ];
 };
 
-export const Logo = (props: { colors: string[]; gradientId?: string }) => {
+const Logo = (props: { colors: string[]; gradientId?: string }) => {
   const colors =
     props.colors.length > 1 ? props.colors : [props.colors[0], props.colors[0]];
   const gradientId = props.gradientId ?? "bggradient";
@@ -58,3 +58,5 @@ export const Logo = (props: { colors: string[]; gradientId?: string }) => {
     </svg>
   );
 };
+
+export default Logo;
