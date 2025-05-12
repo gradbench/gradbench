@@ -3,18 +3,8 @@ module LSTM
 import Zygote
 import GradBench
 
-# FIXME: it is very expensive to redo all the input parsing here for
-# every run. We absolutely must hoist it out into a "prepare" stage.
-function objective(j)
-    input = GradBench.LSTM.input_from_json(j)
-    return GradBench.LSTM.objective(input.main_params,
-                                    input.extra_params,
-                                    input.state,
-                                    input.sequence)
-end
-
-function jacobian(j)
-    input = GradBench.LSTM.input_from_json(j)
+struct JacobianLSTM <: GradBench.LSTM.AbstractLSTM end
+function (::JacobianLSTM)(input)
     function wrap(main_params, extra_params)
         GradBench.LSTM.objective(main_params,
                                  extra_params,
@@ -28,8 +18,8 @@ function jacobian(j)
 end
 
 GradBench.register!("lstm", Dict(
-    "objective" => objective,
-    "jacobian" => jacobian
+    "objective" => GradBench.LSTM.ObjectiveLSTM(),
+    "jacobian" => JacobianLSTM()
 ))
 
 

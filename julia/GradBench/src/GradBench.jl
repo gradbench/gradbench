@@ -2,20 +2,40 @@ module GradBench
 
 import JSON
 
-const DISPATCH_TABLE = Dict{String,Dict{String,Any}}()
+"""
+    Experiment
 
-function register!(mod, functions)
+Defines a measurment experiment.
+
+## Interface
+- `args = preprocess(::Experiment, message)`
+- `ret = (::Experiment)(args...)`
+- Optional: `postprocess(::Experiment, ret)`
+"""
+abstract type Experiment end
+
+function preprocess(::Experiment, message)
+    return message
+end
+
+function postprocess(::Experiment, ret)
+    return ret
+end
+
+const DISPATCH_TABLE = Dict{String,Dict{String,Experiment}}()
+
+function register!(mod, experiments)
     if haskey(DISPATCH_TABLE, mod)
         error("mod $mod is already registered")
     end
-    DISPATCH_TABLE[mod] = functions
+    DISPATCH_TABLE[mod] = experiments
     return
 end
 
 # Avoid measuring dispatch overhead
-function measure(func::F, arg) where {F}
+function measure(func::F, args...) where {F}
     start = time_ns()
-    ret = func(arg)
+    ret = func(args...)
     done = time_ns()
     return ret, done - start
 end
@@ -23,27 +43,33 @@ end
 function run(params)
     mod = DISPATCH_TABLE[params["module"]]
     func = mod[params["function"]]
-    arg = params["input"]
-    min_runs = arg isa Dict ? get(arg, "min_runs", 1) : 1
-    min_seconds = arg isa Dict ? get(arg, "min_seconds", 0) : 0
+    input = params["input"]
+    min_runs = input isa Dict ? get(input, "min_runs", 1) : 1
+    min_seconds = input isa Dict ? get(input, "min_seconds", 0) : 0
     @assert min_runs > 0
 
-    # TODO: Prepare (parse JSON?)
-    # TODO: pre-allocate output?
     timings = Any[]
+
+    args, t = measure(preprocess, func, input)
+    push!(timings, Dict("name" => "preprocess", "nanoseconds" => t))
+
+    ret, t = measure(func, args...)
+    push!(timings, Dict("name" => "warmup", "nanoseconds" => t))
+
+    output, t = measure(postprocess, func, ret)
+    push!(timings, Dict("name" => "postprocess", "nanoseconds" => t))
 
     # Measure
     elapsed_seconds = 0
     i = 1
-    ret = nothing
     while i <= min_runs || elapsed_seconds <= min_seconds
-        ret, t = measure(func, arg)
+        _, t = measure(func, args...)
         push!(timings, Dict("name" => "evaluate", "nanoseconds" => t))
         elapsed_seconds += t / 1e9
         i += 1
     end
-    @assert ret !== nothing
-    return Dict("success" => true, "output" => ret, "timings" => timings)
+
+    return Dict("success" => true, "output" => output, "timings" => timings)
 end
 
 function main(tool)

@@ -1,0 +1,40 @@
+cff-version: 1.2.0
+title: GradBench
+message: >-
+  If you use this software, please cite it using the metadata from this file.
+type: software
+authors:
+  - given-names: Sam
+    family-names: Estep
+    email: sam@samestep.com
+    orcid: "https://orcid.org/0000-0002-7107-7043"
+  - given-names: Maggie
+    family-names: Hollis
+    email: mhollis@smith.edu
+  - given-names: Tomáš
+    family-names: Skřivan
+    email: skrivantomas@seznam.cz
+  - given-names: Troels
+    family-names: Henriksen
+    email: athas@sigkill.dk
+    orcid: "https://orcid.org/0000-0002-1195-9722"
+  - given-names: Valentin
+    family-names: Churavy
+    email: v.churavy@gmail.com
+    orcid: "https://orcid.org/0000-0002-9033-165X"
+  - given-names: Alexander
+    family-names: Fleming
+    email: alexander.fleming@rwth-aachen.de
+    orcid: "https://orcid.org/0009-0004-8591-2558"
+  - given-names: Max
+    family-names: Sagebaum
+    email: max.sagebaum@scicomp.uni-kl.de
+repository-code: "https://github.com/gradbench/gradbench"
+url: "https://gradben.ch"
+abstract: >-
+  GradBench is a benchmark suite for differentiable programming across languages
+  and domains.
+keywords:
+  - autodiff
+  - benchmarks
+license: MIT

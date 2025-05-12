@@ -1,7 +1,7 @@
 # Linear Least Squares Objective
 
-This benchmark is adapted from the `llsq_obj` benchmark from
-[cmpad][], for which the [original documentation][] is also available.
+This benchmark is adapted from the `llsq_obj` benchmark from [cmpad][], for
+which the [original documentation][] is also available.
 
 We are given an objective function defined by
 
@@ -27,21 +27,20 @@ This eval has two functions:
 
 - `primal`, where we are given _x_ and _n_ and must compute _y(x)_.
 
-- `gradient`, where we are given _x_ and _n_ and must compute the
-  gradient of _y(x)_.
+- `gradient`, where we are given _x_ and _n_ and must compute the gradient of
+  _y(x)_.
 
 ## Protocol
 
-The evaluation protocol is specified in terms of [TypeScript][] types
-and references [types defined in the GradBench protocol
-description][protocol].
+The evaluation protocol is specified in terms of [TypeScript][] types and
+references [types defined in the GradBench protocol description][protocol].
 
 ### Inputs
 
-The eval sends a leading `DefineMessage` followed by
-`EvaluateMessages`. The `input` field of any `EvaluateMessage` will be
-an instance of the `LLSQInput` type defined below. The `function`
-field will one of the strings `"primal"` or `"gradient"`.
+The eval sends a leading `DefineMessage` followed by `EvaluateMessages`. The
+`input` field of any `EvaluateMessage` will be an instance of the `LLSQInput`
+type defined below. The `function` field will one of the strings `"primal"` or
+`"gradient"`.
 
 ```typescript
 interface LLSQInput extends Runs {
@@ -50,9 +49,9 @@ interface LLSQInput extends Runs {
 }
 ```
 
-Because the input extends `Runs`, the tool is expected to run the
-function some number of times. It should include one timing entry with
-the name `"evaluate"` for each time it ran the function.
+Because the input extends `Runs`, the tool is expected to run the function some
+number of times. It should include one timing entry with the name `"evaluate"`
+for each time it ran the function.
 
 ### Outputs
 
@@ -63,20 +62,19 @@ type PrimalOutput = double;
 type GradientOutput = double[];
 ```
 
-The size of the `GradientOutput` is equal to the size of the input
-`x`.
+The size of the `GradientOutput` is equal to the size of the input `x`.
 
 ## Commentary
 
-This is a rather simple benchmark, and a good first one to implement.
-It can easily be expressed in a vectorised form, which is useful for
-implementing it in tools such as [pytorch][].
+This is a rather simple benchmark, and a good first one to implement. It can
+easily be expressed in a vectorised form, which is useful for implementing it in
+tools such as [pytorch][].
 
 ### Parallel execution
 
-The `primal` function is easily and efficiently parallelised, and this
-has been done with OpenMP in [llsq.hpp][]. Speedup is only achieved
-for the larger workloads.
+The `primal` function is easily and efficiently parallelised, and this has been
+done with OpenMP in [llsq.hpp][]. Speedup is only achieved for the larger
+workloads.
 
 [cmpad]: https://github.com/bradbell/cmpad
 [original documentation]: https://cmpad.readthedocs.io/llsq_obj.html
