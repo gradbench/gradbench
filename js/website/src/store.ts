@@ -1,4 +1,3 @@
-
 export interface Cell {
   tool: string;
   outcome?:
@@ -39,14 +38,14 @@ const urlPrefix = (date: string | null, commit: string | null): string => {
 
 export async function downloadSummary(
   date: string | null,
-  commit: string | null
+  commit: string | null,
 ): Promise<Summary> {
-  const res = await fetch(`${urlPrefix(date, commit)}/summary.json`)
+  const res = await fetch(`${urlPrefix(date, commit)}/summary.json`);
   if (res.status == 404) {
     throw new NotFoundError("summary not found");
   }
   return res.json();
-};
+}
 
 export interface Duration {
   secs: number;
@@ -67,6 +66,8 @@ export async function downloadEvalStat(
   commit: string | null,
   activeEval: string | null,
 ): Promise<EvalStats> {
-  const res = await fetch(`${urlPrefix(date, commit)}/evals/${activeEval}/summary.json`);
+  const res = await fetch(
+    `${urlPrefix(date, commit)}/evals/${activeEval}/summary.json`,
+  );
   return await res.json();
-};
+}

@@ -1,4 +1,4 @@
-import { randomColor, dateString } from "../utils";
+import { dateString, randomColor } from "../utils";
 import Logo from "./Logo";
 
 const logoColors = [randomColor(), randomColor()];
@@ -14,13 +14,13 @@ const DatePicker = ({ date, onDateChange }: DatePickerProps) => {
     const d = new Date(date);
     d.setDate(d.getDate() + 1);
     onDateChange(dateString(d));
-  }
+  };
   const previus = () => {
     if (date === null) return;
     const d = new Date(date);
     d.setDate(d.getDate() - 1);
     onDateChange(dateString(d));
-  }
+  };
 
   return (
     <nav className="date-picker">
@@ -28,7 +28,10 @@ const DatePicker = ({ date, onDateChange }: DatePickerProps) => {
         className="date-picker__button"
         disabled={date === null}
         onClick={previus}
-      > ◀ </button>
+      >
+        {" "}
+        ◀{" "}
+      </button>
       <input
         className="date-picker__input"
         type="date"
@@ -39,10 +42,13 @@ const DatePicker = ({ date, onDateChange }: DatePickerProps) => {
         className="date-picker__button"
         disabled={date === null}
         onClick={next}
-      > ▶ </button>
+      >
+        {" "}
+        ▶{" "}
+      </button>
     </nav>
   );
-}
+};
 
 interface HeaderProps {
   date: string | null;
@@ -61,6 +67,6 @@ const Header = ({ date, onDateChange }: HeaderProps) => {
       {date !== null && <DatePicker date={date} onDateChange={onDateChange} />}
     </header>
   );
-}
+};
 
 export default Header;

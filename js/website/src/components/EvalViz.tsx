@@ -1,6 +1,6 @@
 import { PlainObject, VegaLite } from "react-vega";
 import { TopLevelSpec } from "vega-lite";
-import { EvalStats, Duration, Durations } from "../store";
+import { Duration, Durations, EvalStats } from "../store";
 
 // These colors have been determined by sampling the tool websites.
 // They are not picked to make a particularly pleasing scheme, and
@@ -119,7 +119,9 @@ const EvalViz = ({ activeEval, evalStats }: EvalVizProgs) => {
             yaxis: "derivative (seconds)",
             tools,
           })}
-          data={makeVegaLiteData(evalStats, ({ derivative }) => seconds(derivative))}
+          data={makeVegaLiteData(evalStats, ({ derivative }) =>
+            seconds(derivative),
+          )}
         />
       </div>
       <div className="chart-box">

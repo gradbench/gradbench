@@ -1,11 +1,14 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 type useParamHook = [
   value: string | null,
   setValue: (value: string | null) => void,
 ];
 
-export function useParam(key: string, defaultValue: string | null): useParamHook {
+export function useParam(
+  key: string,
+  defaultValue: string | null,
+): useParamHook {
   const params = new URL(window.location.href).searchParams;
   const [value, setValue] = useState(params.get(key) ?? defaultValue);
 
