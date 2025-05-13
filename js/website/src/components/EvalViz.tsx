@@ -1,7 +1,6 @@
 import { PlainObject, VegaLite } from "react-vega";
 import { TopLevelSpec } from "vega-lite";
 import { EvalStats, Duration, Durations } from "../store";
-import "../styles/Stats.css";
 
 // These colors have been determined by sampling the tool websites.
 // They are not picked to make a particularly pleasing scheme, and

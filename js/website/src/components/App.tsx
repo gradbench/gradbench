@@ -5,7 +5,6 @@ import { EvalStats } from "../store.ts";
 import Header from "./Header.tsx";
 import SummaryViz from "./SummaryViz.tsx";
 import EvalViz from "./EvalViz.tsx";
-import "../styles/App.css";
 
 enum Status {
   Loading = 0,
@@ -46,6 +45,11 @@ const App = () => {
   const [evalStatsStatus, setEvalStatsStatus] = useState(Status.Loading);
   useEffect(() => {
     if (activeEval === null) return;
+    if (activeEval === "hello") {
+      setEvalStats(null);
+      setEvalStatsStatus(Status.Ok);
+      return;
+    }
     setEvalStatsStatus(Status.Loading);
     downloadEvalStat(date, commit, activeEval)
       .then(evalStats => {
@@ -58,10 +62,10 @@ const App = () => {
       });
   }, [activeEval]);
 
-  return (
-    <main>
-      <Header date={date} onDateChange={setDate} />
+  return <>
+    <Header date={date} onDateChange={setDate} />
 
+    <section className="section">
       {summaryStatus === Status.Loading &&
         <p>Downloading the summary graph...</p>
       }
@@ -77,21 +81,23 @@ const App = () => {
       {summaryStatus === Status.Error &&
         <p>Could not download the summary (error dumped in console)</p>
       }
-      {summaryStatus === Status.Ok &&
+      {summaryStatus === Status.Ok && summary !== null &&
         <SummaryViz summary={summary as Summary} activeEval={activeEval} onActiveEvalChange={setActiveEval} />
       }
+    </section>
 
-      {activeEval !== null && evalStatsStatus === Status.Loading &&
+    <section className="section">
+      {evalStatsStatus === Status.Loading && activeEval !== null &&
         <p>Downloading the eval stats...</p>
       }
-      {activeEval !== null && evalStatsStatus === Status.Error &&
+      {evalStatsStatus === Status.Error && activeEval !== null &&
         <p>Could not download the eval stats (error dumped in console)</p>
       }
-      {activeEval !== null && evalStatsStatus === Status.Ok &&
+      {evalStatsStatus === Status.Ok && activeEval !== null && activeEval !== "hello" && evalStats !== null &&
         <EvalViz activeEval={activeEval} evalStats={evalStats as EvalStats} />
       }
-    </main>
-  )
+    </section>
+  </>
 }
 
 export default App;
