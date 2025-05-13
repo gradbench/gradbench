@@ -20,7 +20,7 @@ export function useParam(
       url.searchParams.set(key, value);
     }
     window.history.pushState(null, "", url.href);
-  }, [value]);
+  }, [value, key]);
 
   return [value, setValue];
 }
