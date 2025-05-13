@@ -29,6 +29,8 @@ body {
   align-items: center;
   padding: 8px 32px;
   background-color: var(--color-bg-1);
+  flex-wrap: wrap;
+  row-gap: 16px;
 }
 .header__logo {
   width: 48px;
