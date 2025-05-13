@@ -1,7 +1,10 @@
 # Gaussian Mixture Model Fitting (GMM)
 
-This eval is "Objective GMM: Gaussian Mixture Model Fitting" from section 4.1 of
-the [ADBench paper][]. It defines a module named `gmm`, which consists of two
+This eval is adapted from "Objective GMM: Gaussian Mixture Model Fitting" from
+section 4.1 of the [ADBench paper][]; it computes the [gradient][] of the
+negative [logarithm][] of the [posterior probability][] for a [multivariate
+Gaussian][] [mixture model][] (GMM) with a [Wishart][] [prior][] on the
+[covariance matrices][]. It defines a module named `gmm`, which consists of two
 functions `objective` and `jacobian`, both of which take the same input:
 
 ```typescript
@@ -18,7 +21,7 @@ interface Independent {
   /** Jagged lower-triangular part for making inverse covariance matrices. */
   l: Float[][][];
 
-  /** Parameterization for weights. */
+  /** Parametrization for weights. */
   alpha: Float[];
 }
 
@@ -44,48 +47,49 @@ interface Input extends Runs, Independent {
 }
 
 export namespace gmm {
+  /** Compute the negative log posterior probability. */
   function objective(input: Input): Float;
+
+  /** Compute the gradient of the negative log posterior probability. */
   function jacobian(input: Input): Independent;
 }
 ```
 
 ## Definition
 
-To define these functions, we'll use the same mathematical notation conventions
-from section 1 of the ADBench paper:
+The `Input` field `k` is the number of mixture components $K \in \mathbb{N}$,
+and `n` is the number of observations $N \in \mathbb{N}$. The mixture weights
+$\boldsymbol{\phi} \in [0, 1]^K$ are computed from `alpha` representing
+$\boldsymbol{\alpha} \in \mathbb{R}^K$, via the formula
 
-> $$\text{logsumexp}(\boldsymbol{x} : \mathbb{R}^n) = \log(\text{sum}(\exp(\boldsymbol{x} - \text{max}(\boldsymbol{x})))) + \text{max}(\boldsymbol{x})$$
+$$\phi_k = \frac{\exp(\alpha_i)}{\sum_{k'=1}^K \exp(\alpha_k')}$$
 
-> In this paper, we use the following notation for variables: scalar $s$ or $S$,
-> vector $\boldsymbol{v}$, matrix $\mathbf{M}$, and tensor $\mathsf{T}$. We
-> symbolize a concatenation of multiple column vectors
-> $\boldsymbol{v}_1, \boldsymbol{v}_2, \dots, \boldsymbol{v}_n$ as a matrix
-> $\mathbf{V}$. Similarly, a concatenation of multiple matrices
-> $\mathbf{M}_1, \mathbf{M}_2, \dots, \mathbf{M}_m$ as a tensor $\mathsf{M}$.
->
-> Special functions are matrix determinant or scalar absolute value $|\cdot|$,
-> and Euclidean norm $\|\cdot\|$. Function $\text{logsumexp}$ is always defined
-> stably as presented above.
+which ensures that $\sum_{k=1}^K \phi_k = 1$. These represent the probability
+for each mixture component, so conceptually there is a vector
+$\boldsymbol{z} \in \{1, \dots, K\}^N$ where $z_i$ is the component of
+observation $i$; but $\boldsymbol{z}$ are [latent variables][] and do not appear
+in the computation.
 
-The `Input` field `d` is the dimension $D \in \mathbb{N}$ of the space. The
-field `x` is a list of points $\boldsymbol{x}_i \in \mathbb{R}^D$ in that space,
-or in other words, a row-major encoding of the matrix
-$\mathbf{X} \in \mathbb{R}^{N \times D}$, where the field `n` gives the number
-of points $N \in \mathbb{N}$. Similarly, `mu` is a row-major encoding of the
-matrix $\mathbf{M} \in \mathbb{R}^{K \times D}$ listing the means
-$\boldsymbol{\mu}_k \in \mathbb{R}^D$, where the field `n` gives the number of
-means $K \in \mathbb{N}$.
+Because the model is multivariate, the observations `x` are a [row-major][]
+encoding of the matrix $\mathbf{X} \in \mathbb{R}^{N \times D}$ where `d` is the
+dimension $D \in \mathbb{N}$ of the space. Because the distribution is Gaussian,
+`mu` is a row-major encoding of the matrix
+$\mathbf{M} \in \mathbb{R}^{K \times D}$ giving the mean
+$\boldsymbol{\mu}_k \in \mathbb{R}^D$ for the component with index
+$k \in \{1, \dots, K\}$.
 
-The `q` and `l` fields parameterize the inverses of the covariance matrices.
-Note that the encoding here differs slightly from that of the original ADBench
-paper, for greater convenience. Let $k \in \{1, \dots, K\}$, so we'll represent
-the zero-indexed value $k - 1$ in code as `k: Int`. The elements `q[k]` and
-`l[k]` represent the vector $\boldsymbol{q} \in \mathbb{R}^D$ and the strictly
-lower triangular matrix $\mathbf{L} \in \mathbb{R}^{D \times D}$, respectively.
-Note that `l[k]` does not include the elements of $\mathbf{L}$ that are
-guaranteed to be zero due to it being strictly lower triangular; that is,
-`l[k][0]` is empty, `l[k][1]` has one element, `l[k][2]` has two elements, and
-so on. From these, we construct the lower triangular matrix
+Conceptually, that component also has a [positive-definite][] covariance matrix
+$\mathbf{\Sigma}_k \in \mathbb{R}^{D \times D}$. However, the covariance matrix
+is not directly used in the computation; only its inverse is used. The `q` and
+`l` fields parametrize these inverses of the covariance matrices. If we
+represent the zero-indexed value $k - 1$ in code as `k: Int`, then the elements
+`q[k]` and `l[k]` represent a vector $\boldsymbol{q} \in \mathbb{R}^D$ and a
+[strictly lower triangular][] matrix $\mathbf{L} \in \mathbb{R}^{D \times D}$,
+respectively. Note that `l[k]` does not include the elements of $\mathbf{L}$
+that are guaranteed to be zero due to it being strictly lower triangular. That
+is, `l[k][0]` is empty; `l[k][1]` has one element $l_{2,1}$; `l[k][2]` has two
+elements $l_{3,1}$ and $l_{3,2}$; and so on. From these, we construct the lower
+triangular matrix
 
 $$
 Q(\boldsymbol{q}, \mathbf{L}) = \begin{bmatrix}
@@ -98,65 +102,52 @@ $$
 
 by exponentiating each value of $\boldsymbol{q}$ to form the diagonal and then
 summing with $\mathbf{L}$. Then we use this to compute the inverse of the
-positive-definite covariance matrix as
-$\mathbf{\Sigma}_k^{-1} = Q(\boldsymbol{q}, \mathbf{L})Q(\boldsymbol{q}, \mathbf{L})^\top \in \mathbb{R}^{D \times D}$.
-Conceptually, the concatenation of these covariance matrices could be considered
-to form a tensor $\mathsf{\Sigma} \in \mathbb{R}^{K \times D \times D}$.
+covariance matrix as
+$\mathbf{\Sigma}_k^{-1} = Q(\boldsymbol{q}, \mathbf{L})Q(\boldsymbol{q}, \mathbf{L})^\top$.
 
-The field `alpha` encodes the vector $\boldsymbol{\alpha} \in \mathbb{R}^K$,
-which parameterizes the weights $\boldsymbol{w} \in \mathbb{R}^K$ as
+We will refer to the collection of all the means and covariance matrices
+together by the symbol $\boldsymbol{\theta}$. Then, since component $k$ has
+probability $\phi_k$ and distribution
+$\mathcal{N}_D(\boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)$, we can write the
+likelihood by multiplying across all observations and summing across all mixture
+components, to get the overall GMM probability density function
 
-$$w_k = \frac{\exp(\alpha_k)}{\sum_{k'=1}^K \exp(\alpha_{k'})}$$
+$$p(\mathbf{X} \mid \boldsymbol{\theta}, \boldsymbol{\phi}) = \prod_{i=1}^N \sum_{k=1}^K \phi_k f_{\mathcal{N}_D(\boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)}(\boldsymbol{x}_i)$$
 
-which ensures that $\sum_{k=1}^K w_k = 1$.
+using the probability density function for the multivariate normal distribution
 
-From these values, we define the GMM likelihood function
+$$f_{\mathcal{N}_D(\boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)}(\boldsymbol{x}_i) = \frac{\exp({-\frac{1}{2}(\boldsymbol{x}_i - \boldsymbol{\mu}_k)^T \mathbf{\Sigma}_k^{-1} (\boldsymbol{x}_i - \boldsymbol{\mu}_k)})}{\sqrt{(2\pi)^D \det(\mathbf{\Sigma}_k)}}.$$
 
-$$p(\mathbf{X}; \boldsymbol{w}, \mathbf{M}, \mathsf{\Sigma}) = \prod_{i=1}^N \sum_{k=1}^K w_k |2\pi\mathbf{\Sigma}_k|^{-\frac{1}{2}} \exp\bigg(-\frac{1}{2}(\boldsymbol{x}_i - \boldsymbol{\mu}_k)^\top \Sigma_k^{-1}(\boldsymbol{x}_i - \boldsymbol{\mu}_k)\bigg).$$
+These two formulae are not used directly in the computation, but they will allow
+us to define the negative log posterior function we actually want to compute,
+which we will then simplify. Before that, though, we must define our prior on
+the covariance matrices. The fields `m` and `gamma` are $m \in \mathbb{Z}$ and
+$\gamma \in \mathbb{R}$ respectively, which parametrize the Wishart distribution
+with probability density function
 
-The fields `m` and `gamma` encode $m \in \mathbb{Z}$ and $\gamma \in \mathbb{R}$
-respectively, parameterizing an Identity-Wishart prior over the covariances as
+$$f_{W_D(\mathbf{V}, n)}(\mathbf{\Sigma}_k) = \frac{\det(\mathbf{\Sigma}_k)^{(n-D-1)/2} \exp(-\frac{1}{2} \text{tr}(\mathbf{V}^{-1} \mathbf{\Sigma}_k))}{2^{(Dn)/2} \det(\mathbf{V})^{n/2} \Gamma_D(\frac{n}{2})}$$
 
-$$p(\mathsf{\Sigma}) = \prod_{k=1}^K C(D, m) |\mathbf{\Sigma}_k|^m \exp\bigg(-\frac{1}{2}\,\text{trace}(\mathbf{\Sigma}_k)\bigg)$$
+where $\text{tr}$ is the [trace][], $\Gamma_D$ is the [multivariate gamma
+function][], and we choose
+$\mathbf{V} = \frac{1}{\gamma^2} I \in \mathbb{R}^{D \times D}$ and
+$n = D + m + 1$. From this, we define our prior to be
 
-where $C(D, m) = \text{TODO}$. Note that the original ADBench paper does
-explicitly define $C$, and does not mention $\gamma$ at all; these are
-reconstructed by looking at their implementation.
+$$p(\boldsymbol{\theta}) = \prod_{k=1}^K f_{W_D(\mathbf{V}, n)}(\mathbf{\Sigma}_k)$$
 
-The GMM `objective` function is then defined as the negative log posterior
+from which we define the `objective` function to compute the negative log
+posterior
 
-$$L(\boldsymbol{w}, \mathbf{M}, \mathsf{\Sigma}; \mathbf{X}) = -\log\big(p(\mathbf{X}; \boldsymbol{w}, \mathbf{M}, \mathsf{\Sigma})p(\mathsf{\Sigma})\big)$$
+$$-\log(p(\mathbf{X} \mid \boldsymbol{\theta}, \boldsymbol{\phi}) p(\boldsymbol{\theta}))$$
 
-and the `jacobian` function computes $\nabla L$ with respect to the four `Input`
-fields encoding all the `Independent` variables $\boldsymbol{\alpha}$,
-$\mathbf{M}$, $\mathbf{Q}$, and $\mathsf{L}$.
+and the `jacobian` function to compute the gradient of that with respect to the
+four `Input` fields encoding all the `Independent` variables.
 
 ## Implementation
 
 To actually _compute_ `objective`, it is typical to first perform further
-algebraic simplifications, since the definitions of the likelihood and prior
-include determinants and matrix inversions that would be expensive to compute
-naively. Specifically,
-
-$$
-\begin{aligned}
-\log p(\mathbf{X}; \boldsymbol{w}, \mathbf{M}, \mathsf{\Sigma})
-&= \frac{ND}{2} \log 2\pi \\
-&- \sum_{i=1}^N \text{logsumexp}\Bigg(\bigg[\alpha_k + \sum_{k=1}^K \boldsymbol{q}_k - \frac{1}{2}\|Q(\boldsymbol{q}_k, \boldsymbol{l}_k)(\boldsymbol{x}_i - \boldsymbol{\mu}_k)\|^2\bigg]_{k=1}^K\Bigg) \\
-&+ N\,\text{logsumexp}\Big([\alpha_k]_{k=1}^K\Big)
-\end{aligned}
-$$
-
-where the notation $[\alpha_k]_{k=1}^K$ means to construct a $K$-dimensional
-vector in which the element at index $k$ is $\alpha_k$. Similarly, we can
-simplify
-
-$$\log p(\mathsf{\Sigma}) = -\frac{1}{2} \sum_{k=1}^K \gamma^2\big(\|\exp(\boldsymbol{q}_k)\|^2 + \|\boldsymbol{L}_k\|^2\big) + m \sum_{k=1}^K \boldsymbol{q}_k + K\bigg(c - \log \Gamma_p\Big(\frac{n}{2}\Big)\bigg)$$
-
-where $c = ND \log \frac{\gamma}{\sqrt{2}}$. Finally, we can compute the overall
-negative log posterior as
-
-$$L(\boldsymbol{w}, \mathbf{M}, \mathsf{\Sigma}; \mathbf{X}) = -\log p(\mathbf{X}; \boldsymbol{w}, \mathbf{M}, \mathsf{\Sigma}) - \log p(\mathsf{\Sigma}).$$
+algebraic simplifications, since the Gaussian and Wishart probability
+distribution functions include determinants and matrix inversions that would be
+expensive to compute naively.
 
 ## Commentary
 
@@ -175,9 +166,26 @@ This eval is straightforward to parallelise. The [C++ implementation][cpp] has
 been parallelised with OpenMP.
 
 [adbench paper]: https://arxiv.org/abs/1807.10129
+[covariance matrices]: https://en.wikipedia.org/wiki/Covariance_matrix
 [cpp]: /cpp/gradbench/evals/gmm.hpp
 [futhark]: /tool/futhark/gmm.fut
+[gradient]: https://en.wikipedia.org/wiki/Gradient
+[latent variables]:
+  https://en.wikipedia.org/wiki/Latent_and_observable_variables
+[logarithm]: https://en.wikipedia.org/wiki/Logarithm
+[mixture model]: https://en.wikipedia.org/wiki/Mixture_model
+[multivariate gamma function]:
+  https://en.m.wikipedia.org/wiki/Multivariate_gamma_function
+[multivariate gaussian]:
+  https://en.wikipedia.org/wiki/Multivariate_normal_distribution
+[positive-definite]: https://en.wikipedia.org/wiki/Definite_matrix
+[posterior probability]: https://en.wikipedia.org/wiki/Posterior_probability
+[prior]: https://en.wikipedia.org/wiki/Prior_probability
 [pytorch]: /python/gradbench/gradbench/tools/pytorch/gmm_objective.py
+[row-major]: https://en.wikipedia.org/wiki/Row-_and_column-major_order
+[strictly lower triangular]: https://en.wikipedia.org/wiki/Triangular_matrix
+[trace]: https://en.m.wikipedia.org/wiki/Trace_(linear_algebra)
+[wishart]: https://en.m.wikipedia.org/wiki/Wishart_distribution
 [`llsq`]: /evals/llsq
 [`lstm`]: /evals/lstm
 [`ode`]: /evals/ode
