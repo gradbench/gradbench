@@ -1,8 +1,17 @@
 import { Row, Summary } from "../store.ts";
 import { Fragment } from "react";
 
-const formatScore = (score: number): string => {
-  return (Math.round(score * 1e2) / 1e2).toString().replace("0.", ".");
+const formatDuration = (duration: number): [string, string] => {
+  if (duration < 1e-4) {
+    return [(duration * 1e6).toPrecision(2).replace("0.", "."), "µs"];
+  }
+  if (duration < 1e-1) {
+    return [(duration * 1e3).toPrecision(2).replace("0.", "."), "ms"];
+  }
+  if (duration < 1e2) {
+    return [duration.toPrecision(2).replace("0.", "."), "s"];
+  }
+  return [duration.toFixed(0), "s"];
 };
 
 const ScoredRow = ({ tools }: Row) => {
@@ -12,6 +21,7 @@ const ScoredRow = ({ tools }: Row) => {
   return tools.map(({ tool, outcome, score, status }) => {
     if (score !== undefined) {
       const lightness = 100 - 50 * (score / maxScore);
+      const [duration, unit] = formatDuration(1 / score);
       return (
         <div
           key={tool}
@@ -20,7 +30,12 @@ const ScoredRow = ({ tools }: Row) => {
             backgroundColor: `hsl(240 100% ${lightness}%)`,
             color: lightness < 70 ? "#e2e2ff" : "#0d0d1a"
           }}
-        >{formatScore(score / maxScore)}</div>
+        >
+          <span>
+            <span className="cell__duration">{duration}</span>
+            <span className="cell__unit">{unit}</span>
+          </span>
+        </div>
       );
     } else if (outcome !== undefined && outcome !== "undefined") {
       // This means the tool was defined for this eval but had an unsuccessful

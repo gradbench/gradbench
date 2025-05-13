@@ -89,7 +89,12 @@ body {
   align-items: center;
   display: flex;
   justify-content: center;
+}
+.cell__duration {
   font-size: 12px;
+}
+.cell__unit {
+  font-size: 8px;
 }
 
 .incorrect {
