@@ -1,11 +1,20 @@
 # Gaussian Mixture Model Fitting (GMM)
 
 This eval is adapted from "Objective GMM: Gaussian Mixture Model Fitting" from
-section 4.1 of the [ADBench paper][]; it computes the [gradient][] of the
-[logarithm][] of the [posterior probability][] for a [multivariate Gaussian][]
-[mixture model][] (GMM) with a [Wishart][] [prior][] on the [covariance
-matrices][]. It defines a module named `gmm`, which consists of two functions
-`objective` and `jacobian`, both of which take the same input:
+section 4.1 of the [ADBench paper][], with a more complete specification and
+incorporating fixes for four errors in the original paper and
+[implementations][adbench]:
+
+1. an illegal simplification for computing the trace of a covariance matrix
+2. a sign error in simplifying the active term for the prior
+3. an incorrectly transposed construction of the covariance matrix inverse
+4. a sign error in the logarithm of the Wishart probability density function
+
+It computes the [gradient][] of the [logarithm][] of the [posterior
+probability][] for a [multivariate Gaussian][] [mixture model][] (GMM) with a
+[Wishart][] [prior][] on the [covariance matrices][]. It defines a module named
+`gmm`, which consists of two functions `objective` and `jacobian`, both of which
+take the same input:
 
 ```typescript
 import type { Float, Int, Runs } from "gradbench";
@@ -106,7 +115,7 @@ Q(\boldsymbol{q}_k, \mathbf{L}_k) = \begin{bmatrix}
 by exponentiating each value of $`\boldsymbol{q}_k`$ to form the diagonal and
 then summing with $`\mathbf{L}_k`$. Then we use this to compute the inverse of
 the covariance matrix as
-$`\mathbf{\Sigma}_k^{-1} = Q(\boldsymbol{q}_k, \mathbf{L}_k)Q(\boldsymbol{q}_k, \mathbf{L}_k)^\top`$.
+$`\mathbf{\Sigma}_k^{-1} = Q(\boldsymbol{q}_k, \mathbf{L}_k)^\top Q(\boldsymbol{q}_k, \mathbf{L}_k)`$.
 
 We will refer to the collection of all the means and covariance matrices
 together by the symbol $`\boldsymbol{\theta}`$. Then, since component $`k`$ has
@@ -122,7 +131,7 @@ p(\mathbf{X} \mid \boldsymbol{\theta}, \boldsymbol{\phi}) = \prod_{i=1}^N \sum_{
 using the probability density function for the multivariate normal distribution
 
 ```math
-f_{\mathcal{N}_D(\boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)}(\boldsymbol{x}_i) = \frac{\exp(-\frac{1}{2}(\boldsymbol{x}_i - \boldsymbol{\mu}_k)^T \mathbf{\Sigma}_k^{-1} (\boldsymbol{x}_i - \boldsymbol{\mu}_k))}{\sqrt{(2\pi)^D \det(\mathbf{\Sigma}_k)}}.
+f_{\mathcal{N}_D(\boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)}(\boldsymbol{x}_i) = \frac{\exp(-\frac{1}{2}(\boldsymbol{x}_i - \boldsymbol{\mu}_k)^\top \mathbf{\Sigma}_k^{-1} (\boldsymbol{x}_i - \boldsymbol{\mu}_k))}{\sqrt{(2\pi)^D \det(\mathbf{\Sigma}_k)}}.
 ```
 
 These two formulae are not used directly in the computation, but they will allow
@@ -133,7 +142,7 @@ $`m \in \mathbb{Z}_{\geq 0}`$ and $`\gamma > 0`$ respectively, which parametrize
 the Wishart distribution with probability density function
 
 ```math
-f_{W_D(\mathbf{V}, n)}(\mathbf{\Sigma}_k) = \frac{\det(\mathbf{\Sigma}_k)^{(n-D-1)/2} \exp(-\frac{1}{2} \text{tr}(\mathbf{V}^{-1} \mathbf{\Sigma}_k))}{2^{(Dn)/2} \det(\mathbf{V})^{n/2} \Gamma_D(\frac{n}{2})}
+f_{W_D(\mathbf{V}, n)}(\mathbf{\Sigma}_k) = \frac{\det(\mathbf{\Sigma}_k)^{(n-D-1)/2} \exp(-\frac{1}{2} \text{tr}(\mathbf{V}^{-1} \mathbf{\Sigma}_k))}{2^{(nD)/2} \det(\mathbf{V})^{n/2} \Gamma_D(\frac{n}{2})}
 ```
 
 where $`\text{tr}`$ is the [trace][], $`\Gamma_D`$ is the [multivariate gamma
@@ -178,16 +187,10 @@ and write
 p(\mathbf{X} \mid \boldsymbol{\theta}, \boldsymbol{\phi}) = \prod_{i=1}^N \frac{1}{\sqrt{(2\pi)^D} \sum_{k=1}^K \exp(\alpha_k)} \sum_{k=1}^K \exp(\beta_{i,k}).
 ```
 
-For the prior, we have
+For the prior we have $`\det(\mathbf{V})^{n/2} = \gamma^{-nD}`$, so
 
 ```math
-\text{tr}(\mathbf{V}^{-1} \mathbf{\Sigma}_k) = \gamma^2\,\text{tr}(\mathbf{\Sigma}_k) = \frac{\gamma^2}{2} \|Q(\boldsymbol{q}_k, \mathbf{L}_k)\|_F^2
-```
-
-and $`\det(\mathbf{V})^{n/2} = \gamma^{-Dn}`$, so
-
-```math
-f_{W_D(\mathbf{V}, n)}(\mathbf{\Sigma}_k) = \bigg(\frac{\gamma}{\sqrt{2}}\bigg)^{Dn} \frac{1}{\Gamma_D(\frac{n}{2})} \exp\Bigg(\frac{\gamma^2}{2} \|Q(\boldsymbol{q}_k, \mathbf{L}_k)\|_F^2 - m \sum_{j=1}^D q_{k,j}\Bigg).
+f_{W_D(\mathbf{V}, n)}(\mathbf{\Sigma}_k) = \bigg(\frac{\gamma}{\sqrt{2}}\bigg)^{nD} \frac{1}{\Gamma_D(\frac{n}{2})} \exp\Bigg({-\frac{\gamma^2}{2} \text{tr}(\mathbf{\Sigma}_k) - m \sum_{j=1}^D q_{k,j}}\Bigg).
 ```
 
 Then we can define a [helper function][`lse`]
@@ -203,36 +206,36 @@ $`F_\mathbf{X}(\boldsymbol{\theta}, \boldsymbol{\phi}) = \log p(\mathbf{X} \mid 
 to push the logarithms down, yielding
 
 ```math
-\log p(\mathbf{X} \mid \boldsymbol{\theta}, \boldsymbol{\phi}) = -N\bigg(\frac{D \log 2\pi}{2} + \text{logsumexp}(\boldsymbol{\alpha})\bigg) + \sum_{i=1}^N \text{logsumexp}(\boldsymbol{\beta}_i)
+\log p(\mathbf{X} \mid \boldsymbol{\theta}, \boldsymbol{\phi}) = -N\bigg(\frac{D}{2} \log 2\pi + \text{logsumexp}(\boldsymbol{\alpha})\bigg) + \sum_{i=1}^N \text{logsumexp}(\boldsymbol{\beta}_i)
 ```
 
 and
 
 ```math
-\log p(\boldsymbol{\theta}) = K\bigg(Dn \log \frac{\gamma}{\sqrt{2}} - \log \Gamma_D\Big(\frac{n}{2}\Big)\bigg) + \frac{\gamma^2}{2} \sum_{k=1}^K \|Q(\boldsymbol{q}_k, \mathbf{L}_k)\|_F^2 - m \sum_{k=1}^K \sum_{j=1}^D q_{k,j}.
+\log p(\boldsymbol{\theta}) = K\bigg(nD \log \frac{\gamma}{\sqrt{2}} - \log \Gamma_D\Big(\frac{n}{2}\Big)\bigg) - \frac{\gamma^2}{2} \text{tr}(\mathbf{\Sigma}_k) - m \sum_{k=1}^K \sum_{j=1}^D q_{k,j}.
 ```
 
 ## Commentary
 
 This eval is straightforward to implement from an AD perspective, as it computes
 a dense gradient of a scalar-valued function. The objective function can be
-easily expressed in a scalar way (see the [C++ implementation][cpp] or the
-[Futhark implementation][futhark]), or through linear algebra operations (see
-the [PyTorch implementation][pytorch]). An even simpler eval with the same
-properties is [`llsq`][], which you might consider implementing first. After
-implementing `gmm`, implementing [`lstm`][] or [`ode`][] should not be so
-difficult.
+easily expressed in a scalar way (see the [C++ implementation][] or the [Futhark
+implementation][]), or through linear algebra operations (see the [PyTorch
+implementation][]). An even simpler eval with the same properties is [`llsq`][],
+which you might consider implementing first. After implementing `gmm`,
+implementing [`lstm`][] or [`ode`][] should not be so difficult.
 
 ### Parallel execution
 
-This eval is straightforward to parallelise. The [C++ implementation][cpp] has
-been parallelised with OpenMP.
+This eval is straightforward to parallelise. The [C++ implementation][] has been
+parallelised with OpenMP.
 
+[adbench]: https://github.com/microsoft/ADBench
 [adbench paper]: https://arxiv.org/abs/1807.10129
 [covariance matrices]: https://en.wikipedia.org/wiki/Covariance_matrix
-[cpp]: /cpp/gradbench/evals/gmm.hpp
+[c++ implementation]: /cpp/gradbench/evals/gmm.hpp
 [determinants]: https://en.wikipedia.org/wiki/Determinant
-[futhark]: /tool/futhark/gmm.fut
+[futhark implementation]: /tool/futhark/gmm.fut
 [gradient]: https://en.wikipedia.org/wiki/Gradient
 [latent variables]:
   https://en.wikipedia.org/wiki/Latent_and_observable_variables
@@ -245,7 +248,8 @@ been parallelised with OpenMP.
 [positive-definite]: https://en.wikipedia.org/wiki/Definite_matrix
 [posterior probability]: https://en.wikipedia.org/wiki/Posterior_probability
 [prior]: https://en.wikipedia.org/wiki/Prior_probability
-[pytorch]: /python/gradbench/gradbench/tools/pytorch/gmm_objective.py
+[pytorch implementation]:
+  /python/gradbench/gradbench/tools/pytorch/gmm_objective.py
 [row-major]: https://en.wikipedia.org/wiki/Row-_and_column-major_order
 [strictly lower triangular]: https://en.wikipedia.org/wiki/Triangular_matrix
 [trace]: https://en.m.wikipedia.org/wiki/Trace_(linear_algebra)
