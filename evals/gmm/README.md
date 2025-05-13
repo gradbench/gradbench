@@ -209,7 +209,7 @@ to push the logarithms down, yielding
 and
 
 ```math
-\log p(\boldsymbol{\theta}) = K\bigg(Dn \log \frac{\gamma}{\sqrt{2}} - \log \Gamma_D\Big(\frac{n}{2}\Big)\bigg) + \frac{\gamma^2}{2} \sum_{k=1}^K \bigg(\|Q(\boldsymbol{q}_k, \mathbf{L}_k)\|_F^2 - m \sum_{j=1}^D q_{k,j}\bigg).
+\log p(\boldsymbol{\theta}) = K\bigg(Dn \log \frac{\gamma}{\sqrt{2}} - \log \Gamma_D\Big(\frac{n}{2}\Big)\bigg) + \frac{\gamma^2}{2} \sum_{k=1}^K \|Q(\boldsymbol{q}_k, \mathbf{L}_k)\|_F^2 - m \sum_{k=1}^K \sum_{j=1}^D q_{k,j}.
 ```
 
 ## Commentary
