@@ -70,9 +70,8 @@ This is a _very_ simple benchmark, and a good first one to implement.
 
 ### Parallel execution
 
-The `primal` function can be implemented as a parallel reduction, and this is
-done in [lse.hpp][]. On most workloads, multithreaded execution does not lead to
-a significant speedup.
+The `primal` function can be implemented as two parallel reductions, and this is
+done in [lse.hpp][]. This results in good speedup.
 
 [the LogSumExp trick]: https://gregorygundersen.com/blog/2020/02/09/log-sum-exp/
 [protocol]: /CONTRIBUTING.md#types
