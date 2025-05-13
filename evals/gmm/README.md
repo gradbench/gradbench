@@ -79,9 +79,9 @@ $\boldsymbol{\mu}_k \in \mathbb{R}^D$ for the component with index
 $k \in \{1, \dots, K\}$.
 
 Conceptually, that component also has a [positive-definite][] covariance matrix
-$\mathbf{\Sigma}_k \in \mathbb{R}^{D \times D}$. However, the covariance matrix
-is not directly used in the computation; only its inverse is used. The `q` and
-`l` fields parametrize these inverses of the covariance matrices. If we
+$`\mathbf{\Sigma}_k \in \mathbb{R}^{D \times D}`$. However, the covariance
+matrix is not directly used in the computation; only its inverse is used. The
+`q` and `l` fields parametrize these inverses of the covariance matrices. If we
 represent the zero-indexed value $k - 1$ in code as `k: Int`, then the elements
 `q[k]` and `l[k]` represent a vector $\boldsymbol{q} \in \mathbb{R}^D$ and a
 [strictly lower triangular][] matrix $\mathbf{L} \in \mathbb{R}^{D \times D}$,
