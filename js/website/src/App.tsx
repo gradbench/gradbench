@@ -162,11 +162,16 @@ const Viz = ({ prefix, summary }: { prefix: string; summary: Summary }) => {
         }}
       >
         <div />
-        {summary.table[0].tools.map((cell) => (
-          <div key={cell.tool} className="column-header">
-            {cell.tool}
-          </div>
-        ))}
+        {summary.table[0].tools.map((cell) => {
+          // We use non-breaking hyphens here to prevent the column header for a
+          // tool with a long hyphenated name from being made wider by splitting
+          // the sideways text into multiple lines.
+          return (
+            <div key={cell.tool} className="column-header">
+              {cell.tool.replaceAll("-", "‑")}
+            </div>
+          );
+        })}
         {summary.table.map((row) => (
           <Fragment key={row.eval}>
             <div

@@ -1,5 +1,16 @@
+FROM oven/bun
+WORKDIR /gradbench
+
+# `COPY` the minimal set of files to create `node_modules`.
+COPY package.json ./
+COPY bun.lock ./
+COPY js/common/package.json js/common/
+COPY js/floretta/package.json js/floretta/
+RUN bun install --omit dev
+
 FROM node
 ARG TARGETARCH
+COPY --from=0 /gradbench /gradbench
 WORKDIR /gradbench
 
 # Prepare to install tools.
@@ -18,6 +29,7 @@ RUN chmod +x bin/floretta
 
 # `COPY` the rest of the files.
 COPY tools/floretta tools/floretta
+COPY js/common js/common
 COPY js/floretta js/floretta
 
 ENTRYPOINT ["node", "--disable-warning=ExperimentalWarning", "js/floretta/run.ts"]
