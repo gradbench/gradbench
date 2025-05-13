@@ -14,11 +14,11 @@ const formatDuration = (duration: number): [string, string] => {
   return [duration.toFixed(0), "s"];
 };
 
-const ScoredRow = ({ tools }: Row) => {
+const ScoredRow = (row: Row) => {
   const maxScore = Math.max(
-    ...tools.flatMap(({ score }) => (score === undefined ? [] : [score])),
+    ...row.tools.flatMap(({ score }) => (score === undefined ? [] : [score])),
   );
-  return tools.map(({ tool, outcome, score, status }) => {
+  return row.tools.map(({ tool, outcome, score, status }) => {
     if (score !== undefined) {
       const lightness = 100 - 50 * (score / maxScore);
       const [duration, unit] = formatDuration(1 / score);
@@ -31,10 +31,12 @@ const ScoredRow = ({ tools }: Row) => {
             color: lightness < 70 ? "#e2e2ff" : "#0d0d1a",
           }}
         >
-          <span>
-            <span className="cell__duration">{duration}</span>
-            <span className="cell__unit">{unit}</span>
-          </span>
+          {row.eval !== "hello" && (
+            <span>
+              <span className="cell__duration">{duration}</span>
+              <span className="cell__unit">{unit}</span>
+            </span>
+          )}
         </div>
       );
     } else if (outcome !== undefined && outcome !== "undefined") {
