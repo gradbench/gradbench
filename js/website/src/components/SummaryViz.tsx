@@ -106,11 +106,7 @@ interface SummaryVizProps {
   onActiveEvalChange: (activeEval: string | null) => void;
 }
 
-const SummaryViz = ({
-  summary,
-  activeEval,
-  onActiveEvalChange,
-}: SummaryVizProps) => {
+const SummaryViz = ({ summary, onActiveEvalChange }: SummaryVizProps) => {
   const numEvals = summary.table.length;
   const numTools = summary.table[0].tools.length;
   const cellSize = "30px";
