@@ -1,7 +1,5 @@
-import { useState } from "react";
-import { Row, Summary } from "../summary.ts";
+import { Row, Summary } from "../store.ts";
 import { Fragment } from "react";
-import Stats from "./Stats.tsx";
 
 const formatScore = (score: number): string => {
   return (Math.round(score * 1e2) / 1e2).toString().replace("0.", ".");
@@ -66,20 +64,16 @@ const ScoredRow = ({ tools }: Row) => {
   });
 };
 
-const Viz = ({ prefix, summary }: { prefix: string; summary: Summary }) => {
-  const [activeEval, setActiveEval] = useState<string | undefined>(undefined);
+interface SummaryVizProps {
+  summary: Summary;
+  activeEval: string | null;
+  onActiveEvalChange: (activeEval: string | null) => void;
+}
+
+const SummaryViz = ({ summary, activeEval, onActiveEvalChange }: SummaryVizProps) => {
   const numEvals = summary.table.length;
   const numTools = summary.table[0].tools.length;
   const cellSize = "30px";
-  // We use the URL as the `key` for the `Stats` component so that its state
-  // completely resets when the URL changes; that way, when that component
-  // fetches the data, it doesn't need to check before overwriting its state.
-  const url =
-    activeEval === undefined
-      ? undefined
-      : summary.version === 1
-        ? `${prefix}/evals/${activeEval}/summary.json`
-        : undefined;
   return (
     <>
       <ul>
@@ -115,9 +109,7 @@ const Viz = ({ prefix, summary }: { prefix: string; summary: Summary }) => {
           <Fragment key={row.eval}>
             <div
               className={`row-header ${summary.version === 1 ? "header-clickable" : ""}`}
-              onClick={() => {
-                setActiveEval(row.eval);
-              }}
+              onClick={() => onActiveEvalChange(row.eval)}
             >
               {row.eval}
             </div>
@@ -125,16 +117,8 @@ const Viz = ({ prefix, summary }: { prefix: string; summary: Summary }) => {
           </Fragment>
         ))}
       </div>
-      {url === undefined ? (
-        <></>
-      ) : (
-        <>
-          <h2>{activeEval}</h2>
-          <Stats key={url} url={url} />
-        </>
-      )}
     </>
   );
 };
 
-export default Viz;
+export default SummaryViz;
