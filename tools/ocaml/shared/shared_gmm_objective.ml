@@ -84,8 +84,8 @@ module Make
       *. (log (wishart.gamma /. S.float (Stdlib.sqrt 2.0)))
     in
     sub_scalar
-      out
       (S.float k *. (c -. S.float (log_gamma_distrib Stdlib.(0.5 *. n) p)))
+      out
 
   let gmm_objective param =
     let xshape = shape param.x in

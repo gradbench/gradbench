@@ -17,7 +17,7 @@ def log_wishart_prior(p, wishart_gamma, wishart_m, sum_qs, Qdiags, icf):
     )
 
     C = n * p * (jnp.log(wishart_gamma / math.sqrt(2)))
-    return out - k * (C - multigammaln(0.5 * n, p))
+    return -out + k * (C - multigammaln(0.5 * n, p))
 
 
 def gmm_objective(alphas, means, icf, x, wishart_gamma, wishart_m):

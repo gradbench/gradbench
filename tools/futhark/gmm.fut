@@ -36,7 +36,7 @@ def logWishartPrior [k] (qsAndSums: [k]([][]f64, f64)) wishartGamma wishartM p =
     let c = f64.i64 (n * p) * (f64.log wishartGamma - 0.5 * f64.log 2) - (logGammaDistrib (0.5 * f64.i64 n) p)
     let frobenius = qsAndSums |> sumBy (fst >-> frobeniusNormSq)
     let sumQs = qsAndSums |> sumBy snd
-    in 0.5 * wishartGamma * wishartGamma * frobenius - f64.i64 wishartM * sumQs - f64.i64 k * c
+    in -0.5 * wishartGamma * wishartGamma * frobenius + f64.i64 wishartM * sumQs + f64.i64 k * c
 
 def gmmObjective [d][k][n] (alphas: [k]f64) (means: [k][d]f64) (icf: [k][]f64) (x: [n][d]f64) (wishartGamma: f64) (wishartM: i64) =
     let constant = -(f64.i64 n * f64.i64 d * 0.5 * f64.log (2 * f64.pi))
