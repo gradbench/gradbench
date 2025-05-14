@@ -231,10 +231,10 @@ double log_wishart_prior_nodiff(int p, int k, Wishart wishart,
     arg1      = icf_sz - p;
     result2   = sqnorm_nodiff(arg1, &(icf[ik * icf_sz + p]));
     frobenius = result1 + result2;
-    out       = out + 0.5 * wishart.gamma * wishart.gamma * frobenius -
+    out       = out - 0.5 * wishart.gamma * wishart.gamma * frobenius -
           wishart.m * sum_qs[ik];
   }
-  return out - k * C;
+  return out + k * C;
 }
 
 /*
