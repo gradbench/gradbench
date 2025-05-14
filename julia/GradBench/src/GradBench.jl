@@ -1,6 +1,7 @@
 module GradBench
 
 import JSON
+using ArgParse
 
 """
     Experiment
@@ -72,7 +73,24 @@ function run(params)
     return Dict("success" => true, "output" => output, "timings" => timings)
 end
 
+
+function parse_commandline()
+    s = ArgParseSettings()
+
+    @add_arg_table s begin
+        "--multithreaded"
+        help = "Enable multithreading"
+        action = :store_true
+    end
+
+    return parse_args(s)
+end
+
+OPTIONS = Dict{String,Any}()
+
 function main(tool)
+    global OPTIONS
+    OPTIONS = parse_commandline()
     while !eof(stdin)
         message = JSON.parse(readline(stdin))
         response = Dict()

@@ -4,6 +4,12 @@ julia_version = "1.10.9"
 manifest_format = "2.0"
 project_hash = "f3937c14ef4dea41e32def0d8571d3d1e503ceb8"
 
+[[deps.ArgParse]]
+deps = ["Logging", "TextWrap"]
+git-tree-sha1 = "22cf435ac22956a7b45b0168abbc871176e7eecc"
+uuid = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
+version = "1.2.0"
+
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
 version = "1.1.1"
@@ -92,7 +98,7 @@ uuid = "61eb1bfa-7361-4325-ad38-22787b887f55"
 version = "1.2.0"
 
 [[deps.GradBench]]
-deps = ["JSON", "LinearAlgebra", "SpecialFunctions"]
+deps = ["ArgParse", "JSON", "LinearAlgebra", "SpecialFunctions"]
 path = "../../julia/GradBench"
 uuid = "b8d9ff47-6a34-4c60-b82b-acd435921e41"
 version = "0.1.0"
@@ -324,6 +330,11 @@ version = "1.0.3"
 deps = ["ArgTools", "SHA"]
 uuid = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
 version = "1.10.0"
+
+[[deps.TextWrap]]
+git-tree-sha1 = "43044b737fa70bc12f6105061d3da38f881a3e3c"
+uuid = "b718987f-49a8-5099-9789-dcd902bef87d"
+version = "1.0.2"
 
 [[deps.TimerOutputs]]
 deps = ["ExprTools", "Printf"]

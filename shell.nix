@@ -79,6 +79,7 @@ in pkgs.stdenv.mkDerivation rec {
   ENZYME_LIB = "${pkgs.enzyme}/lib";
   LD_LIBRARY_PATH =
     "${pkgs.lib.makeLibraryPath buildInputs}:${pkgs.stdenv.cc.cc.lib}/lib";
+  JULIA_NUM_THREADS = "auto";
 
   # The Nix C/C++ compilers disable -march=native on purity reasons, but we
   # don't use them to compile Nix derivations.

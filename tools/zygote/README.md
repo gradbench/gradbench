@@ -35,3 +35,5 @@ have been improved compared to the original implementations.
   of AD.
 
 - `ba` has been lightly micro-optimised, but but impact is not major.
+
+### Multithreading
