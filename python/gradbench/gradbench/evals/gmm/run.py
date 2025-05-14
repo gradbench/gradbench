@@ -11,7 +11,6 @@ from gradbench.eval import (
     approve,
     mismatch,
 )
-from gradbench.evals.gmm import data_gen
 
 
 def multivariate_gaussian_pdf(x, *, k, mu, Sigma_inverse):
@@ -113,20 +112,88 @@ def expect_naive_objective(function: str, input: Any) -> EvaluateResponse:
         return expect(function, input)
 
 
+def generate(*, seed, d, k, n, m, gamma):
+    rng = np.random.default_rng(seed=seed)
+    return {
+        "d": d,
+        "k": k,
+        "n": n,
+        "x": [list(rng.normal(size=d)) for _ in range(n)],
+        "m": m,
+        "gamma": gamma,
+        "mu": [list(rng.uniform(size=d)) for _ in range(k)],
+        "q": [list(rng.normal(size=d)) for _ in range(k)],
+        "l": [list(rng.normal(size=d * (d - 1) // 2)) for _ in range(k)],
+        "alpha": list(rng.normal(size=k)),
+    }
+
+
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-n", type=int, default=1000)
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument(
-        "-k", nargs="+", type=int, default=[5, 10, 25, 50, 100]
-    )  # misses 200
+        "--seed",
+        type=int,
+        default=31337,
+        help="seed for generating inputs",
+    )
     parser.add_argument(
-        "-d", nargs="+", type=int, default=[2, 10, 20, 32, 64]
-    )  # misses 128
-    parser.add_argument("--min-runs", type=int, default=1)
-    parser.add_argument("--min-seconds", type=float, default=1)
-    parser.add_argument("--no-validation", action="store_true", default=False)
-    parser.add_argument("--validate-naive", action="store_true", default=False)
+        "-d",
+        nargs="+",
+        type=int,
+        default=[2, 10, 20, 32, 64],  # misses 128
+        help="number of dimensions",
+    )
+    parser.add_argument(
+        "-k",
+        nargs="+",
+        type=int,
+        default=[5, 10, 25, 50, 100],  # misses 200
+        help="number of mixture components",
+    )
+    parser.add_argument(
+        "-n",
+        type=int,
+        default=1000,
+        help="number of observations",
+    )
+    parser.add_argument(
+        "-m",
+        type=int,
+        default=0,
+        help="additional degrees of freedom for Wishart distribution",
+    )
+    parser.add_argument(
+        "--gamma",
+        type=float,
+        default=1.0,
+        help="precision for Wishart distribution",
+    )
+    parser.add_argument(
+        "--min-runs",
+        type=int,
+        default=1,
+        help="minimum number of times the tool should repeat each evaluation",
+    )
+    parser.add_argument(
+        "--min-seconds",
+        type=float,
+        default=1,
+        help="minimum seconds for which the tool should repeat each evaluation",
+    )
+    parser.add_argument(
+        "--no-validation",
+        action="store_true",
+        help="do not validate",
+    )
+    parser.add_argument(
+        "--validate-naive",
+        action="store_true",
+        help="use a naive implementation to validate the objective",
+    )
     args = parser.parse_args()
+
     e = SingleModuleValidatedEval(
         module="gmm",
         validator=approve
@@ -141,7 +208,7 @@ def main():
             key=lambda v: v[0] * v[1],
         )
         for d, k in combinations:
-            input = data_gen.main(d, k, n)
+            input = generate(seed=args.seed, d=d, k=k, n=n, m=args.m, gamma=args.gamma)
             e.evaluate(
                 function="objective",
                 input=input
