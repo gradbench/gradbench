@@ -15,9 +15,6 @@ let
   sources = import ./nix/sources.nix;
   pkgs = import sources.nixpkgs { };
 
-  cppad = pkgs.callPackage ./nix/cppad.nix { };
-  adept = pkgs.callPackage ./nix/adept.nix { };
-  codipack = pkgs.callPackage ./nix/codipack.nix { };
   floretta = pkgs.callPackage ./nix/floretta.nix { };
   GRADBENCH_PATH = builtins.getEnv "PWD";
 
@@ -35,8 +32,11 @@ in pkgs.stdenv.mkDerivation rec {
     pkgs.llvmPackages_19.clang-tools # Must come before clang for clangd to work.
 
     # Convenient
+    pkgs.adept
     pkgs.adolc
     pkgs.blas
+    pkgs.codipack
+    pkgs.cppad
     pkgs.eigen
     pkgs.enzyme
     pkgs.futhark
@@ -46,7 +46,7 @@ in pkgs.stdenv.mkDerivation rec {
     pkgs.llvmPackages_19.lld
     pkgs.llvmPackages_19.openmp
     pkgs.nixfmt-classic
-    pkgs.nodejs_23
+    pkgs.nodejs_24
     pkgs.openblas
     pkgs.pkg-config
     pkgs.wasm-tools
@@ -54,9 +54,6 @@ in pkgs.stdenv.mkDerivation rec {
     pkgs.zlib
 
     # Custom
-    adept
-    cppad
-    codipack
     floretta
 
     # Haskell
