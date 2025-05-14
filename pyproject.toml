@@ -26,3 +26,4 @@ members = ["python/*"]
 
 [tool.ruff.lint]
 extend-select = ["I", "RUF"]
+ignore = ["E741"]

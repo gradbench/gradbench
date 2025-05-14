@@ -31,7 +31,7 @@ def wishart_pdf(X, *, p, n, V):
     )
 
 
-def log_posterior(*, D, K, N, x, m, gamma, mu, q, l, alpha):  # noqa: E741
+def log_posterior(*, D, K, N, x, m, gamma, mu, q, l, alpha):
     exp_alpha = np.exp(alpha)
     sum_exp_alpha = np.sum(exp_alpha)
     phi = exp_alpha / sum_exp_alpha
@@ -83,7 +83,7 @@ def expect_naive_objective(function: str, input: Any) -> EvaluateResponse:
             K = input["k"]
             icf = input["icf"]
             q = []
-            l = []  # noqa: E741
+            l = []
             for k in range(K):
                 i = D
                 q.append(icf[k][:i])

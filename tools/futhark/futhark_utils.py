@@ -2,7 +2,7 @@ import re
 
 
 def get_runtime_ns(ls):
-    for l in ls:  # noqa: E741
+    for l in ls:
         m = re.match("runtime: ([0-9]+)", l)
         if m:
             return int(m.group(1)) * 1000
