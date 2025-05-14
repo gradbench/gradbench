@@ -11,7 +11,7 @@ incorporating fixes for three errors in the original paper and
 
 It computes the [gradient][] of the [logarithm][] of the [posterior
 probability][] for a [multivariate Gaussian][] [mixture model][] (GMM) with a
-[Wishart][] [prior][] on the [covariance matrices][]. It defines a module named
+[Wishart][] [prior][] on the [precision matrices][]. It defines a module named
 `gmm`, which consists of two functions `objective` and `jacobian`, both of which
 take the same input:
 
@@ -23,10 +23,10 @@ interface Independent {
   /** Means. */
   mu: Float[][];
 
-  /** Logarithms of diagonal part for making inverse covariance matrices. */
+  /** Logarithms of diagonal part for constructing precision matrices. */
   q: Float[][];
 
-  /** Jagged lower-triangular part for making inverse covariance matrices. */
+  /** Jagged lower-triangular part for constructing precision matrices. */
   l: Float[][][];
 
   /** Parametrization for weights. */
@@ -50,7 +50,7 @@ interface Input extends Runs, Independent {
   /** Additional degrees of freedom in Wishart prior. */
   m: Int;
 
-  /** Inverse standard deviation in Wishart prior. */
+  /** Precision in Wishart prior. */
   gamma: Float;
 }
 
@@ -107,12 +107,12 @@ $`\mathbf{M} \in \mathbb{R}^{K \times D}`$ giving the mean
 $`\boldsymbol{\mu}_k \in \mathbb{R}^D`$ for the component with index
 $`k \in \{1, \dots, K\}`$.
 
-Conceptually, that component also has a [positive-definite][] covariance matrix
-$`\mathbf{\Sigma}_k \in \mathbb{R}^{D \times D}`$. However, the covariance
-matrix is not directly used in the computation; only its inverse, the [precision
-matrix][], is used. The `q` and `l` fields parametrize these inverses of the
-covariance matrices. If we represent the zero-indexed value $`k - 1`$ in code as
-`k: Int`, then the elements `q[k]` and `l[k]` represent a vector
+Conceptually, that component also has a [positive-definite][] [covariance
+matrix][] $`\mathbf{\Sigma}_k \in \mathbb{R}^{D \times D}`$. However, the
+covariance matrix is not directly used in the computation; only its inverse, the
+precision matrix, is used. The `q` and `l` fields parametrize these precision
+matrices. If we represent the zero-indexed value $`k - 1`$ in code as `k: Int`,
+then the elements `q[k]` and `l[k]` represent a vector
 $`\boldsymbol{q}_k \in \mathbb{R}^D`$ and a [strictly lower triangular][] matrix
 $`\mathbf{L}_k \in \mathbb{R}^{D \times D}`$, respectively. Note that `l[k]`
 does not include the elements of $`\mathbf{L}_k`$ that are guaranteed to be zero
@@ -131,8 +131,8 @@ Q(\boldsymbol{q}_k, \mathbf{L}_k) = \begin{bmatrix}
 ```
 
 by exponentiating each value of $`\boldsymbol{q}_k`$ to form the diagonal and
-then summing with $`\mathbf{L}_k`$. Then we use this to compute the inverse of
-the covariance matrix as
+then summing with $`\mathbf{L}_k`$. Then we use this to compute the precision
+matrix as
 $`\mathbf{\Sigma}_k^{-1} = Q(\boldsymbol{q}_k, \mathbf{L}_k)^\top Q(\boldsymbol{q}_k, \mathbf{L}_k)`$.
 
 We will refer to the collection of all the means and covariance matrices
@@ -146,10 +146,7 @@ components, to get the GMM probability density function
 p(\mathbf{X} \mid \boldsymbol{\theta}, \boldsymbol{\phi}) = \prod_{i=1}^N \sum_{k=1}^K \phi_k f_{\mathcal{N}_D(\boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)}(\boldsymbol{x}_i).
 ```
 
-This formula is not used directly in the computation, but will allow us to
-define the log posterior function we actually want to compute, which we will
-then simplify. Before that, though, we must define our prior on the covariance
-matrices. The fields `m` and `gamma` are $`m \in \mathbb{Z}_{\geq 0}`$ and
+Finally, the fields `m` and `gamma` are $`m \in \mathbb{Z}_{\geq 0}`$ and
 $`\gamma > 0`$ respectively, with which we parametrize a Wishart distribution on
 the precision matrices via
 $`\mathbf{V} = \frac{1}{\gamma^2} I \in \mathbb{R}^{D \times D}`$ and
@@ -173,8 +170,8 @@ $`\boldsymbol{\phi}`$.
 
 To actually compute `objective`, it is typical to first perform some algebraic
 simplifications, since the Gaussian and Wishart probability density functions
-include [determinants][] and matrix inversions that would be expensive to
-compute naively. By observing that
+include determinants and matrix inversions that would be expensive to compute
+naively. By observing that
 
 ```math
 \det(\mathbf{\Sigma}_k^{-1}) = \det(Q(\boldsymbol{q}_k, \boldsymbol{L}_k))^2 = \prod_{j=1}^D \exp(q_{k,j})^2 = \exp\Bigg(2\sum_{j=1}^D q_{k,j}\Bigg)
@@ -246,9 +243,8 @@ parallelised with OpenMP.
 
 [adbench]: https://github.com/microsoft/ADBench
 [adbench paper]: https://arxiv.org/abs/1807.10129
-[covariance matrices]: https://en.wikipedia.org/wiki/Covariance_matrix
+[covariance matrix]: https://en.wikipedia.org/wiki/Covariance_matrix
 [c++ implementation]: /cpp/gradbench/evals/gmm.hpp
-[determinants]: https://en.wikipedia.org/wiki/Determinant
 [futhark implementation]: /tool/futhark/gmm.fut
 [gradient]: https://en.wikipedia.org/wiki/Gradient
 [latent variables]:
@@ -261,7 +257,7 @@ parallelised with OpenMP.
   https://en.wikipedia.org/wiki/Multivariate_normal_distribution
 [positive-definite]: https://en.wikipedia.org/wiki/Definite_matrix
 [posterior probability]: https://en.wikipedia.org/wiki/Posterior_probability
-[precision matrix]: https://en.wikipedia.org/wiki/Precision_(statistics)
+[precision matrices]: https://en.wikipedia.org/wiki/Precision_(statistics)
 [prior]: https://en.wikipedia.org/wiki/Prior_probability
 [pytorch implementation]:
   /python/gradbench/gradbench/tools/pytorch/gmm_objective.py
