@@ -1,10 +1,10 @@
 #!/bin/sh
 
-which clang-format
+clangformat=clang-format
 
-/usr/bin/clang-format --version
-/usr/bin/clang-format-19 --version
-file /usr/bin/clang-format
-file /usr/bin/clang-format-19
+# Workaround for GitHub Actions.
+if [ -f /usr/bin/clang-format-19 ]; then
+    clangformat=/usr/bin/clang-format-19
+fi
 
-git ls-files '*.c' '*.cpp' '*.h' '*.hpp' | xargs clang-format --dry-run -Werror
+git ls-files '*.c' '*.cpp' '*.h' '*.hpp' | xargs $clangformat --dry-run -Werror
