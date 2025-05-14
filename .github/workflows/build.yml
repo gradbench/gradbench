@@ -17,9 +17,13 @@ jobs:
         uses: actions/checkout@v4
       - name: Install clang-format 19
         run: sudo apt-get install -y clang-format-19
+      - name: Set clang-format-19 as clang-format
+        run:
+          sudo update-alternatives --install /usr/bin/clang-format clang-format
+          /usr/bin/clang-format-19 100
       - name: Check C/C++ formatting
         run: |
-          git ls-files '*.c' '*.cpp' '*.h' '*.hpp' | xargs clang-format-19 --dry-run -Werror
+          scripts/lint/cpp.sh
 
   check-js:
     runs-on: ubuntu-24.04
@@ -38,9 +42,9 @@ jobs:
           git diff
           [ -z "$CHANGES" ]
       - name: Check Prettier formatting
-        run: bun run prettier --check .
+        run: scripts/lint/prettier.sh
       - name: Run TypeScript
-        run: bun run --filter='*' typecheck
+        run: scripts/lint/typescript.sh
 
   check-py:
     runs-on: ubuntu-24.04
@@ -51,10 +55,8 @@ jobs:
         uses: actions/setup-python@v5
       - name: Install uv
         uses: astral-sh/setup-uv@v5
-      - name: Lint Python code
-        run: uv run ruff check
       - name: Check Python formatting
-        run: uv run ruff format --check
+        run: scripts/lint/python.sh
 
   check-rs:
     runs-on: ubuntu-24.04
@@ -62,7 +64,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Lint Rust code
-        run: cargo clippy -- -Dwarnings
+        run: scripts/lint/rust.sh
       - name: Test Rust code
         run: cargo test
 
@@ -76,7 +78,7 @@ jobs:
       - name: Install npm dependencies
         run: bun install
       - name: Lint website
-        run: bun run --filter=@gradbench/website lint
+        run: scripts/lint/website.sh
       - name: Build website
         run: bun run --filter=@gradbench/website build
       - name: Upload website artifact

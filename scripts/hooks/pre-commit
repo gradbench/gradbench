@@ -1,0 +1,24 @@
+#!/bin/sh
+#
+# Pre-commit hook for quality-checking the commit. Currently checks all files,
+# not just the ones touched by the commit. You can also run this script
+# directly.
+#
+# Install this hook by:
+#
+# $ ln -s ../../scripts/hooks/pre-commit .git/hooks/pre-commit
+
+fail() {
+    echo "Aborting commit due to verification errors."
+    echo "If you disagree, use git commit --no-verify."
+    exit 1
+}
+
+echo Quality-checking commit...
+echo
+
+for l in scripts/lint/*.sh; do
+  echo $l
+  sh $l || exit 1
+done
+
