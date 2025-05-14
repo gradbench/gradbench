@@ -41,17 +41,26 @@ void primal(size_t n, const double* __restrict__ x, double* __restrict__ out) {
     }
     As[thread_num()] = priv_A;
   }
-  double A =
-      std::accumulate(std::begin(As), std::end(As), 0, std::plus<double>());
+  double A = 0;
+  for (int i = 0; i < num_threads(); i++) {
+    A = std::max(A, As[i]);
+  }
 
-  double s = 0;
+  std::vector<double> Ss(num_threads());
+#pragma omp parallel
   {
     double priv_s = 0;
+#pragma omp for
     for (size_t i = 0; i < n; i++) {
       priv_s += exp(x[i] - A);
     }
-    s += priv_s;
+    Ss[thread_num()] = priv_s;
   }
+  double s = 0;
+  for (int i = 0; i < num_threads(); i++) {
+    s += Ss[i];
+  }
+
   *out = log(s) + A;
 }
 
