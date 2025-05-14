@@ -161,12 +161,12 @@ void gmm_objective_d(int d, int k, int n, const double* alphas,
   for (int ik = 0; ik < k; ik++) {
     alphas_d[ik] -= n * lse_alphas_d[ik];
     for (int id = 0; id < d; id++) {
-      icf_d[ik * icf_sz + id] += wishart.gamma * wishart.gamma *
+      icf_d[ik * icf_sz + id] -= wishart.gamma * wishart.gamma *
                                      Qdiags[ik * d + id] * Qdiags[ik * d + id] -
                                  wishart.m;
     }
     for (int i = d; i < icf_sz; i++) {
-      icf_d[ik * icf_sz + i] +=
+      icf_d[ik * icf_sz + i] -=
           wishart.gamma * wishart.gamma * icf[ik * icf_sz + i];
     }
   }

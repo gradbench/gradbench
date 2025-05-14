@@ -5,10 +5,9 @@ section 4.1 of the [ADBench paper][], with a more complete specification and
 incorporating fixes for four errors in the original paper and
 [implementations][adbench]:
 
-1. an illegal simplification for computing the trace of a covariance matrix
-2. a sign error in simplifying the active term for the prior
-3. an incorrectly transposed construction of the covariance matrix inverse
-4. a sign error in the logarithm of the Wishart probability density function
+1. There was a sign error on exactly one of either the likelihood or the prior.
+2. The precision matrices were incorrectly transposed.
+3. The Wishart prior is over the precision matrices, not the covariances.
 
 It computes the [gradient][] of the [logarithm][] of the [posterior
 probability][] for a [multivariate Gaussian][] [mixture model][] (GMM) with a
@@ -66,6 +65,25 @@ export namespace gmm {
 
 ## Definition
 
+First, some standard definitions: we denote the probability density function for
+the $`k`$-dimensional multivariate Gaussian distribution as
+
+```math
+f_{\mathcal{N}_k(\boldsymbol{\mu}, \boldsymbol{\Sigma})}(\boldsymbol{x}) = \frac{\exp(-\frac{1}{2}(\boldsymbol{x} - \boldsymbol{\mu})^\top \mathbf{\Sigma}^{-1} (\boldsymbol{x} - \boldsymbol{\mu}))}{\sqrt{(2\pi)^k \det(\mathbf{\Sigma})}}.
+```
+
+and the probability density function for the $`p`$-dimensional Wishart
+distribution as
+
+```math
+f_{W_p(\mathbf{V}, n)}(\mathbf{X}) = \frac{\det(\mathbf{X})^{(n-p-1)/2} \exp(-\frac{1}{2} \text{tr}(\mathbf{V}^{-1} \mathbf{X}))}{2^{(np)/2} \det(\mathbf{V})^{n/2} \Gamma_p(\frac{n}{2})}
+```
+
+where $`\text{tr}`$ is the [trace][] and $`\Gamma_p`$ is the [multivariate gamma
+function][].
+
+---
+
 The `Input` field `k` is the number of mixture components $`K \in \mathbb{N}`$,
 and `n` is the number of observations $`N \in \mathbb{N}`$. The mixture weights
 $`\boldsymbol{\phi} \in [0, 1]^K`$ are computed from `alpha` representing
@@ -91,10 +109,10 @@ $`k \in \{1, \dots, K\}`$.
 
 Conceptually, that component also has a [positive-definite][] covariance matrix
 $`\mathbf{\Sigma}_k \in \mathbb{R}^{D \times D}`$. However, the covariance
-matrix is not directly used in the computation; only its inverse is used. The
-`q` and `l` fields parametrize these inverses of the covariance matrices. If we
-represent the zero-indexed value $`k - 1`$ in code as `k: Int`, then the
-elements `q[k]` and `l[k]` represent a vector
+matrix is not directly used in the computation; only its inverse, the [precision
+matrix][], is used. The `q` and `l` fields parametrize these inverses of the
+covariance matrices. If we represent the zero-indexed value $`k - 1`$ in code as
+`k: Int`, then the elements `q[k]` and `l[k]` represent a vector
 $`\boldsymbol{q}_k \in \mathbb{R}^D`$ and a [strictly lower triangular][] matrix
 $`\mathbf{L}_k \in \mathbb{R}^{D \times D}`$, respectively. Note that `l[k]`
 does not include the elements of $`\mathbf{L}_k`$ that are guaranteed to be zero
@@ -122,45 +140,32 @@ together by the symbol $`\boldsymbol{\theta}`$. Then, since component $`k`$ has
 probability $`\phi_k`$ and distribution
 $`\mathcal{N}_D(\boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)`$, we can write the
 likelihood by multiplying across all observations and summing across all mixture
-components, to get the overall GMM probability density function
+components, to get the GMM probability density function
 
 ```math
-p(\mathbf{X} \mid \boldsymbol{\theta}, \boldsymbol{\phi}) = \prod_{i=1}^N \sum_{k=1}^K \phi_k f_{\mathcal{N}_D(\boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)}(\boldsymbol{x}_i)
+p(\mathbf{X} \mid \boldsymbol{\theta}, \boldsymbol{\phi}) = \prod_{i=1}^N \sum_{k=1}^K \phi_k f_{\mathcal{N}_D(\boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)}(\boldsymbol{x}_i).
 ```
 
-using the probability density function for the multivariate normal distribution
-
-```math
-f_{\mathcal{N}_D(\boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)}(\boldsymbol{x}_i) = \frac{\exp(-\frac{1}{2}(\boldsymbol{x}_i - \boldsymbol{\mu}_k)^\top \mathbf{\Sigma}_k^{-1} (\boldsymbol{x}_i - \boldsymbol{\mu}_k))}{\sqrt{(2\pi)^D \det(\mathbf{\Sigma}_k)}}.
-```
-
-These two formulae are not used directly in the computation, but they will allow
-us to define the log posterior function we actually want to compute, which we
-will then simplify. Before that, though, we must define our prior on the
-covariance matrices. The fields `m` and `gamma` are
-$`m \in \mathbb{Z}_{\geq 0}`$ and $`\gamma > 0`$ respectively, which parametrize
-the Wishart distribution with probability density function
-
-```math
-f_{W_D(\mathbf{V}, n)}(\mathbf{\Sigma}_k) = \frac{\det(\mathbf{\Sigma}_k)^{(n-D-1)/2} \exp(-\frac{1}{2} \text{tr}(\mathbf{V}^{-1} \mathbf{\Sigma}_k))}{2^{(nD)/2} \det(\mathbf{V})^{n/2} \Gamma_D(\frac{n}{2})}
-```
-
-where $`\text{tr}`$ is the [trace][], $`\Gamma_D`$ is the [multivariate gamma
-function][], and we choose
+This formula is not used directly in the computation, but will allow us to
+define the log posterior function we actually want to compute, which we will
+then simplify. Before that, though, we must define our prior on the covariance
+matrices. The fields `m` and `gamma` are $`m \in \mathbb{Z}_{\geq 0}`$ and
+$`\gamma > 0`$ respectively, with which we parametrize a Wishart distribution on
+the precision matrices via
 $`\mathbf{V} = \frac{1}{\gamma^2} I \in \mathbb{R}^{D \times D}`$ and
-$`n = D + m + 1`$. From this, we define our prior to be
+$`n = D + m + 1`$ to define our prior as
 
 ```math
-p(\boldsymbol{\theta}) = \prod_{k=1}^K f_{W_D(\mathbf{V}, n)}(\mathbf{\Sigma}_k)
+p(\boldsymbol{\theta}) = \prod_{k=1}^K f_{W_D(\mathbf{V}, n)}(\mathbf{\Sigma}_k^{-1})
 ```
 
-from which we define the `objective` function to compute the log posterior
+so the overall `objective` function computes the log posterior
 
 ```math
 F_\mathbf{X}(\boldsymbol{\theta}, \boldsymbol{\phi}) = \log(p(\mathbf{X} \mid \boldsymbol{\theta}, \boldsymbol{\phi}) p(\boldsymbol{\theta}))
 ```
 
-and the `jacobian` function to compute $`\nabla F_{\mathbf{X}}`$ with respect to
+and the `jacobian` function computes $`\nabla F_{\mathbf{X}}`$ with respect to
 the `Independent` variables that parametrize $`\boldsymbol{\theta}`$ and
 $`\boldsymbol{\phi}`$.
 
@@ -172,10 +177,11 @@ include [determinants][] and matrix inversions that would be expensive to
 compute naively. By observing that
 
 ```math
-\det(\mathbf{\Sigma}_k) = \frac{1}{\det(Q(\boldsymbol{q}_k, \boldsymbol{L}_k))^2} = \frac{1}{\prod_{j=1}^D \exp(q_{k,j})^2} = \exp\Bigg({-2\sum_{j=1}^D q_{k,j}}\Bigg)
+\det(\mathbf{\Sigma}_k^{-1}) = \det(Q(\boldsymbol{q}_k, \boldsymbol{L}_k))^2 = \prod_{j=1}^D \exp(q_{k,j})^2 = \exp\Bigg(2\sum_{j=1}^D q_{k,j}\Bigg)
 ```
 
-we can define
+and $`\det(\mathbf{\Sigma}_k) = \det(\mathbf{\Sigma}_k^{-1})^{-1}`$, we can
+define
 
 ```math
 \beta_{i,k} = \alpha_k -\frac{1}{2} \|Q(\boldsymbol{q}_k, \mathbf{L}_k)(\boldsymbol{x}_i - \boldsymbol{\mu}_k)\|^2 + \sum_{j=1}^D q_{k,j}
@@ -187,10 +193,12 @@ and write
 p(\mathbf{X} \mid \boldsymbol{\theta}, \boldsymbol{\phi}) = \prod_{i=1}^N \frac{1}{\sqrt{(2\pi)^D} \sum_{k=1}^K \exp(\alpha_k)} \sum_{k=1}^K \exp(\beta_{i,k}).
 ```
 
-For the prior we have $`\det(\mathbf{V})^{n/2} = \gamma^{-nD}`$, so
+For the prior we have
+$`\text{tr}(\mathbf{V}^{-1} \mathbf{\Sigma}_k^{-1}) = \gamma^2 \|Q(\boldsymbol{q}_k, \mathbf{L}_k)\|_F^2`$
+and $`\det(\mathbf{V})^{n/2} = \gamma^{-nD}`$, so
 
 ```math
-f_{W_D(\mathbf{V}, n)}(\mathbf{\Sigma}_k) = \bigg(\frac{\gamma}{\sqrt{2}}\bigg)^{nD} \frac{1}{\Gamma_D(\frac{n}{2})} \exp\Bigg({-\frac{\gamma^2}{2} \text{tr}(\mathbf{\Sigma}_k) - m \sum_{j=1}^D q_{k,j}}\Bigg).
+f_{W_D(\mathbf{V}, n)}(\mathbf{\Sigma}_k) = \bigg(\frac{\gamma}{\sqrt{2}}\bigg)^{nD} \frac{1}{\Gamma_D(\frac{n}{2})} \exp\Bigg({-\frac{\gamma^2}{2} \|Q(\boldsymbol{q}_k, \mathbf{L}_k)\|_F^2 + m \sum_{j=1}^D q_{k,j}}\Bigg).
 ```
 
 Then we can define a [helper function][`lse`]
@@ -212,8 +220,14 @@ to push the logarithms down, yielding
 and
 
 ```math
-\log p(\boldsymbol{\theta}) = K\bigg(nD \log \frac{\gamma}{\sqrt{2}} - \log \Gamma_D\Big(\frac{n}{2}\Big)\bigg) - \frac{\gamma^2}{2} \text{tr}(\mathbf{\Sigma}_k) - m \sum_{k=1}^K \sum_{j=1}^D q_{k,j}.
+\log p(\boldsymbol{\theta}) = K\bigg(nD \log \frac{\gamma}{\sqrt{2}} - \log \Gamma_D\Big(\frac{n}{2}\Big)\bigg) - \frac{\gamma^2}{2} \|Q(\boldsymbol{q}_k, \mathbf{L}_k)\|_F^2 + m \sum_{k=1}^K \sum_{j=1}^D q_{k,j}.
 ```
+
+Note that you can use the `--validate-naive` flag on this eval to switch the
+validator for the `objective` function (not `jacobian`) to check against a more
+direct implementation of the definition for this eval, instead of the default
+which uses these algebraic simplifications. This is only recommended for small
+problem instances, due to numerical issues with the naive implementation.
 
 ## Commentary
 
@@ -247,6 +261,7 @@ parallelised with OpenMP.
   https://en.wikipedia.org/wiki/Multivariate_normal_distribution
 [positive-definite]: https://en.wikipedia.org/wiki/Definite_matrix
 [posterior probability]: https://en.wikipedia.org/wiki/Posterior_probability
+[precision matrix]: https://en.wikipedia.org/wiki/Precision_(statistics)
 [prior]: https://en.wikipedia.org/wiki/Prior_probability
 [pytorch implementation]:
   /python/gradbench/gradbench/tools/pytorch/gmm_objective.py

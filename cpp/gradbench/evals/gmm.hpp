@@ -88,7 +88,7 @@ T log_wishart_prior(int p, int k, const Wishart wishart, const T* const sum_qs,
            wishart.m * sum_qs[ik];
   }
 
-  return out - k * C;
+  return -out + k * C;
 }
 
 template <typename T>

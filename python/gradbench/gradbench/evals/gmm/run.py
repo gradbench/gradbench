@@ -1,4 +1,5 @@
 import argparse
+import traceback
 from typing import Any
 
 import numpy as np
@@ -13,9 +14,9 @@ from gradbench.eval import (
 from gradbench.evals.gmm import data_gen
 
 
-def multivariate_normal_pdf(x, *, k, mu, Sigma):
-    return np.exp(-(1 / 2) * (x - mu).T @ np.linalg.inv(Sigma) @ (x - mu)) / np.sqrt(
-        (2 * np.pi) ** k * np.linalg.det(Sigma)
+def multivariate_normal_pdf(x, *, k, mu, Sigma_inverse):
+    return np.exp(-(1 / 2) * (x - mu).T @ Sigma_inverse @ (x - mu)) / np.sqrt(
+        (2 * np.pi) ** k / np.linalg.det(Sigma_inverse)
     )
 
 
@@ -44,65 +45,73 @@ def log_posterior(*, D, K, N, x, m, gamma, mu, q, l, alpha):  # noqa: E741
                 Qk[j, i] = l[k][j][i]
         Q.append(Qk)
     Sigma_inverse = [Qk.T @ Qk for Qk in Q]
-    Sigma = [np.linalg.inv(Sk) for Sk in Sigma_inverse]
 
-    log_likelihood = 0.0
+    likelihood = 1.0
     for i in range(N):
         likelihood_factor = 0.0
         for k in range(K):
             likelihood_factor += phi[k] * multivariate_normal_pdf(
-                x[i], k=D, mu=mu[k], Sigma=Sigma[k]
+                x[i], k=D, mu=mu[k], Sigma_inverse=Sigma_inverse[k]
             )
-        log_likelihood += np.log(likelihood_factor)
+        likelihood *= likelihood_factor
 
-    log_prior = 0.0
+    prior = 1.0
     for k in range(K):
-        log_prior += np.log(
-            wishart_pdf(
-                Sigma[k], p=D, n=D + m + 1, V=(1 / (gamma * gamma)) * np.identity(D)
-            )
+        prior *= wishart_pdf(
+            Sigma_inverse[k],
+            p=D,
+            n=D + m + 1,
+            V=(1 / (gamma * gamma)) * np.identity(D),
         )
 
-    return float(log_likelihood + log_prior)
+    return float(np.log(likelihood * prior))
 
 
 def expect(function: str, input: Any) -> EvaluateResponse:
-    if function == "objective":
-        D = input["d"]
-        K = input["k"]
-        icf = input["icf"]
-        q = []
-        l = []  # noqa: E741
-        for k in range(K):
-            i = D
-            q.append(icf[k][:i])
-            lk = [[] for _ in range(D)]
-            for j in range(D):
-                for row in range(j + 1, D):
-                    lk[row].append(icf[k][i])
-                    i += 1
-            l.append(lk)
-        return {
-            "success": True,
-            "output": log_posterior(
-                D=D,
-                K=K,
-                N=input["n"],
-                x=[np.array(xi) for xi in input["x"]],
-                m=input["m"],
-                gamma=input["gamma"],
-                mu=[np.array(mui) for mui in input["means"]],
-                q=q,
-                l=l,
-                alpha=input["alpha"],
-            ),
-        }
     return cpp.evaluate(
         tool="manual",
         module="gmm",
         function=function,
         input=input | {"min_runs": 1, "min_seconds": 0},
     )
+
+
+def expect_naive_objective(function: str, input: Any) -> EvaluateResponse:
+    if function == "objective":
+        try:
+            D = input["d"]
+            K = input["k"]
+            icf = input["icf"]
+            q = []
+            l = []  # noqa: E741
+            for k in range(K):
+                i = D
+                q.append(icf[k][:i])
+                lk = [[] for _ in range(D)]
+                for j in range(D):
+                    for row in range(j + 1, D):
+                        lk[row].append(icf[k][i])
+                        i += 1
+                l.append(lk)
+            return {
+                "success": True,
+                "output": log_posterior(
+                    D=D,
+                    K=K,
+                    N=input["n"],
+                    x=[np.array(xi) for xi in input["x"]],
+                    m=input["m"],
+                    gamma=input["gamma"],
+                    mu=[np.array(mui) for mui in input["means"]],
+                    q=q,
+                    l=l,
+                    alpha=input["alpha"],
+                ),
+            }
+        except Exception as e:
+            return {"success": False, "error": "".join(traceback.format_exception(e))}
+    else:
+        return expect(function, input)
 
 
 def main():
@@ -117,9 +126,13 @@ def main():
     parser.add_argument("--min-runs", type=int, default=1)
     parser.add_argument("--min-seconds", type=float, default=1)
     parser.add_argument("--no-validation", action="store_true", default=False)
+    parser.add_argument("--validate-naive", action="store_true", default=False)
     args = parser.parse_args()
     e = SingleModuleValidatedEval(
-        module="gmm", validator=approve if args.no_validation else mismatch(expect)
+        module="gmm",
+        validator=approve
+        if args.no_validation
+        else mismatch(expect_naive_objective if args.validate_naive else expect),
     )
     e.start(config=vars(args))
     if e.define().success:

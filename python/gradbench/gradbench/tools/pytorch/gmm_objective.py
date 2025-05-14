@@ -35,7 +35,7 @@ def log_wishart_prior(p, wishart_gamma, wishart_m, sum_qs, Qdiags, icf):
     k = icf.shape[0]
 
     out = torch.sum(
-        -0.5
+        0.5
         * wishart_gamma
         * wishart_gamma
         * (torch.sum(Qdiags**2, dim=1) + torch.sum(icf[:, p:] ** 2, dim=1))
@@ -43,7 +43,7 @@ def log_wishart_prior(p, wishart_gamma, wishart_m, sum_qs, Qdiags, icf):
     )
 
     C = n * p * (math.log(wishart_gamma / math.sqrt(2)))
-    return out + k * (C - torch.special.multigammaln(0.5 * n, p))
+    return -out + k * (C - torch.special.multigammaln(0.5 * n, p))
 
 
 def gmm_objective(alphas, means, icf, x, wishart_gamma, wishart_m):
