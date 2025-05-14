@@ -14,7 +14,7 @@ from gradbench.eval import (
 from gradbench.evals.gmm import data_gen
 
 
-def multivariate_normal_pdf(x, *, k, mu, Sigma_inverse):
+def multivariate_gaussian_pdf(x, *, k, mu, Sigma_inverse):
     return np.exp(-(1 / 2) * (x - mu).T @ Sigma_inverse @ (x - mu)) / np.sqrt(
         (2 * np.pi) ** k / np.linalg.det(Sigma_inverse)
     )
@@ -33,8 +33,7 @@ def wishart_pdf(X, *, p, n, V):
 
 def log_posterior(*, D, K, N, x, m, gamma, mu, q, l, alpha):
     exp_alpha = np.exp(alpha)
-    sum_exp_alpha = np.sum(exp_alpha)
-    phi = exp_alpha / sum_exp_alpha
+    phi = exp_alpha / np.sum(exp_alpha)
 
     Q = []
     for k in range(K):
@@ -50,7 +49,7 @@ def log_posterior(*, D, K, N, x, m, gamma, mu, q, l, alpha):
     for i in range(N):
         likelihood_factor = 0.0
         for k in range(K):
-            likelihood_factor += phi[k] * multivariate_normal_pdf(
+            likelihood_factor += phi[k] * multivariate_gaussian_pdf(
                 x[i], k=D, mu=mu[k], Sigma_inverse=Sigma_inverse[k]
             )
         likelihood *= likelihood_factor
