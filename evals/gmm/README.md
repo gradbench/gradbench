@@ -2,7 +2,7 @@
 
 This eval is adapted from "Objective GMM: Gaussian Mixture Model Fitting" from
 section 4.1 of the [ADBench paper][], with a more complete specification and
-incorporating fixes for four errors in the original paper and
+incorporating fixes for three errors in the original paper and
 [implementations][adbench]:
 
 1. There was a sign error on exactly one of either the likelihood or the prior.
