@@ -250,6 +250,9 @@ enum RepoCommands {
         platform: Option<String>,
     },
 
+    /// Run linters on the codebase.
+    Lint {},
+
     /// Print JSON values for consumption in GitHub Actions.
     ///
     /// Each value is printed on a single line, preceded by the name of that value and an equals
@@ -965,6 +968,10 @@ fn run_multiple(
     Ok(Ok(()))
 }
 
+fn lint() -> anyhow::Result<()> {
+    Ok(())
+}
+
 /// Print a JSON `value` with a `name` for GitHub Actions.
 fn github_output(name: &str, value: impl Serialize) -> anyhow::Result<()> {
     print!("{name}=");
@@ -1238,6 +1245,7 @@ fn cli() -> Result<(), ExitCode> {
                 }
                 .build_tool(Verbosity::Normal)
                 .map(|_| ()),
+                RepoCommands::Lint {} => lint().map_err(err_fail),
                 RepoCommands::Matrix => matrix().map_err(err_fail),
                 RepoCommands::Stats {
                     input,
