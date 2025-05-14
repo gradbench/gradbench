@@ -69,7 +69,7 @@ module Make
     
     let out = sum_reduce (
       (
-        scalar_mul (S.float 0.5 *. wishart.gamma *. wishart.gamma)
+        scalar_mul (S.float (-0.5) *. wishart.gamma *. wishart.gamma)
           (squeeze (
             sum_reduce ~axis:[|1|] (pow_const qdiags 2.0) +
             sum_reduce ~axis:[|1|] (pow_const (get_slice [[]; [p;-1]] icf) 2.0)
@@ -84,8 +84,8 @@ module Make
       *. (log (wishart.gamma /. S.float (Stdlib.sqrt 2.0)))
     in
     sub_scalar
-      (S.float k *. (c -. S.float (log_gamma_distrib Stdlib.(0.5 *. n) p)))
       out
+      (S.float k *. (S.float (log_gamma_distrib Stdlib.(0.5 *. n) p) -. c))
 
   let gmm_objective param =
     let xshape = shape param.x in
