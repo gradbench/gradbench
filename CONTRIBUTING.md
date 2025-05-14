@@ -5,6 +5,8 @@
 - [Setup](#setup)
 - [Dependencies](#dependencies)
 - [CLI](#cli)
+- [Linting and Formatting](#linting-and-formatting)
+  - [Hooks](#hooks)
 - [Docker](#docker)
   - [Multi-platform images](#multi-platform-images)
 - [Tools](#tools)
@@ -67,6 +69,8 @@ These other tools are optional but useful:
 - [uv][]
 - [Make][]
 
+You should run `bun install` to install some of the dependencies used by `bun`.
+
 ## CLI
 
 Many tasks make use of the GradBench CLI, which you can run via the
@@ -78,6 +82,18 @@ Many tasks make use of the GradBench CLI, which you can run via the
 
 This script will always automatically build the CLI if it is not already up to
 date.
+
+## Linting and Formatting
+
+GradBench uses a battery of linters and formatters for the various languages we
+use, and which are checked during Continuous Integrations. These are found in
+the [scripts/lint][] directory.
+
+### Hooks
+
+There is a [pre-commit hook][] that you can use to automatically run the linters
+whenever you make a commit. See the documentation in the hook script for how to
+install and use it.
 
 ## Docker
 
@@ -520,3 +536,5 @@ type Session = (MessageLine | ResponseLine)[];
 [uv]: https://docs.astral.sh/uv
 [vite]: https://vitejs.dev/
 [vs code]: https://code.visualstudio.com/
+[pre-commit hook]: /scripts/hooks/pre-commit
+[scripts/lint]: /scripts/lint
