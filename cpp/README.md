@@ -1,6 +1,9 @@
 # C++ utilities
 
-This directory contains various utilities for implementing evals in C++.
+This directory contains various utilities for implementing evals in C++. It also
+contains the "reference implementations" of many primal functions that are used
+for validation.
+
 Interesting points of note:
 
 - `Makefile`: downloads an appropriate version of
@@ -52,3 +55,34 @@ equivalent of the `input` field of an `evaluate` message. This can be useful for
 running C++ implementations or a debugger or a profiler. You must usually obtain
 `input.json` from the log file produced by `gradbench`, as most evals are not
 able to produce such files directly.
+
+## Multithreading
+
+The primal functions have been multithreaded with OpenMP when applicable. We try
+to write the code such that it will run well when compiled for both sequential
+and multithreaded execution, ideally without implementing each function twice.
+
+OpenMP is fairly well suited for this purpose, as pragmas are (almost) ignored
+when `-fopenmp` is not passed to the C compiler, although we have encountered
+some wrinkles.
+
+### Reductions
+
+One problem is that Enzyme does not support the OpenMP reduction clause. This
+forces us to write all reductions manually, with per-thread partial sums. One of
+the tools we use for this is [multithread.hpp](gradbench/multithread.hpp), which
+defines a very small wrapper around some OpenMP functions. When OpenMP is
+disabled, these functions have dummy definitions suitable for sequential
+execution, and which the C++ compiler optimizer will be able to propagate to
+remove the overhead of the parallel reductions.
+
+### Specialisations
+
+Another problem is that even when OpenMP is disabled, the C++ compiler may still
+be unhappy about the pragmas if they involve types it does not understand - and
+this happens for template functions that are instantiated with the nonstandard
+number types used for tracing by the operator overloading tools. For this
+reason, some of our template functions have specialisations for `double` (or
+whichever primal type is relevant) in which the OpenMP pragmas are used, while
+the unspecialized functions have no pragmas. This means that such tools will not
+take advantage of multithreaded execution during tracing.
