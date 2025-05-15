@@ -26,7 +26,7 @@ abstract type AbstractGMM <: GradBench.Experiment end
 
 function GradBench.preprocess(::AbstractGMM, j)
     alphas = transpose(convert(Vector{Float64}, j["alpha"]))
-    means = reduce(hcat, convert(Vector{Vector{Float64}},j["means"]))
+    means = reduce(hcat, convert(Vector{Vector{Float64}}, j["means"]))
     icfs = reduce(hcat, j["icf"])
     x = reduce(hcat, j["x"])
     gamma = convert(Float64, j["gamma"])
@@ -43,10 +43,10 @@ end
 
 function ltri_unpack(D, LT)
     d = length(D)
-    make_col(r::Int, L) = vcat(zeros(r - 1), D[r], reshape([L[i] for i=1:d-r], d - r))
+    make_col(r::Int, L) = vcat(zeros(r - 1), D[r], reshape([L[i] for i = 1:d-r], d - r))
     col_start(r::Int) = (r - 1) * (2d - r) ÷ 2
     inds(r) = col_start(r) .+ (1:d-r)
-    hcat([make_col(r, LT[inds(r)]) for r=1:d]...)
+    hcat([make_col(r, LT[inds(r)]) for r = 1:d]...)
 end
 
 function get_Q(d, icf)
