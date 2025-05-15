@@ -12,8 +12,8 @@ function GradBench.preprocess(::AbstractLSE, message)
     (Input(convert(Vector{Float64}, message["x"])),)
 end
 
-# A sequential implementation in a pure and vectorised style.
-module Pure
+# A sequential implementation in a vectorised style.
+module Serial
 
 using ..LSE
 
@@ -25,40 +25,23 @@ end
 struct PrimalLSE <: LSE.AbstractLSE end
 (::PrimalLSE)(input) = logsumexp(input.x)
 
-end # Pure
+end # Serial
 
-# A multithreaded implementation that uses side effects.
-module Impure
+# A multithreaded implementation using a functional parallel style
+module Parallel
 
 using ..LSE
 
-using Base.Threads
+using OhMyThreads: treduce, tmapreduce
 
-"Explicitly loopy with @threads annotations for parallel execution."
 function logsumexp(x::Vector{T}) where {T}
-    n = length(x)
-    nt = nthreads()
-
-    local_max = fill(x[1], nt)
-    Threads.@threads for i in 1:n
-        tid = threadid()
-        local_max[tid] = max(local_max[tid], x[i])
-    end
-    xmax = maximum(local_max)
-
-    local_sum = zeros(T, nt)
-    Threads.@threads for i in 1:n
-        tid = threadid()
-        local_sum[tid] += exp(x[i] - xmax)
-    end
-    total = sum(local_sum)
-
-    return xmax + log(total)
+    xmax = treduce(max, x)
+    return xmax + log(tmapreduce(x->exp(x-xmax), +, x))
 end
 
 struct PrimalLSE <: LSE.AbstractLSE end
 (::PrimalLSE)(input) = logsumexp(input.x)
 
-end # module Impure
+end # module Parallel
 
 end # module lse
