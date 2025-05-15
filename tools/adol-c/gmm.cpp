@@ -21,7 +21,7 @@ class Jacobian : public Function<gmm::Input, gmm::JacOutput> {
 public:
   Jacobian(gmm::Input& input) : Function(input) {
     int d = _input.d, n = _input.n, k = _input.k;
-    int Jcols  = (k * (d + 1) * (d + 2)) / 2;
+    int Jcols = (k * (d + 1) * (d + 2)) / 2;
 
     // Construct tape.
     adouble *aalpha, *amu, *aq, *al, aerr;
@@ -39,11 +39,11 @@ public:
       amu[i] <<= _input.mu[i];
     }
     aq = new adouble[k * d];
-    for (int i = 0; i < k*d; i++) {
+    for (int i = 0; i < k * d; i++) {
       aq[i] <<= _input.q[i];
     }
-    al = new adouble[k * (d * (d-1)/2)];
-    for (int i = 0; i < k * (d * (d-1)/2); i++) {
+    al = new adouble[k * (d * (d - 1) / 2)];
+    for (int i = 0; i < k * (d * (d - 1) / 2); i++) {
       al[i] <<= _input.l[i];
     }
 
@@ -62,8 +62,8 @@ public:
   }
 
   void compute(gmm::JacOutput& output) {
-    const int l_sz = _input.d * (_input.d - 1) / 2;
-    size_t Jcols = _J.size();
+    const int l_sz  = _input.d * (_input.d - 1) / 2;
+    size_t    Jcols = _J.size();
 
     output.d = _input.d;
     output.k = _input.k;
@@ -75,7 +75,7 @@ public:
     output.l.resize(output.k * l_sz);
 
     double* in = new double[Jcols];
-    int off;
+    int     off;
 
     off = 0;
     memcpy(in + off, _input.alpha.data(), _input.alpha.size() * sizeof(double));

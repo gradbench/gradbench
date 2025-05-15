@@ -15,10 +15,9 @@ class Jacobian : public Function<gmm::Input, gmm::JacOutput>,
 
 public:
   Jacobian(gmm::Input& input)
-    : Function(input), alpha_d(_input.k), mu_d(_input.d * _input.k),
-      q_d(_input.k * _input.d),
-      l_d(_input.k * (_input.d * (_input.d-1) / 2)),
-      error() {
+      : Function(input), alpha_d(_input.k), mu_d(_input.d * _input.k),
+        q_d(_input.k * _input.d),
+        l_d(_input.k * (_input.d * (_input.d - 1) / 2)), error() {
 
     for (size_t i = 0; i < alpha_d.size(); i++) {
       alpha_d[i] = _input.alpha[i];
@@ -61,9 +60,9 @@ public:
       codiAddInput(l_d[i]);
     }
 
-    gmm::objective(_input.d, _input.k, _input.n, alpha_d.data(),
-                   mu_d.data(), q_d.data(), l_d.data(), _input.x.data(),
-                   _input.wishart, &error);
+    gmm::objective(_input.d, _input.k, _input.n, alpha_d.data(), mu_d.data(),
+                   q_d.data(), l_d.data(), _input.x.data(), _input.wishart,
+                   &error);
 
     codiAddOutput(error);
     codiStopRecording();
