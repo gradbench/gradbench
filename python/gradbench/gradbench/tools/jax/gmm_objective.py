@@ -26,7 +26,7 @@ def gmm_objective(*, d, k, n, x, m, gamma, alpha, mu, q, l):
         total_repeat_length=d * (d - 1) // 2,
     )
     rows = jnp.concatenate([jnp.arange(c + 1, d) for c in range(d - 1)])
-    Ls = jnp.zeros((l.shape[0], d, d), dtype=l.dtype)
+    Ls = jnp.zeros((k, d, d), dtype=l.dtype)
     Ls = Ls.at[:, rows, cols].set(l)
 
     xcentered = x[:, None, :] - mu[None, ...]
