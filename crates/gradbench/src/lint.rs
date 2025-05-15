@@ -103,7 +103,7 @@ pub fn clang_format(cfg: &mut Config) -> anyhow::Result<bool> {
             .output()?
             .stdout,
     )?;
-    let run = |name: &str| {
+    let run = |name| {
         let mut cmd = Command::new(name);
         if cfg.fix {
             cmd.arg("-i");
