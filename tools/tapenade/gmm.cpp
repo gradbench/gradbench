@@ -38,15 +38,15 @@ public:
     std::vector<double> icf_d(k * icf_sz);
 
     double* alpha_gradient_part = output.alpha.data();
-    double* mu_gradient_part  = output.mu.data();
-    double* icf_gradient_part = icf_d.data();
+    double* mu_gradient_part    = output.mu.data();
+    double* icf_gradient_part   = icf_d.data();
 
     for (int i = 0; i < k; i++) {
       for (int j = 0; j < d; j++) {
-        icf[i * icf_sz + j] = _input.q[i*d+j];
+        icf[i * icf_sz + j] = _input.q[i * d + j];
       }
       for (int j = d; j < icf_sz; j++) {
-        icf[i * icf_sz + j] = _input.l[i*l_sz+j-d];
+        icf[i * icf_sz + j] = _input.l[i * l_sz + j - d];
       }
     }
 
@@ -56,17 +56,17 @@ public:
     double errb = 1.0;  // stores dY
     // (equals to 1.0 for gradient calculation)
 
-    gmm_objective_b(d, k, _input.n, _input.alpha.data(),
-                    alpha_gradient_part, _input.mu.data(),
-                    mu_gradient_part, icf.data(), icf_gradient_part,
-                    _input.x.data(), _input.wishart, &tmp, &errb);
+    gmm_objective_b(d, k, _input.n, _input.alpha.data(), alpha_gradient_part,
+                    _input.mu.data(), mu_gradient_part, icf.data(),
+                    icf_gradient_part, _input.x.data(), _input.wishart, &tmp,
+                    &errb);
 
     for (int i = 0; i < k; i++) {
       for (int j = 0; j < d; j++) {
-        output.q[i*d+j] = icf_d[i * icf_sz + j];
+        output.q[i * d + j] = icf_d[i * icf_sz + j];
       }
       for (int j = d; j < icf_sz; j++) {
-        output.l[i*l_sz+j-d] = icf_d[i * icf_sz + j];
+        output.l[i * l_sz + j - d] = icf_d[i * icf_sz + j];
       }
     }
   }
