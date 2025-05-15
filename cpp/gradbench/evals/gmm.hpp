@@ -90,7 +90,7 @@ void Qtimesx(int d, const T* const Qdiag,
 }
 
 template <typename T>
-void objective(int d, int k, int n, const T* __restrict__ const alphas,
+void objective(int d, int k, int n, const T* __restrict__ const alpha,
                const T* __restrict__ const mu, const T* __restrict__ const q,
                const T* __restrict__ const l,
                const double* __restrict__ const x, Wishart wishart,
@@ -124,15 +124,15 @@ void objective(int d, int k, int n, const T* __restrict__ const alphas,
       subtract(d, &x[ix * d], &mu[ik * d], &xcentered[0]);
       Qtimesx(d, &Qdiags[ik * d], &l[ik * l_sz], &xcentered[0], &Qxcentered[0]);
 
-      main_term[ik] = alphas[ik] + sum_qs[ik] - 0.5 * sqnorm(d, &Qxcentered[0]);
+      main_term[ik] = alpha[ik] + sum_qs[ik] - 0.5 * sqnorm(d, &Qxcentered[0]);
     }
     T lsum = logsumexp(k, &main_term[0]);
     slse += lsum;
   }
 
-  T lse_alphas = logsumexp(k, alphas);
+  T lse_alpha = logsumexp(k, alpha);
 
-  *err = CONSTANT + slse - n * lse_alphas;
+  *err = CONSTANT + slse - n * lse_alpha;
 
   T ws = log_wishart_prior(d, k, wishart, &sum_qs[0], &Qdiags[0], l);
 
@@ -143,7 +143,7 @@ void objective(int d, int k, int n, const T* __restrict__ const alphas,
 
 struct Input {
   int                 d, k, n;
-  std::vector<double> alphas, mu, q, l, x;
+  std::vector<double> alpha, mu, q, l, x;
   Wishart             wishart;
 };
 
@@ -161,7 +161,7 @@ static void from_json(const json& j, Input& p) {
   p.d      = j["d"].get<int>();
   p.k      = j["k"].get<int>();
   p.n      = j["n"].get<int>();
-  p.alphas = j["alpha"].get<std::vector<double>>();
+  p.alpha = j["alpha"].get<std::vector<double>>();
 
   auto mu = j["mu"].get<std::vector<std::vector<double>>>();
   auto q  = j["q"].get<std::vector<std::vector<double>>>();
@@ -200,7 +200,7 @@ public:
   Objective(Input& input) : Function(input) {}
 
   void compute(ObjOutput& output) {
-    objective(_input.d, _input.k, _input.n, _input.alphas.data(),
+    objective(_input.d, _input.k, _input.n, _input.alpha.data(),
               _input.mu.data(), _input.q.data(), _input.l.data(),
               _input.x.data(), _input.wishart, &output);
   }

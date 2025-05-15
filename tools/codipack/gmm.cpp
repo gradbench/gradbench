@@ -6,7 +6,7 @@ class Jacobian : public Function<gmm::Input, gmm::JacOutput>,
                  CoDiReverseRunner {
   using Real = typename CoDiReverseRunner::Real;
 
-  std::vector<Real> alphas_d;
+  std::vector<Real> alpha_d;
   std::vector<Real> mu_d;
   std::vector<Real> q_d;
   std::vector<Real> l_d;
@@ -15,13 +15,13 @@ class Jacobian : public Function<gmm::Input, gmm::JacOutput>,
 
 public:
   Jacobian(gmm::Input& input)
-    : Function(input), alphas_d(_input.k), mu_d(_input.d * _input.k),
-      q_d(_input.k * _input.d * _input.d),
-      l_d(_input.k * _input.d * (_input.d-1) / 2),
+    : Function(input), alpha_d(_input.k), mu_d(_input.d * _input.k),
+      q_d(_input.k * _input.d),
+      l_d(_input.k * (_input.d * (_input.d-1) / 2)),
       error() {
 
-    for (size_t i = 0; i < alphas_d.size(); i++) {
-      alphas_d[i] = _input.alphas[i];
+    for (size_t i = 0; i < alpha_d.size(); i++) {
+      alpha_d[i] = _input.alpha[i];
     }
     for (size_t i = 0; i < mu_d.size(); i++) {
       mu_d[i] = _input.mu[i];
@@ -48,8 +48,8 @@ public:
 
     codiStartRecording();
 
-    for (size_t i = 0; i < alphas_d.size(); i++) {
-      codiAddInput(alphas_d[i]);
+    for (size_t i = 0; i < alpha_d.size(); i++) {
+      codiAddInput(alpha_d[i]);
     }
     for (size_t i = 0; i < mu_d.size(); i++) {
       codiAddInput(mu_d[i]);
@@ -61,7 +61,7 @@ public:
       codiAddInput(l_d[i]);
     }
 
-    gmm::objective(_input.d, _input.k, _input.n, alphas_d.data(),
+    gmm::objective(_input.d, _input.k, _input.n, alpha_d.data(),
                    mu_d.data(), q_d.data(), l_d.data(), _input.x.data(),
                    _input.wishart, &error);
 
@@ -71,8 +71,8 @@ public:
     codiSetGradient(error, 1.0);
     codiEval();
 
-    for (size_t i = 0; i < alphas_d.size(); i++) {
-      output.alpha[i] = codiGetGradient(alphas_d[i]);
+    for (size_t i = 0; i < alpha_d.size(); i++) {
+      output.alpha[i] = codiGetGradient(alpha_d[i]);
     }
     for (size_t i = 0; i < mu_d.size(); i++) {
       output.mu[i] = codiGetGradient(mu_d[i]);

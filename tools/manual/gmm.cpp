@@ -20,7 +20,7 @@ public:
     output.l.resize(output.k * l_sz);
 
     double error;
-    gmm_objective_d(_input.d, _input.k, _input.n, _input.alphas.data(),
+    gmm_objective_d(_input.d, _input.k, _input.n, _input.alpha.data(),
                     _input.mu.data(), _input.q.data(), _input.l.data(),
                     _input.x.data(), _input.wishart, &error,
                     output.alpha.data(), output.mu.data(), output.q.data(),
