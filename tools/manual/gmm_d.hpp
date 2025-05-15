@@ -156,7 +156,7 @@ void gmm_objective_d(int d, int k, int n, const double* alphas,
                               Qdiags[ik * d + id] -
                           wishart.m;
     }
-    for (int i = d; i < l_sz; i++) {
+    for (int i = 0; i < l_sz; i++) {
       l_d[ik * l_sz + i] -= wishart.gamma * wishart.gamma * l[ik * l_sz + i];
     }
   }
