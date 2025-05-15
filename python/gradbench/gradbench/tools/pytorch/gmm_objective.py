@@ -46,11 +46,10 @@ def gmm_objective(*, d, k, n, x, m, gamma, alpha, mu, q, l):
     Qdiags = torch.exp(q)
     sum_qs = torch.sum(q, 1)
 
-    k_idx = torch.arange(k).unsqueeze(1).expand(k, d * (d - 1) // 2)
-    row_idx, col_idx = torch.tril_indices(d, d, offset=-1)
-    order = torch.argsort(col_idx * d + row_idx)
-    Ls = torch.zeros((k, d, d), dtype=l.dtype)
-    Ls[k_idx, row_idx[order], col_idx[order]] = l
+    cols = torch.repeat_interleave(torch.arange(d - 1), torch.arange(d - 1, 0, -1))
+    rows = torch.cat([torch.arange(c + 1, d) for c in range(d - 1)])
+    Ls = torch.zeros((k, d, d), dtype=l.dtype, device=l.device)
+    Ls[:, rows, cols] = l
 
     xcentered = x[:, None, :] - mu[None, ...]
 

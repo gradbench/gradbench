@@ -1,6 +1,5 @@
 import math
 
-import jax
 import jax.numpy as jnp
 from jax.scipy.special import logsumexp, multigammaln
 
@@ -21,13 +20,14 @@ def gmm_objective(*, d, k, n, x, m, gamma, alpha, mu, q, l):
     Qdiags = jnp.exp(q)
     sum_qs = jnp.sum(q, axis=1)
 
-    row_idx, col_idx = jnp.tril_indices(d, -1)
-    order = jnp.argsort(col_idx * d + row_idx)
-
-    def make_l(l_row):
-        return jnp.zeros((d, d)).at[row_idx[order], col_idx[order]].set(l_row)
-
-    Ls = jax.vmap(make_l)(l)
+    cols = jnp.repeat(
+        jnp.arange(d - 1),
+        jnp.arange(d - 1, 0, -1),
+        total_repeat_length=d * (d - 1) // 2,
+    )
+    rows = jnp.concatenate([jnp.arange(c + 1, d) for c in range(d - 1)])
+    Ls = jnp.zeros((l.shape[0], d, d), dtype=l.dtype)
+    Ls = Ls.at[:, rows, cols].set(l)
 
     xcentered = x[:, None, :] - mu[None, ...]
     Lxcentered = Qdiags * xcentered + jnp.einsum("ijk,mik->mij", Ls, xcentered)
