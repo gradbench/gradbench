@@ -1,4 +1,5 @@
 mod intermediary;
+mod lint;
 mod log;
 mod protocol;
 mod stats;
@@ -251,7 +252,52 @@ enum RepoCommands {
     },
 
     /// Run linters on the codebase.
-    Lint {},
+    ///
+    /// By default, every linter is run and no changes are made. Use the `--fix` flag to autofix
+    /// when possible. Use other flags to only run specific linters. In any case, the exit code is 0
+    /// if everything passed, 1 if any lints failed, or 2 if no lints failed but not all linters
+    /// could be run successfully.
+    Lint {
+        /// Automatically fix everything possible
+        #[clap(long)]
+        fix: bool,
+
+        /// Run only clang-format
+        #[clap(long)]
+        clang_format: bool,
+
+        /// Run only Clippy
+        #[clap(long)]
+        clippy: bool,
+
+        /// Run only ESLint
+        #[clap(long)]
+        eslint: bool,
+
+        /// Run only markdown-toc
+        #[clap(long)]
+        markdown_toc: bool,
+
+        /// Run only Prettier
+        #[clap(long)]
+        prettier: bool,
+
+        /// Run only the Ruff linter
+        #[clap(long)]
+        ruff_check: bool,
+
+        /// Run only the Ruff formatter
+        #[clap(long)]
+        ruff_format: bool,
+
+        /// Run only Rustfmt
+        #[clap(long)]
+        rustfmt: bool,
+
+        /// Run only TypeScript
+        #[clap(long)]
+        typescript: bool,
+    },
 
     /// Print JSON values for consumption in GitHub Actions.
     ///
@@ -968,10 +1014,6 @@ fn run_multiple(
     Ok(Ok(()))
 }
 
-fn lint() -> anyhow::Result<()> {
-    Ok(())
-}
-
 /// Print a JSON `value` with a `name` for GitHub Actions.
 fn github_output(name: &str, value: impl Serialize) -> anyhow::Result<()> {
     print!("{name}=");
@@ -1245,7 +1287,30 @@ fn cli() -> Result<(), ExitCode> {
                 }
                 .build_tool(Verbosity::Normal)
                 .map(|_| ()),
-                RepoCommands::Lint {} => lint().map_err(err_fail),
+                RepoCommands::Lint {
+                    fix,
+                    clang_format,
+                    clippy,
+                    eslint,
+                    markdown_toc,
+                    prettier,
+                    ruff_check,
+                    ruff_format,
+                    rustfmt,
+                    typescript,
+                } => {
+                    let mut lints = lint::Lints::new();
+                    lints.flag(clang_format, lint::clang_format);
+                    lints.flag(clippy, lint::clippy);
+                    lints.flag(eslint, lint::eslint);
+                    lints.flag(markdown_toc, lint::markdown_toc);
+                    lints.flag(prettier, lint::prettier);
+                    lints.flag(ruff_check, lint::ruff_check);
+                    lints.flag(ruff_format, lint::ruff_format);
+                    lints.flag(rustfmt, lint::rustfmt);
+                    lints.flag(typescript, lint::typescript);
+                    lints.run(fix)
+                }
                 RepoCommands::Matrix => matrix().map_err(err_fail),
                 RepoCommands::Stats {
                     input,
