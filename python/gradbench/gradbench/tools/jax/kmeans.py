@@ -1,10 +1,7 @@
-import jax
 import jax.numpy as jnp
 import numpy as np
 from gradbench import wrap
 from jax import grad, jit, jvp
-
-jax.config.update("jax_enable_x64", True)
 
 
 def costfun(points, centers):
