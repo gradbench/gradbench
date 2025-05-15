@@ -2,24 +2,25 @@
 
 <!-- toc -->
 
-- [Setup](#setup)
-- [Dependencies](#dependencies)
-- [CLI](#cli)
-- [Docker](#docker)
-  - [Multi-platform images](#multi-platform-images)
-- [Tools](#tools)
-  - [Implementing a new eval for a tool](#implementing-a-new-eval-for-a-tool)
-- [Evals](#evals)
-- [JavaScript](#javascript)
-  - [Prettier](#prettier)
-  - [Markdown](#markdown)
-  - [Website](#website)
-- [Python](#python)
-- [C++](#c)
-- [Protocol](#protocol)
-  - [Example](#example)
-  - [Specification](#specification)
-  - [Types](#types)
+- [Contributing to GradBench](#contributing-to-gradbench)
+  - [Setup](#setup)
+  - [Dependencies](#dependencies)
+  - [CLI](#cli)
+  - [Docker](#docker)
+    - [Multi-platform images](#multi-platform-images)
+  - [Tools](#tools)
+    - [Implementing a new eval for a tool](#implementing-a-new-eval-for-a-tool)
+  - [Evals](#evals)
+  - [Formatting and web](#formatting-and-web)
+    - [Prettier](#prettier)
+    - [Markdown](#markdown)
+    - [Website](#website)
+  - [Python](#python)
+  - [C++](#c)
+  - [Protocol](#protocol)
+    - [Example](#example)
+    - [Specification](#specification)
+    - [Types](#types)
 
 <!-- tocstop -->
 
@@ -63,7 +64,7 @@ Otherwise, make sure you have the following tools installed:
 
 These other tools are optional but useful:
 
-- [Bun][]
+- [Bun][] (can be necessary for [formatting](#formatting-and-web))
 - [uv][]
 - [Make][]
 
@@ -207,7 +208,7 @@ As a special case, GradBench is almost always willing to accept an eval that
 matches a benchmark found in an existing AD benchmark suite, as GradBench aims
 to (benevolently!) assimilate all current benchmark suites.
 
-## JavaScript
+## Formatting and web
 
 We use Bun for JavaScript code in this repository. First install all
 dependencies from npm:
