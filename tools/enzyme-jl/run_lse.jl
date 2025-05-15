@@ -5,6 +5,8 @@ import GradBench
 
 struct GradientLSE <: GradBench.LSE.AbstractLSE end
 
+import Main: OPTIONS
+
 if OPTIONS["multithreaded"]
     const logsumexp = GradBench.LSE.Parallel.logsumexp
     const PrimalLSE = GradBench.LSE.Parallel.PrimalLSE
