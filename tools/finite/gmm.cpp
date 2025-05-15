@@ -31,17 +31,17 @@ public:
 
     _engine.finite_differences(
         1,
-        [&](double* alphas_in, double* err) {
-          gmm::objective(_input.d, _input.k, _input.n, alphas_in,
+        [&](double* alpha_in, double* err) {
+          gmm::objective(_input.d, _input.k, _input.n, alpha_in,
                          _input.mu.data(), _input.q.data(), _input.l.data(),
                          _input.x.data(), _input.wishart, err);
         },
-        _input.alphas.data(), _input.alphas.size(), 1, output.alpha.data());
+        _input.alpha.data(), _input.alpha.size(), 1, output.alpha.data());
 
     _engine.finite_differences(
         1,
         [&](double* mu_in, double* err) {
-          gmm::objective(_input.d, _input.k, _input.n, _input.alphas.data(),
+          gmm::objective(_input.d, _input.k, _input.n, _input.alpha.data(),
                          mu_in, _input.q.data(), _input.l.data(),
                          _input.x.data(), _input.wishart, err);
         },
@@ -50,7 +50,7 @@ public:
     _engine.finite_differences(
         1,
         [&](double* q_in, double* err) {
-          gmm::objective(_input.d, _input.k, _input.n, _input.alphas.data(),
+          gmm::objective(_input.d, _input.k, _input.n, _input.alpha.data(),
                          _input.mu.data(), q_in, _input.l.data(),
                          _input.x.data(), _input.wishart, err);
         },
@@ -58,7 +58,7 @@ public:
     _engine.finite_differences(
         1,
         [&](double* l_in, double* err) {
-          gmm::objective(_input.d, _input.k, _input.n, _input.alphas.data(),
+          gmm::objective(_input.d, _input.k, _input.n, _input.alpha.data(),
                          _input.mu.data(), _input.q.data(), l_in,
                          _input.x.data(), _input.wishart, err);
         },
