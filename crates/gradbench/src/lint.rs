@@ -176,5 +176,8 @@ pub fn rustfmt(cfg: &mut Config) -> anyhow::Result<bool> {
 
 pub fn typescript(cfg: &mut Config) -> anyhow::Result<bool> {
     cfg.name("TypeScript");
-    Ok(true)
+    Ok(Command::new("bun")
+        .args(["run", "--filter=*", "typecheck"])
+        .status()?
+        .success())
 }
