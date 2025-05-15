@@ -20,17 +20,17 @@ import type { Float, Int, Runs } from "gradbench";
 
 /** Independent variables for which the gradient must be computed. */
 interface Independent {
+  /** Parametrization for weights. */
+  alpha: Float[];
+
   /** Means. */
   mu: Float[][];
 
   /** Logarithms of diagonal part for constructing precision matrices. */
   q: Float[][];
 
-  /** Jagged lower-triangular part for constructing precision matrices. */
-  l: Float[][][];
-
-  /** Parametrization for weights. */
-  alpha: Float[];
+  /** Strictly lower triangular part for constructing precision matrices. */
+  l: Float[][];
 }
 
 /** The full input. */
@@ -111,29 +111,24 @@ Conceptually, that component also has a [positive-definite][] [covariance
 matrix][] $`\mathbf{\Sigma}_k \in \mathbb{R}^{D \times D}`$. However, the
 covariance matrix is not directly used in the computation; only its inverse, the
 precision matrix, is used. The `q` and `l` fields parametrize these precision
-matrices. If we represent the zero-indexed value $`k - 1`$ in code as `k: Int`,
-then the elements `q[k]` and `l[k]` represent a vector
-$`\boldsymbol{q}_k \in \mathbb{R}^D`$ and a [strictly lower triangular][] matrix
-$`\mathbf{L}_k \in \mathbb{R}^{D \times D}`$, respectively. Note that `l[k]`
-does not include the elements of $`\mathbf{L}_k`$ that are guaranteed to be zero
-due to it being strictly lower triangular. That is, `l[k][0]` is empty;
-`l[k][1]` has one element $`l_{k,2,1}`$; `l[k][2]` has two elements
-$`l_{k,3,1}`$ and $`l_{k,3,2}`$; and so on. From these, we construct the lower
-triangular matrix
+matrices; their elements at index $`k`$ are the vectors
+$`\boldsymbol{q}_k \in \mathbb{R}^D`$ and
+$`\boldsymbol{l}_k \in \mathbb{R}^{\frac{D(D-1)}{2}}`$, respectively. From
+these, we construct the [lower triangular][] matrix
 
 ```math
-Q(\boldsymbol{q}_k, \mathbf{L}_k) = \begin{bmatrix}
+Q(\boldsymbol{q}_k, \boldsymbol{l}_k) = \begin{bmatrix}
   \exp(q_{k,1}) & 0 & \cdots & 0 \\
-  l_{k,2,1} & \exp(q_{k,2}) & \cdots & 0 \\
+  l_{k,1} & \exp(q_{k,2}) & \cdots & 0 \\
   \vdots & \vdots & \ddots & \vdots \\
-  l_{k,D,1} & l_{k,D,2} & \cdots & \exp(q_{k,D})
+  l_{k,D-1} & l_{k,D-1+D-2} & \cdots & \exp(q_{k,D})
 \end{bmatrix} \in \mathbb{R}^{D \times D}
 ```
 
 by exponentiating each value of $`\boldsymbol{q}_k`$ to form the diagonal and
-then summing with $`\mathbf{L}_k`$. Then we use this to compute the precision
-matrix as
-$`\mathbf{\Sigma}_k^{-1} = Q(\boldsymbol{q}_k, \mathbf{L}_k)^\top Q(\boldsymbol{q}_k, \mathbf{L}_k)`$.
+using $`\boldsymbol{l}_k`$ to fill the rest, column by column. Then we use this
+to compute the precision matrix as
+$`\mathbf{\Sigma}_k^{-1} = Q(\boldsymbol{q}_k, \boldsymbol{l}_k)^\top Q(\boldsymbol{q}_k, \boldsymbol{l}_k)`$.
 
 We will refer to the collection of all the means and covariance matrices
 together by the symbol $`\boldsymbol{\theta}`$. Then, since component $`k`$ has
@@ -181,7 +176,7 @@ and $`\det(\mathbf{\Sigma}_k) = \det(\mathbf{\Sigma}_k^{-1})^{-1}`$, we can
 define
 
 ```math
-\beta_{i,k} = \alpha_k -\frac{1}{2} \|Q(\boldsymbol{q}_k, \mathbf{L}_k)(\boldsymbol{x}_i - \boldsymbol{\mu}_k)\|^2 + \sum_{j=1}^D q_{k,j}
+\beta_{i,k} = \alpha_k -\frac{1}{2} \|Q(\boldsymbol{q}_k, \boldsymbol{l}_k)(\boldsymbol{x}_i - \boldsymbol{\mu}_k)\|^2 + \sum_{j=1}^D q_{k,j}
 ```
 
 and write
@@ -191,11 +186,11 @@ p(\mathbf{X} \mid \boldsymbol{\theta}, \boldsymbol{\phi}) = \prod_{i=1}^N \frac{
 ```
 
 For the prior we have
-$`\text{tr}(\mathbf{V}^{-1} \mathbf{\Sigma}_k^{-1}) = \gamma^2 \|Q(\boldsymbol{q}_k, \mathbf{L}_k)\|_F^2`$
+$`\text{tr}(\mathbf{V}^{-1} \mathbf{\Sigma}_k^{-1}) = \gamma^2 \|Q(\boldsymbol{q}_k, \boldsymbol{l}_k)\|_F^2`$
 and $`\det(\mathbf{V})^{n/2} = \gamma^{-nD}`$, so
 
 ```math
-f_{W_D(\mathbf{V}, n)}(\mathbf{\Sigma}_k) = \bigg(\frac{\gamma}{\sqrt{2}}\bigg)^{nD} \frac{1}{\Gamma_D(\frac{n}{2})} \exp\Bigg({-\frac{\gamma^2}{2} \|Q(\boldsymbol{q}_k, \mathbf{L}_k)\|_F^2 + m \sum_{j=1}^D q_{k,j}}\Bigg).
+f_{W_D(\mathbf{V}, n)}(\mathbf{\Sigma}_k) = \bigg(\frac{\gamma}{\sqrt{2}}\bigg)^{nD} \frac{1}{\Gamma_D(\frac{n}{2})} \exp\Bigg({-\frac{\gamma^2}{2} \|Q(\boldsymbol{q}_k, \boldsymbol{l}_k)\|_F^2 + m \sum_{j=1}^D q_{k,j}}\Bigg).
 ```
 
 Then we can define a [helper function][`lse`]
@@ -217,7 +212,7 @@ to push the logarithms down, yielding
 and
 
 ```math
-\log p(\boldsymbol{\theta}) = K\bigg(nD \log \frac{\gamma}{\sqrt{2}} - \log \Gamma_D\Big(\frac{n}{2}\Big)\bigg) - \frac{\gamma^2}{2} \|Q(\boldsymbol{q}_k, \mathbf{L}_k)\|_F^2 + m \sum_{k=1}^K \sum_{j=1}^D q_{k,j}.
+\log p(\boldsymbol{\theta}) = K\bigg(nD \log \frac{\gamma}{\sqrt{2}} - \log \Gamma_D\Big(\frac{n}{2}\Big)\bigg) - \frac{\gamma^2}{2} \|Q(\boldsymbol{q}_k, \boldsymbol{l}_k)\|_F^2 + m \sum_{k=1}^K \sum_{j=1}^D q_{k,j}.
 ```
 
 Note that you can use the `--validate-naive` flag on this eval to switch the
@@ -250,6 +245,7 @@ parallelised with OpenMP.
 [latent variables]:
   https://en.wikipedia.org/wiki/Latent_and_observable_variables
 [logarithm]: https://en.wikipedia.org/wiki/Logarithm
+[lower triangular]: https://en.wikipedia.org/wiki/Triangular_matrix
 [mixture model]: https://en.wikipedia.org/wiki/Mixture_model
 [multivariate gamma function]:
   https://en.m.wikipedia.org/wiki/Multivariate_gamma_function
@@ -262,7 +258,6 @@ parallelised with OpenMP.
 [pytorch implementation]:
   /python/gradbench/gradbench/tools/pytorch/gmm_objective.py
 [row-major]: https://en.wikipedia.org/wiki/Row-_and_column-major_order
-[strictly lower triangular]: https://en.wikipedia.org/wiki/Triangular_matrix
 [trace]: https://en.m.wikipedia.org/wiki/Trace_(linear_algebra)
 [wishart]: https://en.m.wikipedia.org/wiki/Wishart_distribution
 [`llsq`]: /evals/llsq

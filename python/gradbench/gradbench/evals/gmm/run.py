@@ -30,17 +30,19 @@ def wishart_pdf(X, *, p, n, V):
     )
 
 
-def log_posterior(*, D, K, N, x, m, gamma, mu, q, l, alpha):
+def log_posterior(*, D, K, N, x, m, gamma, alpha, mu, q, l):
     exp_alpha = np.exp(alpha)
     phi = exp_alpha / np.sum(exp_alpha)
 
     Q = []
     for k in range(K):
         Qk = np.zeros((D, D))
+        ii = 0
         for j in range(D):
             Qk[j, j] = np.exp(q[k][j])
-            for i in range(j):
-                Qk[j, i] = l[k][j][i]
+            for i in range(j + 1, D):
+                Qk[i, j] = l[k][ii]
+                ii += 1
         Q.append(Qk)
     Sigma_inverse = [Qk.T @ Qk for Qk in Q]
 
@@ -77,33 +79,19 @@ def expect(function: str, input: Any) -> EvaluateResponse:
 def expect_naive_objective(function: str, input: Any) -> EvaluateResponse:
     if function == "objective":
         try:
-            D = input["d"]
-            K = input["k"]
-            icf = input["icf"]
-            q = []
-            l = []
-            for k in range(K):
-                i = D
-                q.append(icf[k][:i])
-                lk = [[] for _ in range(D)]
-                for j in range(D):
-                    for row in range(j + 1, D):
-                        lk[row].append(icf[k][i])
-                        i += 1
-                l.append(lk)
             return {
                 "success": True,
                 "output": log_posterior(
-                    D=D,
-                    K=K,
+                    D=input["d"],
+                    K=input["k"],
                     N=input["n"],
                     x=[np.array(xi) for xi in input["x"]],
                     m=input["m"],
                     gamma=input["gamma"],
-                    mu=[np.array(mui) for mui in input["means"]],
-                    q=q,
-                    l=l,
                     alpha=input["alpha"],
+                    mu=[np.array(mui) for mui in input["mu"]],
+                    q=input["q"],
+                    l=input["l"],
                 ),
             }
         except Exception as e:
@@ -121,10 +109,10 @@ def generate(*, seed, d, k, n, m, gamma):
         "x": [list(rng.normal(size=d)) for _ in range(n)],
         "m": m,
         "gamma": gamma,
+        "alpha": list(rng.normal(size=k)),
         "mu": [list(rng.uniform(size=d)) for _ in range(k)],
         "q": [list(rng.normal(size=d)) for _ in range(k)],
         "l": [list(rng.normal(size=d * (d - 1) // 2)) for _ in range(k)],
-        "alpha": list(rng.normal(size=k)),
     }
 
 
