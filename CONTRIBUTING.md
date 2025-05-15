@@ -10,7 +10,7 @@
 - [Tools](#tools)
   - [Implementing a new eval for a tool](#implementing-a-new-eval-for-a-tool)
 - [Evals](#evals)
-- [Formatting and web](#formatting-and-web)
+- [JavaScript](#javascript)
   - [Prettier](#prettier)
   - [Markdown](#markdown)
   - [Website](#website)
@@ -63,7 +63,8 @@ Otherwise, make sure you have the following tools installed:
 
 These other tools are optional but useful:
 
-- [Bun][] (can be necessary for [formatting](#formatting-and-web))
+- [Bun][] (necessary for formatting with Prettier, see the section on
+  [JavaScript](#javascript) tools)
 - [uv][]
 - [Make][]
 
@@ -207,7 +208,7 @@ As a special case, GradBench is almost always willing to accept an eval that
 matches a benchmark found in an existing AD benchmark suite, as GradBench aims
 to (benevolently!) assimilate all current benchmark suites.
 
-## Formatting and web
+## JavaScript
 
 We use Bun for JavaScript code in this repository. First install all
 dependencies from npm:
