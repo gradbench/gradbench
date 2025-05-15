@@ -16,30 +16,38 @@
 static const int tapeTag = 1;
 
 class Jacobian : public Function<gmm::Input, gmm::JacOutput> {
+  std::vector<double> _J;
+
 public:
   Jacobian(gmm::Input& input) : Function(input) {
     int d = _input.d, n = _input.n, k = _input.k;
+    int Jcols  = (k * (d + 1) * (d + 2)) / 2;
 
     // Construct tape.
-    int      icf_sz = d * (d + 1) / 2;
-    adouble *aalphas, *ameans, *aicf, aerr;
+    adouble *aalpha, *amu, *aq, *al, aerr;
+
+    _J.resize(Jcols);
 
     trace_on(tapeTag);
 
-    aalphas = new adouble[k];
+    aalpha = new adouble[k];
     for (int i = 0; i < k; i++) {
-      aalphas[i] <<= _input.alphas[i];
+      aalpha[i] <<= _input.alpha[i];
     }
-    ameans = new adouble[d * k];
+    amu = new adouble[k * d];
     for (int i = 0; i < d * k; i++) {
-      ameans[i] <<= _input.means[i];
+      amu[i] <<= _input.mu[i];
     }
-    aicf = new adouble[icf_sz * k];
-    for (int i = 0; i < icf_sz * k; i++) {
-      aicf[i] <<= _input.icf[i];
+    aq = new adouble[k * d];
+    for (int i = 0; i < k*d; i++) {
+      aq[i] <<= _input.q[i];
+    }
+    al = new adouble[k * (d * (d-1)/2)];
+    for (int i = 0; i < k * (d * (d-1)/2); i++) {
+      al[i] <<= _input.l[i];
     }
 
-    gmm::objective(d, k, n, aalphas, ameans, aicf, _input.x.data(),
+    gmm::objective(d, k, n, aalpha, amu, aq, al, _input.x.data(),
                    _input.wishart, &aerr);
 
     double err;
@@ -47,25 +55,53 @@ public:
 
     trace_off();
 
-    delete[] aalphas;
-    delete[] ameans;
-    delete[] aicf;
+    delete[] aalpha;
+    delete[] amu;
+    delete[] aq;
+    delete[] al;
   }
 
   void compute(gmm::JacOutput& output) {
-    int d = _input.d, k = _input.k;
-    int icf_sz = d * (d + 1) / 2;
-    int Jcols  = (k * (d + 1) * (d + 2)) / 2;
-    output.resize(Jcols);
+    const int l_sz = _input.d * (_input.d - 1) / 2;
+    size_t Jcols = _J.size();
+
+    output.d = _input.d;
+    output.k = _input.k;
+    output.n = _input.n;
+
+    output.alpha.resize(output.k);
+    output.mu.resize(output.k * output.d);
+    output.q.resize(output.k * output.d);
+    output.l.resize(output.k * l_sz);
 
     double* in = new double[Jcols];
-    memcpy(in, _input.alphas.data(), k * sizeof(double));
-    int off = k;
-    memcpy(in + off, _input.means.data(), d * k * sizeof(double));
-    off += d * k;
-    memcpy(in + off, _input.icf.data(), icf_sz * k * sizeof(double));
-    gradient(tapeTag, Jcols, in, output.data());
+    int off;
+
+    off = 0;
+    memcpy(in + off, _input.alpha.data(), _input.alpha.size() * sizeof(double));
+    off += _input.alpha.size();
+    memcpy(in + off, _input.mu.data(), _input.mu.size() * sizeof(double));
+    off += _input.mu.size();
+    memcpy(in + off, _input.q.data(), _input.q.size() * sizeof(double));
+    off += _input.q.size();
+    memcpy(in + off, _input.l.data(), _input.l.size() * sizeof(double));
+
+    gradient(tapeTag, Jcols, in, _J.data());
+
     delete[] in;
+
+    off = 0;
+    std::copy(_J.begin() + off, _J.begin() + off + _input.alpha.size(),
+              output.alpha.begin());
+    off += _input.alpha.size();
+    std::copy(_J.begin() + off, _J.begin() + off + _input.mu.size(),
+              output.mu.begin());
+    off += _input.mu.size();
+    std::copy(_J.begin() + off, _J.begin() + off + _input.q.size(),
+              output.q.begin());
+    off += _input.q.size();
+    std::copy(_J.begin() + off, _J.begin() + off + _input.l.size(),
+              output.l.begin());
   }
 };
 
