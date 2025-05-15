@@ -1,6 +1,12 @@
-use std::process::{Command, ExitCode};
+use std::{
+    fs,
+    io::Write,
+    process::{Command, ExitCode},
+};
 
 use colored::Colorize;
+use similar::{ChangeTag, TextDiff};
+use tempfile::NamedTempFile;
 
 use crate::err_fail;
 
@@ -131,7 +137,42 @@ pub fn eslint(cfg: &mut Config) -> anyhow::Result<bool> {
 
 pub fn markdown_toc(cfg: &mut Config) -> anyhow::Result<bool> {
     cfg.name("markdown-toc");
-    anyhow::bail!("markdown-toc not yet implemented")
+    let mut passed = true;
+    for filename in ["README.md", "CONTRIBUTING.md"] {
+        let mut cmd = Command::new("bun");
+        cmd.args(["run", "markdown-toc", "--bullets=-", "-i"]);
+        if cfg.fix {
+            cmd.arg(filename);
+            cmd.status()?;
+        } else {
+            let before = fs::read_to_string(filename)?;
+            let after = {
+                let mut tmp = NamedTempFile::new()?;
+                tmp.write_all(before.as_bytes())?;
+                cmd.arg(tmp.path().as_os_str());
+                cmd.status()?;
+                fs::read_to_string(tmp)?
+            };
+            if before != after {
+                passed = false;
+                println!("{filename}");
+                let diff = TextDiff::from_lines(&before, &after);
+                for group in diff.grouped_ops(3) {
+                    for op in group {
+                        for change in diff.iter_changes(&op) {
+                            match change.tag() {
+                                ChangeTag::Equal => print!(" {}", change.value().dimmed()),
+                                ChangeTag::Delete => print!("-{}", change.value().red()),
+                                ChangeTag::Insert => print!("+{}", change.value().green()),
+                            }
+                        }
+                    }
+                }
+                println!();
+            }
+        }
+    }
+    Ok(passed)
 }
 
 pub fn prettier(cfg: &mut Config) -> anyhow::Result<bool> {
