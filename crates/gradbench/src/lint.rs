@@ -1,7 +1,4 @@
-use std::{
-    process::{Command, ExitCode},
-    str,
-};
+use std::process::{Command, ExitCode};
 
 use colored::Colorize;
 
@@ -100,22 +97,23 @@ impl Lints {
 
 pub fn clang_format(cfg: &mut Config) -> anyhow::Result<bool> {
     cfg.name("clang-format");
-    let mut cmd = Command::new("clang-format");
-    if cfg.fix {
-        cmd.arg("-i");
-    } else {
-        cmd.args(["--dry-run", "-Werror"]);
-    }
-    cmd.args(
-        str::from_utf8(
-            &Command::new("git")
-                .args(["ls-files", "*.c", "*.cpp", "*.h", "*.hpp"])
-                .output()?
-                .stdout,
-        )?
-        .lines(),
-    );
-    Ok(cmd.status()?.success())
+    let files = String::from_utf8(
+        Command::new("git")
+            .args(["ls-files", "*.c", "*.cpp", "*.h", "*.hpp"])
+            .output()?
+            .stdout,
+    )?;
+    let run = |name: &str| {
+        let mut cmd = Command::new(name);
+        if cfg.fix {
+            cmd.arg("-i");
+        } else {
+            cmd.args(["--dry-run", "-Werror"]);
+        }
+        cmd.args(files.lines());
+        Ok(cmd.status()?.success())
+    };
+    run("clang-format-19").or_else(|_| run("clang-format"))
 }
 
 pub fn clippy(cfg: &mut Config) -> anyhow::Result<bool> {

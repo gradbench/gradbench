@@ -40,6 +40,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Install clang-format 19
+        run: sudo apt-get install -y clang-format-19
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Lint
