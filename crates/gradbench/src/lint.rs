@@ -35,8 +35,8 @@ pub struct Lints {
 impl Lints {
     pub fn new() -> Self {
         Self {
-            chosen: Vec::new(),
             all: Vec::new(),
+            chosen: Vec::new(),
         }
     }
 
