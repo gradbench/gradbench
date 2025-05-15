@@ -18,25 +18,10 @@ namespace gmm {
 
 typedef ::Wishart Wishart;
 
-// d: dim
-// k: number of gaussians
-// n: number of points
-// alphas: k logs of mixture weights (unnormalized), so
-//          weights = exp(log_alphas) / sum(exp(log_alphas))
-// means: d*k component means
-// icf: (d*(d+1)/2)*k inverse covariance factors
-//                  every icf entry stores firstly log of diagonal and then
-//          columnwise other entris
-//          To generate icf in MATLAB given covariance C :
-//              L = inv(chol(C, 'lower'));
-//              inv_cov_factor = [log(diag(L)); L(au_tril_indices(d, -1))]
-// wishart: wishart distribution parameters
-// x: d*n points
-// err: 1 output
 template <typename T>
-void objective(int d, int k, int n, const T* const alphas, const T* const means,
-               const T* const icf, const double* const x, Wishart wishart,
-               T* err);
+void objective(int d, int k, int n, const T* const alpha, const T* const mu,
+               const T* const q, const T* const l, const double* const x,
+               Wishart wishart, T* err);
 
 template <typename T>
 T logsumexp(int n, const T* const x);
@@ -50,9 +35,6 @@ T logsumexp(int n, const T* const x);
 template <typename T>
 T log_wishart_prior(int p, int k, Wishart wishart, const T* const sum_qs,
                     const T* const Qdiags, const T* const icf);
-
-template <typename T>
-void preprocess_qs(int d, int k, const T* const icf, T* sum_qs, T* Qdiags);
 
 template <typename T>
 void Qtimesx(int d, const T* const Qdiag,
@@ -72,39 +54,22 @@ T logsumexp(int n, const T* const x) {
 }
 
 template <typename T>
-T log_wishart_prior(int p, int k, const Wishart wishart, const T* const sum_qs,
-                    const T* const Qdiags, const T* const icf) {
-  int n      = p + wishart.m + 1;
-  int icf_sz = p * (p + 1) / 2;
+T log_wishart_prior(int d, int k, const Wishart wishart, const T* const sum_qs,
+                    const T* const Qdiags, const T* const l) {
+  int       n    = d + wishart.m + 1;
+  const int l_sz = d * (d - 1) / 2;
 
-  double C = n * p * (log(wishart.gamma) - 0.5 * log(2)) -
-             log_gamma_distrib(0.5 * n, p);
+  double C = n * d * (log(wishart.gamma) - 0.5 * log(2)) -
+             log_gamma_distrib(0.5 * n, d);
 
   T out = 0;
   for (int ik = 0; ik < k; ik++) {
-    T frobenius =
-        sqnorm(p, &Qdiags[ik * p]) + sqnorm(icf_sz - p, &icf[ik * icf_sz + p]);
+    T frobenius = sqnorm(d, &Qdiags[ik * d]) + sqnorm(l_sz, &l[ik * l_sz]);
     out += 0.5 * wishart.gamma * wishart.gamma * frobenius -
            wishart.m * sum_qs[ik];
   }
 
   return -out + k * C;
-}
-
-template <typename T>
-void preprocess_qs(int d, int k, const T* const icf, T* sum_qs, T* Qdiags) {
-  int icf_sz = d * (d + 1) / 2;
-#ifdef USE_OPENMP
-#pragma omp parallel for
-#endif
-  for (int ik = 0; ik < k; ik++) {
-    sum_qs[ik] = 0.;
-    for (int id = 0; id < d; id++) {
-      T q                 = icf[ik * icf_sz + id];
-      sum_qs[ik]          = sum_qs[ik] + q;
-      Qdiags[ik * d + id] = exp(q);
-    }
-  }
 }
 
 template <typename T>
@@ -126,17 +91,24 @@ void Qtimesx(int d, const T* const Qdiag,
 
 template <typename T>
 void objective(int d, int k, int n, const T* __restrict__ const alphas,
-               const T* __restrict__ const means,
-               const T* __restrict__ const icf,
+               const T* __restrict__ const mu, const T* __restrict__ const q,
+               const T* __restrict__ const l,
                const double* __restrict__ const x, Wishart wishart,
                T* __restrict__ err) {
   const double CONSTANT = -n * d * 0.5 * log(2 * M_PI);
-  const int    icf_sz   = d * (d + 1) / 2;
+  const int    l_sz     = d * (d - 1) / 2;
 
   std::vector<T> Qdiags(d * k);
   std::vector<T> sum_qs(k);
 
-  preprocess_qs(d, k, icf, &sum_qs[0], &Qdiags[0]);
+  for (int i = 0; i < d * k; i++) {
+    Qdiags[i] = exp(q[i]);
+  }
+  for (int i = 0; i < k; i++) {
+    for (int j = 0; j < d; j++) {
+      sum_qs[i] += q[i * d + j];
+    }
+  }
 
   std::vector<T> xcentered(d);
   std::vector<T> Qxcentered(d);
@@ -149,9 +121,8 @@ void objective(int d, int k, int n, const T* __restrict__ const alphas,
 #endif
   for (int ix = 0; ix < n; ix++) {
     for (int ik = 0; ik < k; ik++) {
-      subtract(d, &x[ix * d], &means[ik * d], &xcentered[0]);
-      Qtimesx(d, &Qdiags[ik * d], &icf[ik * icf_sz + d], &xcentered[0],
-              &Qxcentered[0]);
+      subtract(d, &x[ix * d], &mu[ik * d], &xcentered[0]);
+      Qtimesx(d, &Qdiags[ik * d], &l[ik * l_sz], &xcentered[0], &Qxcentered[0]);
 
       main_term[ik] = alphas[ik] + sum_qs[ik] - 0.5 * sqnorm(d, &Qxcentered[0]);
     }
@@ -163,35 +134,43 @@ void objective(int d, int k, int n, const T* __restrict__ const alphas,
 
   *err = CONSTANT + slse - n * lse_alphas;
 
-  *err = *err + log_wishart_prior(d, k, wishart, &sum_qs[0], &Qdiags[0], icf);
+  T ws = log_wishart_prior(d, k, wishart, &sum_qs[0], &Qdiags[0], l);
+
+  *err = *err + ws;
 }
 
 //// Interface
 
 struct Input {
   int                 d, k, n;
-  std::vector<double> alphas, means, icf, x;
+  std::vector<double> alphas, mu, q, l, x;
   Wishart             wishart;
 };
 
 typedef double ObjOutput;
 
-typedef std::vector<double> JacOutput;
+struct JacOutput {
+  int                 d, k, n;
+  std::vector<double> alpha;
+  std::vector<double> mu, q, l;
+};
 
 using json = nlohmann::json;
 
-void from_json(const json& j, Input& p) {
+static void from_json(const json& j, Input& p) {
   p.d      = j["d"].get<int>();
   p.k      = j["k"].get<int>();
   p.n      = j["n"].get<int>();
   p.alphas = j["alpha"].get<std::vector<double>>();
 
-  auto means = j["means"].get<std::vector<std::vector<double>>>();
-  auto icf   = j["icf"].get<std::vector<std::vector<double>>>();
-  auto x     = j["x"].get<std::vector<std::vector<double>>>();
+  auto mu = j["mu"].get<std::vector<std::vector<double>>>();
+  auto q  = j["q"].get<std::vector<std::vector<double>>>();
+  auto l  = j["l"].get<std::vector<std::vector<double>>>();
+  auto x  = j["x"].get<std::vector<std::vector<double>>>();
   for (int i = 0; i < p.k; i++) {
-    p.means.insert(p.means.end(), means[i].begin(), means[i].end());
-    p.icf.insert(p.icf.end(), icf[i].begin(), icf[i].end());
+    p.mu.insert(p.mu.end(), mu[i].begin(), mu[i].end());
+    p.q.insert(p.q.end(), q[i].begin(), q[i].end());
+    p.l.insert(p.l.end(), l[i].begin(), l[i].end());
   }
   for (int i = 0; i < p.n; i++) {
     p.x.insert(p.x.end(), x[i].begin(), x[i].end());
@@ -201,14 +180,29 @@ void from_json(const json& j, Input& p) {
   p.wishart.m     = j["m"].get<int>();
 }
 
+static void to_json(nlohmann::json& j, const JacOutput& p) {
+  const int                        l_sz = p.d * (p.d - 1) / 2;
+  std::vector<std::vector<double>> mu(p.k), q(p.k), l(p.k);
+
+  for (int i = 0; i < p.k; i++) {
+    mu[i].insert(mu[i].end(), p.mu.begin() + i * p.d,
+                 p.mu.begin() + (i + 1) * p.d);
+    q[i].insert(q[i].end(), p.q.begin() + i * p.d, p.q.begin() + (i + 1) * p.d);
+    l[i].insert(l[i].end(), p.l.begin() + i * l_sz,
+                p.l.begin() + (i + 1) * l_sz);
+  }
+
+  j = {{"mu", mu}, {"q", q}, {"l", l}, {"alpha", p.alpha}};
+}
+
 class Objective : public Function<Input, ObjOutput> {
 public:
   Objective(Input& input) : Function(input) {}
 
   void compute(ObjOutput& output) {
     objective(_input.d, _input.k, _input.n, _input.alphas.data(),
-              _input.means.data(), _input.icf.data(), _input.x.data(),
-              _input.wishart, &output);
+              _input.mu.data(), _input.q.data(), _input.l.data(),
+              _input.x.data(), _input.wishart, &output);
   }
 };
 

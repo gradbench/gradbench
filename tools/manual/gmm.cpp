@@ -8,7 +8,7 @@ public:
   Jacobian(gmm::Input& input) : Function(input) {}
 
   void compute(gmm::JacOutput& output) {
-    const int l_sz = _input.d * (_input.d-1) / 2 ;
+    const int l_sz = _input.d * (_input.d - 1) / 2;
 
     output.d = _input.d;
     output.k = _input.k;
@@ -23,9 +23,7 @@ public:
     gmm_objective_d(_input.d, _input.k, _input.n, _input.alphas.data(),
                     _input.mu.data(), _input.q.data(), _input.l.data(),
                     _input.x.data(), _input.wishart, &error,
-                    output.alpha.data(),
-                    output.mu.data(),
-                    output.q.data(),
+                    output.alpha.data(), output.mu.data(), output.q.data(),
                     output.l.data());
   }
 };
