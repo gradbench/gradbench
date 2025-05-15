@@ -1,9 +1,21 @@
+from functools import partial
+
 import jax
 import jax.numpy as jnp
 from gradbench import wrap
 from gradbench.tools.jax.gmm_objective import gmm_objective
 
 jax.config.update("jax_enable_x64", True)
+
+
+@partial(jax.jit, static_argnames=["d", "k"])
+def obj(independent, **fixed):
+    return gmm_objective(**fixed, **independent)
+
+
+@partial(jax.jit, static_argnames=["d", "k"])
+def jac(independent, **fixed):
+    return jax.grad(lambda ind: gmm_objective(**fixed, **ind))(independent)
 
 
 def prepare(input):
@@ -28,7 +40,7 @@ def prepare(input):
 @wrap.multiple_runs(pre=prepare, post=float)
 def objective(input):
     fixed, independent = input
-    return jax.jit(gmm_objective, static_argnames=["d", "k"])(**fixed, **independent)
+    return obj(independent, **fixed)
 
 
 def postprocess(input):
@@ -46,4 +58,4 @@ def postprocess(input):
 @wrap.multiple_runs(pre=prepare, post=postprocess)
 def jacobian(input):
     fixed, independent = input
-    return jax.jit(jax.grad(lambda ind: gmm_objective(**fixed, **ind)))(independent)
+    return jac(independent, **fixed)
