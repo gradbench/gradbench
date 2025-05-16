@@ -130,7 +130,7 @@ fn node_bin(name: &str, f: impl FnOnce(&mut Command)) -> anyhow::Result<bool> {
 
 /// Run a command with `uv run`, giving uv installation instructions if it can't start.
 ///
-/// Tries `steam-run` first in case of NixOS.
+/// Tries `TMPDIR=/tmp steam-run` first in case of NixOS.
 fn uv(f: impl Fn(&mut Command)) -> anyhow::Result<bool> {
     let run = |cmd: &mut Command| {
         cmd.arg("run");
@@ -140,7 +140,8 @@ fn uv(f: impl Fn(&mut Command)) -> anyhow::Result<bool> {
             .map_err(|_| anyhow!("install uv from https://docs.astral.sh/uv/"))?
             .success())
     };
-    run(Command::new("steam-run").arg("uv")).or_else(|_| run(&mut Command::new("uv")))
+    run(Command::new("steam-run").env("TMPDIR", "/tmp").arg("uv"))
+        .or_else(|_| run(&mut Command::new("uv")))
 }
 
 pub fn clang_format(cfg: &mut Config) -> anyhow::Result<bool> {
