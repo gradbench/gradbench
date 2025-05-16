@@ -166,7 +166,11 @@ pub fn clang_format(cfg: &mut Config) -> anyhow::Result<bool> {
 
 pub fn clippy(cfg: &mut Config) -> anyhow::Result<bool> {
     cfg.name("Clippy");
-    Ok(Command::new("cargo").arg("clippy").status()?.success())
+    let mut cmd = Command::new("cargo");
+    cmd.args(["clippy", "--", "-Dwarnings"]);
+    // Ideally we'd optionally add the `--fix` flag, but for some reason that seems to cause
+    // `-Dwarnings` to be ignored.
+    Ok(cmd.status()?.success())
 }
 
 pub fn eslint(cfg: &mut Config) -> anyhow::Result<bool> {
