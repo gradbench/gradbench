@@ -24,6 +24,7 @@ pub struct Config {
 }
 
 impl Config {
+    /// Print the name of the linter that is about to run, and save it to be printed afterward too.
     fn name(&mut self, name: &'static str) {
         println!("{} {name}", RUNNING.bold());
         self.name = Some(name);
@@ -38,6 +39,7 @@ pub struct Lints {
 }
 
 impl Lints {
+    /// Create an empty collection of linters.
     pub fn new() -> Self {
         Self {
             all: Vec::new(),
@@ -45,6 +47,7 @@ impl Lints {
         }
     }
 
+    /// Register a linter, marking it as explicitly chosen or not based on a boolean flag.
     pub fn flag(&mut self, choose: bool, function: Lint) {
         self.all.push(function);
         if choose {
@@ -52,6 +55,7 @@ impl Lints {
         }
     }
 
+    /// Run explicitly chosen linters if there are any; otherwise run all linters.
     pub fn run(self, fix: bool) -> Result<(), ExitCode> {
         let mut lints = self.chosen;
         if lints.is_empty() {
@@ -103,6 +107,7 @@ impl Lints {
     }
 }
 
+/// Run a command, or give Bun installation/usage instructions if it fails to start.
 fn bun(cmd: &mut Command) -> anyhow::Result<bool> {
     Ok(cmd
         .status()
@@ -116,12 +121,16 @@ fn bun(cmd: &mut Command) -> anyhow::Result<bool> {
         .success())
 }
 
+/// Run a binary in `node_modules`, or give Bun installation/usage instructions if can't start.
 fn node_bin(name: &str, f: impl FnOnce(&mut Command)) -> anyhow::Result<bool> {
     let mut cmd = Command::new(format!("node_modules/.bin/{name}"));
     f(&mut cmd);
     bun(&mut cmd)
 }
 
+/// Run a command with `uv run`, giving uv installation instructions if it can't start.
+///
+/// Tries `steam-run` first in case of NixOS.
 fn uv(f: impl Fn(&mut Command)) -> anyhow::Result<bool> {
     let run = |cmd: &mut Command| {
         cmd.arg("run");
@@ -166,6 +175,8 @@ pub fn eslint(cfg: &mut Config) -> anyhow::Result<bool> {
 }
 
 pub fn markdown_toc(cfg: &mut Config) -> anyhow::Result<bool> {
+    cfg.name("markdown-toc");
+
     fn run(filename: impl AsRef<OsStr>) -> anyhow::Result<()> {
         if node_bin("markdown-toc", |cmd| {
             cmd.args(["--bullets=-", "-i"]);
@@ -177,7 +188,6 @@ pub fn markdown_toc(cfg: &mut Config) -> anyhow::Result<bool> {
         }
     }
 
-    cfg.name("markdown-toc");
     let mut passed = true;
     for filename in ["README.md", "CONTRIBUTING.md"] {
         if cfg.fix {
