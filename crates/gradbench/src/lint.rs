@@ -178,8 +178,6 @@ pub fn markdown_toc(cfg: &mut Config) -> anyhow::Result<bool> {
     cfg.name("markdown-toc");
     let mut passed = true;
     for filename in ["README.md", "CONTRIBUTING.md"] {
-        let mut cmd = Command::new("bun");
-        cmd.args(["run", "markdown-toc", "--bullets=-", "-i"]);
         if cfg.fix {
             run(filename)?;
         } else {
