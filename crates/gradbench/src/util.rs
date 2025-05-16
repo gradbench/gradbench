@@ -88,6 +88,10 @@ pub fn stringify_cmd(cmd: &Command) -> anyhow::Result<Vec<&str>> {
         .collect()
 }
 
+pub fn shlex_cmd(cmd: &Command) -> anyhow::Result<String> {
+    Ok(shlex::try_join(stringify_cmd(cmd)?)?)
+}
+
 type CtrlCHandlers = HashMap<usize, Box<dyn FnOnce() + Send>>;
 
 pub struct CtrlC {
