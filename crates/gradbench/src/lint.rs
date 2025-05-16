@@ -171,7 +171,7 @@ pub fn markdown_toc(cfg: &mut Config) -> anyhow::Result<bool> {
         })? {
             Ok(())
         } else {
-            Err(anyhow!("command failed: markdown-toc"))
+            Err(anyhow!("markdown-toc failed"))
         }
     }
 
