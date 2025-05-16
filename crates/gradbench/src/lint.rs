@@ -122,14 +122,16 @@ fn node_bin(name: &str, f: impl FnOnce(&mut Command)) -> anyhow::Result<bool> {
     bun(&mut cmd)
 }
 
-fn uv(f: impl FnOnce(&mut Command)) -> anyhow::Result<bool> {
-    let mut cmd = Command::new("uv");
-    cmd.arg("run");
-    f(&mut cmd);
-    Ok(cmd
-        .status()
-        .map_err(|_| anyhow!("install uv from https://docs.astral.sh/uv/"))?
-        .success())
+fn uv(f: impl Fn(&mut Command)) -> anyhow::Result<bool> {
+    let run = |cmd: &mut Command| {
+        cmd.arg("run");
+        f(cmd);
+        Ok(cmd
+            .status()
+            .map_err(|_| anyhow!("install uv from https://docs.astral.sh/uv/"))?
+            .success())
+    };
+    run(Command::new("steam-run").arg("uv")).or_else(|_| run(&mut Command::new("uv")))
 }
 
 pub fn clang_format(cfg: &mut Config) -> anyhow::Result<bool> {
