@@ -1,9 +1,11 @@
 use std::{
+    ffi::OsStr,
     fs,
     io::Write,
     process::{Command, ExitCode},
 };
 
+use anyhow::anyhow;
 use colored::Colorize;
 use similar::{ChangeTag, TextDiff};
 use tempfile::NamedTempFile;
@@ -101,6 +103,35 @@ impl Lints {
     }
 }
 
+fn bun(cmd: &mut Command) -> anyhow::Result<bool> {
+    Ok(cmd
+        .status()
+        .map_err(|_| {
+            if Command::new("bun").arg("--version").output().is_ok() {
+                anyhow!("you must run `bun install`")
+            } else {
+                anyhow!("install Bun from https://bun.sh/ and then run `bun install`")
+            }
+        })?
+        .success())
+}
+
+fn node_bin(name: &str, f: impl FnOnce(&mut Command)) -> anyhow::Result<bool> {
+    let mut cmd = Command::new(format!("node_modules/.bin/{name}"));
+    f(&mut cmd);
+    bun(&mut cmd)
+}
+
+fn uv(f: impl FnOnce(&mut Command)) -> anyhow::Result<bool> {
+    let mut cmd = Command::new("uv");
+    cmd.arg("run");
+    f(&mut cmd);
+    Ok(cmd
+        .status()
+        .map_err(|_| anyhow!("install uv from https://docs.astral.sh/uv/"))?
+        .success())
+}
+
 pub fn clang_format(cfg: &mut Config) -> anyhow::Result<bool> {
     cfg.name("clang-format");
     let files = String::from_utf8(
@@ -129,28 +160,34 @@ pub fn clippy(cfg: &mut Config) -> anyhow::Result<bool> {
 
 pub fn eslint(cfg: &mut Config) -> anyhow::Result<bool> {
     cfg.name("ESLint");
-    Ok(Command::new("bun")
-        .args(["run", "--filter=@gradbench/website", "lint"])
-        .status()?
-        .success())
+    bun(Command::new("bun").args(["run", "--filter=@gradbench/website", "lint"]))
 }
 
 pub fn markdown_toc(cfg: &mut Config) -> anyhow::Result<bool> {
+    fn run(filename: impl AsRef<OsStr>) -> anyhow::Result<()> {
+        if node_bin("markdown-toc", |cmd| {
+            cmd.args(["--bullets=-", "-i"]);
+            cmd.arg(filename);
+        })? {
+            Ok(())
+        } else {
+            Err(anyhow!("command failed: markdown-toc"))
+        }
+    }
+
     cfg.name("markdown-toc");
     let mut passed = true;
     for filename in ["README.md", "CONTRIBUTING.md"] {
         let mut cmd = Command::new("bun");
         cmd.args(["run", "markdown-toc", "--bullets=-", "-i"]);
         if cfg.fix {
-            cmd.arg(filename);
-            cmd.status()?;
+            run(filename)?;
         } else {
             let before = fs::read_to_string(filename)?;
             let after = {
                 let mut tmp = NamedTempFile::new()?;
                 tmp.write_all(before.as_bytes())?;
-                cmd.arg(tmp.path().as_os_str());
-                cmd.status()?;
+                run(tmp.path().as_os_str())?;
                 fs::read_to_string(tmp)?
             };
             if before != after {
@@ -177,30 +214,30 @@ pub fn markdown_toc(cfg: &mut Config) -> anyhow::Result<bool> {
 
 pub fn prettier(cfg: &mut Config) -> anyhow::Result<bool> {
     cfg.name("Prettier");
-    let mut cmd = Command::new("bun");
-    cmd.args(["run", "prettier", "."]);
-    cmd.arg(if cfg.fix { "--write" } else { "--check" });
-    Ok(cmd.status()?.success())
+    node_bin("prettier", |cmd| {
+        cmd.arg(".");
+        cmd.arg(if cfg.fix { "--write" } else { "--check" });
+    })
 }
 
 pub fn ruff_check(cfg: &mut Config) -> anyhow::Result<bool> {
     cfg.name("Ruff linter");
-    let mut cmd = Command::new("uv");
-    cmd.args(["run", "ruff", "check"]);
-    if cfg.fix {
-        cmd.arg("--fix");
-    }
-    Ok(cmd.status()?.success())
+    uv(|cmd| {
+        cmd.args(["ruff", "check"]);
+        if cfg.fix {
+            cmd.arg("--fix");
+        }
+    })
 }
 
 pub fn ruff_format(cfg: &mut Config) -> anyhow::Result<bool> {
     cfg.name("Ruff formatter");
-    let mut cmd = Command::new("uv");
-    cmd.args(["run", "ruff", "format"]);
-    if !cfg.fix {
-        cmd.arg("--check");
-    }
-    Ok(cmd.status()?.success())
+    uv(|cmd| {
+        cmd.args(["ruff", "format"]);
+        if !cfg.fix {
+            cmd.arg("--check");
+        }
+    })
 }
 
 pub fn rustfmt(cfg: &mut Config) -> anyhow::Result<bool> {
@@ -215,8 +252,5 @@ pub fn rustfmt(cfg: &mut Config) -> anyhow::Result<bool> {
 
 pub fn typescript(cfg: &mut Config) -> anyhow::Result<bool> {
     cfg.name("TypeScript");
-    Ok(Command::new("bun")
-        .args(["run", "--filter=*", "typecheck"])
-        .status()?
-        .success())
+    bun(Command::new("bun").args(["run", "--filter=*", "typecheck"]))
 }
