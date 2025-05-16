@@ -158,9 +158,9 @@ struct JacOutput {
 using json = nlohmann::json;
 
 static void from_json(const json& j, Input& p) {
-  p.d      = j["d"].get<int>();
-  p.k      = j["k"].get<int>();
-  p.n      = j["n"].get<int>();
+  p.d     = j["d"].get<int>();
+  p.k     = j["k"].get<int>();
+  p.n     = j["n"].get<int>();
   p.alpha = j["alpha"].get<std::vector<double>>();
 
   auto mu = j["mu"].get<std::vector<std::vector<double>>>();
