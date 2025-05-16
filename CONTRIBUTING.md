@@ -483,7 +483,6 @@ type Session = (MessageLine | ResponseLine)[];
 [github cli]: https://github.com/cli/cli#installation
 [json]: https://json.org/
 [make]: https://en.wikipedia.org/wiki/Make_(software)
-[markdown-toc]: https://www.npmjs.com/package/markdown-toc
 [multi-platform images]: https://docs.docker.com/build/building/multi-platform/
 [nix]: https://nixos.org/
 [python]: https://docs.astral.sh/uv/guides/install-python/
