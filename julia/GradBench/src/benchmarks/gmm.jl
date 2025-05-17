@@ -70,7 +70,7 @@ function log_wishart_prior(wishart::Wishart, sum_qs, Qs, k)
     C = n * p * (log(wishart.gamma) - 0.5 * log(2)) - log_gamma_distrib(0.5 * n, p)
 
     frobenius = sum(abs2, Qs)
-    0.5 * wishart.gamma^2 * frobenius - wishart.m * sum(sum_qs) - k * C
+    -0.5 * wishart.gamma^2 * frobenius + wishart.m * sum(sum_qs) + k * C
 end
 
 function diagsums(Qs)

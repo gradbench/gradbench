@@ -4,44 +4,42 @@ import jax.numpy as jnp
 from jax.scipy.special import logsumexp, multigammaln
 
 
-def log_wishart_prior(p, wishart_gamma, wishart_m, sum_qs, Qdiags, icf):
-    n = p + wishart_m + 1
-    k = icf.shape[0]
+def log_wishart_prior(*, k, p, gamma, m, sum_qs, Qdiags, l):
+    n = p + m + 1
 
     out = jnp.sum(
-        0.5
-        * wishart_gamma
-        * wishart_gamma
-        * (jnp.sum(Qdiags**2, axis=1) + jnp.sum(icf[:, p:] ** 2, axis=1))
-        - wishart_m * sum_qs
+        0.5 * gamma * gamma * (jnp.sum(Qdiags**2, axis=1) + jnp.sum(l**2, axis=1))
+        - m * sum_qs
     )
 
-    C = n * p * (jnp.log(wishart_gamma / math.sqrt(2)))
-    return out - k * (C - multigammaln(0.5 * n, p))
+    C = n * p * (jnp.log(gamma / math.sqrt(2)))
+    return -out + k * (C - multigammaln(0.5 * n, p))
 
 
-def gmm_objective(alphas, means, icf, x, wishart_gamma, wishart_m):
-    n, d = x.shape
+def gmm_objective(*, d, k, n, x, m, gamma, alpha, mu, q, l):
+    Qdiags = jnp.exp(q)
+    sum_qs = jnp.sum(q, axis=1)
 
-    Qdiags = jnp.exp(icf[:, :d])
-    sum_qs = jnp.sum(icf[:, :d], axis=1)
+    cols = jnp.repeat(
+        jnp.arange(d - 1),
+        jnp.arange(d - 1, 0, -1),
+        total_repeat_length=d * (d - 1) // 2,
+    )
+    rows = jnp.concatenate([jnp.arange(c + 1, d) for c in range(d - 1)])
+    Ls = jnp.zeros((k, d, d), dtype=l.dtype).at[:, rows, cols].set(l)
 
-    to_from_idx = jnp.pad(
-        jnp.cumsum(jnp.arange(d - 1, 0, -1)) + d, (1, 0), constant_values=d
-    ) - jnp.arange(1, d + 1)
-    idx = jnp.tril(jnp.arange(d).reshape(d, 1) + to_from_idx, -1)
-    Ls = icf[:, idx] * (idx > 0)
-
-    xcentered = x[:, None, :] - means[None, ...]
+    xcentered = x[:, None, :] - mu[None, ...]
     Lxcentered = Qdiags * xcentered + jnp.einsum("ijk,mik->mij", Ls, xcentered)
     sqsum_Lxcentered = jnp.sum(Lxcentered**2, axis=2)
-    inner_term = alphas + sum_qs - 0.5 * sqsum_Lxcentered
+    inner_term = alpha + sum_qs - 0.5 * sqsum_Lxcentered
     slse = jnp.sum(logsumexp(inner_term, axis=1))
 
     CONSTANT = -n * d * 0.5 * math.log(2 * math.pi)
     return (
         CONSTANT
         + slse
-        - n * logsumexp(alphas, axis=0)
-        + log_wishart_prior(d, wishart_gamma, wishart_m, sum_qs, Qdiags, icf)
+        - n * logsumexp(alpha, axis=0)
+        + log_wishart_prior(
+            k=k, p=d, gamma=gamma, m=m, sum_qs=sum_qs, Qdiags=Qdiags, l=l
+        )
     )

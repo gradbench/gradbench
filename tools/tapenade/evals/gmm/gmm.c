@@ -112,11 +112,11 @@ double log_wishart_prior(int p, int k, Wishart wishart, double const* sum_qs,
   for (ik = 0; ik < k; ik++) {
     double frobenius =
         sqnorm(p, &Qdiags[ik * p]) + sqnorm(icf_sz - p, &icf[ik * icf_sz + p]);
-    out = out + 0.5 * wishart.gamma * wishart.gamma * (frobenius)-wishart.m *
+    out = out - 0.5 * wishart.gamma * wishart.gamma * (frobenius)-wishart.m *
                     sum_qs[ik];
   }
 
-  return out - k * C;
+  return out + k * C;
 }
 
 void preprocess_qs(int d, int k, double const* icf, double* sum_qs,

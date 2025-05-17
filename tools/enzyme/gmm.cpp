@@ -8,27 +8,50 @@ public:
   Jacobian(gmm::Input& input) : Function(input) {}
 
   void compute(gmm::JacOutput& output) {
-    int Jcols = (_input.k * (_input.d + 1) * (_input.d + 2)) / 2;
-    output.resize(Jcols);
-    std::fill(output.begin(), output.end(), 0);
+    const int l_sz = _input.d * (_input.d - 1) / 2;
 
-    double* d_alphas = output.data();
-    double* d_means  = d_alphas + _input.alphas.size();
-    double* d_icf    = d_means + _input.means.size();
+    output.d = _input.d;
+    output.k = _input.k;
+    output.n = _input.n;
+
+    output.alpha.resize(output.k);
+    output.mu.resize(output.k * output.d);
+    output.q.resize(output.k * output.d);
+    output.l.resize(output.k * l_sz);
+
+    std::fill(output.alpha.begin(), output.alpha.end(), 0);
+    std::fill(output.mu.begin(), output.mu.end(), 0);
+    std::fill(output.q.begin(), output.q.end(), 0);
+    std::fill(output.l.begin(), output.l.end(), 0);
+
+    double* d_alpha = output.alpha.data();
+    double* d_mu    = output.mu.data();
+    double* d_q     = output.q.data();
+    double* d_l     = output.l.data();
 
     double err;
     double d_err = 1;
-    __enzyme_autodiff(gmm::objective<double>, enzyme_const, _input.d,
-                      enzyme_const, _input.k, enzyme_const, _input.n,
+    __enzyme_autodiff(gmm::objective<double>,
 
-                      enzyme_dup, _input.alphas.data(), d_alphas,
+                      enzyme_const, _input.d,
 
-                      enzyme_dup, _input.means.data(), d_means,
+                      enzyme_const, _input.k,
 
-                      enzyme_dup, _input.icf.data(), d_icf,
+                      enzyme_const, _input.n,
 
-                      enzyme_const, _input.x.data(), enzyme_const,
-                      _input.wishart, enzyme_dupnoneed, &err, &d_err);
+                      enzyme_dup, _input.alpha.data(), d_alpha,
+
+                      enzyme_dup, _input.mu.data(), d_mu,
+
+                      enzyme_dup, _input.q.data(), d_q,
+
+                      enzyme_dup, _input.l.data(), d_l,
+
+                      enzyme_const, _input.x.data(),
+
+                      enzyme_const, _input.wishart,
+
+                      enzyme_dupnoneed, &err, &d_err);
   }
 };
 

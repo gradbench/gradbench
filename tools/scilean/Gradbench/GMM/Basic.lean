@@ -34,7 +34,7 @@ def logWishartPrior {k d : Nat} (Qs : Float^[d,d]^[k]) (qsums : Float^[k]) (wish
     let c := (n * p) * (log wishartGamma - 0.5 * log 2) - (logMultiGamma (0.5 * n.toFloat) p)
     let frobenius : Float := ‖Qs‖₂²
     let sumQs : Float := qsums.sum
-    0.5 * wishartGamma * wishartGamma * frobenius - wishartM * sumQs - k * c
+    k * c - 0.5 * wishartGamma * wishartGamma * frobenius + wishartM * sumQs
 
 
 abbrev_data_synth logWishartPrior in Qs qsums : HasRevFDeriv Float by
