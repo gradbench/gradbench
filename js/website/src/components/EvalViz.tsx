@@ -23,7 +23,8 @@ const colors = {
   pytorch: "#ee4c2c",
   scilean: "#5c123a",
   tapenade: "#047f01",
-  tensorflow: "#ff8d00",
+  tensorflow: "#ff6f00",
+  "tensorflow-js": "#ffa800",
   zygote: "#6daa5e",
 };
 
