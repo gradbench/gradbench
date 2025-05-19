@@ -8,7 +8,9 @@ mod util;
 use std::{
     backtrace::BacktraceStatus,
     collections::{BTreeMap, BTreeSet, HashSet, VecDeque},
-    env, fs,
+    env,
+    fmt::Write as _,
+    fs,
     io::{self, BufRead},
     mem::take,
     path::{Path, PathBuf},
@@ -1142,21 +1144,24 @@ struct ToolEntry<'a> {
 
 /// A single entry in the `run` matrix for GitHub Actions.
 #[derive(Serialize)]
-struct RunEntry<'a> {
-    /// The name of the eval.
-    eval: &'a str,
+struct RunEntry {
+    /// The name of the GitHub Actions artifact to produce.
+    artifact: String,
 
-    /// The name of the tool.
-    tool: &'a str,
+    /// CLI args to pass to the `repo run` subcommand.
+    args: String,
+}
 
-    /// The expected outcome of the run.
-    outcome: &'static str,
+impl RunEntry {
+    fn new(args: String) -> Self {
+        let artifact = mangle(&args);
+        Self { artifact, args }
+    }
 }
 
 /// Print the GitHub Actions matrix to stdout.
 fn matrix() -> anyhow::Result<()> {
-    let date = format!("{}", chrono::Utc::now().format("%Y-%m-%d"));
-    github_output("date", date)?;
+    github_output("date", format!("{}", chrono::Utc::now().format("%Y-%m-%d")))?;
     let mut evals = ls("evals")?;
     evals.sort();
     github_output("eval", &evals)?;
@@ -1172,22 +1177,29 @@ fn matrix() -> anyhow::Result<()> {
             })
             .collect::<Vec<_>>(),
     )?;
-    let mut run = Vec::new();
-    let map = evals_to_tools(evals)?;
-    for (eval, supported) in &map {
+    let evals_squish = ["hello", "llsq", "lstm", "particle", "saddle"];
+    let mut runs = Vec::new();
+    for tool in &tools {
+        let mut args = String::new();
+        for eval in evals_squish {
+            write!(&mut args, "--eval {eval} ")?;
+        }
+        write!(&mut args, "--tool {tool}")?;
+        runs.push(RunEntry::new(args));
+    }
+    for eval in evals {
+        if evals_squish.contains(&eval.as_str()) {
+            continue;
+        }
         for tool in &tools {
-            run.push(RunEntry {
-                eval,
-                tool,
-                outcome: match supported.get(tool.as_str()) {
-                    None => BadOutcome::Undefined.into(),
-                    Some(None) => "success",
-                    Some(Some(bad_outcome)) => bad_outcome.into(),
-                },
-            });
+            runs.push(RunEntry::new(format!("--eval {eval} --tool {tool}")));
         }
     }
-    github_output("run", run)?;
+    let num_jobs = runs.len();
+    if num_jobs > 256 {
+        bail!("{num_jobs} jobs is too many for the GitHub Actions limit of 256");
+    }
+    github_output("run", runs.as_slice())?;
     Ok(())
 }
 

@@ -186,37 +186,18 @@ jobs:
         uses: ./.github/actions/space
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
-      - name: Download eval Docker image from artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: eval-${{ matrix.eval }}
-      - name: Download tool Docker image from artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: x86-tool-${{ matrix.tool }}
-      - name: Load eval Docker image
-        run: docker load --input eval-${{ matrix.eval }}.tar
-      - name: Load tool Docker image
-        run: docker load --input tool-${{ matrix.tool }}.tar
-      - name: Run tool on eval
+      - name: Run
         id: run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set +e
-          gradbench exit-code ${{ matrix.outcome }}
-          expected=$?
-          gradbench run --eval "gradbench eval ${{ matrix.eval }}" --tool "gradbench tool ${{ matrix.tool }}" --output log.jsonl --timeout 600
-          actual=$?
-          set -e
-          if [ $actual -ne $expected ]; then
-            echo "expected exit code $expected (from outcome ${{ matrix.outcome }}) but got exit code $actual"
-            exit 1
-          fi
-      - name: Upload log as artifact
+          gradbench repo run --download-github ${{ github.run_id }} -o run --timeout 600 ${{ matrix.args }}
+      - name: Upload logs as artifact
         if: success() || steps.run.conclusion == 'failure'
         uses: actions/upload-artifact@v4
         with:
-          name: run-${{ matrix.eval }}-${{ matrix.tool }}
-          path: log.jsonl
+          name: run-${{ matrix.artifact }}
+          path: run
 
   stats:
     needs:
@@ -232,7 +213,8 @@ jobs:
       - name: Download all log artifacts
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh run download ${{ github.run_id }} --dir run --pattern 'run-*'
+        run: |
+          gh run download ${{ github.run_id }} --dir artifacts --pattern 'run-*'
       - name: Checkout stats branch
         uses: actions/checkout@v4
         with:
