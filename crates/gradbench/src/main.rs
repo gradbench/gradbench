@@ -313,8 +313,8 @@ enum RepoCommands {
 
     /// Generate summary data files and plots from a directory containing log files.
     ///
-    /// The directory should contain a `run-<EVAL>-<TOOL>/log.jsonl` file for each `<EVAL>` under
-    /// `evals` and each `<TOOL>` under `tools`.
+    /// The directory should contain a `<EVAL>/<TOOL>.jsonl` file for each `<EVAL>` under `evals`
+    /// and each `<TOOL>` under `tools`.
     Stats {
         /// The directory containing log files
         input: PathBuf,

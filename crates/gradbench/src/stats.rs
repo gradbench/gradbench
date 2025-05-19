@@ -427,7 +427,7 @@ pub fn generate(input: PathBuf, output: PathBuf, metadata: StatsMetadata) -> any
             let (outcome, score) = match supported.get(tool.as_str()) {
                 None => (Some(BadOutcome::Undefined), None),
                 Some(&outcome) => {
-                    let path = input.join(format!("run-{eval}-{tool}/log.jsonl"));
+                    let path = input.join(format!("{eval}/{tool}.jsonl"));
                     println!("  {}", path.display());
                     let reader = io::BufReader::new(fs::File::open(&path)?);
                     // Always run the `score` method, to gather fine-grained data.
