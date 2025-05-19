@@ -1153,17 +1153,17 @@ struct ToolEntry<'a> {
 /// A single entry in the `run` matrix for GitHub Actions.
 #[derive(Serialize)]
 struct RunEntry {
-    /// The name of the GitHub Actions artifact to produce.
-    artifact: String,
-
     /// CLI args to pass to the `repo run` subcommand.
     args: String,
+
+    /// The name of the GitHub Actions artifact to produce.
+    artifact: String,
 }
 
 impl RunEntry {
     fn new(args: String) -> Self {
         let artifact = mangle(&args);
-        Self { artifact, args }
+        Self { args, artifact }
     }
 }
 
