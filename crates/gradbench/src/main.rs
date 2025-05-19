@@ -337,28 +337,36 @@ enum RepoCommands {
 enum LogCommands {
     /// Remove input/output fields from "evaluate" messages and responses.
     ///
-    /// Writes to stdout unless the `--output` option is used. It is
-    /// expected that the input log file is well-formed, but not that
-    /// it corresponds to a successful run. In particular, the final
-    /// message may not have a response - this occurs when the tool
-    /// crashes or times out before it gets to respond.
+    /// Writes to stdout unless the `--output` option is used. It is expected that the input log
+    /// file is well-formed, but not that it corresponds to a successful run. In particular, the
+    /// final message may not have a response - this occurs when the tool crashes or times out
+    /// before it gets to respond.
     Trim {
-        /// The input log file.
+        /// The input log file
         input: Option<PathBuf>,
 
-        /// The output log file.
+        /// The output log file
         #[clap(short, long)]
         output: Option<PathBuf>,
     },
 
-    /// Print a human-readable summary of the log file, including the
-    /// eval, tool, configuration, etc.
+    /// Print a human-readable summary of the log file, including the eval, tool, configuration,
+    /// etc.
     ///
-    /// Will fail with a not necessarily very friendly error if the
-    /// log file is malformed.
+    /// Will fail with a not necessarily very friendly error if the log file is malformed.
     Summary {
-        /// The input log file.
+        /// The input log file
         input: Option<PathBuf>,
+    },
+
+    /// Move log files from a directory with three layers of nesting to a directory with only two.
+    Flatten {
+        /// The input directory
+        input: PathBuf,
+
+        /// The output directory
+        #[clap(short, long)]
+        output: PathBuf,
     },
 }
 
@@ -1210,6 +1218,7 @@ fn log_command(command: LogCommands) -> anyhow::Result<()> {
             run_in_out(log::Trim, input.as_deref(), output.as_deref())
         }
         LogCommands::Summary { input } => run_in_out(log::Summary, input.as_deref(), None),
+        LogCommands::Flatten { input, output } => log::flatten(&input, &output),
     }
 }
 

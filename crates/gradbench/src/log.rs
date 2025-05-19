@@ -6,7 +6,7 @@ use crate::{
 use crate::util::nanostring;
 use anyhow::anyhow;
 use colored::Colorize;
-use std::io;
+use std::{fs, io, path::Path};
 
 pub struct Trim;
 
@@ -153,6 +153,22 @@ impl InOut<anyhow::Result<()>> for Summary {
 
         Ok(())
     }
+}
+
+pub fn flatten(input: &Path, output: &Path) -> anyhow::Result<()> {
+    for entry in fs::read_dir(input)? {
+        let subdir = entry?.path();
+        for eval_entry in fs::read_dir(&subdir)? {
+            let eval = eval_entry?.path();
+            let eval_out = output.join(eval.strip_prefix(&subdir)?);
+            fs::create_dir_all(&eval_out)?;
+            for log_entry in fs::read_dir(&eval)? {
+                let log = log_entry?.path();
+                fs::rename(&log, eval_out.join(log.strip_prefix(&eval)?))?;
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
