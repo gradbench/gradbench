@@ -2,7 +2,8 @@
 
 This tool contains programs that have been differentiated by hand.
 
-To run this outside Docker, you'll first need to run the following commands from the GradBench repository root to setup the C++ build and build the programs:
+To run this outside Docker, you'll first need to run the following commands from
+the GradBench repository root to setup the C++ build and build the programs:
 
 ```sh
 make -C cpp
@@ -31,9 +32,9 @@ hand-differentiation is impractical.
 
 ### Multithreading
 
-The primal functions use the [C++ reference
-implementations](/cpp/gradbench/evals) - see the Commentary for each individual
-eval to see how well they have been multithreaded.
+The primal functions use the
+[C++ reference implementations](/cpp/gradbench/evals) - see the Commentary for
+each individual eval to see how well they have been multithreaded.
 
 All differentiated functions have been implemented with multiple threads
 (although not all lead to speedup), with the following exceptions and notes.

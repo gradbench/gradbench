@@ -3,17 +3,16 @@ module Hello
 using Enzyme
 import GradBench
 
-function double(x)
+struct GradientHello <: GradBench.Hello.AbstractHello end
+function (::GradientHello)(x)
     z, = Enzyme.gradient(Reverse, GradBench.Hello.square, x)
     return z
 end
 
-precompile(double, (Float64,))
-
 GradBench.register!(
     "hello", Dict(
-        "square" => GradBench.Hello.square,
-        "double" => double
+        "square" => GradBench.Hello.PrimalHello(),
+        "double" => GradientHello(),
     )
 )
 

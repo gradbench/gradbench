@@ -30,38 +30,27 @@ Zygote.@adjoint function GradBench.GMM.expdiags(Qs)
     end
 end
 
-# FIXME: it is very expensive to redo all the input parsing here for
-# every run. We absolutely must hoist it out into a "prepare" stage.
-function objective(input)
-    gmm_input = GradBench.GMM.input_from_json(input)
-    k = size(gmm_input.means, 2)
-    d = size(gmm_input.x, 1)
-    Qs = GradBench.GMM.get_Qs(gmm_input.icfs, k, d)
-
-    return GradBench.GMM.objective(gmm_input.alphas, gmm_input.means, Qs, gmm_input.x, gmm_input.wishart)
-end
-
-function jacobian(input)
-    gmm_input = GradBench.GMM.input_from_json(input)
-    k = size(gmm_input.means, 2)
-    d = size(gmm_input.x, 1)
-    Qs = GradBench.GMM.get_Qs(gmm_input.icfs, k, d)
+struct JacobianGMM <: GradBench.GMM.AbstractGMM end
+function (::JacobianGMM)(input)
+    k = size(input.means, 2)
+    d = size(input.x, 1)
+    Qs = GradBench.GMM.get_Qs(input.icfs, k, d)
 
     function wrap(alpha, means, Qs)
-        GradBench.GMM.objective(alpha, means, Qs, gmm_input.x, gmm_input.wishart)
+        GradBench.GMM.objective(alpha, means, Qs, input.x, input.wishart)
     end
 
-    # It would be acceptable to move the massaging of the Jacobian
-    # into a separate function that is not timed, but I doubt it
-    # matters much.
-    J = Zygote.gradient(wrap, gmm_input.alphas, gmm_input.means, Qs)
+    J = Zygote.gradient(wrap, input.alphas, input.means, Qs)
 
+    # It would be acceptable to move the massaging of the Jacobian into a
+    # separate function that is not timed, but I doubt it matters much.
     GradBench.GMM.pack_J(J, k, d)
 end
 
+
 GradBench.register!("gmm", Dict(
-    "objective" => objective,
-    "jacobian" => jacobian
+    "objective" => GradBench.GMM.ObjectiveGMM(),
+    "jacobian" => JacobianGMM()
 ))
 
 end

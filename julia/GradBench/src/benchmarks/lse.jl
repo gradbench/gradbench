@@ -9,9 +9,16 @@ function logsumexp(x::Vector{T}) where {T}
     return xmax + log(sum(exp.(x .- xmax)))
 end
 
-function primal(input)
-    x = convert(Vector{Float64}, input["x"])
-    return logsumexp(x)
+import ..GradBench
+
+abstract type AbstractLSE <: GradBench.Experiment end
+
+function GradBench.preprocess(::AbstractLSE, message)
+    (Input(convert(Vector{Float64}, message["x"])),)
 end
+
+struct PrimalLSE <: AbstractLSE end
+(::PrimalLSE)(input) = logsumexp(input.x)
+
 
 end # module lse

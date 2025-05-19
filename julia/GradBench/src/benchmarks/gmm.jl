@@ -4,17 +4,17 @@
 # Based on: https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/julia/modules/Zygote/ZygoteGMM.jl
 
 module GMM
+
+import GradBench
 using SpecialFunctions
 using LinearAlgebra
-
-export Wishart, GMMInput, input_from_json, objective, get_Qs, expdiags, diagsums, pack_J
 
 struct Wishart
     gamma::Float64
     m::Int
 end
 
-struct GMMInput
+struct Input
     alphas::Matrix{Float64}
     means::Matrix{Float64}
     icfs::Matrix{Float64}
@@ -22,7 +22,9 @@ struct GMMInput
     wishart::Wishart
 end
 
-function input_from_json(j)
+abstract type AbstractGMM <: GradBench.Experiment end
+
+function GradBench.preprocess(::AbstractGMM, j)
     alphas = transpose(convert(Vector{Float64}, j["alpha"]))
     means = reduce(hcat, convert(Vector{Vector{Float64}},j["means"]))
     icfs = reduce(hcat, j["icf"])
@@ -30,7 +32,7 @@ function input_from_json(j)
     gamma = convert(Float64, j["gamma"])
     m = convert(Int, j["m"])
 
-    return GMMInput(alphas, means, icfs, x, Wishart(gamma, m))
+    return (Input(alphas, means, icfs, x, Wishart(gamma, m)),)
 end
 
 "Computes logsumexp. Input should be 1 dimensional"
@@ -85,7 +87,7 @@ end
 Base.:*(::Float64, ::Nothing) = nothing
 
 # This function requires an argument 'Qs' that is not immediately part
-# of GMMInput. Instead it must be extracted from 'icfs' using the
+# of Input. Instead it must be extracted from 'icfs' using the
 # function 'get_Qs'. This is somewhat different to our other
 # implementations of GMM, where the extraction of Qs is done inside
 # the objective function itself. I believe the cause is that 'get_Qs'
@@ -112,6 +114,15 @@ function objective(alphas, means, Qs, x, wishart::Wishart)
     slse = sum(logsumexp, eachrow(log_terms))
 
     CONSTANT + slse - n * logsumexp(alphas) + log_wishart_prior(wishart, sum_qs, Qs, k)
+end
+
+struct ObjectiveGMM <: GMM.AbstractGMM end
+function (::ObjectiveGMM)(input)
+    k = size(input.means, 2)
+    d = size(input.x, 1)
+    Qs = GradBench.GMM.get_Qs(input.icfs, k, d)
+
+    return objective(input.alphas, input.means, Qs, input.x, input.wishart)
 end
 
 # The objective function is defined in terms of Qs, which are
