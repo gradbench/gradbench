@@ -43,10 +43,7 @@ def jacobian(inp):
     return np.concatenate([a, b, c])
 
 
-@wrap.multiple_runs(
-    pre=prepare_input,
-    post=lambda x: float(x),
-)
+@wrap.multiple_runs(pre=prepare_input, post=float)
 def objective(inp):
     return jax_objective(
         (inp.alphas, inp.means, inp.icf), (inp.x, inp.wishart.gamma, inp.wishart.m)

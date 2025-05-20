@@ -12,7 +12,7 @@ def prepare_input(input):
     return tf.Variable(np.array(input["x"], dtype=np.float64), dtype=tf.float64)
 
 
-@wrap.function(pre=prepare_input, post=lambda x: float(x))
+@wrap.function(pre=prepare_input, post=float)
 def primal(x):
     return logsumexp(x)
 

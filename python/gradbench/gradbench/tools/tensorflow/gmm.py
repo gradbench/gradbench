@@ -128,7 +128,7 @@ def jacobian(py):
     return py.gradient
 
 
-@wrap.multiple_runs(pre=prepare_input, post=lambda x: float(x))
+@wrap.multiple_runs(pre=prepare_input, post=float)
 def objective(py):
     py.calculate_objective()
     return py.objective
