@@ -174,6 +174,10 @@ enum RepoCommands {
         #[clap(long)]
         timeout: Option<u64>,
 
+        /// Only allow known named evals and tools, and check against their expected outcome
+        #[clap(long)]
+        check: bool,
+
         /// Download evals and tools from GitHub Actions instead of building locally
         #[clap(long, value_name = "RUN_ID")]
         download_github: Option<u64>,
@@ -706,7 +710,10 @@ struct RunConfig {
     /// The timeout, in seconds, for tool responses (not implemented on Windows).
     timeout: Option<u64>,
 
-    /// GitHub Actions run ID from which to download evals and tools
+    /// Only allow known named evals and tools, and check against their expected outcome.
+    check: bool,
+
+    /// GitHub Actions run ID from which to download evals and tools.
     download_github: Option<u64>,
 }
 
@@ -940,8 +947,9 @@ fn run_multiple(
         dry_run,
     }: RunRaw,
 ) -> anyhow::Result<Result<(), ExitCode>> {
+    let evals = ls("evals")?;
     let (evals_build, mut evals_run) =
-        process_run_items(RunItemKind::Eval, eval, no_eval, || ls("evals"))?;
+        process_run_items(RunItemKind::Eval, eval, no_eval, || Ok(evals.clone()))?;
     let (tools_build, mut tools_run) =
         process_run_items(RunItemKind::Tool, tool, no_tool, || ls("tools"))?;
     if dry_run {
@@ -961,6 +969,7 @@ fn run_multiple(
         )?;
         return Ok(Ok(()));
     }
+    let map = evals_to_tools(evals)?;
     match cfg.download_github {
         Some(run_id) => {
             let mut cmd = Command::new("gh");
@@ -981,7 +990,7 @@ fn run_multiple(
                 return Ok(Err(code));
             }
             println!();
-            for eval in evals_build {
+            for eval in &evals_build {
                 println!("{} {eval}", "loading eval".blue().bold());
                 let cmd = Command::new("docker")
                     .args(["load", "--input", &format!("eval-{eval}/eval-{eval}.tar")])
@@ -1004,9 +1013,9 @@ fn run_multiple(
         }
         None => {
             let mut need_newline = false;
-            for eval in evals_build {
+            for eval in &evals_build {
                 println!("{} {eval}", "building eval".blue().bold());
-                match Docker::new(&eval).build_eval(Verbosity::Quiet) {
+                match Docker::new(eval).build_eval(Verbosity::Quiet) {
                     Ok(Caching::Cached) => need_newline = true,
                     Ok(Caching::Uncached) => {
                         println!();
@@ -1043,8 +1052,11 @@ fn run_multiple(
             fs::create_dir_all(eval_subpath(dir, eval_string))?;
         }
     }
+    let mut pass = true;
     let mut first = true;
     for (eval_string, eval_cmd) in &mut evals_run {
+        let empty = BTreeMap::new();
+        let eval_map = map.get(eval_string.as_str()).unwrap_or(&empty);
         for (tool_string, tool_cmd) in &mut tools_run {
             if !first {
                 println!();
@@ -1080,21 +1092,40 @@ fn run_multiple(
                 }
                 _ => Err(BadOutcome::Error),
             };
-            print!("{} ", "outcome".bold());
-            match outcome {
-                Ok(()) => println!("success"),
-                Err(bad_outcome) => {
-                    let stringified: &str = bad_outcome.into();
-                    println!("{stringified}");
-                    if let BadOutcome::Interrupt = bad_outcome {
-                        // This process is about to exit, so don't try to start the next one.
-                        return Ok(Ok(()));
-                    }
+            print!("{} ", " outcome".bold());
+            let actual = match outcome {
+                Ok(()) => "success",
+                Err(BadOutcome::Interrupt) => {
+                    println!("interrupt");
+                    // This process is about to exit, so don't try to start the next one.
+                    return Ok(Ok(()));
                 }
+                Err(bad_outcome) => <&str>::from(bad_outcome),
+            };
+            println!("{actual}");
+            if cfg.check {
+                let expected = eval_map.get(tool_string.as_str()).map(|o| match o {
+                    Some(bad_outcome) => <&str>::from(bad_outcome),
+                    None => "success",
+                });
+                match expected {
+                    Some(o) => {
+                        if actual == o {
+                            println!("{} {}", "expected".green().bold(), o.green());
+                        } else {
+                            println!("{} {}", "expected".red().bold(), o.red());
+                            pass = false;
+                        }
+                    }
+                    None => {
+                        println!("{} {}", "expected".yellow().bold(), "unknown".yellow());
+                        pass = false;
+                    }
+                };
             }
         }
     }
-    Ok(Ok(()))
+    Ok(if pass { Ok(()) } else { Err(ExitCode::FAILURE) })
 }
 
 /// Print a JSON `value` with a `name` for GitHub Actions.
@@ -1116,10 +1147,15 @@ fn evals_to_tools(evals: Vec<String>) -> anyhow::Result<Matrix> {
     }
     for result in fs::read_dir("tools")? {
         let entry = result?;
-        let tool = entry
-            .file_name()
-            .into_string()
-            .map_err(|name| anyhow!("invalid file name {name:?}"))?;
+        let tool = Rc::<str>::from(
+            entry
+                .file_name()
+                .into_string()
+                .map_err(|name| anyhow!("invalid file name {name:?}"))?,
+        );
+        for eval_map in map.values_mut() {
+            eval_map.insert(Rc::clone(&tool), Some(BadOutcome::Undefined));
+        }
         let path = entry.path().join("evals.txt");
         let evals = fs::read_to_string(&path).unwrap_or_default();
         for line in evals.lines() {
@@ -1132,9 +1168,10 @@ fn evals_to_tools(evals: Vec<String>) -> anyhow::Result<Matrix> {
                     (eval, Some(bad_outcome))
                 }
             };
-            map.get_mut(eval)
+            *map.get_mut(eval)
                 .ok_or_else(|| anyhow!("eval {eval:?} not found"))?
-                .insert(Rc::from(tool.as_str()), outcome);
+                .get_mut(&tool)
+                .unwrap() = outcome;
         }
     }
     Ok(map)
@@ -1313,13 +1350,15 @@ fn cli() -> Result<(), ExitCode> {
                     no_tool,
                     output,
                     timeout,
-                    dry_run,
+                    check,
                     download_github,
+                    dry_run,
                 } => match run_multiple(
                     &mut ctrl_c,
                     RunConfig {
                         output,
                         timeout,
+                        check,
                         download_github,
                     },
                     RunRaw {

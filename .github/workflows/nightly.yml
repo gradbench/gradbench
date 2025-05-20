@@ -155,7 +155,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gradbench repo run --download-github ${{ github.run_id }} -o run --timeout 600 ${{ matrix.args }}
+          gradbench repo run --download-github ${{ github.run_id }} --check -o run --timeout 600 ${{ matrix.args }}
       - name: Upload log as artifact
         if: success() || steps.run.conclusion == 'failure'
         uses: actions/upload-artifact@v4
