@@ -40,11 +40,14 @@ function (::JacobianGMM)(input)
         GradBench.GMM.objective(alpha, means, Qs, input.x, input.wishart)
     end
 
-    J = Zygote.gradient(wrap, input.alphas, input.means, Qs)
+    alpha_d, mu_d, Qs_d = Zygote.gradient(wrap, input.alphas, input.means, Qs)
 
-    # It would be acceptable to move the massaging of the Jacobian into a
-    # separate function that is not timed, but I doubt it matters much.
-    GradBench.GMM.pack_J(J, k, d)
+    # TODO: extract q_d, l_d from Qs_d.
+
+    return Dict("alpha" => alpha_d,
+                "mu" => mu_d,
+                "q" => false,
+                "l" => false)
 end
 
 
