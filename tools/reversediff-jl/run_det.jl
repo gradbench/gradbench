@@ -1,4 +1,4 @@
-module ODE
+module Det
 
 using ADTypes: AutoReverseDiff
 import ReverseDiff
