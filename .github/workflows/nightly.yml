@@ -180,7 +180,7 @@ jobs:
         run: |
           gh run download ${{ github.run_id }} --dir artifacts --pattern 'run-*'
       - name: Flatten log directory structure
-        run: gradbench repo flatten artifacts -o run
+        run: gradbench log flatten artifacts -o run
       - name: Checkout nightly stats branch
         uses: actions/checkout@v4
         with:
