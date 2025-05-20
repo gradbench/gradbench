@@ -5,14 +5,13 @@
 - [Setup](#setup)
 - [Dependencies](#dependencies)
 - [CLI](#cli)
+  - [Code formatters and linters](#code-formatters-and-linters)
 - [Docker](#docker)
   - [Multi-platform images](#multi-platform-images)
 - [Tools](#tools)
   - [Implementing a new eval for a tool](#implementing-a-new-eval-for-a-tool)
 - [Evals](#evals)
 - [JavaScript](#javascript)
-  - [Prettier](#prettier)
-  - [Markdown](#markdown)
   - [Website](#website)
 - [Python](#python)
 - [C++](#c)
@@ -78,6 +77,29 @@ Many tasks make use of the GradBench CLI, which you can run via the
 
 This script will always automatically build the CLI if it is not already up to
 date.
+
+### Code formatters and linters
+
+This repository uses several linters and autoformatters. Use this command to run
+them all:
+
+```sh
+./gradbench repo lint
+```
+
+If you are missing any, the error message should show instructions for how to
+install what you are missing.
+
+The code formatters, and some of the linters, can also automatically fix most
+issues:
+
+```sh
+./gradbench repo lint --fix
+```
+
+If you use [VS Code][], our configuration in this repository should
+automatically recommend that you install extensions for all the code formatters
+we use, and run the relevant one anytime you save a file.
 
 ## Docker
 
@@ -216,28 +238,6 @@ dependencies from npm:
 bun install
 ```
 
-### Prettier
-
-We use [Prettier][] to format a lot of different files in this repository. If
-you're using [VS Code][], our configuration in this repository should
-automatically recommend that you install the Prettier extension, as well as
-automatically run it whenever you save an applicable file. You can also run it
-manually via the command line:
-
-```sh
-bun run format
-```
-
-### Markdown
-
-This file and [`README.md`](README.md) use [markdown-toc][] to generate the
-table of contents at the top. If you add/modify/delete any Markdown section
-headers, run this command to regenerate those tables of contents:
-
-```sh
-bun run toc
-```
-
 ### Website
 
 We use [Vite][] for the website. To develop the website locally, run this
@@ -260,29 +260,7 @@ can be more convenient to instead install and run tools directly. You can use
 ./gradbench run --eval "./gradbench repo eval hello" --tool "uv run python/gradbench/gradbench/tools/pytorch/run.py"
 ```
 
-We autoformat Python code using [Ruff][]. If you're using [VS Code][], our
-configuration in this repository should automatically recommend that you install
-the Ruff extension, as well as automatically run it whenever you save a Python
-file. You can also run it manually via the command line:
-
-```sh
-uv run ruff check --fix
-uv run ruff format
-```
-
 ## C++
-
-We autoformat C++ code using [clang-format 19][]; note that GitHub Actions
-currently uses version 19.1.1 specifically, so if you have a different version
-(e.g. `shell.nix` currently provides version 19.1.7) then unfortunately you may
-experience disagreements in some cases. In any case, if you're using [VS
-Code][], our configuration in this repository should automatically recommend
-that you install the clangd extension, as well as automatically run it whenever
-you save a C++ file. You can also run it manually via the command line:
-
-```sh
-git ls-files '*.c' '*.cpp' '*.h' '*.hpp' | xargs clang-format -i
-```
 
 Some tools make use of C++ code shared in the `cpp` directory; if doing local
 development with any of those tools, you must first run the following command:
@@ -500,21 +478,16 @@ type Session = (MessageLine | ResponseLine)[];
 ```
 
 [bun]: https://bun.sh/
-[clang-format 19]:
-  https://releases.llvm.org/19.1.0/tools/clang/docs/ClangFormat.html
 [containerd]: https://docs.docker.com/storage/containerd/
 [docker]: https://docs.docker.com/engine/install/
 [github cli]: https://github.com/cli/cli#installation
 [json]: https://json.org/
 [make]: https://en.wikipedia.org/wiki/Make_(software)
-[markdown-toc]: https://www.npmjs.com/package/markdown-toc
 [multi-platform images]: https://docs.docker.com/build/building/multi-platform/
 [nix]: https://nixos.org/
-[prettier]: https://prettier.io/
 [python]: https://docs.astral.sh/uv/guides/install-python/
 [qemu]:
   https://docs.docker.com/build/building/multi-platform/#install-qemu-manually
-[ruff]: https://docs.astral.sh/ruff/
 [rust]: https://www.rust-lang.org/tools/install
 [typescript]: https://www.typescriptlang.org/
 [uv]: https://docs.astral.sh/uv
