@@ -288,6 +288,10 @@ enum RepoCommands {
         #[clap(long)]
         markdown_toc: bool,
 
+        /// Run only nixfmt
+        #[clap(long)]
+        nixfmt: bool,
+
         /// Run only Prettier
         #[clap(long)]
         prettier: bool,
@@ -1430,6 +1434,7 @@ fn cli() -> Result<(), ExitCode> {
                     clippy,
                     eslint,
                     markdown_toc,
+                    nixfmt,
                     prettier,
                     ruff_check,
                     ruff_format,
@@ -1441,6 +1446,7 @@ fn cli() -> Result<(), ExitCode> {
                     lints.flag(clippy, lint::clippy);
                     lints.flag(eslint, lint::eslint);
                     lints.flag(markdown_toc, lint::markdown_toc);
+                    lints.flag(nixfmt, lint::nixfmt);
                     lints.flag(prettier, lint::prettier);
                     lints.flag(ruff_check, lint::ruff_check);
                     lints.flag(ruff_format, lint::ruff_format);
