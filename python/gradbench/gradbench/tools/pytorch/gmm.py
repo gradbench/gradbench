@@ -66,5 +66,13 @@ def postprocess(input):
 
 @wrap.multiple_runs(pre=prepare, post=postprocess)
 def jacobian(input):
+    def zero(grad):
+        if grad is not None:
+            grad.zero_()
+
+    zero(input.alpha.grad)
+    zero(input.mu.grad)
+    zero(input.q.grad)
+    zero(input.l.grad)
     gmm_objective(**vars(input)).backward()
     return input
