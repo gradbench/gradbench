@@ -25,7 +25,7 @@ def prepare_input(input):
     return points, centroids
 
 
-@wrap.multiple_runs(pre=prepare_input, post=lambda x: float(x))
+@wrap.multiple_runs(pre=prepare_input, post=float)
 def cost(input):
     points, centroids = input
     return costfun(points, centroids)

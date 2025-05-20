@@ -16,7 +16,7 @@ def prepare_input(input):
     return np.array(input["x"], dtype=np.float64)
 
 
-@wrap.multiple_runs(pre=prepare_input, post=lambda x: float(x))
+@wrap.multiple_runs(pre=prepare_input, post=float)
 @jit
 def primal(input):
     return logsumexp(input)

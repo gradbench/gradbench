@@ -36,7 +36,7 @@ def prepare_input(input):
     return (np.array(input["x"], dtype=np.float64), input["n"])
 
 
-@wrap.multiple_runs(pre=prepare_input, post=lambda x: float(x))
+@wrap.multiple_runs(pre=prepare_input, post=float)
 def primal(input):
     x, n = input
     return llsq(x, n)
