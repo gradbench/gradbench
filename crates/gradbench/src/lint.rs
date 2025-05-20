@@ -240,7 +240,12 @@ pub fn nixfmt(cfg: &mut Config) -> anyhow::Result<bool> {
         cmd.arg("--check");
     }
     cmd.args(files.lines());
-    Ok(cmd.status()?.success())
+    Ok(cmd
+        .status()
+        .map_err(|_| {
+            anyhow!("install nixfmt from https://github.com/NixOS/nixfmt/releases/tag/v0.6.0")
+        })?
+        .success())
 }
 
 pub fn prettier(cfg: &mut Config) -> anyhow::Result<bool> {
