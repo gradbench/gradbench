@@ -134,7 +134,12 @@ module GMM : GMM
   = struct
   type input = (float, (float, Bigarray.float64_elt) t) Shared_gmm_data.gmm_input
   type objective_output = float
-  type jacobian_output = (float, Bigarray.float64_elt) t
+  type jacobian_output = {
+      alphas: (float, Bigarray.float64_elt) t;
+      mu: (float, Bigarray.float64_elt) t;
+      q: (float, Bigarray.float64_elt) t;
+      l: (float, Bigarray.float64_elt) t;
+    }
 
   let objective (param: input) =
     let module Objective =
@@ -166,7 +171,11 @@ module GMM : GMM
                 }
             ) p
         ) [|param.alphas; param.mu; param.q; param.l|] Evaluate.evaluate
-    in concatenate (Array.map flatten grads)
+    in {alphas = grads.(0);
+        mu = grads.(1);
+        q = grads.(2);
+        l = grads.(3);
+       }
 
   let input_of_json json =
     let module U = Yojson.Basic.Util in
@@ -210,6 +219,18 @@ module GMM : GMM
 
   let json_of_objective x = `Float x
   let json_of_jacobian (x: jacobian_output) : Yojson.Basic.t =
-    let n = (Bigarray.Genarray.dims x).(0) in
-    `List (List.init n (fun i -> `Float (Bigarray.Genarray.get x [|i|])))
+    let tensor1d_to_array t =
+      let n = (shape t).(0) in
+      `List (List.init n (fun i -> `Float (Bigarray.Genarray.get t [|i|]))) in
+    let tensor2d_to_array t =
+      let n = (shape t).(0) in
+      let m = (shape t).(1) in
+      `List (List.init n
+               (fun i -> `List (List.init m
+                                  (fun j ->
+                                    `Float (Bigarray.Genarray.get t [|i;j|]))))) in
+    `Assoc [ ("mu", tensor2d_to_array x.mu);
+             ("alpha", tensor1d_to_array x.alphas);
+             ("q", tensor2d_to_array x.q);
+             ("l", tensor2d_to_array x.l)]
 end
