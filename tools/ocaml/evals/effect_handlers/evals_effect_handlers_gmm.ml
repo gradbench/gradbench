@@ -1,8 +1,5 @@
 (* https://github.com/jasigal/ADBench/blob/b98752f96a3b785e07ff6991853dc1073e6bf075/src/ocaml/modules/effect_handlers/modules_effect_handlers_gmm.ml *)
 
-(* Save integer functions before they get crushed by a thousand opens. *)
-let intdiv : int -> int -> int = (/)
-
 open Gradbench_shared
 open Owl.Dense.Ndarray.Generic
 open Evals_effect_handlers_evaluate_tensor
@@ -155,11 +152,12 @@ module GMM : GMM
     let grads =
       Effect.Deep.match_with (fun p ->
           ReverseEvaluate.grad (fun ta ->
-              let (alphas, means, icfs) = (ta.(0), ta.(1), ta.(2)) in
+              let (alphas, mu, q, l) = (ta.(0), ta.(1), ta.(2), ta.(3)) in
               Objective.gmm_objective
                 { alphas = alphas;
-                  means = means;
-                  icfs = icfs;
+                  mu = mu;
+                  q = q;
+                  l = l;
                   x = ReverseTensor.tensor param.x;
                   wishart = {
                       gamma = ReverseScalar.float param.wishart.gamma;
@@ -167,7 +165,7 @@ module GMM : GMM
                     }
                 }
             ) p
-        ) [|param.alphas; param.means; param.icfs|] Evaluate.evaluate
+        ) [|param.alphas; param.mu; param.q; param.l|] Evaluate.evaluate
     in concatenate (Array.map flatten grads)
 
   let input_of_json json =
@@ -186,23 +184,26 @@ module GMM : GMM
     let k = json |> U.member "k" |> U.to_int in
     let n = json |> U.member "n" |> U.to_int in
     let alphas_a = json |> U.member "alpha" |> floats in
-    let means_a = json |> U.member "means" |> floats_2d in
-    let icfs_a = json |> U.member "icf" |> floats_2d in
+    let mu_a = json |> U.member "mu" |> floats_2d in
+    let q_a = json |> U.member "q" |> floats_2d in
+    let l_a = json |> U.member "l" |> floats_2d in
     let x_a = json |> U.member "x" |> floats_2d in
     let gamma = json |> U.member "gamma" |> U.to_float in
     let m = json |> U.member "m" |> U.to_int in
-    let icf_sz = intdiv (Array.length icfs_a) k in
 
+    let lsz = Stdlib.(d*(d-1)/2) in
     let alphas = A.init Bigarray.Float64 [|k|] (Array.get alphas_a) in
-    let means = A.init Bigarray.Float64 [|k;d|] (Array.get means_a) in
-    let icfs = A.init Bigarray.Float64 [|k;icf_sz|] (Array.get icfs_a) in
+    let mu = A.init Bigarray.Float64 [|k;d|] (Array.get mu_a) in
+    let q = A.init Bigarray.Float64 [|k;d|] (Array.get q_a) in
+    let l = A.init Bigarray.Float64 [|k;lsz|] (Array.get l_a) in
     let x = A.init Bigarray.Float64 [|n;d|] (Array.get x_a) in
 
     let open Shared_gmm_data in
 
     {alphas = alphas;
-     means = means;
-     icfs = icfs;
+     mu = mu;
+     q = q;
+     l = l;
      x = x;
      wishart = {gamma; m;}
     }

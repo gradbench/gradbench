@@ -9,8 +9,9 @@ type 's wishart = {
 (* GMM data as arrays *)
 type ('s, 't) gmm_input = {
   alphas : 't;
-  means : 't;
-  icfs : 't;
+  mu : 't;
+  q: 't;
+  l: 't;
   x : 't;
   wishart : 's wishart;
 }
