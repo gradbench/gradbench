@@ -1,0 +1,6 @@
+{ "id": 0, "kind": "start" }
+{ "id": 1, "kind": "define", "module": "foo" }
+{ "id": 2, "kind": "evaluate", "module": "foo", "function": "bar", "input": 3.14159 }
+{ "id": 3, "kind": "analysis", "of": 2, "valid": false, "error": "Expected tau, got e." }
+{ "id": 4, "kind": "evaluate", "module": "foo", "function": "baz", "input": { "mynumber": 121 } }
+{ "id": 5, "kind": "analysis", "of": 4, "valid": true }

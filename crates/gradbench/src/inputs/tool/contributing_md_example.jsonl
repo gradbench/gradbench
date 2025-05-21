@@ -1,0 +1,6 @@
+{ "id": 0 }
+{ "id": 1, "success": true }
+{ "id": 2, "success": true, "output": 2.71828, "timings": [{ "name": "evaluate", "nanoseconds": 5000000 }] }
+{ "id": 3 }
+{ "id": 4, "success": true, "output": { "yournumber": 342 }, "timings": [{ "name": "evaluate", "nanoseconds": 7000000 }] }
+{ "id": 5 }
