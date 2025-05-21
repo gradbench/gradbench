@@ -57,18 +57,13 @@ structure GMMGradientData where
   logdiag : Float^[k,d]
   lt : Float^[k,((d-1)*d)/2]
 
-open VectorType IndexType in
-def GMMGradientData.toArray (data : GMMGradientData) : Array Float :=
-  let k := data.k; let d := data.d
-  let alphaData := Array.ofFn (fun i => data.alpha[i.toIdx])
-  let meansData := Array.ofFn (fun idx =>
-    data.means[fromIdx idx.toIdx])
-  let icfData := Array.ofFn (fun idx =>
-    let (i,j) : Idx k × (Idx d ⊕ Idx (((d-1)*d)/2)) := fromIdx idx.toIdx
-    match j with
-    | .inl j => data.logdiag[i,j]
-    | .inr j => data.lt[i,j])
-  (alphaData ++ meansData ++ icfData)
-
 instance : ToJson GMMGradientData where
-  toJson data := toJson data.toArray
+  toJson data :=
+    let alphaData := Array.ofFn (fun i => data.alpha[i.toIdx])
+    let muData := Array.ofFn (fun i => Array.ofFn (fun j => data.means[(i.toIdx, j.toIdx)]))
+    let qData := Array.ofFn (fun i => Array.ofFn (fun j => data.logdiag[(i.toIdx, j.toIdx)]))
+    let lData := Array.ofFn (fun i => Array.ofFn (fun j => data.lt[(i.toIdx, j.toIdx)]))
+    Json.mkObj [("alpha", toJson alphaData),
+                ("mu", toJson muData),
+                ("q", toJson qData),
+                ("l", toJson lData)]
