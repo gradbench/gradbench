@@ -50,6 +50,14 @@ function ltri_unpack(D, LT)
     hcat([make_col(r, LT[inds(r)]) for r = 1:d]...)
 end
 
+
+function ltri_pack(L)
+    d = size(L, 1)
+    D = [L[i, i] for i in 1:d]
+    LT = [L[i, j] for j in 1:d-1 for i in j+1:d]
+    return D, LT
+end
+
 function get_Q(d, icf)
     ltri_unpack((icf[1:d]), icf[d+1:end])
 end
@@ -57,6 +65,23 @@ end
 function get_Qs(icfs, k, d)
     cat([get_Q(d, icfs[:, ik]) for ik in 1:k]...;
         dims=[3])
+end
+
+function invert_get_Qs(Qs::Array{<:Real,3})
+    d, _, k = size(Qs)
+    n_params = d + d * (d - 1) ÷ 2
+    icfs = Matrix{Float64}(undef, n_params, k)
+    for ik in 1:k
+        Q = Qs[:, :, ik]
+        D, LT = ltri_pack(Q)
+        icfs[:, ik] = vcat(D, LT)
+    end
+    return icfs
+end
+
+function Qs_to_q_l(d, Qs)
+    icfs = GradBench.GMM.invert_get_Qs(Qs)
+    return (icfs[1:d,:], icfs[d+1:end,:])
 end
 
 function log_gamma_distrib(a, p)

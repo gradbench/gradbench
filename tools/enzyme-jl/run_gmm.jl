@@ -15,12 +15,12 @@ function (::JacobianGMM)(input)
                         input.alphas, input.means, Qs,
                         Const(input.x), Const(input.wishart))
 
-    # TODO: extract q_d, l_d from Qs_d.
+    q_d, l_d = GradBench.GMM.Qs_to_q_l(d, Qs_d)
 
     return Dict("alpha" => alpha_d,
                 "mu" => mu_d,
-                "q" => false,
-                "l" => false)
+                "q" => q_d,
+                "l" => l_d)
 end
 
 GradBench.register!("gmm", Dict(
