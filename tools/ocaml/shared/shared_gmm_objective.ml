@@ -25,21 +25,21 @@ module Make
   let ( - ) = sub
   let ( * ) = mul
 
-  let constructl d icfs =
-    let lparamidx = ref d in
+  let constructl d l =
+    let lparamidx = ref 0 in
 
     let make_l_col i =
       let nelems = Stdlib.(d - i - 1) in
       (* Slicing in Owl requires inculsive indices, so will not create
       * an empty tensor. Thus we have two cases. 
       *)
-      let max_lparamidx = (shape icfs).(0) in
+      let max_lparamidx = (shape l).(0) in
       let col =
         if Stdlib.(!lparamidx >= max_lparamidx) then
           zeros [|Stdlib.(i + 1)|]
         else concatenate ~axis:0 [|
           zeros [|Stdlib.(i + 1)|];
-          get_slice [[!lparamidx; Stdlib.(!lparamidx + nelems - 1)]] icfs;
+          get_slice [[!lparamidx; Stdlib.(!lparamidx + nelems - 1)]] l;
       |] in
       lparamidx := Stdlib.(!lparamidx + nelems);
       col
@@ -63,16 +63,16 @@ module Make
     scalar +. summed
     )
 
-  let log_wishart_prior p wishart sum_qs qdiags icf =
+  let log_wishart_prior p wishart sum_qs qdiags l =
     let n = float_of_int (Stdlib.(p + wishart.m + 1)) in
-    let k = float_of_int ((shape icf).(0)) in
-    
+    let k = float_of_int ((shape l).(0)) in
+
     let out = sum_reduce (
       (
-        scalar_mul (S.float 0.5 *. wishart.gamma *. wishart.gamma)
+        scalar_mul (S.float (-0.5) *. wishart.gamma *. wishart.gamma)
           (squeeze (
             sum_reduce ~axis:[|1|] (pow_const qdiags 2.0) +
-            sum_reduce ~axis:[|1|] (pow_const (get_slice [[]; [p;-1]] icf) 2.0)
+            sum_reduce ~axis:[|1|] (pow_const l 2.0)
           ))
       )
       - (scalar_mul (S.float (float_of_int wishart.m)) sum_qs)
@@ -85,34 +85,32 @@ module Make
     in
     sub_scalar
       out
-      (S.float k *. (c -. S.float (log_gamma_distrib Stdlib.(0.5 *. n) p)))
+      (S.float k *. (S.float (log_gamma_distrib Stdlib.(0.5 *. n) p) -. c))
 
   let gmm_objective param =
     let xshape = shape param.x in
     let n = xshape.(0) in
     let d = xshape.(1) in
-    let k = (shape param.means).(0) in
+    let k = (shape param.mu).(0) in
 
-    let qdiags = exp (get_slice [[]; [0; Stdlib.(d - 1)]] param.icfs) in
+    let qdiags = exp param.q in
     let sqdiags = stack (Array.make n qdiags) in
     let sum_qs = squeeze (
-      sum_reduce ~axis:[|1|] (get_slice [[]; [0; Stdlib.(d - 1)]] param.icfs)
+      sum_reduce ~axis:[|1|] param.q
     ) in
     (* Prevent implicit broadcasting *)
     let ssum_qs = stack (Array.make n sum_qs) in
 
-    let icf_sz = (shape param.icfs).(0) in
-    let ls = stack (Array.init icf_sz (fun i ->
-      constructl d (slice_left param.icfs [|i|]))
-    ) in
+    let ls = stack (Array.init k (fun i -> constructl d (slice_left param.l [|i|]))) in
 
     let xcentered = squeeze (stack (Array.init n (fun i ->
       let sx = slice_left param.x [|i|] in
       (* Prevent implicit broadcasting *)
       let ssx = stack (Array.make k sx) in
-      ssx - param.means
+      ssx - param.mu
     ))) in
     let lxcentered = qtimesx sqdiags ls xcentered in
+
     let sqsum_lxcentered = squeeze (
       sum_reduce ~axis:[|2|] (pow_const lxcentered 2.0)
     ) in
@@ -128,8 +126,8 @@ module Make
     let const = create [||] Stdlib.(
       -. (float_of_int n) *. (float_of_int d) *. 0.5 *. log (2.0 *. Float.pi)
     ) in
-    
-    let wish = log_wishart_prior d param.wishart sum_qs qdiags param.icfs in
+
+    let wish = log_wishart_prior d param.wishart sum_qs qdiags param.l in
     get (
       const + slse
             - scalar_mul (S.float (float_of_int n)) (squeeze (log_sum_exp param.alphas))

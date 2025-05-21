@@ -15,8 +15,9 @@ structure GMMDataRaw where
   gamma : Float
 
   alpha : Array Float
-  means : Array (Array Float)
-  icf : Array (Array Float)
+  mu : Array (Array Float)
+  q : Array (Array Float)
+  l : Array (Array Float)
   x : Array (Array Float)
 deriving ToJson, FromJson
 
@@ -38,9 +39,9 @@ def GMMDataRaw.toGMMData (d : GMMDataRaw) : GMMData :={
   m := d.m
   gamma := d.gamma
   alpha := ⊞ (i : Idx d.k) => d.alpha[i.1]!
-  means := ⊞ (i : Idx d.k) (j : Idx d.d) => (d.means.get! i.1.toNat |>.get! j.1.toNat)
-  logdiag := ⊞ (i : Idx d.k) (j : Idx d.d) => (d.icf.get! i.1.toNat |>.get! j.1.toNat)
-  lt := ⊞ (i : Idx d.k) (j : Idx (((d.d-1)*d.d)/2)) => (d.icf.get! i.1.toNat |>.get! (d.d+j.1.toNat))
+  means := ⊞ (i : Idx d.k) (j : Idx d.d) => (d.mu.get! i.1.toNat |>.get! j.1.toNat)
+  logdiag := ⊞ (i : Idx d.k) (j : Idx d.d) => (d.q.get! i.1.toNat |>.get! j.1.toNat)
+  lt := ⊞ (i : Idx d.k) (j : Idx (((d.d-1)*d.d)/2)) => (d.l.get! i.1.toNat |>.get! j)
   x := ⊞ (i : Idx d.n) (j : Idx d.d) => (d.x.get! i.1.toNat |>.get! j.1.toNat)
 }
 
@@ -56,18 +57,13 @@ structure GMMGradientData where
   logdiag : Float^[k,d]
   lt : Float^[k,((d-1)*d)/2]
 
-open VectorType IndexType in
-def GMMGradientData.toArray (data : GMMGradientData) : Array Float :=
-  let k := data.k; let d := data.d
-  let alphaData := Array.ofFn (fun i => data.alpha[i.toIdx])
-  let meansData := Array.ofFn (fun idx =>
-    data.means[fromIdx idx.toIdx])
-  let icfData := Array.ofFn (fun idx =>
-    let (i,j) : Idx k × (Idx d ⊕ Idx (((d-1)*d)/2)) := fromIdx idx.toIdx
-    match j with
-    | .inl j => data.logdiag[i,j]
-    | .inr j => data.lt[i,j])
-  (alphaData ++ meansData ++ icfData)
-
 instance : ToJson GMMGradientData where
-  toJson data := toJson data.toArray
+  toJson data :=
+    let alphaData := Array.ofFn (fun i => data.alpha[i.toIdx])
+    let muData := Array.ofFn (fun i => Array.ofFn (fun j => data.means[(i.toIdx, j.toIdx)]))
+    let qData := Array.ofFn (fun i => Array.ofFn (fun j => data.logdiag[(i.toIdx, j.toIdx)]))
+    let lData := Array.ofFn (fun i => Array.ofFn (fun j => data.lt[(i.toIdx, j.toIdx)]))
+    Json.mkObj [("alpha", toJson alphaData),
+                ("mu", toJson muData),
+                ("q", toJson qData),
+                ("l", toJson lData)]
