@@ -16,6 +16,8 @@
 module ODE
 
 import ..GradBench
+using ..ADTypes: AbstractADType
+import ..DifferentiationInterface as DI
 
 abstract type AbstractODE <: GradBench.Experiment end
 
@@ -77,7 +79,7 @@ function ode_fun(n, x, y, z)
     end
 end
 
-function primal(n, xi::Vector{T}, s, yf::Vector{T}) where {T}
+function primal(n, xi::AbstractVector{T}, s, yf::Vector{T}) where {T}
     tf = T(2)
     h = tf / T(s)
 
@@ -127,5 +129,23 @@ end
 
 
 end # module Impure
+
+struct DIGradientODE{P,B<:AbstractADType} <: GradBench.Experiment
+    primal::P
+    backend::B
+end
+
+function GradBench.preprocess(g::DIGradientODE, message)
+    (; primal, backend) = g
+    (; x, s) = GradBench.preprocess(primal, message)
+    # replace pullback of [0, ..., 0, 1] with gradient of the last component, more optimized for simple backends like ForwardDiff & ReverseDiff
+    prep = DI.prepare_gradient(last ∘ primal, backend, zero(x), DI.Constant(s))
+    return (; prep, x, s)
+end
+
+function (g::DIGradientODE)(prep, x, s)
+    (; primal, backend) = g
+    return DI.gradient(last ∘ primal, prep, backend, x, DI.Constant(s))
+end
 
 end # module ode
