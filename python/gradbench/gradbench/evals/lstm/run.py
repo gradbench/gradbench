@@ -19,11 +19,7 @@ def get_char_bits(text):
 
 def text_to_matrix(text, bits):
     return np.array(
-        list(
-            map(
-                lambda c: list(map(lambda b: int(b), bin(ord(c))[2:].zfill(bits))), text
-            )
-        ),
+        list(map(lambda c: list(map(int, bin(ord(c))[2:].zfill(bits))), text)),
         dtype=np.double,
     )
 

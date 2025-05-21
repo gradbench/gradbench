@@ -46,6 +46,10 @@ jobs:
         uses: astral-sh/setup-uv@v6
       - name: Install clang-format 19
         run: sudo apt-get install -y clang-format-19
+      - name: Install nixfmt
+        run: |
+          wget -O /usr/local/bin/nixfmt https://github.com/NixOS/nixfmt/releases/download/v0.6.0/nixfmt-x86_64-linux
+          chmod +x /usr/local/bin/nixfmt
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Install npm dependencies
