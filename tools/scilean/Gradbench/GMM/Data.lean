@@ -15,8 +15,9 @@ structure GMMDataRaw where
   gamma : Float
 
   alpha : Array Float
-  means : Array (Array Float)
-  icf : Array (Array Float)
+  mu : Array (Array Float)
+  q : Array (Array Float)
+  l : Array (Array Float)
   x : Array (Array Float)
 deriving ToJson, FromJson
 
@@ -38,9 +39,9 @@ def GMMDataRaw.toGMMData (d : GMMDataRaw) : GMMData :={
   m := d.m
   gamma := d.gamma
   alpha := ⊞ (i : Idx d.k) => d.alpha[i.1]!
-  means := ⊞ (i : Idx d.k) (j : Idx d.d) => (d.means.get! i.1.toNat |>.get! j.1.toNat)
-  logdiag := ⊞ (i : Idx d.k) (j : Idx d.d) => (d.icf.get! i.1.toNat |>.get! j.1.toNat)
-  lt := ⊞ (i : Idx d.k) (j : Idx (((d.d-1)*d.d)/2)) => (d.icf.get! i.1.toNat |>.get! (d.d+j.1.toNat))
+  means := ⊞ (i : Idx d.k) (j : Idx d.d) => (d.mu.get! i.1.toNat |>.get! j.1.toNat)
+  logdiag := ⊞ (i : Idx d.k) (j : Idx d.d) => (d.q.get! i.1.toNat |>.get! j.1.toNat)
+  lt := ⊞ (i : Idx d.k) (j : Idx (((d.d-1)*d.d)/2)) => (d.l.get! i.1.toNat |>.get! j)
   x := ⊞ (i : Idx d.n) (j : Idx d.d) => (d.x.get! i.1.toNat |>.get! j.1.toNat)
 }
 
