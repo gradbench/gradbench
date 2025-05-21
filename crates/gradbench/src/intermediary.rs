@@ -439,7 +439,6 @@ pub fn run(
 #[cfg(test)]
 mod tests {
     use std::{
-        f64::consts::{E, PI},
         io::{self, Write},
         sync::{Arc, Mutex},
         time::Duration,
@@ -447,94 +446,8 @@ mod tests {
 
     use goldenfile::Mint;
     use pretty_assertions::assert_eq;
-    use serde::{Serialize, Serializer};
-    use serde_json::json;
 
-    use crate::intermediary::{
-        AnalysisResponse, BadOutcome, DefineResponse, EvaluateResponse, Id, Intermediary, Message,
-        StartResponse, Timing,
-    };
-
-    enum Response {
-        Start {
-            id: Id,
-            tool: Option<String>,
-        },
-        Define {
-            id: Id,
-            success: bool,
-            timings: Option<Vec<Timing>>,
-            error: Option<String>,
-        },
-        Evaluate {
-            id: Id,
-            success: bool,
-            output: Option<serde_json::Value>,
-            timings: Option<Vec<Timing>>,
-            error: Option<String>,
-        },
-        Analysis {
-            id: Id,
-        },
-    }
-
-    impl Serialize for Response {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
-        {
-            match self {
-                Response::Start { id, tool } => StartResponse {
-                    id: *id,
-                    tool: tool.clone(),
-                    config: None,
-                }
-                .serialize(serializer),
-                Response::Define {
-                    id,
-                    success,
-                    timings,
-                    error,
-                } => DefineResponse {
-                    id: *id,
-                    success: *success,
-                    timings: timings.clone(),
-                    error: error.clone(),
-                }
-                .serialize(serializer),
-                Response::Evaluate {
-                    id,
-                    success,
-                    output,
-                    timings,
-                    error,
-                } => EvaluateResponse {
-                    id: *id,
-                    success: *success,
-                    output: output.clone(),
-                    timings: timings.clone(),
-                    error: error.clone(),
-                }
-                .serialize(serializer),
-                &Response::Analysis { id } => AnalysisResponse { id }.serialize(serializer),
-            }
-        }
-    }
-
-    fn session(pairs: &[(Message, Response)]) -> (String, String) {
-        let mut eval_out = Vec::new();
-        let mut tool_out = Vec::new();
-        for (message, response) in pairs {
-            serde_json::to_writer(&mut eval_out, message).unwrap();
-            eval_out.extend_from_slice(b"\n");
-            serde_json::to_writer(&mut tool_out, response).unwrap();
-            tool_out.extend_from_slice(b"\n");
-        }
-        (
-            String::from_utf8(eval_out).unwrap(),
-            String::from_utf8(tool_out).unwrap(),
-        )
-    }
+    use crate::intermediary::{BadOutcome, Intermediary};
 
     fn write_goldenfile(name: &str, bytes: &[u8]) {
         let mut mint = Mint::new("src/outputs");
@@ -543,85 +456,9 @@ mod tests {
     }
 
     #[test]
-    fn test_intermediary_readme_example() {
-        let (eval_out, tool_out) = session(&[
-            (
-                Message::Start {
-                    id: 0,
-                    eval: None,
-                    config: None,
-                },
-                Response::Start { id: 0, tool: None },
-            ),
-            (
-                Message::Define {
-                    id: 1,
-                    module: "foo".to_string(),
-                },
-                Response::Define {
-                    id: 1,
-                    success: true,
-                    timings: None,
-                    error: None,
-                },
-            ),
-            (
-                Message::Evaluate {
-                    id: 2,
-                    module: "foo".to_string(),
-                    function: "bar".to_string(),
-                    input: Some(json!(PI)),
-                    description: None,
-                },
-                Response::Evaluate {
-                    id: 2,
-                    success: true,
-                    output: Some(json!(E)),
-                    timings: Some(vec![Timing {
-                        name: "evaluate".to_string(),
-                        nanoseconds: Duration::from_millis(5).as_nanos(),
-                    }]),
-                    error: None,
-                },
-            ),
-            (
-                Message::Analysis {
-                    id: 3,
-                    of: 2,
-                    valid: false,
-                    error: Some("Expected tau, got e.".to_string()),
-                },
-                Response::Analysis { id: 3 },
-            ),
-            (
-                Message::Evaluate {
-                    id: 4,
-                    module: "foo".to_string(),
-                    function: "baz".to_string(),
-                    input: Some(json!({"mynumber": 121})),
-                    description: None,
-                },
-                Response::Evaluate {
-                    id: 4,
-                    success: true,
-                    output: Some(json!({"yournumber": 342})),
-                    timings: Some(vec![Timing {
-                        name: "evaluate".to_string(),
-                        nanoseconds: Duration::from_millis(7).as_nanos(),
-                    }]),
-                    error: None,
-                },
-            ),
-            (
-                Message::Analysis {
-                    id: 5,
-                    of: 4,
-                    valid: true,
-                    error: None,
-                },
-                Response::Analysis { id: 5 },
-            ),
-        ]);
+    fn test_intermediary_contributing_md_example() {
+        let eval_out = include_str!("inputs/eval/contributing_md_example.jsonl");
+        let tool_out = include_str!("inputs/tool/contributing_md_example.jsonl");
         let mut duration = Duration::ZERO;
         let mut increment = Duration::ZERO;
         let mut intermediary = Intermediary {
@@ -640,23 +477,14 @@ mod tests {
         };
         colored::control::set_override(false);
         let result = intermediary.run();
-        write_goldenfile("readme_example.txt", &intermediary.out);
+        write_goldenfile("contributing_md_example.txt", &intermediary.out);
         assert_eq!(result, Err(BadOutcome::Invalid));
     }
 
     #[test]
     fn test_intermediary_start_names() {
-        let (eval_out, tool_out) = session(&[(
-            Message::Start {
-                id: 0,
-                eval: Some("foo".to_string()),
-                config: None,
-            },
-            Response::Start {
-                id: 0,
-                tool: Some("bar".to_string()),
-            },
-        )]);
+        let eval_out = include_str!("inputs/eval/start_names.jsonl");
+        let tool_out = include_str!("inputs/tool/start_names.jsonl");
         let mut intermediary = Intermediary {
             outcome: Arc::new(Mutex::new(None)),
             eval_in: io::sink(),
@@ -674,31 +502,8 @@ mod tests {
 
     #[test]
     fn test_intermediary_define_timings() {
-        let (eval_out, tool_out) = session(&[
-            (
-                Message::Start {
-                    id: 0,
-                    eval: None,
-                    config: None,
-                },
-                Response::Start { id: 0, tool: None },
-            ),
-            (
-                Message::Define {
-                    id: 1,
-                    module: "foo".to_string(),
-                },
-                Response::Define {
-                    id: 1,
-                    success: true,
-                    timings: Some(vec![Timing {
-                        name: "busywork".to_string(),
-                        nanoseconds: Duration::from_millis(10).as_nanos(),
-                    }]),
-                    error: None,
-                },
-            ),
-        ]);
+        let eval_out = include_str!("inputs/eval/define_timings.jsonl");
+        let tool_out = include_str!("inputs/tool/define_timings.jsonl");
         let mut duration = Duration::ZERO;
         let mut increment = Duration::ZERO;
         let mut intermediary = Intermediary {
@@ -756,28 +561,8 @@ mod tests {
 
     #[test]
     fn test_intermediary_define_error() {
-        let (eval_out, tool_out) = session(&[
-            (
-                Message::Start {
-                    id: 0,
-                    eval: None,
-                    config: None,
-                },
-                Response::Start { id: 0, tool: None },
-            ),
-            (
-                Message::Define {
-                    id: 1,
-                    module: "foo".to_string(),
-                },
-                Response::Define {
-                    id: 1,
-                    success: false,
-                    timings: None,
-                    error: Some("never heard of foo".to_string()),
-                },
-            ),
-        ]);
+        let eval_out = include_str!("inputs/eval/define_error.jsonl");
+        let tool_out = include_str!("inputs/tool/define_error.jsonl");
         let mut intermediary = Intermediary {
             outcome: Arc::new(Mutex::new(None)),
             eval_in: io::sink(),
@@ -796,28 +581,8 @@ mod tests {
 
     #[test]
     fn test_intermediary_define_success_error() {
-        let (eval_out, tool_out) = session(&[
-            (
-                Message::Start {
-                    id: 0,
-                    eval: None,
-                    config: None,
-                },
-                Response::Start { id: 0, tool: None },
-            ),
-            (
-                Message::Define {
-                    id: 1,
-                    module: "foo".to_string(),
-                },
-                Response::Define {
-                    id: 1,
-                    success: true,
-                    timings: None,
-                    error: Some("all good!".to_string()),
-                },
-            ),
-        ]);
+        let eval_out = include_str!("inputs/eval/define_success_error.jsonl");
+        let tool_out = include_str!("inputs/tool/define_success_error.jsonl");
         let mut intermediary = Intermediary {
             outcome: Arc::new(Mutex::new(None)),
             eval_in: io::sink(),
@@ -836,44 +601,8 @@ mod tests {
 
     #[test]
     fn test_intermediary_evaluate_error() {
-        let (eval_out, tool_out) = session(&[
-            (
-                Message::Start {
-                    id: 0,
-                    eval: None,
-                    config: None,
-                },
-                Response::Start { id: 0, tool: None },
-            ),
-            (
-                Message::Define {
-                    id: 1,
-                    module: "foo".to_string(),
-                },
-                Response::Define {
-                    id: 1,
-                    success: true,
-                    timings: None,
-                    error: None,
-                },
-            ),
-            (
-                Message::Evaluate {
-                    id: 2,
-                    module: "foo".to_string(),
-                    function: "bar".to_string(),
-                    input: Some(json!(42)),
-                    description: None,
-                },
-                Response::Evaluate {
-                    id: 2,
-                    success: false,
-                    output: None,
-                    timings: None,
-                    error: Some("foobar failure".to_string()),
-                },
-            ),
-        ]);
+        let eval_out = include_str!("inputs/eval/evaluate.jsonl");
+        let tool_out = include_str!("inputs/tool/evaluate_error.jsonl");
         let mut intermediary = Intermediary {
             outcome: Arc::new(Mutex::new(None)),
             eval_in: io::sink(),
@@ -892,44 +621,8 @@ mod tests {
 
     #[test]
     fn test_intermediary_evaluate_failure_no_error() {
-        let (eval_out, tool_out) = session(&[
-            (
-                Message::Start {
-                    id: 0,
-                    eval: None,
-                    config: None,
-                },
-                Response::Start { id: 0, tool: None },
-            ),
-            (
-                Message::Define {
-                    id: 1,
-                    module: "foo".to_string(),
-                },
-                Response::Define {
-                    id: 1,
-                    success: true,
-                    timings: None,
-                    error: None,
-                },
-            ),
-            (
-                Message::Evaluate {
-                    id: 2,
-                    module: "foo".to_string(),
-                    function: "bar".to_string(),
-                    input: Some(json!(42)),
-                    description: None,
-                },
-                Response::Evaluate {
-                    id: 2,
-                    success: false,
-                    output: None,
-                    timings: None,
-                    error: None,
-                },
-            ),
-        ]);
+        let eval_out = include_str!("inputs/eval/evaluate.jsonl");
+        let tool_out = include_str!("inputs/tool/evaluate_failure_no_error.jsonl");
         let mut intermediary = Intermediary {
             outcome: Arc::new(Mutex::new(None)),
             eval_in: io::sink(),
@@ -948,44 +641,8 @@ mod tests {
 
     #[test]
     fn test_intermediary_evaluate_success_error() {
-        let (eval_out, tool_out) = session(&[
-            (
-                Message::Start {
-                    id: 0,
-                    eval: None,
-                    config: None,
-                },
-                Response::Start { id: 0, tool: None },
-            ),
-            (
-                Message::Define {
-                    id: 1,
-                    module: "foo".to_string(),
-                },
-                Response::Define {
-                    id: 1,
-                    success: true,
-                    timings: None,
-                    error: None,
-                },
-            ),
-            (
-                Message::Evaluate {
-                    id: 2,
-                    module: "foo".to_string(),
-                    function: "bar".to_string(),
-                    input: Some(json!(42)),
-                    description: None,
-                },
-                Response::Evaluate {
-                    id: 2,
-                    success: true,
-                    output: Some(json!("done")),
-                    timings: None,
-                    error: Some("foobar all good".to_string()),
-                },
-            ),
-        ]);
+        let eval_out = include_str!("inputs/eval/evaluate.jsonl");
+        let tool_out = include_str!("inputs/tool/evaluate_success_error.jsonl");
         let mut intermediary = Intermediary {
             outcome: Arc::new(Mutex::new(None)),
             eval_in: io::sink(),
@@ -1004,44 +661,8 @@ mod tests {
 
     #[test]
     fn test_intermediary_evaluate_success_no_output() {
-        let (eval_out, tool_out) = session(&[
-            (
-                Message::Start {
-                    id: 0,
-                    eval: None,
-                    config: None,
-                },
-                Response::Start { id: 0, tool: None },
-            ),
-            (
-                Message::Define {
-                    id: 1,
-                    module: "foo".to_string(),
-                },
-                Response::Define {
-                    id: 1,
-                    success: true,
-                    timings: None,
-                    error: None,
-                },
-            ),
-            (
-                Message::Evaluate {
-                    id: 2,
-                    module: "foo".to_string(),
-                    function: "bar".to_string(),
-                    input: Some(json!(42)),
-                    description: None,
-                },
-                Response::Evaluate {
-                    id: 2,
-                    success: true,
-                    output: None,
-                    timings: None,
-                    error: None,
-                },
-            ),
-        ]);
+        let eval_out = include_str!("inputs/eval/evaluate.jsonl");
+        let tool_out = include_str!("inputs/tool/evaluate_success_no_output.jsonl");
         let mut intermediary = Intermediary {
             outcome: Arc::new(Mutex::new(None)),
             eval_in: io::sink(),
@@ -1060,53 +681,8 @@ mod tests {
 
     #[test]
     fn test_intermediary_evaluate_null_output() {
-        let (eval_out, tool_out) = session(&[
-            (
-                Message::Start {
-                    id: 0,
-                    eval: None,
-                    config: None,
-                },
-                Response::Start { id: 0, tool: None },
-            ),
-            (
-                Message::Define {
-                    id: 1,
-                    module: "foo".to_string(),
-                },
-                Response::Define {
-                    id: 1,
-                    success: true,
-                    timings: None,
-                    error: None,
-                },
-            ),
-            (
-                Message::Evaluate {
-                    id: 2,
-                    module: "foo".to_string(),
-                    function: "null".to_string(),
-                    input: Some(json!(null)),
-                    description: None,
-                },
-                Response::Evaluate {
-                    id: 2,
-                    success: true,
-                    output: Some(json!(null)),
-                    timings: None,
-                    error: None,
-                },
-            ),
-            (
-                Message::Analysis {
-                    id: 3,
-                    of: 2,
-                    valid: true,
-                    error: None,
-                },
-                Response::Analysis { id: 3 },
-            ),
-        ]);
+        let eval_out = include_str!("inputs/eval/evaluate_null_output.jsonl");
+        let tool_out = include_str!("inputs/tool/evaluate_null_output.jsonl");
         let mut intermediary = Intermediary {
             outcome: Arc::new(Mutex::new(None)),
             eval_in: io::sink(),
@@ -1149,31 +725,8 @@ mod tests {
 
     #[test]
     fn test_intermediary_timeout() {
-        let (mut eval_out, tool_out) = session(&[
-            (
-                Message::Start {
-                    id: 0,
-                    eval: None,
-                    config: None,
-                },
-                Response::Start { id: 0, tool: None },
-            ),
-            (
-                Message::Define {
-                    id: 1,
-                    module: "foo".to_string(),
-                },
-                Response::Define {
-                    id: 1,
-                    success: true,
-                    timings: None,
-                    error: None,
-                },
-            ),
-        ]);
-        eval_out.push_str(
-            r#"{ "id": 2, "kind": "evaluate", "module": "foo", "function": "bar", "input": null }"#,
-        );
+        let eval_out = include_str!("inputs/eval/intermediary_timeout.jsonl");
+        let tool_out = include_str!("inputs/tool/intermediary_timeout.jsonl");
         let mut intermediary = Intermediary {
             outcome: Arc::new(Mutex::new(None)),
             eval_in: io::sink(),

@@ -288,11 +288,11 @@ protocol, as captured and reported by the intermediary:
 { "elapsed": { "nanoseconds": 200000 }, "message": { "id": 1, "kind": "define", "module": "foo" } }
 { "elapsed": { "nanoseconds": 250000 }, "response": { "id": 1, "success": true } }
 { "elapsed": { "nanoseconds": 300000 }, "message": { "id": 2, "kind": "evaluate", "module": "foo", "function": "bar", "input": 3.14159 } }
-{ "elapsed": { "nanoseconds": 350000 }, "response": { "id": 2, "success": true, "output": 2.71828, "timings": [{ "name": "evaluate", "nanoseconds": 45678 }] } }
-{ "elapsed": { "nanoseconds": 400000 }, "message": { "id": 3, "kind": "analysis", "of": 2, "valid": false, "message": "Expected tau, got e." } }
+{ "elapsed": { "nanoseconds": 350000 }, "response": { "id": 2, "success": true, "output": 2.71828, "timings": [{ "name": "evaluate", "nanoseconds": 5000000 }] } }
+{ "elapsed": { "nanoseconds": 400000 }, "message": { "id": 3, "kind": "analysis", "of": 2, "valid": false, "error": "Expected tau, got e." } }
 { "elapsed": { "nanoseconds": 450000 }, "response": { "id": 3 } }
 { "elapsed": { "nanoseconds": 500000 }, "message": { "id": 4, "kind": "evaluate", "module": "foo", "function": "baz", "input": { "mynumber": 121 } } }
-{ "elapsed": { "nanoseconds": 550000 }, "response": { "id": 4, "success": true, "output": { "yournumber": 342 }, "timings": [{ "name": "evaluate", "nanoseconds": 23456 }] } }
+{ "elapsed": { "nanoseconds": 550000 }, "response": { "id": 4, "success": true, "output": { "yournumber": 342 }, "timings": [{ "name": "evaluate", "nanoseconds": 7000000 }] } }
 { "elapsed": { "nanoseconds": 600000 }, "message": { "id": 5, "kind": "analysis", "of": 4, "valid": true } }
 { "elapsed": { "nanoseconds": 650000 }, "response": { "id": 5 } }
 ```
@@ -304,7 +304,7 @@ Here is that example from the perspectives of the eval and the tool.
   { "id": 0, "kind": "start" }
   { "id": 1, "kind": "define", "module": "foo" }
   { "id": 2, "kind": "evaluate", "module": "foo", "function": "bar", "input": 3.14159 }
-  { "id": 3, "kind": "analysis", "of": 2, "valid": false, "message": "Expected tau, got e." }
+  { "id": 3, "kind": "analysis", "of": 2, "valid": false, "error": "Expected tau, got e." }
   { "id": 4, "kind": "evaluate", "module": "foo", "function": "baz", "input": { "mynumber": 121 } }
   { "id": 5, "kind": "analysis", "of": 4, "valid": true }
   ```
@@ -312,9 +312,9 @@ Here is that example from the perspectives of the eval and the tool.
   ```jsonl
   { "id": 0 }
   { "id": 1, "success": true }
-  { "id": 2, "success": true, "output": 2.71828, "timings": [{ "name": "evaluate", "nanoseconds": 45678 }] }
+  { "id": 2, "success": true, "output": 2.71828, "timings": [{ "name": "evaluate", "nanoseconds": 5000000 }] }
   { "id": 3 }
-  { "id": 4, "success": true, "output": { "yournumber": 342 }, "timings": [{ "name": "evaluate", "nanoseconds": 23456 }] }
+  { "id": 4, "success": true, "output": { "yournumber": 342 }, "timings": [{ "name": "evaluate", "nanoseconds": 7000000 }] }
   { "id": 5 }
   ```
 

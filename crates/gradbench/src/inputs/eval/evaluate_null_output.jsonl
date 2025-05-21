@@ -1,0 +1,4 @@
+{ "id": 0, "kind": "start" }
+{ "id": 1, "kind": "define", "module": "foo" }
+{ "id": 2, "kind": "evaluate", "module": "foo", "function": "null", "input": null }
+{ "id": 3, "kind": "analysis", "of": 2, "valid": true }
