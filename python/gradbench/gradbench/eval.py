@@ -135,9 +135,8 @@ class SingleModuleValidatedEval:
             message["description"] = description
         id = self.id
         response = EvaluateResponse.model_validate(self.send(message))
-        output = response.output
-        if output is not None:
-            analysis = self.validator(function, input, output)
+        if response.success:
+            analysis = self.validator(function, input, response.output)
             self.analysis(of=id, valid=analysis.valid, error=analysis.error)
         return response
 
