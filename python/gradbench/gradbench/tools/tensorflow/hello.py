@@ -14,8 +14,6 @@ def square(x):
 @wrap.function(pre=to_tensor, post=lambda x: x.numpy())
 def double(x):
     with tf.GradientTape() as tape:
-        tape.watch(x)
         y = square(x)
 
-    grad = tape.gradient(y, x)
-    return grad
+    return tape.gradient(y, x)

@@ -26,7 +26,6 @@
 import math
 
 import tensorflow as tf
-from gradbench.tools.tensorflow.utils import shape
 from scipy import special
 
 
@@ -47,36 +46,28 @@ def log_gamma_distrib(a, p):
     return special.multigammaln(a, p)
 
 
-def log_wishart_prior(p, wishart_gamma, wishart_m, sum_qs, Qdiags, icf):
-    n = p + wishart_m + 1
-    k = shape(icf)[0]
+def log_wishart_prior(*, k, p, gamma, m, sum_qs, Qdiags, l):
+    n = p + m + 1
 
     out = tf.reduce_sum(
-        0.5
-        * wishart_gamma
-        * wishart_gamma
-        * (tf.reduce_sum(Qdiags**2, 1) + tf.reduce_sum(icf[:, p:] ** 2, 1))
-        - wishart_m * sum_qs
+        0.5 * gamma * gamma * (tf.reduce_sum(Qdiags**2, 1) + tf.reduce_sum(l**2, 1))
+        - m * sum_qs
     )
 
-    C = n * p * (math.log(wishart_gamma / math.sqrt(2)))
-    return out - k * (C - log_gamma_distrib(0.5 * n, p))
+    C = n * p * (math.log(gamma / math.sqrt(2)))
+    return -out + k * (C - log_gamma_distrib(0.5 * n, p))
 
 
-def constructL(d, icf):
-    constructL.Lparamidx = d
+def constructL(*, d, l):
+    j = 0
 
     def make_L_col(i):
-        nelems = d - i - 1
-        col = tf.concat(
-            [
-                tf.zeros(i + 1, dtype=tf.float64),
-                icf[constructL.Lparamidx : (constructL.Lparamidx + nelems)],
-            ],
-            0,
-        )
+        nonlocal j
 
-        constructL.Lparamidx += nelems
+        nelems = d - i - 1
+        col = tf.concat([tf.zeros(i + 1, dtype=tf.float64), l[j : (j + nelems)]], 0)
+
+        j += nelems
         return col
 
     columns = tuple(make_L_col(i) for i in range(d))
@@ -87,21 +78,16 @@ def Qtimesx(Qdiag, L, x):
     return Qdiag * x + tf.linalg.matvec(L, x)
 
 
-def gmm_objective(alphas, means, icf, x, wishart_gamma, wishart_m):
-    xshape = shape(x)
-    n = xshape[0]
-    d = xshape[1]
+def gmm_objective(*, d, k, n, x, m, gamma, alpha, mu, q, l):
+    Qdiags = tf.exp(q)
+    sum_qs = tf.reduce_sum(q, 1)
 
-    Qdiags = tf.exp(icf[:, :d])
-    sum_qs = tf.reduce_sum(icf[:, :d], 1)
+    Ls = tf.stack(tuple(constructL(d=d, l=l[i]) for i in range(k)))
 
-    icf_sz = shape(icf)[0]
-    Ls = tf.stack(tuple(constructL(d, icf[i]) for i in range(icf_sz)))
-
-    xcentered = tf.stack(tuple(x[i] - means for i in range(n)))
+    xcentered = tf.stack(tuple(x[i] - mu for i in range(n)))
     Lxcentered = Qtimesx(Qdiags, Ls, xcentered)
     sqsum_Lxcentered = tf.reduce_sum(Lxcentered**2, 2)
-    inner_term = alphas + sum_qs - 0.5 * sqsum_Lxcentered
+    inner_term = alpha + sum_qs - 0.5 * sqsum_Lxcentered
     lse = logsumexpvec(inner_term)
     slse = tf.reduce_sum(lse)
 
@@ -110,6 +96,8 @@ def gmm_objective(alphas, means, icf, x, wishart_gamma, wishart_m):
     return (
         const
         + slse
-        - n * logsumexp(alphas)
-        + log_wishart_prior(d, wishart_gamma, wishart_m, sum_qs, Qdiags, icf)
+        - n * logsumexp(alpha)
+        + log_wishart_prior(
+            k=k, p=d, gamma=gamma, m=m, sum_qs=sum_qs, Qdiags=Qdiags, l=l
+        )
     )

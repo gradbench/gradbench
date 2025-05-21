@@ -16,17 +16,20 @@ const colors = {
   "enzyme-jl": "#0094e8",
   finite: "#aaaaaa",
   floretta: "#f10537",
+  "forwarddiff-jl": "#4063d8",
   futhark: "#5f021f",
   haskell: "#5e5086",
   jax: "#5e98f6",
   manual: "#000000",
+  "mooncake-jl": "#9558b2",
   ocaml: "#c24f1e",
   pytorch: "#ee4c2c",
+  "reversediff-jl": "#cb3c33",
   scilean: "#5c123a",
   tapenade: "#047f01",
   tensorflow: "#ff6f00",
   "tensorflow-js": "#ffa800",
-  zygote: "#6daa5e",
+  zygote: "#389826",
 };
 
 const makeSpec = ({

@@ -1,5 +1,7 @@
 module GradBench
 
+import ADTypes
+import DifferentiationInterface
 import JSON
 using ArgParse
 

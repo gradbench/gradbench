@@ -311,7 +311,9 @@ dependencies = [
  "serde",
  "serde_json",
  "shlex",
+ "similar",
  "strum",
+ "tempfile",
  "timeout-readwrite",
 ]
 

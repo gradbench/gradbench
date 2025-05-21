@@ -83,5 +83,5 @@ in pkgs.stdenv.mkDerivation rec {
 
   # The Nix C/C++ compilers disable -march=native on purity reasons, but we
   # don't use them to compile Nix derivations.
-  NIX_ENFORCE_NO_NATIVE=0;
+  NIX_ENFORCE_NO_NATIVE = 0;
 }

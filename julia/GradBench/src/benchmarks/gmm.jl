@@ -15,7 +15,7 @@ struct Wishart
 end
 
 struct Input
-    alphas::Matrix{Float64}
+    alphas::Vector{Float64}
     means::Matrix{Float64}
     icfs::Matrix{Float64}
     x::Matrix{Float64}
@@ -25,9 +25,10 @@ end
 abstract type AbstractGMM <: GradBench.Experiment end
 
 function GradBench.preprocess(::AbstractGMM, j)
-    alphas = transpose(convert(Vector{Float64}, j["alpha"]))
-    means = reduce(hcat, convert(Vector{Vector{Float64}},j["means"]))
-    icfs = reduce(hcat, j["icf"])
+    alphas = convert(Vector{Float64}, j["alpha"])
+    means = reduce(hcat, convert(Vector{Vector{Float64}},j["mu"]))
+    icfs = vcat(reduce(hcat,convert(Vector{Vector{Float64}}, j["q"])),
+                reduce(hcat,convert(Vector{Vector{Float64}}, j["l"])))
     x = reduce(hcat, j["x"])
     gamma = convert(Float64, j["gamma"])
     m = convert(Int, j["m"])
@@ -43,10 +44,18 @@ end
 
 function ltri_unpack(D, LT)
     d = length(D)
-    make_col(r::Int, L) = vcat(zeros(r - 1), D[r], reshape([L[i] for i=1:d-r], d - r))
+    make_col(r::Int, L) = vcat(zeros(r - 1), D[r], reshape([L[i] for i = 1:d-r], d - r))
     col_start(r::Int) = (r - 1) * (2d - r) ÷ 2
     inds(r) = col_start(r) .+ (1:d-r)
-    hcat([make_col(r, LT[inds(r)]) for r=1:d]...)
+    hcat([make_col(r, LT[inds(r)]) for r = 1:d]...)
+end
+
+
+function ltri_pack(L)
+    d = size(L, 1)
+    D = [L[i, i] for i in 1:d]
+    LT = [L[i, j] for j in 1:d-1 for i in j+1:d]
+    return D, LT
 end
 
 function get_Q(d, icf)
@@ -56,6 +65,23 @@ end
 function get_Qs(icfs, k, d)
     cat([get_Q(d, icfs[:, ik]) for ik in 1:k]...;
         dims=[3])
+end
+
+function invert_get_Qs(Qs::Array{<:Real,3})
+    d, _, k = size(Qs)
+    n_params = d + d * (d - 1) ÷ 2
+    icfs = Matrix{Float64}(undef, n_params, k)
+    for ik in 1:k
+        Q = Qs[:, :, ik]
+        D, LT = ltri_pack(Q)
+        icfs[:, ik] = vcat(D, LT)
+    end
+    return icfs
+end
+
+function Qs_to_q_l(d, Qs)
+    icfs = GradBench.GMM.invert_get_Qs(Qs)
+    return (icfs[1:d,:], icfs[d+1:end,:])
 end
 
 function log_gamma_distrib(a, p)
@@ -70,7 +96,7 @@ function log_wishart_prior(wishart::Wishart, sum_qs, Qs, k)
     C = n * p * (log(wishart.gamma) - 0.5 * log(2)) - log_gamma_distrib(0.5 * n, p)
 
     frobenius = sum(abs2, Qs)
-    0.5 * wishart.gamma^2 * frobenius - wishart.m * sum(sum_qs) - k * C
+    -0.5 * wishart.gamma^2 * frobenius + wishart.m * sum(sum_qs) + k * C
 end
 
 function diagsums(Qs)
@@ -123,30 +149,6 @@ function (::ObjectiveGMM)(input)
     Qs = GradBench.GMM.get_Qs(input.icfs, k, d)
 
     return objective(input.alphas, input.means, Qs, input.x, input.wishart)
-end
-
-# The objective function is defined in terms of Qs, which are
-# extracted from icfs. This means the Jacobian doesn't look exactly
-# how it is supposed to. This function packs the Jacobian
-# appropriately.
-function pack_J(J, k, d)
-    alphas = vec(J[1])
-    means = vec(J[2])
-    icf = Vector{Float64}(undef, k * (d + (d * (d - 1)) ÷ 2))
-
-    idx = 1
-    for Q_idx in 1:k
-        Q = J[3][:, :, Q_idx]
-        icf[idx:idx+d-1] = diag(Q)
-        idx += d
-        for col in 1:d-1
-            len = d - col
-            icf[idx:idx+len-1] = @view Q[col+1:d, col]
-            idx += len
-        end
-    end
-
-    return vcat(alphas, means, icf)
 end
 
 end

@@ -5,14 +5,13 @@
 - [Setup](#setup)
 - [Dependencies](#dependencies)
 - [CLI](#cli)
+  - [Code formatters and linters](#code-formatters-and-linters)
 - [Docker](#docker)
   - [Multi-platform images](#multi-platform-images)
 - [Tools](#tools)
   - [Implementing a new eval for a tool](#implementing-a-new-eval-for-a-tool)
 - [Evals](#evals)
 - [JavaScript](#javascript)
-  - [Prettier](#prettier)
-  - [Markdown](#markdown)
   - [Website](#website)
 - [Python](#python)
 - [C++](#c)
@@ -78,6 +77,29 @@ Many tasks make use of the GradBench CLI, which you can run via the
 
 This script will always automatically build the CLI if it is not already up to
 date.
+
+### Code formatters and linters
+
+This repository uses several linters and autoformatters. Use this command to run
+them all:
+
+```sh
+./gradbench repo lint
+```
+
+If you are missing any, the error message should show instructions for how to
+install what you are missing.
+
+The code formatters, and some of the linters, can also automatically fix most
+issues:
+
+```sh
+./gradbench repo lint --fix
+```
+
+If you use [VS Code][], our configuration in this repository should
+automatically recommend that you install extensions for all the code formatters
+we use, and run the relevant one anytime you save a file.
 
 ## Docker
 
@@ -216,28 +238,6 @@ dependencies from npm:
 bun install
 ```
 
-### Prettier
-
-We use [Prettier][] to format a lot of different files in this repository. If
-you're using [VS Code][], our configuration in this repository should
-automatically recommend that you install the Prettier extension, as well as
-automatically run it whenever you save an applicable file. You can also run it
-manually via the command line:
-
-```sh
-bun run format
-```
-
-### Markdown
-
-This file and [`README.md`](README.md) use [markdown-toc][] to generate the
-table of contents at the top. If you add/modify/delete any Markdown section
-headers, run this command to regenerate those tables of contents:
-
-```sh
-bun run toc
-```
-
 ### Website
 
 We use [Vite][] for the website. To develop the website locally, run this
@@ -260,29 +260,7 @@ can be more convenient to instead install and run tools directly. You can use
 ./gradbench run --eval "./gradbench repo eval hello" --tool "uv run python/gradbench/gradbench/tools/pytorch/run.py"
 ```
 
-We autoformat Python code using [Ruff][]. If you're using [VS Code][], our
-configuration in this repository should automatically recommend that you install
-the Ruff extension, as well as automatically run it whenever you save a Python
-file. You can also run it manually via the command line:
-
-```sh
-uv run ruff check --fix
-uv run ruff format
-```
-
 ## C++
-
-We autoformat C++ code using [clang-format 19][]; note that GitHub Actions
-currently uses version 19.1.1 specifically, so if you have a different version
-(e.g. `shell.nix` currently provides version 19.1.7) then unfortunately you may
-experience disagreements in some cases. In any case, if you're using [VS
-Code][], our configuration in this repository should automatically recommend
-that you install the clangd extension, as well as automatically run it whenever
-you save a C++ file. You can also run it manually via the command line:
-
-```sh
-git ls-files '*.c' '*.cpp' '*.h' '*.hpp' | xargs clang-format -i
-```
 
 Some tools make use of C++ code shared in the `cpp` directory; if doing local
 development with any of those tools, you must first run the following command:
@@ -310,11 +288,11 @@ protocol, as captured and reported by the intermediary:
 { "elapsed": { "nanoseconds": 200000 }, "message": { "id": 1, "kind": "define", "module": "foo" } }
 { "elapsed": { "nanoseconds": 250000 }, "response": { "id": 1, "success": true } }
 { "elapsed": { "nanoseconds": 300000 }, "message": { "id": 2, "kind": "evaluate", "module": "foo", "function": "bar", "input": 3.14159 } }
-{ "elapsed": { "nanoseconds": 350000 }, "response": { "id": 2, "success": true, "output": 2.71828, "timings": [{ "name": "evaluate", "nanoseconds": 45678 }] } }
-{ "elapsed": { "nanoseconds": 400000 }, "message": { "id": 3, "kind": "analysis", "of": 2, "valid": false, "message": "Expected tau, got e." } }
+{ "elapsed": { "nanoseconds": 350000 }, "response": { "id": 2, "success": true, "output": 2.71828, "timings": [{ "name": "evaluate", "nanoseconds": 5000000 }] } }
+{ "elapsed": { "nanoseconds": 400000 }, "message": { "id": 3, "kind": "analysis", "of": 2, "valid": false, "error": "Expected tau, got e." } }
 { "elapsed": { "nanoseconds": 450000 }, "response": { "id": 3 } }
 { "elapsed": { "nanoseconds": 500000 }, "message": { "id": 4, "kind": "evaluate", "module": "foo", "function": "baz", "input": { "mynumber": 121 } } }
-{ "elapsed": { "nanoseconds": 550000 }, "response": { "id": 4, "success": true, "output": { "yournumber": 342 }, "timings": [{ "name": "evaluate", "nanoseconds": 23456 }] } }
+{ "elapsed": { "nanoseconds": 550000 }, "response": { "id": 4, "success": true, "output": { "yournumber": 342 }, "timings": [{ "name": "evaluate", "nanoseconds": 7000000 }] } }
 { "elapsed": { "nanoseconds": 600000 }, "message": { "id": 5, "kind": "analysis", "of": 4, "valid": true } }
 { "elapsed": { "nanoseconds": 650000 }, "response": { "id": 5 } }
 ```
@@ -326,7 +304,7 @@ Here is that example from the perspectives of the eval and the tool.
   { "id": 0, "kind": "start" }
   { "id": 1, "kind": "define", "module": "foo" }
   { "id": 2, "kind": "evaluate", "module": "foo", "function": "bar", "input": 3.14159 }
-  { "id": 3, "kind": "analysis", "of": 2, "valid": false, "message": "Expected tau, got e." }
+  { "id": 3, "kind": "analysis", "of": 2, "valid": false, "error": "Expected tau, got e." }
   { "id": 4, "kind": "evaluate", "module": "foo", "function": "baz", "input": { "mynumber": 121 } }
   { "id": 5, "kind": "analysis", "of": 4, "valid": true }
   ```
@@ -334,9 +312,9 @@ Here is that example from the perspectives of the eval and the tool.
   ```jsonl
   { "id": 0 }
   { "id": 1, "success": true }
-  { "id": 2, "success": true, "output": 2.71828, "timings": [{ "name": "evaluate", "nanoseconds": 45678 }] }
+  { "id": 2, "success": true, "output": 2.71828, "timings": [{ "name": "evaluate", "nanoseconds": 5000000 }] }
   { "id": 3 }
-  { "id": 4, "success": true, "output": { "yournumber": 342 }, "timings": [{ "name": "evaluate", "nanoseconds": 23456 }] }
+  { "id": 4, "success": true, "output": { "yournumber": 342 }, "timings": [{ "name": "evaluate", "nanoseconds": 7000000 }] }
   { "id": 5 }
   ```
 
@@ -412,42 +390,39 @@ other than the `"id"`.
 
 Here is a somewhat more formal description of the protocol using [TypeScript][]
 types. Some of the types are not used directly, or in all evals, but may be
-referenced by eval-specific protocol descriptions. In particular, the value
-expected in the `"input"` field of an `"EvaluateMessage"` is specific to each
-eval.
+referenced by eval-specific protocol descriptions via an `import`
+`from "gradbench"`. In particular, the value expected in the `"input"` field of
+an `"EvaluateMessage"` is specific to each eval.
 
 ```typescript
-type Id = number;
+// These are types in the core protocol, described above.
 
-interface Base {
+export type Id = number;
+
+export interface Base {
   id: Id;
 }
 
-interface Duration {
+export interface Duration {
   nanoseconds: number;
 }
 
-interface Timing extends Duration {
+export interface Timing extends Duration {
   name: string;
 }
 
-interface Runs {
-  min_runs: number;
-  min_seconds: number;
-}
-
-interface StartMessage extends Base {
+export interface StartMessage extends Base {
   kind: "start";
   eval?: string;
   config?: any;
 }
 
-interface DefineMessage extends Base {
+export interface DefineMessage extends Base {
   kind: "define";
   module: string;
 }
 
-interface EvaluateMessage extends Base {
+export interface EvaluateMessage extends Base {
   kind: "evaluate";
   module: string;
   function: string;
@@ -455,66 +430,87 @@ interface EvaluateMessage extends Base {
   description?: string;
 }
 
-interface AnalysisMessage extends Base {
+export interface AnalysisMessage extends Base {
   kind: "analysis";
   of: Id;
   valid: boolean;
   error?: string;
 }
 
-type Message = StartMessage | DefineMessage | EvaluateMessage | AnalysisMessage;
+export type Message =
+  | StartMessage
+  | DefineMessage
+  | EvaluateMessage
+  | AnalysisMessage;
 
-interface StartResponse extends Base {
+export interface StartResponse extends Base {
   tool?: string;
   config?: any;
 }
 
-interface DefineResponse extends Base {
+export interface DefineResponse extends Base {
   success: boolean;
   timings?: Timing[];
   error?: string;
 }
 
-interface EvaluateResponse extends Base {
+export interface EvaluateResponse extends Base {
   success: boolean;
   output?: any;
   timings?: Timing[];
   error?: string;
 }
 
-type Response = Base | StartResponse | DefineResponse | EvaluateResponse;
+export type Response = Base | StartResponse | DefineResponse | EvaluateResponse;
 
-interface Line {
+export interface Line {
   elapsed: Duration;
 }
 
-interface MessageLine extends Line {
+export interface MessageLine extends Line {
   message: Message;
 }
 
-interface ResponseLine extends Line {
+export interface ResponseLine extends Line {
   response: Response;
 }
 
-type Session = (MessageLine | ResponseLine)[];
+export type Session = (MessageLine | ResponseLine)[];
+
+// These are auxiliary types used by some evals.
+
+/** An integer. */
+export type Int = number;
+
+/** A double-precision floating point value. */
+export type Float = number;
+
+/**
+ * Fields to be included in the input of an eval requesting a tool to run a
+ * function multiple times in a single evaluate message. The tool's response
+ * should include one timing entry with the name `"evaluate"` for each time it
+ * ran the function.
+ */
+export interface Runs {
+  /** Evaluate the function at least this many times. */
+  min_runs: number;
+
+  /** Evaluate the function until the total time exceeds this many seconds. */
+  min_seconds: number;
+}
 ```
 
 [bun]: https://bun.sh/
-[clang-format 19]:
-  https://releases.llvm.org/19.1.0/tools/clang/docs/ClangFormat.html
 [containerd]: https://docs.docker.com/storage/containerd/
 [docker]: https://docs.docker.com/engine/install/
 [github cli]: https://github.com/cli/cli#installation
 [json]: https://json.org/
 [make]: https://en.wikipedia.org/wiki/Make_(software)
-[markdown-toc]: https://www.npmjs.com/package/markdown-toc
 [multi-platform images]: https://docs.docker.com/build/building/multi-platform/
 [nix]: https://nixos.org/
-[prettier]: https://prettier.io/
 [python]: https://docs.astral.sh/uv/guides/install-python/
 [qemu]:
   https://docs.docker.com/build/building/multi-platform/#install-qemu-manually
-[ruff]: https://docs.astral.sh/ruff/
 [rust]: https://www.rust-lang.org/tools/install
 [typescript]: https://www.typescriptlang.org/
 [uv]: https://docs.astral.sh/uv

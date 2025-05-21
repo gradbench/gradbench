@@ -1,4 +1,5 @@
 mod intermediary;
+mod lint;
 mod log;
 mod protocol;
 mod stats;
@@ -7,7 +8,9 @@ mod util;
 use std::{
     backtrace::BacktraceStatus,
     collections::{BTreeMap, BTreeSet, HashSet, VecDeque},
-    env, fs,
+    env,
+    fmt::Write as _,
+    fs,
     io::{self, BufRead},
     mem::take,
     path::{Path, PathBuf},
@@ -25,7 +28,7 @@ use regex::Regex;
 use serde::Serialize;
 use stats::StatsMetadata;
 use strum::{EnumIter, EnumString, IntoStaticStr};
-use util::{run_in_out, stringify_cmd, CtrlC};
+use util::{run_in_out, shlex_cmd, CtrlC};
 
 /// CLI utilities for GradBench, a benchmark suite for differentiable programming across languages
 /// and domains.
@@ -171,6 +174,14 @@ enum RepoCommands {
         #[clap(long)]
         timeout: Option<u64>,
 
+        /// Only allow known named evals and tools, and check against their expected outcome
+        #[clap(long)]
+        check: bool,
+
+        /// Download evals and tools from GitHub Actions instead of building locally
+        #[clap(long, value_name = "RUN_ID")]
+        download_github: Option<u64>,
+
         /// Print commands to stdout instead of running anything
         #[clap(long)]
         dry_run: bool,
@@ -250,6 +261,58 @@ enum RepoCommands {
         platform: Option<String>,
     },
 
+    /// Run linters on the codebase.
+    ///
+    /// By default, every linter is run and no changes are made. Use the `--fix` flag to autofix
+    /// when possible. Use other flags to only run specific linters. In any case, the exit code is 0
+    /// if everything passed, 1 if any lints failed, or 2 if no lints failed but not all linters
+    /// could be run successfully.
+    Lint {
+        /// Automatically fix everything possible
+        #[clap(long)]
+        fix: bool,
+
+        /// Run only clang-format
+        #[clap(long)]
+        clang_format: bool,
+
+        /// Run only Clippy
+        #[clap(long)]
+        clippy: bool,
+
+        /// Run only ESLint
+        #[clap(long)]
+        eslint: bool,
+
+        /// Run only markdown-toc
+        #[clap(long)]
+        markdown_toc: bool,
+
+        /// Run only nixfmt
+        #[clap(long)]
+        nixfmt: bool,
+
+        /// Run only Prettier
+        #[clap(long)]
+        prettier: bool,
+
+        /// Run only the Ruff linter
+        #[clap(long)]
+        ruff_check: bool,
+
+        /// Run only the Ruff formatter
+        #[clap(long)]
+        ruff_format: bool,
+
+        /// Run only Rustfmt
+        #[clap(long)]
+        rustfmt: bool,
+
+        /// Run only TypeScript
+        #[clap(long)]
+        typescript: bool,
+    },
+
     /// Print JSON values for consumption in GitHub Actions.
     ///
     /// Each value is printed on a single line, preceded by the name of that value and an equals
@@ -258,8 +321,8 @@ enum RepoCommands {
 
     /// Generate summary data files and plots from a directory containing log files.
     ///
-    /// The directory should contain a `run-<EVAL>-<TOOL>/log.jsonl` file for each `<EVAL>` under
-    /// `evals` and each `<TOOL>` under `tools`.
+    /// The directory should contain a `<EVAL>/<TOOL>.jsonl` file for each `<EVAL>` under `evals`
+    /// and each `<TOOL>` under `tools`.
     Stats {
         /// The directory containing log files
         input: PathBuf,
@@ -282,28 +345,36 @@ enum RepoCommands {
 enum LogCommands {
     /// Remove input/output fields from "evaluate" messages and responses.
     ///
-    /// Writes to stdout unless the `--output` option is used. It is
-    /// expected that the input log file is well-formed, but not that
-    /// it corresponds to a successful run. In particular, the final
-    /// message may not have a response - this occurs when the tool
-    /// crashes or times out before it gets to respond.
+    /// Writes to stdout unless the `--output` option is used. It is expected that the input log
+    /// file is well-formed, but not that it corresponds to a successful run. In particular, the
+    /// final message may not have a response - this occurs when the tool crashes or times out
+    /// before it gets to respond.
     Trim {
-        /// The input log file.
+        /// The input log file
         input: Option<PathBuf>,
 
-        /// The output log file.
+        /// The output log file
         #[clap(short, long)]
         output: Option<PathBuf>,
     },
 
-    /// Print a human-readable summary of the log file, including the
-    /// eval, tool, configuration, etc.
+    /// Print a human-readable summary of the log file, including the eval, tool, configuration,
+    /// etc.
     ///
-    /// Will fail with a not necessarily very friendly error if the
-    /// log file is malformed.
+    /// Will fail with a not necessarily very friendly error if the log file is malformed.
     Summary {
-        /// The input log file.
+        /// The input log file
         input: Option<PathBuf>,
+    },
+
+    /// Move log files from a directory with three layers of nesting to a directory with only two.
+    Flatten {
+        /// The input directory
+        input: PathBuf,
+
+        /// The output directory
+        #[clap(short, long)]
+        output: PathBuf,
     },
 }
 
@@ -635,7 +706,23 @@ fn ls(dir: &str) -> anyhow::Result<Vec<String>> {
 }
 
 /// Config for running one or more evals against one or more tools.
+#[derive(Default)]
 struct RunConfig {
+    /// Output directory.
+    output: Option<PathBuf>,
+
+    /// The timeout, in seconds, for tool responses (not implemented on Windows).
+    timeout: Option<u64>,
+
+    /// Only allow known named evals and tools, and check against their expected outcome.
+    check: bool,
+
+    /// GitHub Actions run ID from which to download evals and tools.
+    download_github: Option<u64>,
+}
+
+/// Raw lists of evals and tools to run against each other.
+struct RunRaw {
     /// Evals to run, or all by default.
     eval: Vec<String>,
 
@@ -647,12 +734,6 @@ struct RunConfig {
 
     /// Tools to omit.
     no_tool: Vec<String>,
-
-    /// Output directory.
-    output: Option<PathBuf>,
-
-    /// The timeout, in seconds, for tool responses (not implemented on Windows).
-    timeout: Option<u64>,
 
     /// Don't actually run anything, just print commands to stdout.
     dry_run: bool,
@@ -768,7 +849,7 @@ fn process_run_items(
 }
 
 /// Eval and tool outputs from [`process_run_items`].
-struct ProcessedRunItems<'a> {
+struct RunItems<'a> {
     /// Evals to build.
     evals_build: &'a [String],
 
@@ -786,24 +867,45 @@ struct ProcessedRunItems<'a> {
 fn run_dry(
     stdout: &mut impl io::Write,
     this: &str,
-    output: Option<&Path>,
-    timeout: Option<u64>,
-    ProcessedRunItems {
+    cfg: RunConfig,
+    RunItems {
         evals_build,
         tools_build,
         evals_run,
         tools_run,
-    }: ProcessedRunItems,
+    }: RunItems,
 ) -> anyhow::Result<()> {
-    for eval in evals_build {
-        let cmd = shlex::try_join(stringify_cmd(&Docker::new(eval).build_eval_cmd())?)?;
-        writeln!(stdout, "{cmd}")?;
+    match cfg.download_github {
+        Some(run_id) => {
+            if !(evals_build.is_empty() && tools_build.is_empty()) {
+                write!(stdout, "gh run download {run_id}")?;
+                for eval in evals_build {
+                    write!(stdout, " --name eval-{eval}")?;
+                }
+                for tool in tools_build {
+                    write!(stdout, " --name tool-{tool}")?;
+                }
+                writeln!(stdout)?;
+            }
+            for eval in evals_build {
+                writeln!(stdout, "docker load --input eval-{eval}/eval-{eval}.tar")?;
+            }
+            for tool in tools_build {
+                writeln!(stdout, "docker load --input tool-{tool}/tool-{tool}.tar")?;
+            }
+        }
+        None => {
+            for eval in evals_build {
+                let cmd = shlex_cmd(&Docker::new(eval).build_eval_cmd())?;
+                writeln!(stdout, "{cmd}")?;
+            }
+            for tool in tools_build {
+                let cmd = shlex_cmd(&Docker::new(tool).build_tool_cmd())?;
+                writeln!(stdout, "{cmd}")?;
+            }
+        }
     }
-    for tool in tools_build {
-        let cmd = shlex::try_join(stringify_cmd(&Docker::new(tool).build_tool_cmd())?)?;
-        writeln!(stdout, "{cmd}")?;
-    }
-    if let Some(dir) = output {
+    if let Some(dir) = &cfg.output {
         write!(stdout, "mkdir -p")?;
         for (eval_string, _) in evals_run {
             let subdir = eval_subpath(dir, eval_string);
@@ -816,15 +918,15 @@ fn run_dry(
     }
     for (eval_string, eval_cmd) in evals_run {
         for (tool_string, tool_cmd) in tools_run {
-            let eval = shlex::try_join(stringify_cmd(eval_cmd)?)?;
-            let tool = shlex::try_join(stringify_cmd(tool_cmd)?)?;
+            let eval = shlex_cmd(eval_cmd)?;
+            let tool = shlex_cmd(tool_cmd)?;
             write!(stdout, "{this} run")?;
-            if let Some(seconds) = timeout {
+            if let Some(seconds) = cfg.timeout {
                 write!(stdout, " --timeout {seconds}")?;
             }
             write!(stdout, " --eval {}", shlex::try_quote(&eval)?)?;
             write!(stdout, " --tool {}", shlex::try_quote(&tool)?)?;
-            if let Some(dir) = output {
+            if let Some(dir) = &cfg.output {
                 let path = log_subpath(dir, eval_string, tool_string);
                 let path_str = path.to_str().ok_or_else(|| {
                     anyhow!("failed to convert output file path to a string: {path:?}")
@@ -840,18 +942,18 @@ fn run_dry(
 /// Build and run one or more evals against one or more tools.
 fn run_multiple(
     ctrl_c: &mut CtrlC,
-    RunConfig {
+    cfg: RunConfig,
+    RunRaw {
         eval,
         tool,
         no_eval,
         no_tool,
-        output,
-        timeout,
         dry_run,
-    }: RunConfig,
+    }: RunRaw,
 ) -> anyhow::Result<Result<(), ExitCode>> {
+    let evals = ls("evals")?;
     let (evals_build, mut evals_run) =
-        process_run_items(RunItemKind::Eval, eval, no_eval, || ls("evals"))?;
+        process_run_items(RunItemKind::Eval, eval, no_eval, || Ok(evals.clone()))?;
     let (tools_build, mut tools_run) =
         process_run_items(RunItemKind::Tool, tool, no_tool, || ls("tools"))?;
     if dry_run {
@@ -861,9 +963,8 @@ fn run_multiple(
         run_dry(
             &mut io::stdout(),
             &this,
-            output.as_deref(),
-            timeout,
-            ProcessedRunItems {
+            cfg,
+            RunItems {
                 evals_build: &evals_build,
                 tools_build: &tools_build,
                 evals_run: &evals_run,
@@ -872,64 +973,111 @@ fn run_multiple(
         )?;
         return Ok(Ok(()));
     }
-    let mut need_newline = false;
-    for eval in evals_build {
-        println!("{} {}", "building eval".blue().bold(), eval);
-        match Docker::new(&eval).build_eval(Verbosity::Quiet) {
-            Ok(Caching::Cached) => need_newline = true,
-            Ok(Caching::Uncached) => {
+    let map = evals_to_tools(evals)?;
+    match cfg.download_github {
+        Some(run_id) => {
+            let mut cmd = Command::new("gh");
+            cmd.args(["run", "download", &run_id.to_string()]);
+            print!("{} {}", "getting".bold(), "evals".blue().bold());
+            for eval in &evals_build {
+                print!(" {eval}");
+                cmd.args(["--name", &format!("eval-{eval}")]);
+            }
+            println!();
+            print!("{} {}", "    and".bold(), "tools".magenta().bold());
+            for tool in &tools_build {
+                print!(" {tool}");
+                cmd.args(["--name", &format!("tool-{tool}")]);
+            }
+            println!();
+            if let Err(code) = status_code(cmd.status()?) {
+                return Ok(Err(code));
+            }
+            println!();
+            for eval in &evals_build {
+                println!("{} {eval}", "loading eval".blue().bold());
+                let cmd = Command::new("docker")
+                    .args(["load", "--input", &format!("eval-{eval}/eval-{eval}.tar")])
+                    .status()?;
+                if let Err(code) = status_code(cmd) {
+                    return Ok(Err(code));
+                }
+                println!();
+            }
+            for tool in tools_build {
+                println!("{} {tool}", "loading tool".magenta().bold());
+                let cmd = Command::new("docker")
+                    .args(["load", "--input", &format!("tool-{tool}/tool-{tool}.tar")])
+                    .status()?;
+                if let Err(code) = status_code(cmd) {
+                    return Ok(Err(code));
+                }
+                println!();
+            }
+        }
+        None => {
+            let mut need_newline = false;
+            for eval in &evals_build {
+                println!("{} {eval}", "building eval".blue().bold());
+                match Docker::new(eval).build_eval(Verbosity::Quiet) {
+                    Ok(Caching::Cached) => need_newline = true,
+                    Ok(Caching::Uncached) => {
+                        println!();
+                        need_newline = false;
+                    }
+                    Err(code) => return Ok(Err(code)),
+                }
+            }
+            if need_newline {
                 println!();
                 need_newline = false;
             }
-            Err(code) => return Ok(Err(code)),
-        }
-    }
-    if need_newline {
-        println!();
-        need_newline = false;
-    }
-    for tool in tools_build {
-        println!("{} {}", "building tool".magenta().bold(), tool);
-        match Docker::new(&tool).build_tool(Verbosity::Quiet) {
-            Ok(Caching::Cached) => need_newline = true,
-            Ok(Caching::Uncached) => {
-                println!();
-                need_newline = false;
+            for tool in tools_build {
+                println!("{} {tool}", "building tool".magenta().bold());
+                match Docker::new(&tool).build_tool(Verbosity::Quiet) {
+                    Ok(Caching::Cached) => need_newline = true,
+                    Ok(Caching::Uncached) => {
+                        println!();
+                        need_newline = false;
+                    }
+                    Err(code) => return Ok(Err(code)),
+                }
             }
-            Err(code) => return Ok(Err(code)),
+            if let Some(dir) = &cfg.output {
+                fs::create_dir_all(dir)?;
+            }
+            if need_newline {
+                println!();
+            }
         }
     }
-    if let Some(dir) = &output {
-        fs::create_dir_all(dir)?;
-    }
-    if need_newline {
-        println!();
-    }
-    if let Some(dir) = &output {
+    if let Some(dir) = &cfg.output {
         for (eval_string, _) in &evals_run {
             fs::create_dir_all(eval_subpath(dir, eval_string))?;
         }
     }
+    let mut pass = true;
     let mut first = true;
     for (eval_string, eval_cmd) in &mut evals_run {
+        let empty = BTreeMap::new();
+        let eval_map = map.get(eval_string.as_str()).unwrap_or(&empty);
         for (tool_string, tool_cmd) in &mut tools_run {
             if !first {
                 println!();
             }
             first = false;
             println!(
-                "{} {} {}",
+                "{} {} {eval_string}",
                 "running".bold(),
                 "eval".blue().bold(),
-                eval_string,
             );
             println!(
-                "{} {} {}",
+                "{} {} {tool_string}",
                 "   with".bold(),
                 "tool".magenta().bold(),
-                tool_string,
             );
-            let log_file = output
+            let log_file = cfg
+                .output
                 .as_ref()
                 .map(|dir| fs::File::create(log_subpath(dir, eval_string, tool_string)))
                 .transpose()?;
@@ -940,7 +1088,7 @@ fn run_multiple(
                         log_file,
                         &mut eval_child,
                         &mut tool_child,
-                        timeout.map(Duration::from_secs),
+                        cfg.timeout.map(Duration::from_secs),
                     );
                     let _ = eval_child.wait();
                     let _ = tool_child.wait();
@@ -948,21 +1096,40 @@ fn run_multiple(
                 }
                 _ => Err(BadOutcome::Error),
             };
-            print!("{} ", "outcome".bold());
-            match outcome {
-                Ok(()) => println!("success"),
-                Err(bad_outcome) => {
-                    let stringified: &str = bad_outcome.into();
-                    println!("{}", stringified);
-                    if let BadOutcome::Interrupt = bad_outcome {
-                        // This process is about to exit, so don't try to start the next one.
-                        return Ok(Ok(()));
-                    }
+            print!("{} ", " outcome".bold());
+            let actual = match outcome {
+                Ok(()) => "success",
+                Err(BadOutcome::Interrupt) => {
+                    println!("interrupt");
+                    // This process is about to exit, so don't try to start the next one.
+                    return Ok(Ok(()));
                 }
+                Err(bad_outcome) => <&str>::from(bad_outcome),
+            };
+            println!("{actual}");
+            if cfg.check {
+                let expected = eval_map.get(tool_string.as_str()).map(|o| match o {
+                    Some(bad_outcome) => <&str>::from(bad_outcome),
+                    None => "success",
+                });
+                match expected {
+                    Some(o) => {
+                        if actual == o {
+                            println!("{} {}", "expected".green().bold(), o.green());
+                        } else {
+                            println!("{} {}", "expected".red().bold(), o.red());
+                            pass = false;
+                        }
+                    }
+                    None => {
+                        println!("{} {}", "expected".yellow().bold(), "unknown".yellow());
+                        pass = false;
+                    }
+                };
             }
         }
     }
-    Ok(Ok(()))
+    Ok(if pass { Ok(()) } else { Err(ExitCode::FAILURE) })
 }
 
 /// Print a JSON `value` with a `name` for GitHub Actions.
@@ -984,10 +1151,15 @@ fn evals_to_tools(evals: Vec<String>) -> anyhow::Result<Matrix> {
     }
     for result in fs::read_dir("tools")? {
         let entry = result?;
-        let tool = entry
-            .file_name()
-            .into_string()
-            .map_err(|name| anyhow!("invalid file name {name:?}"))?;
+        let tool = Rc::<str>::from(
+            entry
+                .file_name()
+                .into_string()
+                .map_err(|name| anyhow!("invalid file name {name:?}"))?,
+        );
+        for eval_map in map.values_mut() {
+            eval_map.insert(Rc::clone(&tool), Some(BadOutcome::Undefined));
+        }
         let path = entry.path().join("evals.txt");
         let evals = fs::read_to_string(&path).unwrap_or_default();
         for line in evals.lines() {
@@ -1000,9 +1172,10 @@ fn evals_to_tools(evals: Vec<String>) -> anyhow::Result<Matrix> {
                     (eval, Some(bad_outcome))
                 }
             };
-            map.get_mut(eval)
+            *map.get_mut(eval)
                 .ok_or_else(|| anyhow!("eval {eval:?} not found"))?
-                .insert(Rc::from(tool.as_str()), outcome);
+                .get_mut(&tool)
+                .unwrap() = outcome;
         }
     }
     Ok(map)
@@ -1020,21 +1193,24 @@ struct ToolEntry<'a> {
 
 /// A single entry in the `run` matrix for GitHub Actions.
 #[derive(Serialize)]
-struct RunEntry<'a> {
-    /// The name of the eval.
-    eval: &'a str,
+struct RunEntry {
+    /// CLI args to pass to the `repo run` subcommand.
+    args: String,
 
-    /// The name of the tool.
-    tool: &'a str,
+    /// The name of the GitHub Actions artifact to produce.
+    artifact: String,
+}
 
-    /// The expected outcome of the run.
-    outcome: &'static str,
+impl RunEntry {
+    fn new(args: String) -> Self {
+        let artifact = mangle(&args);
+        Self { args, artifact }
+    }
 }
 
 /// Print the GitHub Actions matrix to stdout.
 fn matrix() -> anyhow::Result<()> {
-    let date = format!("{}", chrono::Utc::now().format("%Y-%m-%d"));
-    github_output("date", date)?;
+    github_output("date", format!("{}", chrono::Utc::now().format("%Y-%m-%d")))?;
     let mut evals = ls("evals")?;
     evals.sort();
     github_output("eval", &evals)?;
@@ -1050,22 +1226,29 @@ fn matrix() -> anyhow::Result<()> {
             })
             .collect::<Vec<_>>(),
     )?;
-    let mut run = Vec::new();
-    let map = evals_to_tools(evals)?;
-    for (eval, supported) in &map {
+    let evals_squish = ["hello", "llsq", "lstm", "particle", "saddle"];
+    let mut runs = Vec::new();
+    for tool in &tools {
+        let mut args = String::new();
+        for eval in evals_squish {
+            write!(&mut args, "--eval {eval} ")?;
+        }
+        write!(&mut args, "--tool {tool}")?;
+        runs.push(RunEntry::new(args));
+    }
+    for eval in evals {
+        if evals_squish.contains(&eval.as_str()) {
+            continue;
+        }
         for tool in &tools {
-            run.push(RunEntry {
-                eval,
-                tool,
-                outcome: match supported.get(tool.as_str()) {
-                    None => BadOutcome::Undefined.into(),
-                    Some(None) => "success",
-                    Some(Some(bad_outcome)) => bad_outcome.into(),
-                },
-            });
+            runs.push(RunEntry::new(format!("--eval {eval} --tool {tool}")));
         }
     }
-    github_output("run", run)?;
+    let num_jobs = runs.len();
+    if num_jobs > 256 {
+        bail!("{num_jobs} jobs is too many for the GitHub Actions limit of 256");
+    }
+    github_output("run", runs.as_slice())?;
     Ok(())
 }
 
@@ -1076,6 +1259,7 @@ fn log_command(command: LogCommands) -> anyhow::Result<()> {
             run_in_out(log::Trim, input.as_deref(), output.as_deref())
         }
         LogCommands::Summary { input } => run_in_out(log::Summary, input.as_deref(), None),
+        LogCommands::Flatten { input, output } => log::flatten(&input, &output),
     }
 }
 
@@ -1170,16 +1354,22 @@ fn cli() -> Result<(), ExitCode> {
                     no_tool,
                     output,
                     timeout,
+                    check,
+                    download_github,
                     dry_run,
                 } => match run_multiple(
                     &mut ctrl_c,
                     RunConfig {
+                        output,
+                        timeout,
+                        check,
+                        download_github,
+                    },
+                    RunRaw {
                         eval,
                         tool,
                         no_eval,
                         no_tool,
-                        output,
-                        timeout,
                         dry_run,
                     },
                 ) {
@@ -1238,6 +1428,32 @@ fn cli() -> Result<(), ExitCode> {
                 }
                 .build_tool(Verbosity::Normal)
                 .map(|_| ()),
+                RepoCommands::Lint {
+                    fix,
+                    clang_format,
+                    clippy,
+                    eslint,
+                    markdown_toc,
+                    nixfmt,
+                    prettier,
+                    ruff_check,
+                    ruff_format,
+                    rustfmt,
+                    typescript,
+                } => {
+                    let mut lints = lint::Lints::new();
+                    lints.flag(clang_format, lint::clang_format);
+                    lints.flag(clippy, lint::clippy);
+                    lints.flag(eslint, lint::eslint);
+                    lints.flag(markdown_toc, lint::markdown_toc);
+                    lints.flag(nixfmt, lint::nixfmt);
+                    lints.flag(prettier, lint::prettier);
+                    lints.flag(ruff_check, lint::ruff_check);
+                    lints.flag(ruff_format, lint::ruff_format);
+                    lints.flag(rustfmt, lint::rustfmt);
+                    lints.flag(typescript, lint::typescript);
+                    lints.run(fix)
+                }
                 RepoCommands::Matrix => matrix().map_err(err_fail),
                 RepoCommands::Stats {
                     input,
@@ -1270,8 +1486,8 @@ mod tests {
     use strum::IntoEnumIterator;
 
     use crate::{
-        mangle, process_run_items, run_dry, util::stringify_cmd, BadOutcome, Docker,
-        ProcessedRunItems, RunItemKind, OUTCOME_HELP,
+        mangle, process_run_items, run_dry, util::stringify_cmd, BadOutcome, Docker, RunConfig,
+        RunItemKind, RunItems, OUTCOME_HELP,
     };
 
     #[test]
@@ -1436,13 +1652,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
-    fn simple_dry_run(
-        stdout: &mut fs::File,
-        evals: &[&str],
-        tools: &[&str],
-        output: Option<&Path>,
-        timeout: Option<u64>,
-    ) {
+    fn simple_dry_run(stdout: &mut fs::File, evals: &[&str], tools: &[&str], cfg: RunConfig) {
         let (evals_build, evals_run) =
             process_run_items(RunItemKind::Eval, strings(evals), strings(&[]), || {
                 Ok(strings(DEFAULT_EVALS))
@@ -1456,9 +1666,8 @@ mod tests {
         run_dry(
             stdout,
             "gradbench",
-            output,
-            timeout,
-            ProcessedRunItems {
+            cfg,
+            RunItems {
                 evals_build: &evals_build,
                 tools_build: &tools_build,
                 evals_run: &evals_run,
@@ -1473,15 +1682,21 @@ mod tests {
     fn test_run_dry() {
         let mut mint = Mint::new("src/outputs");
         let mut stdout = mint.new_goldenfile("dry_run.sh").unwrap();
-        simple_dry_run(&mut stdout, &[], &[], None, None);
+        simple_dry_run(&mut stdout, &[], &[], RunConfig::default());
     }
 
     #[cfg(unix)]
     #[test]
     fn test_run_dry_output() {
+        use std::path::PathBuf;
+
         let mut mint = Mint::new("src/outputs");
         let mut stdout = mint.new_goldenfile("dry_run_output.sh").unwrap();
-        simple_dry_run(&mut stdout, &[], &[], Some(Path::new("a directory")), None);
+        let cfg = RunConfig {
+            output: Some(PathBuf::from("a directory")),
+            ..Default::default()
+        };
+        simple_dry_run(&mut stdout, &[], &[], cfg);
     }
 
     #[cfg(unix)]
@@ -1489,7 +1704,23 @@ mod tests {
     fn test_run_dry_timeout() {
         let mut mint = Mint::new("src/outputs");
         let mut stdout = mint.new_goldenfile("dry_run_timeout.sh").unwrap();
-        simple_dry_run(&mut stdout, &[], &[], None, Some(42));
+        let cfg = RunConfig {
+            timeout: Some(42),
+            ..Default::default()
+        };
+        simple_dry_run(&mut stdout, &[], &[], cfg);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_run_dry_download_github() {
+        let mut mint = Mint::new("src/outputs");
+        let mut stdout = mint.new_goldenfile("dry_run_download_github.sh").unwrap();
+        let cfg = RunConfig {
+            download_github: Some(15035419296),
+            ..Default::default()
+        };
+        simple_dry_run(&mut stdout, &[], &[], cfg);
     }
 
     fn join_lines(lines: &[&str]) -> String {
