@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
 import { PlainObject, VegaLite } from "react-vega";
 import { TopLevelSpec } from "vega-lite";
-import "./Stats.css";
+import { Duration, Durations, EvalStats } from "../store";
 
 // These colors have been determined by sampling the tool websites.
 // They are not picked to make a particularly pleasing scheme, and
@@ -32,7 +31,7 @@ const colors = {
   zygote: "#389826",
 };
 
-const makeSpec = ({
+const makeVegaLiteSpec = ({
   title,
   yaxis,
   tools,
@@ -81,11 +80,6 @@ const makeSpec = ({
   };
 };
 
-interface Duration {
-  secs: number;
-  nanos: number;
-}
-
 const seconds = (duration: Duration | undefined): number | undefined =>
   duration !== undefined ? duration.secs + duration.nanos / 1e9 : undefined;
 
@@ -95,17 +89,8 @@ const divide = (
 ): number | undefined =>
   a !== undefined && b !== undefined ? a / b : undefined;
 
-interface Durations {
-  primal?: Duration;
-  derivative?: Duration;
-}
-
-interface Stats {
-  tools: Record<string, Record<string, Durations>>;
-}
-
-const makeData = (
-  stats: Stats,
+const makeVegaLiteData = (
+  stats: EvalStats,
   getAmount: (durations: Durations) => number | undefined,
 ): PlainObject => ({
   table: Object.entries(stats.tools).flatMap(([tool, toolStats]) =>
@@ -116,27 +101,16 @@ const makeData = (
   ),
 });
 
-/**
- * Attempt to download stats from the given URL.
- */
-const downloadStats = async (url: string): Promise<Stats | undefined> => {
-  try {
-    const response = await fetch(url);
-    return await response.json();
-  } catch (_) {
-    return undefined;
-  }
-};
+interface EvalVizProgs {
+  activeEval: string;
+  evalStats: EvalStats;
+}
 
-export const Stats = ({ url }: { url: string }) => {
-  const [stats, setStats] = useState<Stats | undefined>(undefined);
-  useEffect(() => {
-    (async () => setStats(await downloadStats(url)))();
-  }, [url]);
-  if (stats === undefined) return <></>;
-  const tools = Object.keys(stats.tools);
+const EvalViz = ({ activeEval, evalStats }: EvalVizProgs) => {
+  const tools = Object.keys(evalStats.tools);
   return (
     <>
+      <h2>{activeEval}</h2>
       <p>
         Hold <kbd>Shift</kbd> and click on parts of the legend to hide and show
         different tools.
@@ -144,23 +118,25 @@ export const Stats = ({ url }: { url: string }) => {
       <div className="chart-box">
         <VegaLite
           renderer="svg"
-          spec={makeSpec({
+          spec={makeVegaLiteSpec({
             title: "derivative",
             yaxis: "derivative (seconds)",
             tools,
           })}
-          data={makeData(stats, ({ derivative }) => seconds(derivative))}
+          data={makeVegaLiteData(evalStats, ({ derivative }) =>
+            seconds(derivative),
+          )}
         />
       </div>
       <div className="chart-box">
         <VegaLite
           renderer="svg"
-          spec={makeSpec({
+          spec={makeVegaLiteSpec({
             title: "ratio",
             yaxis: "derivative / primal",
             tools,
           })}
-          data={makeData(stats, ({ primal, derivative }) =>
+          data={makeVegaLiteData(evalStats, ({ primal, derivative }) =>
             divide(seconds(derivative), seconds(primal)),
           )}
         />
@@ -168,14 +144,16 @@ export const Stats = ({ url }: { url: string }) => {
       <div className="chart-box">
         <VegaLite
           renderer="svg"
-          spec={makeSpec({
+          spec={makeVegaLiteSpec({
             title: "primal",
             yaxis: "primal (seconds)",
             tools,
           })}
-          data={makeData(stats, ({ primal }) => seconds(primal))}
+          data={makeVegaLiteData(evalStats, ({ primal }) => seconds(primal))}
         />
       </div>
     </>
   );
 };
+
+export default EvalViz;
