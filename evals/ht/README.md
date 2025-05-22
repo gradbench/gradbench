@@ -1,84 +1,89 @@
 # Hand Tracking (HT)
 
-This eval is taken from [ADBench][]. See [the ADBench paper][paper] for details
-on the underlying problem. The data files are also taken directly from ADBench.
-ADBench also sometimes refers to the HT problem as "HAND", but GradBench seeks
-to use the name "HT" consistently.
-
-ADBench distinguishes explicitly between "complicated" and "simple" inputs,
-which differ in whether the `us` vector (see below) is empty. In GradBench there
-is no such distinction, and the "simple" case is simply identified by a
-zero-length `us`.
-
-## Protocol
-
-The protocol is specified in terms of [TypeScript][] types and references [types
-defined in the GradBench protocol description][protocol].
-
-### Inputs
-
-The eval sends a leading `DefineMessage` followed by `EvaluateMessages`. The
-`input` field of any `EvaluateMessage` will be an instance of the `HTInput` type
-defined below. The `function` field will be either the string `"objective"` or
-`"jacobian"`.
+This eval is adapted from "Objective HT: Hand Tracking" from section 4.3 of the
+[ADBench paper][]. It computes .... It defines a module named `ht`, which
+consists of two functions `objective` and `jacobian`, both of which take the
+same input:
 
 ```typescript
-interface HTModel {
-  bone_count: int;
+import type { Float, Int, Runs } from "gradbench";
+
+interface Model {
+  bone_count: Int;
   bone_names: string[];
-  parents: int[];
-  base_relatives: double[][][];
-  inverse_base_absolutes: double[][][];
-  base_positions: double[][];
-  weights: double[][];
-  triangles: int[][];
-  is_mirrored: bool;
+  parents: Int[];
+  base_relatives: Float[][][];
+  inverse_base_absolutes: Float[][][];
+  base_positions: Float[][];
+  weights: Float[][];
+  triangles: Int[][];
+  is_mirrored: boolean;
 }
 
-interface HTData {
-  model: HTModel;
-  correspondences: int[];
-  points: double[][];
+interface Data {
+  model: Model;
+  correspondences: Int[];
+  points: Float[][];
 }
 
-interface HTInput extends Runs {
-  theta: double[];
-  data: HTData;
-  us: double[];
+interface Input extends Runs {
+  theta: Float[];
+  data: Data;
+  us: Float[];
+}
+
+export namespace ht {
+  function objective(input: Input): Float[];
+  function jacobian(input: Input): Float[][];
 }
 ```
 
-### Outputs
+## Definition
 
-A tool must respond to an `EvaluateMessage` with an `EvaluateResponse`. The type
-of the `output` field in the `EvaluateResponse` depends on the `function` field
-in the `EvaluateMessage`:
+We have $`N \in \mathbb{N}`$ measured points. Let's call the number of triangles
+$`T \in \mathbb{N}`$, and the number of bones $`B = 22`$.
 
-- `"objective"`: `HTObjectiveOutput`.
-- `"jacobian"`: `HTJacobianOutput`.
+- `theta` is $`\boldsymbol{p} \in \mathbb{R}^{26}`$.
+  - $`3`$ parameters for global translation.
+  - $`3`$ parameters for global rotation parametrized using angle-axis
+    representation.
+  - $`4`$ angles for every finger.
+- `points` is a column-major encoding of the matrix
+  $`\mathbf{Y} \in \mathbb{R}^{3 \times N}`$.
+- `correspondences` is $`\{1, \dots, T\}^N`$
+- `us` is a column-major encoding of the matrix
+  $`\mathbf{U} \in \mathbb{R}^{2 \times N}`$.
 
-```typescript
-type HTObjectiveOutput = double[];
-type HTJacobianOutput = double[][];
-```
+Then, for the model:
 
-Because the input extends `Runs`, the tool is expected to run the function some
-number of times. It should include one timing entry with the name `"evaluate"`
-for each time it ran the function.
+- `bone_count` is $`B`$.
+- `bone_names` isn't used in the computation; it's just an array of length
+  $`B`$.
+- `parents` is in $`(\{-1\} \cup \{1, \dots, B\})^B`$.
+- `base_relatives` is, for each bone $`i \in \{1, \dots, B\}`$, a matrix in
+  $`\mathbb{R}^{4 \times 4}`$.
+- `inverse_base_absolutes` is similarly, for each bone
+  $`i \in \{1, \dots, B\}`$, a matrix in $`\mathbb{R}^{4 \times 4}`$.
+- `base_positions` is a column-major encoding of a matrix in
+  $`\mathbb{R}^{4 \times M}`$.
+- `weights` is a column-major encoding of the matrix
+  $`\mathbf{W} \in \mathbb{R}^{B \times M}`$.
+- `triangles` is in $`\{1, \dots, M\}^T`$.
+- `is_mirrored` seems to always be false.
+
+For each bone $`i \in \{1, \dots, B\}`$, we make a transformation matrix
+$`\mathbf{T}_i \in \mathbb{R}^{4 \times 4}`$
 
 ## Commentary
 
 ### Parallel execution
 
-The reference implementation of `objective` in [ht.hpp][] has been partially
-parallelised using OpenMP, although the impact is minor on most workloads. More
-work could possibly make it perform better.
+The reference implementation of `objective` in the [C++ implementation][] has
+been partially parallelised using OpenMP, although the impact is minor on most
+workloads. More work could possibly make it perform better.
 
 Parallelisation of `jacobian` is trivial, as the multiple passes can be executed
 independently.
 
-[adbench]: https://github.com/microsoft/ADBench
-[paper]: https://arxiv.org/abs/1807.10129
-[protocol]: /CONTRIBUTING.md#types
-[typescript]: https://www.typescriptlang.org/
-[ht.hpp]: /cpp/gradbench/evals/ht.hpp
+[adbench paper]: https://arxiv.org/abs/1807.10129
+[c++ implementation]: /cpp/gradbench/evals/ht.hpp
