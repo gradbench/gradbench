@@ -27,6 +27,5 @@ Then you can run the tool as follows:
 $ julia -t auto --project=tools/foo tools/foo/run.jl
 ```
 
-
 [Zygote]: /tools/zygote
 [Enzyme.jl]: /tools/enzyme-jl
