@@ -26,13 +26,16 @@ const App = () => {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [summaryStatus, setSummaryStatus] = useState(Status.Loading);
   useEffect(() => {
-    // NOTE: Unnecessary calls to downloadSummary will happen but the already
-    // cumbersome enough without takeing care of that
     setSummaryStatus(Status.Loading);
     downloadSummary(date, commit)
       .then((summary) => {
-        // NOTE: Let's hope the summaries arrive in order 🤞
+        // A race condition can happen if successive downloadSummary call
+        // returns out of order. Then select summary will be the last recived.
+        // Though this is rare enough to pretend this does not happens
         setSummary(summary);
+        // Here we call setDate while date is dependency of the useEffect hook.
+        // This will trigger a useless re-run of the useEffect. Though the
+        // preformance overhead is minimal.
         if (summary.date) setDate(summary.date);
         setSummaryStatus(Status.Ok);
       })
@@ -58,6 +61,9 @@ const App = () => {
     setEvalStatsStatus(Status.Loading);
     downloadEvalStat(date, commit, activeEval)
       .then((evalStats) => {
+        // A race condition can happen if successive downloadEvalStat call
+        // returns out of order. Then select evalStats will be the last recived.
+        // Though this is rare enough to pretend this does not happens
         setEvalStats(evalStats);
         setEvalStatsStatus(Status.Ok);
       })
