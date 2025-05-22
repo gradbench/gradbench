@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useParam } from "../hooks/useParam.ts";
 import {
   EvalStats,
   NotFoundError,
@@ -18,10 +17,25 @@ enum Status {
   Ok = 3,
 }
 
+const windowUrl = new URL(window.location.href).searchParams;
+const commitQuery = windowUrl.get("commit");
+const dateQuery = windowUrl.get("date");
+
 const App = () => {
-  const [date, setDate] = useParam("date", null);
-  const [commit] = useParam("commit", null);
+  const commit = commitQuery;
+  const [date, setDate] = useState<string | null>(dateQuery);
   const [activeEval, setActiveEval] = useState<string | null>(null);
+
+  const setDateAndUpdateUrl = (date: string | null) => {
+    const url = new URL(window.location.href);
+    if (date === null) {
+      url.searchParams.delete("date");
+    } else {
+      url.searchParams.set("date", date);
+    }
+    window.history.pushState(null, "", url.href);
+    setDate(date);
+  }
 
   const [summary, setSummary] = useState<Summary | null>(null);
   const [summaryStatus, setSummaryStatus] = useState(Status.Loading);
@@ -47,7 +61,7 @@ const App = () => {
           setSummaryStatus(Status.Error);
         }
       });
-  }, [date, commit, setDate]);
+  }, [date]);
 
   const [evalStats, setEvalStats] = useState<EvalStats | null>(null);
   const [evalStatsStatus, setEvalStatsStatus] = useState(Status.Loading);
@@ -71,11 +85,11 @@ const App = () => {
         console.error(err);
         setEvalStatsStatus(Status.Error);
       });
-  }, [date, commit, activeEval]);
+  }, [date, activeEval]);
 
   return (
     <>
-      <Header date={date} onDateChange={setDate} />
+      <Header date={date} onDateChange={setDateAndUpdateUrl} />
 
       <section className="section">
         {summaryStatus === Status.Loading && (

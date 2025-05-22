@@ -29,8 +29,7 @@ const DatePicker = ({ date, onDateChange }: DatePickerProps) => {
         disabled={date === null}
         onClick={previus}
       >
-        {" "}
-        ◀{" "}
+        {" "}◀{" "}
       </button>
       <input
         className="date-picker__input"
@@ -43,8 +42,7 @@ const DatePicker = ({ date, onDateChange }: DatePickerProps) => {
         disabled={date === null}
         onClick={next}
       >
-        {" "}
-        ▶{" "}
+        {" "}▶{" "}
       </button>
     </nav>
   );
@@ -64,7 +62,7 @@ const Header = ({ date, onDateChange }: HeaderProps) => {
       <h1 className="header__title">
         <a href="https://github.com/gradbench/gradbench">GradBench</a>
       </h1>
-      {date !== null && <DatePicker date={date} onDateChange={onDateChange} />}
+      <DatePicker date={date} onDateChange={onDateChange} />
     </header>
   );
 };
