@@ -9,13 +9,18 @@ function (::JacobianGMM)(input)
     d = size(input.x, 1)
     Qs = GradBench.GMM.get_Qs(input.icfs, k, d)
 
-    J =
+    alpha_d, mu_d, Qs_d =
         Enzyme.gradient(set_runtime_activity(Reverse),
                         GradBench.GMM.objective,
                         input.alphas, input.means, Qs,
                         Const(input.x), Const(input.wishart))
 
-    GradBench.GMM.pack_J(J, k, d)
+    q_d, l_d = GradBench.GMM.Qs_to_q_l(d, Qs_d)
+
+    return Dict("alpha" => alpha_d,
+                "mu" => mu_d,
+                "q" => q_d,
+                "l" => l_d)
 end
 
 GradBench.register!("gmm", Dict(

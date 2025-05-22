@@ -227,6 +227,27 @@ pub fn markdown_toc(cfg: &mut Config) -> anyhow::Result<bool> {
     Ok(passed)
 }
 
+pub fn nixfmt(cfg: &mut Config) -> anyhow::Result<bool> {
+    cfg.name("nixfmt");
+    let files = String::from_utf8(
+        Command::new("git")
+            .args(["ls-files", "*.nix"])
+            .output()?
+            .stdout,
+    )?;
+    let mut cmd = Command::new("nixfmt");
+    if !cfg.fix {
+        cmd.arg("--check");
+    }
+    cmd.args(files.lines());
+    Ok(cmd
+        .status()
+        .map_err(|_| {
+            anyhow!("install nixfmt from https://github.com/NixOS/nixfmt/releases/tag/v0.6.0")
+        })?
+        .success())
+}
+
 pub fn prettier(cfg: &mut Config) -> anyhow::Result<bool> {
     cfg.name("Prettier");
     node_bin("prettier", |cmd| {

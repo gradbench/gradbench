@@ -415,25 +415,27 @@ pub fn generate(input: PathBuf, output: PathBuf, metadata: StatsMetadata) -> any
     fs::create_dir_all(&output)?;
     let mut evals = ls("evals")?;
     evals.sort();
-    let mut tools = ls("tools")?;
-    tools.sort();
     let mut table = Vec::new();
     let map = evals_to_tools(evals)?;
     for (eval, supported) in &map {
         println!("{}", eval);
         let mut row = Vec::new();
         let mut scorer = scorer(eval);
-        for tool in &tools {
-            let (outcome, score) = match supported.get(tool.as_str()) {
-                None => (Some(BadOutcome::Undefined), None),
-                Some(&outcome) => {
-                    let path = input.join(format!("run-{eval}-{tool}/log.jsonl"));
+        for (tool, &outcome) in supported {
+            let score = match outcome {
+                Some(BadOutcome::Undefined) => None,
+                _ => {
+                    let path = input.join(format!("{eval}/{tool}.jsonl"));
                     println!("  {}", path.display());
                     let reader = io::BufReader::new(fs::File::open(&path)?);
                     // Always run the `score` method, to gather fine-grained data.
                     let score = scorer.score(tool, reader)?;
                     // Only give the tool an overall score if it successfully completed the eval.
-                    (outcome, if outcome.is_none() { Some(score) } else { None })
+                    if outcome.is_none() {
+                        Some(score)
+                    } else {
+                        None
+                    }
                 }
             };
             row.push(Col {

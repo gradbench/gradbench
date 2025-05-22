@@ -19,11 +19,7 @@ def get_char_bits(text):
 
 def text_to_matrix(text, bits):
     return np.array(
-        list(
-            map(
-                lambda c: list(map(lambda b: int(b), bin(ord(c))[2:].zfill(bits))), text
-            )
-        ),
+        list(map(lambda c: list(map(int, bin(ord(c))[2:].zfill(bits))), text)),
         dtype=np.double,
     )
 
@@ -73,11 +69,11 @@ def main():
         full_text = read_full_text(text_file, max(args.c))
 
         combinations = sorted(
-            [(l, c) for l in args.l for c in args.c],  # noqa: E741
+            [(l, c) for l in args.l for c in args.c],
             key=lambda v: v[0] * v[1],
         )
 
-        for l, c in combinations:  # noqa: E741
+        for l, c in combinations:
             input = gen_lstm(full_text, l, c).to_dict()
             e.evaluate(
                 function="objective",

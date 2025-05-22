@@ -13,7 +13,7 @@ def prepare_input(input):
     return torch.tensor(np.array(input["x"], dtype=np.float64))
 
 
-@wrap.multiple_runs(pre=prepare_input, post=lambda x: float(x))
+@wrap.multiple_runs(pre=prepare_input, post=float)
 def primal(input):
     return logsumexp(input)
 

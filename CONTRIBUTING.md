@@ -288,11 +288,11 @@ protocol, as captured and reported by the intermediary:
 { "elapsed": { "nanoseconds": 200000 }, "message": { "id": 1, "kind": "define", "module": "foo" } }
 { "elapsed": { "nanoseconds": 250000 }, "response": { "id": 1, "success": true } }
 { "elapsed": { "nanoseconds": 300000 }, "message": { "id": 2, "kind": "evaluate", "module": "foo", "function": "bar", "input": 3.14159 } }
-{ "elapsed": { "nanoseconds": 350000 }, "response": { "id": 2, "success": true, "output": 2.71828, "timings": [{ "name": "evaluate", "nanoseconds": 45678 }] } }
-{ "elapsed": { "nanoseconds": 400000 }, "message": { "id": 3, "kind": "analysis", "of": 2, "valid": false, "message": "Expected tau, got e." } }
+{ "elapsed": { "nanoseconds": 350000 }, "response": { "id": 2, "success": true, "output": 2.71828, "timings": [{ "name": "evaluate", "nanoseconds": 5000000 }] } }
+{ "elapsed": { "nanoseconds": 400000 }, "message": { "id": 3, "kind": "analysis", "of": 2, "valid": false, "error": "Expected tau, got e." } }
 { "elapsed": { "nanoseconds": 450000 }, "response": { "id": 3 } }
 { "elapsed": { "nanoseconds": 500000 }, "message": { "id": 4, "kind": "evaluate", "module": "foo", "function": "baz", "input": { "mynumber": 121 } } }
-{ "elapsed": { "nanoseconds": 550000 }, "response": { "id": 4, "success": true, "output": { "yournumber": 342 }, "timings": [{ "name": "evaluate", "nanoseconds": 23456 }] } }
+{ "elapsed": { "nanoseconds": 550000 }, "response": { "id": 4, "success": true, "output": { "yournumber": 342 }, "timings": [{ "name": "evaluate", "nanoseconds": 7000000 }] } }
 { "elapsed": { "nanoseconds": 600000 }, "message": { "id": 5, "kind": "analysis", "of": 4, "valid": true } }
 { "elapsed": { "nanoseconds": 650000 }, "response": { "id": 5 } }
 ```
@@ -304,7 +304,7 @@ Here is that example from the perspectives of the eval and the tool.
   { "id": 0, "kind": "start" }
   { "id": 1, "kind": "define", "module": "foo" }
   { "id": 2, "kind": "evaluate", "module": "foo", "function": "bar", "input": 3.14159 }
-  { "id": 3, "kind": "analysis", "of": 2, "valid": false, "message": "Expected tau, got e." }
+  { "id": 3, "kind": "analysis", "of": 2, "valid": false, "error": "Expected tau, got e." }
   { "id": 4, "kind": "evaluate", "module": "foo", "function": "baz", "input": { "mynumber": 121 } }
   { "id": 5, "kind": "analysis", "of": 4, "valid": true }
   ```
@@ -312,9 +312,9 @@ Here is that example from the perspectives of the eval and the tool.
   ```jsonl
   { "id": 0 }
   { "id": 1, "success": true }
-  { "id": 2, "success": true, "output": 2.71828, "timings": [{ "name": "evaluate", "nanoseconds": 45678 }] }
+  { "id": 2, "success": true, "output": 2.71828, "timings": [{ "name": "evaluate", "nanoseconds": 5000000 }] }
   { "id": 3 }
-  { "id": 4, "success": true, "output": { "yournumber": 342 }, "timings": [{ "name": "evaluate", "nanoseconds": 23456 }] }
+  { "id": 4, "success": true, "output": { "yournumber": 342 }, "timings": [{ "name": "evaluate", "nanoseconds": 7000000 }] }
   { "id": 5 }
   ```
 
@@ -390,42 +390,39 @@ other than the `"id"`.
 
 Here is a somewhat more formal description of the protocol using [TypeScript][]
 types. Some of the types are not used directly, or in all evals, but may be
-referenced by eval-specific protocol descriptions. In particular, the value
-expected in the `"input"` field of an `"EvaluateMessage"` is specific to each
-eval.
+referenced by eval-specific protocol descriptions via an `import`
+`from "gradbench"`. In particular, the value expected in the `"input"` field of
+an `"EvaluateMessage"` is specific to each eval.
 
 ```typescript
-type Id = number;
+// These are types in the core protocol, described above.
 
-interface Base {
+export type Id = number;
+
+export interface Base {
   id: Id;
 }
 
-interface Duration {
+export interface Duration {
   nanoseconds: number;
 }
 
-interface Timing extends Duration {
+export interface Timing extends Duration {
   name: string;
 }
 
-interface Runs {
-  min_runs: number;
-  min_seconds: number;
-}
-
-interface StartMessage extends Base {
+export interface StartMessage extends Base {
   kind: "start";
   eval?: string;
   config?: any;
 }
 
-interface DefineMessage extends Base {
+export interface DefineMessage extends Base {
   kind: "define";
   module: string;
 }
 
-interface EvaluateMessage extends Base {
+export interface EvaluateMessage extends Base {
   kind: "evaluate";
   module: string;
   function: string;
@@ -433,48 +430,74 @@ interface EvaluateMessage extends Base {
   description?: string;
 }
 
-interface AnalysisMessage extends Base {
+export interface AnalysisMessage extends Base {
   kind: "analysis";
   of: Id;
   valid: boolean;
   error?: string;
 }
 
-type Message = StartMessage | DefineMessage | EvaluateMessage | AnalysisMessage;
+export type Message =
+  | StartMessage
+  | DefineMessage
+  | EvaluateMessage
+  | AnalysisMessage;
 
-interface StartResponse extends Base {
+export interface StartResponse extends Base {
   tool?: string;
   config?: any;
 }
 
-interface DefineResponse extends Base {
+export interface DefineResponse extends Base {
   success: boolean;
   timings?: Timing[];
   error?: string;
 }
 
-interface EvaluateResponse extends Base {
+export interface EvaluateResponse extends Base {
   success: boolean;
   output?: any;
   timings?: Timing[];
   error?: string;
 }
 
-type Response = Base | StartResponse | DefineResponse | EvaluateResponse;
+export type Response = Base | StartResponse | DefineResponse | EvaluateResponse;
 
-interface Line {
+export interface Line {
   elapsed: Duration;
 }
 
-interface MessageLine extends Line {
+export interface MessageLine extends Line {
   message: Message;
 }
 
-interface ResponseLine extends Line {
+export interface ResponseLine extends Line {
   response: Response;
 }
 
-type Session = (MessageLine | ResponseLine)[];
+export type Session = (MessageLine | ResponseLine)[];
+
+// These are auxiliary types used by some evals.
+
+/** An integer. */
+export type Int = number;
+
+/** A double-precision floating point value. */
+export type Float = number;
+
+/**
+ * Fields to be included in the input of an eval requesting a tool to run a
+ * function multiple times in a single evaluate message. The tool's response
+ * should include one timing entry with the name `"evaluate"` for each time it
+ * ran the function.
+ */
+export interface Runs {
+  /** Evaluate the function at least this many times. */
+  min_runs: number;
+
+  /** Evaluate the function until the total time exceeds this many seconds. */
+  min_seconds: number;
+}
 ```
 
 [bun]: https://bun.sh/
