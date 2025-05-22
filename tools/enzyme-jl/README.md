@@ -5,18 +5,7 @@ programming language.
 
 ## Running outside of Docker
 
-Make sure the `julia` executable is on your `PATH`. Then run the following
-command to download and install all packages:
-
-```
-$ julia -t auto --project=tools/enzyme-jl -e 'import Pkg; Pkg.instantiate()'
-```
-
-Then you can run the tool as follows:
-
-```
-$ julia -t auto --project=tools/enzyme-jl tools/enzyme-jl/run.jl
-```
+[See the general instructions.](/julia/#running-outside-of-docker)
 
 ## Commentary
 
