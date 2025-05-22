@@ -4,7 +4,7 @@ using ADTypes: AutoForwardDiff
 import ForwardDiff
 import GradBench
 
-primal = GradBench.ODE.Impure.PrimalODE()
+primal = GradBench.ODE.Serial.PrimalODE()
 backend = AutoForwardDiff()
 
 GradBench.register!(

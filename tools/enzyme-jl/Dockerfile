@@ -11,5 +11,5 @@ COPY tools/enzyme-jl/Manifest.toml .
 RUN julia --project=. -e 'import Pkg; Pkg.instantiate()'
 # Copy over the rest of the files
 COPY tools/enzyme-jl /tools/enzyme-jl
-ENTRYPOINT ["julia", "--project=.", "run.jl"]
+ENTRYPOINT ["julia", "-t", "auto", "--project=.", "run.jl"]
 LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench

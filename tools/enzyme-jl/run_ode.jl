@@ -4,6 +4,17 @@ using Enzyme
 import GradBench
 
 struct GradientODE <: GradBench.ODE.AbstractODE end
+
+import Main: OPTIONS
+
+if OPTIONS["multithreaded"]
+    const primal = GradBench.ODE.Parallel.primal
+    const PrimalODE = GradBench.ODE.Parallel.PrimalODE
+else
+    const primal = GradBench.ODE.Serial.primal
+    const PrimalODE = GradBench.ODE.Serial.PrimalODE
+end
+
 function (::GradientODE)(x, s)
     output = similar(x)
     n = length(x)
@@ -14,7 +25,7 @@ function (::GradientODE)(x, s)
     dx = Enzyme.make_zero(x)
 
     Enzyme.autodiff(
-        Reverse, GradBench.ODE.Impure.primal, Const,
+        Reverse, primal, Const,
         Const(n),
         Duplicated(x, dx),
         Const(s),
@@ -25,7 +36,7 @@ end
 
 GradBench.register!(
     "ode", Dict(
-        "primal" => GradBench.ODE.Impure.PrimalODE(),
+        "primal" => PrimalODE(),
         "gradient" => GradientODE()
     )
 )

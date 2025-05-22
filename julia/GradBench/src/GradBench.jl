@@ -3,6 +3,7 @@ module GradBench
 import ADTypes
 import DifferentiationInterface
 import JSON
+using ArgParse
 
 """
     Experiment
@@ -72,6 +73,18 @@ function run(params)
     end
 
     return Dict("success" => true, "output" => output, "timings" => timings)
+end
+
+function parse_commandline()
+    s = ArgParseSettings()
+
+    @add_arg_table s begin
+        "--multithreaded"
+        help = "Enable multithreading"
+        action = :store_true
+    end
+
+    return parse_args(s)
 end
 
 function main(tool)

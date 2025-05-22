@@ -4,7 +4,7 @@ using ADTypes: AutoMooncake
 import Mooncake
 import GradBench
 
-primal = GradBench.ODE.Impure.PrimalODE()
+primal = GradBench.ODE.Serial.PrimalODE()
 backend = AutoMooncake(; config=nothing)
 
 GradBench.register!(
