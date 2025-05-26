@@ -253,13 +253,13 @@ fn logsumexp(x: &[f64]) -> f64 {
     a + sum.ln()
 }
 
-fn quadratic_form_element(mu: &[f64], r: &[f64], l: &[f64], x: &[f64], i: usize) -> f64 {
+fn quadratic_form_element(r: &[f64], l: &[f64], y: &[f64], i: usize) -> f64 {
     let k = (i * (i - 1)) / 2;
     let mut e = 0.;
     for j in 0..i {
-        e += l[k + j] * (x[j] - mu[j]);
+        e += l[k + j] * y[j];
     }
-    e + r[i] * (x[i] - mu[i])
+    e + r[i] * y[i]
 }
 
 fn gmm(
@@ -284,16 +284,20 @@ fn gmm(
     let mut log_likelihood =
         -(N as f64) * (((D as f64) / 2.0) * (2.0 * PI).ln() + logsumexp(alpha));
     for i in 0..N {
-        let x_i = x.row(i);
         let mut beta = vec![0.; K];
         for k in 0..K {
-            let mu_k = mu.row(k);
             let r_k = r.row(k);
             let l_k = l.row(k);
+            let y: Vec<f64> = x
+                .row(i)
+                .iter()
+                .zip(mu.row(k))
+                .map(|(x_ij, mu_kj)| x_ij - mu_kj)
+                .collect();
             let mut normsq = 0.;
             let mut sum = 0.;
             for j in 0..D {
-                let e = quadratic_form_element(mu_k, r_k, l_k, x_i, j);
+                let e = quadratic_form_element(r_k, l_k, &y, j);
                 normsq += e * e;
                 sum += q[(k, j)];
             }
