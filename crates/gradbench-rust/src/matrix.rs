@@ -5,13 +5,17 @@ use serde::{de::Error as _, Deserialize, Deserializer};
 #[derive(Debug)]
 pub struct Matrix {
     cols: usize,
-    data: Vec<f64>,
+    data: Box<[f64]>,
 }
 
 impl Matrix {
     pub fn new(rows: usize, cols: usize) -> Self {
-        let data = vec![0.; rows * cols];
+        let data = vec![0.; rows * cols].into();
         Self { cols, data }
+    }
+
+    pub fn rows(&self) -> usize {
+        self.data.len() / self.cols()
     }
 
     pub fn cols(&self) -> usize {
@@ -49,7 +53,7 @@ impl<'de> Deserialize<'de> for Matrix {
         if rows_vec.is_empty() {
             return Ok(Matrix {
                 cols: 0,
-                data: Vec::new(),
+                data: Box::new([]),
             });
         }
         let cols = rows_vec[0].len();
@@ -61,7 +65,7 @@ impl<'de> Deserialize<'de> for Matrix {
                 "all rows must have the same number of columns",
             ));
         }
-        let data: Vec<f64> = rows_vec.into_iter().flatten().collect();
+        let data = rows_vec.into_iter().flatten().collect::<Vec<f64>>().into();
         Ok(Matrix { cols, data })
     }
 }

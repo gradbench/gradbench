@@ -9,6 +9,7 @@ use std::{
 
 use matrix::Matrix;
 use serde::{Deserialize, Serialize};
+use statrs::function::gamma::ln_gamma;
 
 type Id = i64;
 
@@ -189,11 +190,22 @@ impl GradBenchModule for Gmm {
                         l,
                     },
             } => {
+                let mut l_by_rows = Matrix::new(l.rows(), l.cols());
+                for kk in 0..k {
+                    let mut i = 0;
+                    for c in 0..d {
+                        for r in (c + 1)..d {
+                            let j = (r * (r - 1)) / 2;
+                            l_by_rows[(kk, j + c)] = l[(kk, i)];
+                            i += 1;
+                        }
+                    }
+                }
                 let mut total = Duration::ZERO;
                 let mut durations = Vec::new();
                 loop {
                     let start = Instant::now();
-                    let output = gmm(d, k, n, &x, m, gamma, &alpha, &mu, &q, &l);
+                    let output = gmm(d, k, n, &x, m, gamma, &alpha, &mu, &q, &l_by_rows);
                     let duration = start.elapsed();
                     total += duration;
                     durations.push(duration);
@@ -212,8 +224,14 @@ impl GradBenchModule for Gmm {
     }
 }
 
-fn multigammaln(p: usize, a: f64) -> f64 {
-    1.5963125911388552 // TODO
+fn multigammaln(z: f64, p: usize) -> f64 {
+    assert!(p >= 1);
+    debug_assert!(z > (p as f64 - 1.0) * 0.5);
+    let coeff = 0.25 * (p * (p - 1)) as f64 * PI.ln();
+    let sum = (1..=p)
+        .map(|j| ln_gamma(z + 0.5 * (1. - j as f64)))
+        .sum::<f64>();
+    coeff + sum
 }
 
 fn maximum(x: &[f64]) -> f64 {
@@ -301,7 +319,7 @@ fn gmm(
     }
     let n = D + m + 1;
     let log_prior = (K as f64)
-        * (((n * D) as f64) * (gamma / (2f64).sqrt()).ln() - multigammaln(D, (n as f64) / 2.))
+        * (((n * D) as f64) * (gamma / (2f64).sqrt()).ln() - multigammaln((n as f64) / 2., D))
         - (gamma * gamma / 2.) * frobenius
         + (m as f64) * sum_q;
 
