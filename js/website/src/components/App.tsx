@@ -61,7 +61,7 @@ const App = () => {
           setSummaryStatus(Status.Error);
         }
       });
-  }, [date]);
+  }, [date, commit]);
 
   const [evalStats, setEvalStats] = useState<EvalStats | null>(null);
   const [evalStatsStatus, setEvalStatsStatus] = useState(Status.Loading);
@@ -85,7 +85,7 @@ const App = () => {
         console.error(err);
         setEvalStatsStatus(Status.Error);
       });
-  }, [date, activeEval]);
+  }, [date, activeEval, commit]);
 
   return (
     <>
