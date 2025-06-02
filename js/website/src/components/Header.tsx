@@ -29,7 +29,8 @@ const DatePicker = ({ date, onDateChange }: DatePickerProps) => {
         disabled={date === null}
         onClick={previus}
       >
-        {" "}◀{" "}
+        {" "}
+        ◀{" "}
       </button>
       <input
         className="date-picker__input"
@@ -42,7 +43,8 @@ const DatePicker = ({ date, onDateChange }: DatePickerProps) => {
         disabled={date === null}
         onClick={next}
       >
-        {" "}▶{" "}
+        {" "}
+        ▶{" "}
       </button>
     </nav>
   );

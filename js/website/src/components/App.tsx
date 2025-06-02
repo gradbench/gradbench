@@ -35,7 +35,7 @@ const App = () => {
     }
     window.history.pushState(null, "", url.href);
     setDate(date);
-  }
+  };
 
   const [summary, setSummary] = useState<Summary | null>(null);
   const [summaryStatus, setSummaryStatus] = useState(Status.Loading);
