@@ -5,11 +5,21 @@ import GradBench
 
 struct GradientLSE <: GradBench.LSE.AbstractLSE end
 
+import Main: OPTIONS
+
+if OPTIONS["multithreaded"]
+    const logsumexp = GradBench.LSE.Parallel.logsumexp
+    const PrimalLSE = GradBench.LSE.Parallel.PrimalLSE
+else
+    const logsumexp = GradBench.LSE.Serial.logsumexp
+    const PrimalLSE = GradBench.LSE.Serial.PrimalLSE
+end
+
 function (::GradientLSE)(input)
     dx = Enzyme.make_zero(input.x)
 
     Enzyme.autodiff(
-        Reverse, GradBench.LSE.logsumexp, Active,
+        Reverse, logsumexp, Active,
         Duplicated(input.x, dx)
     )
     return dx
@@ -17,7 +27,7 @@ end
 
 GradBench.register!(
     "lse", Dict(
-        "primal" => GradBench.LSE.PrimalLSE(),
+        "primal" => PrimalLSE(),
         "gradient" => GradientLSE()
     )
 )
