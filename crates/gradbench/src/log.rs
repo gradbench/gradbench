@@ -37,13 +37,13 @@ impl InOut<anyhow::Result<()>> for Trim {
                         writeln!(out, "{}", serde_json::to_string(&message)?)?;
                         writeln!(out, "{}", serde_json::to_string(&response)?)?;
                     } else {
-                        write!(out, "{}", line)?;
+                        write!(out, "{line}")?;
                     }
                 }
                 _ => {
-                    write!(out, "{}", line)?;
+                    write!(out, "{line}")?;
                     if let Some(response_line) = try_read_line(input)? {
-                        write!(out, "{}", response_line)?;
+                        write!(out, "{response_line}")?;
                     }
                 }
             }

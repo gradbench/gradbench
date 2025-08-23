@@ -351,13 +351,11 @@ fn svg(output: &Path, summary: Summary) -> anyhow::Result<()> {
     let total_height = tool_text_length + gap + num_evals * (cell_size + gap);
     writeln!(
         file,
-        r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {} {}">"#,
-        total_width, total_height,
+        r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {total_width} {total_height}">"#
     )?;
     writeln!(
         file,
-        r##"  <rect x="0" y="0" width="{}" height="{}" rx="{}" ry="{}" fill="#222" />"##,
-        total_width, total_height, gap, gap,
+        r##"  <rect x="0" y="0" width="{total_width}" height="{total_height}" rx="{gap}" ry="{gap}" fill="#222" />"##
     )?;
     for (i, row) in summary.table.iter().enumerate() {
         let x = eval_text_length;
@@ -400,8 +398,7 @@ fn svg(output: &Path, summary: Summary) -> anyhow::Result<()> {
                 let y = tool_text_length + gap + i as f64 * (cell_size + gap);
                 writeln!(
                     file,
-                    r#"  <rect x="{}" y="{}" width="{}" height="{}" fill="{}" />"#,
-                    x, y, cell_size, cell_size, color,
+                    r#"  <rect x="{x}" y="{y}" width="{cell_size}" height="{cell_size}" fill="{color}" />"#
                 )?;
             }
         }
@@ -418,7 +415,7 @@ pub fn generate(input: PathBuf, output: PathBuf, metadata: StatsMetadata) -> any
     let mut table = Vec::new();
     let map = evals_to_tools(evals)?;
     for (eval, supported) in &map {
-        println!("{}", eval);
+        println!("{eval}");
         let mut row = Vec::new();
         let mut scorer = scorer(eval);
         for (tool, &outcome) in supported {
