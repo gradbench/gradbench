@@ -45,9 +45,9 @@ jobs:
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Install npm dependencies
-        run: nix-shell --command bun install
+        run: nix-shell --command "bun install"
       - name: Lint
-        run: nix-shell --command gradbench repo lint
+        run: nix-shell --command "gradbench repo lint"
 
   site:
     needs: lint
