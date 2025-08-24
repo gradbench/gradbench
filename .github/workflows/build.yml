@@ -40,22 +40,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Install Bun
-        uses: oven-sh/setup-bun@v2
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-      - name: Install clang-format 19
-        run: sudo apt-get install -y clang-format-19
-      - name: Install nixfmt
-        run: |
-          wget -O /usr/local/bin/nixfmt https://github.com/NixOS/nixfmt/releases/download/v0.6.0/nixfmt-x86_64-linux
-          chmod +x /usr/local/bin/nixfmt
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Install npm dependencies
-        run: bun install
+        run: nix-shell --command bun install
       - name: Lint
-        run: gradbench repo lint
+        run: nix-shell --command gradbench repo lint
 
   site:
     needs: lint
