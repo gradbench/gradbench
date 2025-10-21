@@ -1,4 +1,4 @@
-FROM oven/bun
+FROM oven/bun:1.2
 WORKDIR /gradbench
 
 # `COPY` the minimal set of files to create `node_modules`.
