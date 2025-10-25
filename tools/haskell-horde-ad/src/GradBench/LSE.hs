@@ -30,11 +30,10 @@ logsumexp x = unConcrete
 
 logsumexpTarget :: (NumScalar a, Differentiable a, ADReady target)
                 => target (TKR 1 a) -> target (TKScalar a)
-logsumexpTarget x =
-  kfromR $ (+ a) $ log $ rsum $ exp . subtract (rreplicate k a) $ x
- where
-  a = rmaximum x  -- fails for empty x
-  k = rsize x
+logsumexpTarget x' =
+  tlet x' $ \x ->
+  tlet (rmaximum x) $ \a ->  -- fails for empty x
+    kfromR . (+ a) . log . rsum . exp . subtract (rreplicate (rwidth x) a) $ x
 
 primal :: Input -> PrimalOutput
 primal (Input x) = logsumexp x
