@@ -42,3 +42,4 @@ gradient :: Input -> GradientOutput
 gradient (Input x) = Nested.rtoVector . unConcrete
                      . grad logsumexpTarget
                      . rconcrete . Nested.rfromVector [VS.length x] $ x
+  -- cgrad and the symbolic grad are here equally fast

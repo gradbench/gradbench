@@ -79,4 +79,5 @@ gradient (Input x s) =
   let f a = let res = primalPoly a s
             in kfromR $ res ! [fromIntegral $ rwidth res - 1]
   in Nested.rtoVector $ unConcrete
-     $ grad f (rconcrete $ Nested.rfromVector [VS.length x] x)
+     $ cgrad f (rconcrete $ Nested.rfromVector [VS.length x] x)
+    -- cgrad is here several times faster than the symbolic grad
