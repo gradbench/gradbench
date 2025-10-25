@@ -1,0 +1,3 @@
+packages: gradbench.cabal
+
+constraints: ad +ffi
