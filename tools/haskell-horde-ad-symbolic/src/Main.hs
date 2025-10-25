@@ -9,13 +9,7 @@ module Main (main) where
 
 import Control.Applicative
 import Control.DeepSeq (NFData, rnf)
-import Control.Exception
-  ( SomeException,
-    catch,
-    evaluate,
-    fromException,
-    throw,
-  )
+import Control.Exception (SomeException, catch, evaluate, fromException, throw)
 import Control.Monad (forever, guard)
 import Data.Aeson (ToJSON (..), (.:))
 import Data.Aeson qualified as JSON
@@ -31,11 +25,11 @@ import GradBench.LSE qualified
 import GradBench.ODE qualified
 import GradBench.Particle qualified
 import GradBench.Saddle qualified
+import Prelude hiding (mod)
 import System.Clock (Clock (Monotonic), getTime, toNanoSecs)
 import System.Exit
 import System.IO
 import System.IO.Error (isEOFError)
-import Prelude hiding (mod)
 
 data Runs = Runs
   { minRuns :: Int,

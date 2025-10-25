@@ -1,6 +1,6 @@
 module GradBench.GMM () where
 
-import qualified Data.Vector as V
+import Data.Vector qualified as V
 
 foreign import ccall "lgamma" lgamma :: Double -> Double
 

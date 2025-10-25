@@ -1,6 +1,4 @@
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE OverloadedRecordDot #-}
-
+{-# LANGUAGE DuplicateRecordFields, OverloadedRecordDot #-}
 module GradBench.Particle (Input, Output, rr, fr, ff, rf) where
 
 import Data.Aeson ((.:))

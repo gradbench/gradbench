@@ -1,6 +1,4 @@
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE OverloadedRecordDot #-}
-
+{-# LANGUAGE DuplicateRecordFields, OverloadedRecordDot #-}
 module GradBench.Saddle (Input, Output, rr, ff, rf, fr) where
 
 import Data.Aeson ((.:))
