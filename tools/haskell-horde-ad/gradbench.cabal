@@ -18,7 +18,7 @@ executable gradbench
 --                      GradBench.KMeans
 --                      GradBench.LLSq
                     GradBench.LSE
---                      GradBench.ODE
+                    GradBench.ODE
 --                      GradBench.Det
 --                      GradBench.Particle
 --                      GradBench.Saddle

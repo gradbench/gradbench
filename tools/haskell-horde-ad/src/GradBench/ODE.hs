@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedLists, OverloadedStrings #-}
 module GradBench.ODE
   ( Input,
     PrimalOutput,
@@ -9,66 +10,73 @@ where
 
 import Data.Aeson ((.:))
 import Data.Aeson qualified as JSON
-import Data.Vector qualified as V
-import Numeric.AD.Double qualified as D
+import Data.Array.Nested qualified as Nested
+import Data.Vector.Storable qualified as VS
+import HordeAd
 
 data Input = Input
-  { _inputX :: V.Vector Double,
+  { _inputX :: VS.Vector Double,
     _inputS :: Int
   }
 
-type PrimalOutput = V.Vector Double
+type PrimalOutput = VS.Vector Double
 
-type GradientOutput = V.Vector Double
+type GradientOutput = VS.Vector Double
 
 instance JSON.FromJSON Input where
   parseJSON = JSON.withObject "input" $ \o ->
-    Input <$> (V.fromArray <$> o .: "x") <*> o .: "s"
+    Input <$> (o .: "x") <*> o .: "s"
 
-vecadd :: (Num a) => V.Vector a -> V.Vector a -> V.Vector a
-vecadd = V.zipWith (+)
+scale :: (NumScalar a, ADReady target)
+      => a -> target (TKR 1 a) -> target (TKR 1 a)
+scale x v = rrepl (rshape v) x * v
 
-scale :: (Num a) => a -> V.Vector a -> V.Vector a
-scale x v = V.map (x *) v
-
-rungeKutta ::
-  (Floating a) =>
-  (V.Vector a -> V.Vector a) ->
-  V.Vector a ->
-  a ->
-  Int ->
-  V.Vector a
+rungeKutta
+  :: (NumScalar a, Differentiable a, ADReady target)
+  => (target (TKR 1 a) -> target (TKR 1 a))
+  -> target (TKR 1 a)
+  -> a
+  -> Int
+  -> target (TKR 1 a)
 rungeKutta f yi tf s =
   loop s yi
-  where
-    loop 0 yf = yf
-    loop i yf =
-      let k1 = f yf
-          k2 = f $ yf `vecadd` scale (h / 2) k1
-          k3 = f $ yf `vecadd` scale (h / 2) k2
-          k4 = f $ yf `vecadd` scale h k3
-       in loop (i - 1) $
-            yf
-              `vecadd` scale
-                (h / 6)
-                ( k1
-                    `vecadd` scale 2 k2
-                    `vecadd` scale 2 k3
-                    `vecadd` k4
-                )
-    h = tf / fromIntegral s
+ where
+  loop 0 !yf = yf
+  loop i yf' =
+    tlet yf' $ \yf ->
+    tlet (f yf) $ \k1 ->
+    tlet (f $ yf + scale (h / 2) k1) $ \k2 ->
+    tlet (f $ yf + scale (h / 2) k2) $ \k3 ->
+      let k4 = f $ yf + scale h k3
+      in loop (i - 1)
+         $ yf + scale (h / 6) (k1
+                               + scale 2 k2
+                               + scale 2 k3
+                               + k4)
+  h = tf / fromIntegral s
 
-odeFun :: (Num a) => V.Vector a -> V.Vector a -> V.Vector a
+-- Vectors x and y are assumed to have the same size.
+-- Argument x is assumed to be duplicable (ie. shared outside this function).
+odeFun :: (NumScalar a, ADReady target)
+       => target (TKR 1 a) -> target (TKR 1 a) -> target (TKR 1 a)
 odeFun x y =
-  V.cons (V.head x) (V.zipWith (*) (V.tail x) (V.init y))
+  rappend (rslice 0 1 x) (rslice 1 (rwidth x - 1) x * rslice 0 (rwidth x - 1) y)
 
-primalPoly :: (Floating a) => V.Vector a -> Int -> V.Vector a
-primalPoly x s = rungeKutta (odeFun x) (V.map (const 0) x) tf s
-  where
-    tf = 2
+primalPoly :: (NumScalar a, Differentiable a, ADReady target)
+           => target (TKR 1 a) -> Int -> target (TKR 1 a)
+primalPoly x' s = tlet x' $ \x ->  -- shared to avoid lots of sharing in odeFun
+  rungeKutta (odeFun x) (rrepl (rshape x) 0) tf s
+ where
+  tf = 2
 
 primal :: Input -> PrimalOutput
-primal (Input x s) = primalPoly x s
+primal (Input x s) =
+  Nested.rtoVector $ unConcrete
+  $ primalPoly (rconcrete $ Nested.rfromVector [VS.length x] x) s
 
-gradient :: Input -> PrimalOutput
-gradient (Input x s) = D.grad (V.last . flip primalPoly s) x
+gradient :: Input -> GradientOutput
+gradient (Input x s) =
+  let f a = let res = primalPoly a s
+            in kfromR $ res ! [fromIntegral $ rwidth res - 1]
+  in Nested.rtoVector $ unConcrete
+     $ grad f (rconcrete $ Nested.rfromVector [VS.length x] x)

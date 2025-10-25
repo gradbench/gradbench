@@ -23,7 +23,7 @@ import GradBench.Hello qualified
 --import GradBench.KMeans qualified
 --import GradBench.LLSq qualified
 import GradBench.LSE qualified
---import GradBench.ODE qualified
+import GradBench.ODE qualified
 --import GradBench.Particle qualified
 --import GradBench.Saddle qualified
 import Prelude hiding (mod)
@@ -86,9 +86,9 @@ modules =
     (("kmeans", "cost"), wrap GradBench.KMeans.cost),
     (("kmeans", "dir"), wrap GradBench.KMeans.dir),
     (("llsq", "primal"), wrap GradBench.LLSq.primal),
-    (("llsq", "gradient"), wrap GradBench.LLSq.gradient),
+    (("llsq", "gradient"), wrap GradBench.LLSq.gradient)-},
     (("ode", "primal"), wrap GradBench.ODE.primal),
-    (("ode", "gradient"), wrap GradBench.ODE.gradient),
+    (("ode", "gradient"), wrap GradBench.ODE.gradient){-,
     (("det", "primal"), wrap GradBench.Det.primal),
     (("det", "gradient"), wrap GradBench.Det.gradient)-},
     (("lse", "primal"), wrap GradBench.LSE.primal),
