@@ -7,8 +7,8 @@ module GradBench.Hello
   )
 where
 
-import Data.Tuple (Solo (..))
-import Numeric.AD.Double (grad)
+import HordeAd (grad)
+import HordeAd.Core.Adaptor
 
 type Input = Double
 
@@ -20,9 +20,7 @@ squareGeneric :: (Num a) => a -> a
 squareGeneric x = x * x
 
 square :: Input -> SquareOutput
-square x = x * x
+square = squareGeneric
 
 double :: Input -> DoubleOutput
-double x =
-  let MkSolo y = grad (\(MkSolo x') -> squareGeneric x') (MkSolo x)
-   in y
+double = fromDValue . grad squareGeneric . fromValue

@@ -15,15 +15,15 @@ executable gradbench
     import:           warnings
     main-is:          Main.hs
     other-modules:    GradBench.Hello
-                      GradBench.KMeans
-                      GradBench.LLSq
-                      GradBench.LSE
-                      GradBench.ODE
-                      GradBench.Det
-                      GradBench.Particle
-                      GradBench.Saddle
-                      GradBench.GD
-    build-depends:    ad, aeson, base, bytestring, text, vector, clock, deepseq
+--                      GradBench.KMeans
+--                      GradBench.LLSq
+--                      GradBench.LSE
+--                      GradBench.ODE
+--                      GradBench.Det
+--                      GradBench.Particle
+--                      GradBench.Saddle
+--                      GradBench.GD
+    build-depends:    aeson, base, bytestring, clock, deepseq, horde-ad, text, vector
     hs-source-dirs:   src
     default-language: GHC2021
     default-extensions: OverloadedStrings

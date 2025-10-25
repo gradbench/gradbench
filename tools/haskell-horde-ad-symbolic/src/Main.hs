@@ -17,14 +17,14 @@ import Data.ByteString.Char8 qualified as BS
 import Data.List qualified as L
 import Data.Maybe (fromMaybe, isJust)
 import Data.Text qualified as T
-import GradBench.Det qualified
+--import GradBench.Det qualified
 import GradBench.Hello qualified
-import GradBench.KMeans qualified
-import GradBench.LLSq qualified
-import GradBench.LSE qualified
-import GradBench.ODE qualified
-import GradBench.Particle qualified
-import GradBench.Saddle qualified
+--import GradBench.KMeans qualified
+--import GradBench.LLSq qualified
+--import GradBench.LSE qualified
+--import GradBench.ODE qualified
+--import GradBench.Particle qualified
+--import GradBench.Saddle qualified
 import Prelude hiding (mod)
 import System.Clock (Clock (Monotonic), getTime, toNanoSecs)
 import System.Exit
@@ -81,7 +81,7 @@ modules ::
   ]
 modules =
   [ (("hello", "square"), wrap GradBench.Hello.square),
-    (("hello", "double"), wrap GradBench.Hello.double),
+    (("hello", "double"), wrap GradBench.Hello.double){-,
     (("kmeans", "cost"), wrap GradBench.KMeans.cost),
     (("kmeans", "dir"), wrap GradBench.KMeans.dir),
     (("llsq", "primal"), wrap GradBench.LLSq.primal),
@@ -99,7 +99,7 @@ modules =
     (("saddle", "rr"), wrap GradBench.Saddle.rr),
     (("saddle", "fr"), wrap GradBench.Saddle.fr),
     (("saddle", "rf"), wrap GradBench.Saddle.rf),
-    (("saddle", "ff"), wrap GradBench.Saddle.ff)
+    (("saddle", "ff"), wrap GradBench.Saddle.ff) -}
   ]
 
 type Id = Int
