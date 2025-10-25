@@ -8,26 +8,25 @@ where
 import Data.Aeson ((.:))
 import Data.Aeson qualified as JSON
 import Data.Array.Nested qualified as Nested
-import Data.Vector qualified as V
+import Data.Vector.Storable qualified as VS
 import HordeAd
 
-newtype Input = Input (V.Vector Double)
+newtype Input = Input (VS.Vector Double)
 
 type PrimalOutput = Double
 
--- TODO: use unboxed vectors instead, if the harness permits it
-type GradientOutput = V.Vector Double
+type GradientOutput = VS.Vector Double
 
 instance JSON.FromJSON Input where
   parseJSON = JSON.withObject "input" $ \o ->
-    Input <$> (V.fromArray <$> o .: "x")
+    Input <$> (o .: "x")
 
 -- Fails for empty argument.
 logsumexp :: (NumScalar a, Differentiable a)
-          => V.Vector a -> a
+          => VS.Vector a -> a
 logsumexp x = unConcrete
               . logsumexpTarget
-              . ringestData [V.length x] . V.toList $ x
+              . rconcrete . Nested.rfromVector [VS.length x] $ x
 
 logsumexpTarget :: (NumScalar a, Differentiable a, ADReady target)
                 => target (TKR 1 a) -> target (TKScalar a)
@@ -41,6 +40,6 @@ primal :: Input -> PrimalOutput
 primal (Input x) = logsumexp x
 
 gradient :: Input -> GradientOutput
-gradient (Input x) = V.fromList . Nested.rtoList . unConcrete
+gradient (Input x) = Nested.rtoVector . unConcrete
                      . grad logsumexpTarget
-                     . ringestData [V.length x] . V.toList $ x
+                     . rconcrete . Nested.rfromVector [VS.length x] $ x
