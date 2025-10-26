@@ -20,7 +20,7 @@ import Data.Maybe (fromMaybe, isJust)
 import Data.Text qualified as T
 import GradBench.Det qualified
 import GradBench.Hello qualified
---import GradBench.KMeans qualified
+import GradBench.KMeans qualified
 --import GradBench.LLSq qualified
 import GradBench.LSE qualified
 import GradBench.ODE qualified
@@ -82,9 +82,9 @@ modules ::
   ]
 modules =
   [ (("hello", "square"), wrap GradBench.Hello.square),
-    (("hello", "double"), wrap GradBench.Hello.double){-,
+    (("hello", "double"), wrap GradBench.Hello.double),
     (("kmeans", "cost"), wrap GradBench.KMeans.cost),
-    (("kmeans", "dir"), wrap GradBench.KMeans.dir),
+    (("kmeans", "dir"), wrap GradBench.KMeans.dir){-,
     (("llsq", "primal"), wrap GradBench.LLSq.primal),
     (("llsq", "gradient"), wrap GradBench.LLSq.gradient)-},
     (("ode", "primal"), wrap GradBench.ODE.primal),

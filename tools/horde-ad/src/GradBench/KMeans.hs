@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedLists, OverloadedStrings #-}
 module GradBench.KMeans
   ( cost,
     dir,
@@ -10,38 +11,38 @@ where
 import Control.DeepSeq (NFData (..))
 import Data.Aeson (ToJSON (..), (.:))
 import Data.Aeson qualified as JSON
-import Data.List qualified as L
+import Data.Array.Nested qualified as Nested
 import Data.List.NonEmpty qualified as NE
-import Data.Vector qualified as V
-import Numeric.AD.Double qualified as D
+import Data.Vector.Storable qualified as VS
+import HordeAd
 
-getPoint :: Int -> V.Vector a -> Int -> V.Vector a
-getPoint d v i = V.slice (i * d) d v
+getPoint :: VS.Storable a => Int -> VS.Vector a -> Int -> VS.Vector a
+getPoint d v i = VS.slice (i * d) d v
 
-getPoints :: Int -> V.Vector a -> [V.Vector a]
+getPoints :: VS.Storable a => Int -> VS.Vector a -> [VS.Vector a]
 getPoints d v =
-  map (getPoint d v) [0 .. (V.length v `div` d - 1)]
+  map (getPoint d v) [0 .. (VS.length v `div` d - 1)]
 
 data Input = Input
   { inputD :: Int,
-    inputPoints :: V.Vector Double,
-    inputCentroids :: V.Vector Double
+    inputPoints :: VS.Vector Double,
+    inputCentroids :: VS.Vector Double
   }
 
 instance JSON.FromJSON Input where
   parseJSON = JSON.withObject "input" $ \o -> do
-    points <- NE.map V.fromArray <$> o .: "points"
-    centroids <- NE.map V.fromArray <$> o .: "centroids"
+    points <- o .: "points"
+    centroids <- o .: "centroids"
     pure $
       Input
-        { inputD = V.length $ NE.head points,
-          inputPoints = V.concat $ NE.toList points,
-          inputCentroids = V.concat $ NE.toList centroids
+        { inputD = VS.length $ NE.head points,
+          inputPoints = VS.concat $ NE.toList points,
+          inputCentroids = VS.concat $ NE.toList centroids
         }
 
 type CostOutput = Double
 
-data DirOutput = DirOutput Int (V.Vector Double)
+data DirOutput = DirOutput Int (VS.Vector Double)
 
 instance JSON.ToJSON DirOutput where
   toJSON (DirOutput d v) = JSON.toJSON $ getPoints d v
@@ -49,34 +50,44 @@ instance JSON.ToJSON DirOutput where
 instance NFData DirOutput where
   rnf (DirOutput _ v) = rnf v
 
-square :: (Num a) => a -> a
-square x = x * x
+square :: (NumScalar a, ADReady target)
+       => target (TKR 1 a) -> target (TKR 1 a)
+square x' = tlet x' $ \x -> x * x
+-- slower even symbolically: square x = x ** rrepl (rshape x) 2
 
-dist2 :: (Num a) => V.Vector a -> V.Vector a -> a
-dist2 a b = V.sum $ V.map square $ V.zipWith (-) a b
+dist2 :: (NumScalar a, ADReady target)
+      => target (TKR 1 a) -> target (TKR 1 a) -> target (TKR 0 a)
+dist2 a b = rsum0 $ square $ a - b
 
-sum' :: (Num a) => [a] -> a
-sum' = L.foldl' (+) 0
-
-minimum' :: (Fractional a, Ord a) => [a] -> a
-minimum' = L.foldl' min (1 / 0)
-
-costGeneric :: (Fractional a, Ord a) => Int -> V.Vector a -> V.Vector a -> a
-costGeneric d points centroids =
-  sum' $
-    map (\p -> minimum' $ map (dist2 p) centroids') $
-      getPoints d points
-  where
-    centroids' = getPoints d centroids
+-- TODO: try fold instead of build
+costGeneric :: (NumScalar a, ADReady target)
+            => target (TKR 2 a) -> target (TKR 2 a) -> target (TKScalar a)
+costGeneric points centroids =
+  kfromR $ rsum0
+  $ rbuild1 (rwidth points)
+            (\ip -> rminimum
+                    $ rbuild1 (rwidth centroids)
+                              (\ic -> dist2 (points ! [ip]) (centroids ! [ic])))
 
 cost :: Input -> CostOutput
-cost (Input d points centroids) = costGeneric d points centroids
+cost (Input d points' centroids') =
+  let points =
+        rconcrete
+        $ Nested.rfromVector [VS.length points' `div` d, d] points'
+      csh = [VS.length centroids' `div` d, d]
+      centroids = rconcrete $ Nested.rfromVector csh centroids'
+  in unConcrete $ costGeneric points centroids
 
 dir :: Input -> DirOutput
-dir (Input d points centroids) =
-  let (cost', cost'') =
-        V.unzip $
-          D.hessianProduct'
-            (costGeneric d (fmap D.auto points))
-            (V.map (,1) centroids)
-   in DirOutput d $ V.zipWith (/) cost' cost''
+dir (Input d points' centroids') =
+  let points :: ADReady target => target (TKR 2 Double)
+      points =
+        rconcrete $ Nested.rfromVector [VS.length points' `div` d, d] points'
+      csh = [VS.length centroids' `div` d, d]
+      centroids = rconcrete $ Nested.rfromVector csh centroids'
+      (cost'', cost') = jvp2 (kgrad (costGeneric points) (FTKR csh FTKScalar))
+                             centroids
+                             (rrepl (rshape centroids) 1)
+  in DirOutput d . Nested.rtoVector . unConcrete $ cost' / cost''
+    -- non-symbolic cjvp2 would take much more memory and time here
+    -- due to rbuild1 above
