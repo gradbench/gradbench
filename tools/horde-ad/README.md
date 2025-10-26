@@ -1,14 +1,14 @@
-# Haskell
+# Horde-ad
 
 [Haskell][] is a lazy purely functional language, with AD support provided by
-the [`ad`][] package.
+the [`horde-ad`][] package.
 
 To run this outside Docker, you need to install `ghc` and `cabal`. You are
 advised to `cabal build` it before using `cabal run` to run it (see the command
 in the Dockerfile), as otherwise the build output from `cabal` will interfere
 with the protocol.
 
-[`ad`]: https://hackage.haskell.org/package/ad
+[`horde-ad`]: https://hackage.haskell.org/package/horde-ad
 [haskell]: https://haskell.org/
 
 ## Running outside of Docker
@@ -26,13 +26,13 @@ $ cabal update
 Use this command to compile the tool:
 
 ```
-$ cabal build --project-dir tools/haskell gradbench
+$ cabal build --project-dir tools/horde-ad gradbench
 ```
 
 And finally this command to run it:
 
 ```
-$ cabal run --project-dir tools/haskell gradbench
+$ cabal run --project-dir tools/horde-ad gradbench
 ```
 
 The `cabal run` command will actually compile if necessary as well, but its
