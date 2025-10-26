@@ -19,7 +19,7 @@ executable gradbench
 --                      GradBench.LLSq
                     GradBench.LSE
                     GradBench.ODE
---                      GradBench.Det
+                    GradBench.Det
 --                      GradBench.Particle
 --                      GradBench.Saddle
 --                      GradBench.GD

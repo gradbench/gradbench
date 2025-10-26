@@ -18,7 +18,7 @@ import Data.ByteString.Char8 qualified as BS
 import Data.List qualified as L
 import Data.Maybe (fromMaybe, isJust)
 import Data.Text qualified as T
---import GradBench.Det qualified
+import GradBench.Det qualified
 import GradBench.Hello qualified
 --import GradBench.KMeans qualified
 --import GradBench.LLSq qualified
@@ -88,9 +88,9 @@ modules =
     (("llsq", "primal"), wrap GradBench.LLSq.primal),
     (("llsq", "gradient"), wrap GradBench.LLSq.gradient)-},
     (("ode", "primal"), wrap GradBench.ODE.primal),
-    (("ode", "gradient"), wrap GradBench.ODE.gradient){-,
+    (("ode", "gradient"), wrap GradBench.ODE.gradient),
     (("det", "primal"), wrap GradBench.Det.primal),
-    (("det", "gradient"), wrap GradBench.Det.gradient)-},
+    (("det", "gradient"), wrap GradBench.Det.gradient),
     (("lse", "primal"), wrap GradBench.LSE.primal),
     (("lse", "gradient"), wrap GradBench.LSE.gradient){-,
     (("particle", "rr"), wrap GradBench.Particle.rr),

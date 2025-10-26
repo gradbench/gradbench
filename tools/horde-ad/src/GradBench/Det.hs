@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 -- | This is a somewhat inefficient implementation that directly
 -- implements the recursive specification, using lists of lists to
 -- represent the matrix. Remarkably, because the algorithm is
@@ -16,7 +17,7 @@ where
 import Data.Aeson ((.:))
 import Data.Aeson qualified as JSON
 import Data.List qualified as L
-import Numeric.AD.Double qualified as D
+import HordeAd
 
 data Input = Input
   { _inputA :: [Double],
@@ -38,15 +39,15 @@ chunk n xs =
    in bef : chunk n aft
 
 picks :: [a] -> [[a]]
-picks l = zipWith (<>) (L.inits l) (map tail $ init $ L.tails l)
+picks l = zipWith (<>) (L.inits l) (tail $ L.tails l)
 
 parts :: [[a]] -> [[[a]]]
 parts = L.transpose . map picks . tail
 
-minors :: (Fractional a) => [[a]] -> [a]
+minors :: (Num a) => [[a]] -> [a]
 minors = map det . parts
 
-det :: (Fractional a) => [[a]] -> a
+det :: (Num a) => [[a]] -> a
 det [[x]] = x
 det a = sum $ do
   (f, aij, mij) <- zip3 (cycle [1, -1]) (head a) $ minors a
@@ -56,4 +57,12 @@ primal :: Input -> PrimalOutput
 primal (Input a ell) = det $ chunk ell a
 
 gradient :: Input -> GradientOutput
-gradient (Input a ell) = D.grad (det . chunk ell) a
+gradient (Input a ell) =
+  map unConcrete $ cgrad (det . chunk ell) (map kconcrete a)
+    -- Symbolic grad takes forever due to the build-up of product terms, because
+    -- lists are represented as nested products, and due to lack of explicit
+    -- sharing in the naively ported code. The former reason also makes
+    -- the non-symbolic cgrad >15 times slower than the haskell-ad
+    -- implementation, which we reuse here with minimal changes.
+    -- This variant also takes a lot of memory to allocate the products on tape
+    -- and so can't cope with size 11.
