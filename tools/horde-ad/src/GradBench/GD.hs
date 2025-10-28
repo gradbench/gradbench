@@ -8,31 +8,40 @@ module GradBench.GD
   )
 where
 
-magnitude_squared :: (Floating a) => [a] -> a
-magnitude_squared = sum . map (\x -> x * x)
+import HordeAd
 
-magnitude :: (Floating a) => [a] -> a
+square :: (NumScalar a, ADReady target)
+       => target (TKR 1 a) -> target (TKR 1 a)
+square x' = tlet x' $ \x -> x * x
+-- slower even symbolically: square x = x ** rrepl (rshape x) 2
+
+magnitude_squared :: (NumScalar a, ADReady target)
+                  => target (TKR 1 a) -> target (TKR 0 a)
+magnitude_squared = rsum0 . square
+
+magnitude :: (NumScalar a, Differentiable a, ADReady target)
+          => target (TKR 1 a) -> target (TKR 0 a)
 magnitude = sqrt . magnitude_squared
 
-vminus :: (Num a) => [a] -> [a] -> [a]
-vminus = zipWith (-)
+scale :: (NumScalar a, ADReady target)
+      => a -> target (TKR 1 a) -> target (TKR 1 a)
+scale x v = rrepl (rshape v) x * v
 
-ktimesv :: (Num a) => a -> [a] -> [a]
-ktimesv k = map (k *)
+distance_squared :: (NumScalar a, ADReady target)
+                 => target (TKR 1 a) -> target (TKR 1 a) -> target (TKR 0 a)
+distance_squared u v = magnitude_squared (u - v)
 
-distance_squared :: (Floating a) => [a] -> [a] -> a
-distance_squared u v = magnitude_squared (u `vminus` v)
-
-distance :: (Floating a) => [a] -> [a] -> a
+distance :: (NumScalar a, Differentiable a, ADReady target)
+         => target (TKR 1 a) -> target (TKR 1 a) -> target (TKR 0 a)
 distance u v = sqrt $ distance_squared u v
 
 -- | The solver must be invoked with a pair of functions: the cost
 -- function and its gradient.
-multivariateArgmin ::
-  (Ord a, Floating a) =>
-  ([a] -> a, [a] -> [a]) ->
-  [a] ->
-  [a]
+multivariateArgmin
+  :: (NumScalar a, Differentiable a)
+  => ( Concrete (TKR 1 a) -> Concrete (TKR 0 a)
+     , Concrete (TKR 1 a) -> Concrete (TKR 1 a) )
+  -> Concrete (TKR 1 a) -> Concrete (TKR 1 a)
 multivariateArgmin (f, g) x0 = loop (x0, f x0, g x0, 1e-5, 0 :: Int)
   where
     loop (x, fx, gx, eta, i)
@@ -42,21 +51,21 @@ multivariateArgmin (f, g) x0 = loop (x0, f x0, g x0, 1e-5, 0 :: Int)
       | fx_prime < fx = loop (x_prime, fx_prime, g x_prime, eta, i + 1)
       | otherwise = loop (x, fx, gx, eta / 2, 0)
       where
-        x_prime = x `vminus` (eta `ktimesv` gx)
+        x_prime = x - (eta `scale` gx)
         fx_prime = f x_prime
 
-multivariateArgmax ::
-  (Ord a, Floating a) =>
-  ([a] -> a, [a] -> [a]) ->
-  [a] ->
-  [a]
-multivariateArgmax (f, g) x = multivariateArgmin (negate . f, map negate . g) x
+multivariateArgmax
+  :: (NumScalar a, Differentiable a)
+  => ( Concrete (TKR 1 a) -> Concrete (TKR 0 a)
+     , Concrete (TKR 1 a) -> Concrete (TKR 1 a) )
+  -> Concrete (TKR 1 a) -> Concrete (TKR 1 a)
+multivariateArgmax (f, g) x = multivariateArgmin (negate . f, negate . g) x
 
-multivariateMax ::
-  (Ord a, Floating a) =>
-  ([a] -> a, [a] -> [a]) ->
-  [a] ->
-  a
+multivariateMax
+  :: (NumScalar a, Differentiable a)
+  => ( Concrete (TKR 1 a) -> Concrete (TKR 0 a)
+     , Concrete (TKR 1 a) -> Concrete (TKR 1 a) )
+  -> Concrete (TKR 1 a) -> Concrete (TKR 0 a)
 multivariateMax (f, g) x = f $ multivariateArgmax (f, g) x
 
 {-# INLINE multivariateArgmin #-}
