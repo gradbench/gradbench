@@ -85,7 +85,7 @@ dir (Input d points' centroids') =
         rconcrete $ Nested.rfromVector [VS.length points' `div` d, d] points'
       csh = [VS.length centroids' `div` d, d]
       centroids = rconcrete $ Nested.rfromVector csh centroids'
-      (cost'', cost') = jvp2 (kgrad (costGeneric points) (FTKR csh FTKScalar))
+      (cost', cost'') = jvp2 (kgrad (costGeneric points) (FTKR csh FTKScalar))
                              centroids
                              (rrepl (rshape centroids) 1)
   in DirOutput d . Nested.rtoVector . unConcrete $ cost' / cost''
