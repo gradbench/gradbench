@@ -25,7 +25,7 @@ import GradBench.LLSq qualified
 import GradBench.LSE qualified
 import GradBench.ODE qualified
 --import GradBench.Particle qualified
---import GradBench.Saddle qualified
+import GradBench.Saddle qualified
 import Prelude hiding (mod)
 import System.Clock (Clock (Monotonic), getTime, toNanoSecs)
 import System.Exit
@@ -96,11 +96,11 @@ modules =
     (("particle", "rr"), wrap GradBench.Particle.rr),
     (("particle", "fr"), wrap GradBench.Particle.fr),
     (("particle", "rf"), wrap GradBench.Particle.rf),
-    (("particle", "ff"), wrap GradBench.Particle.ff),
+    (("particle", "ff"), wrap GradBench.Particle.ff)-},
     (("saddle", "rr"), wrap GradBench.Saddle.rr),
+    (("saddle", "ff"), wrap GradBench.Saddle.ff),
     (("saddle", "fr"), wrap GradBench.Saddle.fr),
-    (("saddle", "rf"), wrap GradBench.Saddle.rf),
-    (("saddle", "ff"), wrap GradBench.Saddle.ff) -}
+    (("saddle", "rf"), wrap GradBench.Saddle.rf)
   ]
 
 type Id = Int

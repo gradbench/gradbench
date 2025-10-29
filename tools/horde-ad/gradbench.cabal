@@ -21,8 +21,8 @@ executable gradbench
                     GradBench.ODE
                     GradBench.Det
 --                      GradBench.Particle
---                      GradBench.Saddle
-                      GradBench.GD
+                    GradBench.Saddle
+                    GradBench.GD
   build-depends:    aeson, base, bytestring, clock, deepseq, horde-ad, ox-arrays, text, vector
   hs-source-dirs:   src
   default-language:   GHC2024

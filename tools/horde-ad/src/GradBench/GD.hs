@@ -5,10 +5,13 @@ module GradBench.GD
   ( multivariateArgmin,
     multivariateArgmax,
     multivariateMax,
+    cgrad2_fwdR,
   )
 where
 
+import GHC.TypeLits (KnownNat)
 import HordeAd
+import HordeAd.Core.Adaptor
 
 square :: (NumScalar a, ADReady target)
        => target (TKR 1 a) -> target (TKR 1 a)
@@ -35,41 +38,55 @@ distance :: (NumScalar a, Differentiable a, ADReady target)
          => target (TKR 1 a) -> target (TKR 1 a) -> target (TKR 0 a)
 distance u v = sqrt $ distance_squared u v
 
--- | The solver must be invoked with a pair of functions: the cost
--- function and its gradient.
+-- | The solver must be invoked with a function returning a pair: the cost
+-- and the gradient.
 multivariateArgmin
-  :: (NumScalar a, Differentiable a)
-  => ( Concrete (TKR 1 a) -> Concrete (TKR 0 a)
-     , Concrete (TKR 1 a) -> Concrete (TKR 1 a) )
-  -> Concrete (TKR 1 a) -> Concrete (TKR 1 a)
-multivariateArgmin (f, g) x0 = loop (x0, f x0, g x0, 1e-5, 0 :: Int)
+  :: (NumScalar a, Differentiable a, ADReady target, Ord (target (TKR 0 a)))
+  => (target (TKR 1 a) -> (target (TKR 0 a), target (TKR 1 a)))
+  -> target (TKR 1 a) -> target (TKR 1 a)
+{-# INLINE multivariateArgmin #-}
+multivariateArgmin fg x0 = loop (x0, fx0, gx0, 1e-5, 0 :: Int)
   where
+    (fx0, gx0) = fg x0
     loop (x, fx, gx, eta, i)
-      | magnitude gx <= 1e-5 = x
+      | magnitude gx <= rscalar 1e-5 = x
       | i == 10 = loop (x, fx, gx, 2 * eta, 0)
-      | distance x x_prime <= 1e-5 = x
-      | fx_prime < fx = loop (x_prime, fx_prime, g x_prime, eta, i + 1)
+      | distance x x_prime <= rscalar 1e-5 = x
+      | fx_prime < fx = loop (x_prime, fx_prime, gx_prime, eta, i + 1)
       | otherwise = loop (x, fx, gx, eta / 2, 0)
       where
         x_prime = x - (eta `scale` gx)
-        fx_prime = f x_prime
+        (fx_prime, gx_prime) = fg x_prime
 
 multivariateArgmax
-  :: (NumScalar a, Differentiable a)
-  => ( Concrete (TKR 1 a) -> Concrete (TKR 0 a)
-     , Concrete (TKR 1 a) -> Concrete (TKR 1 a) )
-  -> Concrete (TKR 1 a) -> Concrete (TKR 1 a)
-multivariateArgmax (f, g) x = multivariateArgmin (negate . f, negate . g) x
+  :: (NumScalar a, Differentiable a, ADReady target, Ord (target (TKR 0 a)))
+  => (target (TKR 1 a) -> (target (TKR 0 a), target (TKR 1 a)))
+  -> target (TKR 1 a) -> target (TKR 1 a)
+{-# INLINE multivariateArgmax #-}
+multivariateArgmax fg = multivariateArgmin (\arg -> let (c, g) = fg arg
+                                                    in (-c, -g))
 
 multivariateMax
-  :: (NumScalar a, Differentiable a)
-  => ( Concrete (TKR 1 a) -> Concrete (TKR 0 a)
-     , Concrete (TKR 1 a) -> Concrete (TKR 1 a) )
-  -> Concrete (TKR 1 a) -> Concrete (TKR 0 a)
-multivariateMax (f, g) x = f $ multivariateArgmax (f, g) x
-
-{-# INLINE multivariateArgmin #-}
-
-{-# INLINE multivariateArgmax #-}
-
+  :: (NumScalar a, Differentiable a, ADReady target, Ord (target (TKR 0 a)))
+  => (target (TKR 1 a) -> (target (TKR 0 a), target (TKR 1 a)))
+  -> target (TKR 1 a) -> target (TKR 0 a)
 {-# INLINE multivariateMax #-}
+multivariateMax fg x = fst $ fg $ multivariateArgmax fg x
+
+cgrad2_fwdR
+  :: forall src r tgt target n.
+     ( src ~ ADVal target (TKR n r)
+     , NumScalar r, ADTensorScalar r ~ r, KnownNat n
+     , tgt ~ ADVal target (TKScalar r)
+     , ADReadyNoLet target, ShareTensor target
+     , ShareTensor (PrimalOf target), ShareTensor (PlainOf target) )
+  => (src -> tgt)  -- ^ the objective function
+  -> DValue src
+  -> ( target (TKScalar r)
+     , DValue src )  -- morally DValue (ADTensorKind src)
+{-# INLINE cgrad2_fwdR #-}
+cgrad2_fwdR f x =
+  let sh = rshape $ fromDValue @src x
+      g :: IxROf target n -> target (TKScalar r)
+      g i = cjvp f x (roneHot sh (rscalar 1) i)
+  in (kprimalPart $ f (fromDValue x), rbuild sh (rfromK . g))
