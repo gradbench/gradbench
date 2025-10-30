@@ -17,16 +17,17 @@ where
 import Data.Aeson ((.:))
 import Data.Aeson qualified as JSON
 import Data.List qualified as L
+import Data.Vector.Storable qualified as VS
 import HordeAd
 
 data Input = Input
-  { _inputA :: [Double],
+  { _inputA :: VS.Vector Double,
     _inputEll :: Int
   }
 
 type PrimalOutput = Double
 
-type GradientOutput = [Double]
+type GradientOutput = VS.Vector Double
 
 instance JSON.FromJSON Input where
   parseJSON = JSON.withObject "input" $ \o ->
@@ -54,11 +55,12 @@ det a = sum $ do
   pure $ fromIntegral (f :: Int) * aij * mij
 
 primal :: Input -> PrimalOutput
-primal (Input a ell) = det $ chunk ell a
+primal (Input a ell) = det $ chunk ell $ VS.toList a
 
 gradient :: Input -> GradientOutput
 gradient (Input a ell) =
-  map unConcrete $ cgrad (det . chunk ell) (map kconcrete a)
+  VS.fromList $ map unConcrete
+  $ cgrad (det . chunk ell) (map kconcrete $ VS.toList a)
     -- Symbolic grad takes forever due to the build-up of product terms, because
     -- lists are represented as nested products, and due to lack of explicit
     -- sharing in the naively ported code. The former reason also makes
