@@ -20,7 +20,7 @@ executable gradbench
                     GradBench.LSE
                     GradBench.ODE
                     GradBench.Det
---                      GradBench.Particle
+                    GradBench.Particle
                     GradBench.Saddle
                     GradBench.GD
   build-depends:    aeson, base, bytestring, clock, deepseq, horde-ad, ox-arrays, text, vector

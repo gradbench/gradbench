@@ -24,7 +24,7 @@ import GradBench.KMeans qualified
 import GradBench.LLSq qualified
 import GradBench.LSE qualified
 import GradBench.ODE qualified
---import GradBench.Particle qualified
+import GradBench.Particle qualified
 import GradBench.Saddle qualified
 import Prelude hiding (mod)
 import System.Clock (Clock (Monotonic), getTime, toNanoSecs)
@@ -92,11 +92,11 @@ modules =
     (("det", "primal"), wrap GradBench.Det.primal),
     (("det", "gradient"), wrap GradBench.Det.gradient),
     (("lse", "primal"), wrap GradBench.LSE.primal),
-    (("lse", "gradient"), wrap GradBench.LSE.gradient){-,
+    (("lse", "gradient"), wrap GradBench.LSE.gradient),
     (("particle", "rr"), wrap GradBench.Particle.rr),
+    (("particle", "ff"), wrap GradBench.Particle.ff),
     (("particle", "fr"), wrap GradBench.Particle.fr),
     (("particle", "rf"), wrap GradBench.Particle.rf),
-    (("particle", "ff"), wrap GradBench.Particle.ff)-},
     (("saddle", "rr"), wrap GradBench.Saddle.rr),
     (("saddle", "ff"), wrap GradBench.Saddle.ff),
     (("saddle", "fr"), wrap GradBench.Saddle.fr),

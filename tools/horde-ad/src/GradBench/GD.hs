@@ -6,6 +6,7 @@ module GradBench.GD
     multivariateArgmax,
     multivariateMax,
     cgrad2_fwdR,
+    cgrad_fwdK2,
   )
 where
 
@@ -90,3 +91,16 @@ cgrad2_fwdR f x =
       g :: IxROf target n -> target (TKScalar r)
       g i = cjvp f x (roneHot sh (rscalar 1) i)
   in (kprimalPart $ f (fromDValue x), rbuild sh (rfromK . g))
+
+cgrad_fwdK2
+  :: forall src r tgt target.
+     ( src ~ (ADVal target (TKScalar r), ADVal target (TKScalar r))
+     , NumScalar r, ADTensorScalar r ~ r
+     , tgt ~ ADVal target (TKScalar r)
+     , ADReadyNoLet target, ShareTensor target
+     , ShareTensor (PrimalOf target), ShareTensor (PlainOf target) )
+  => (src -> tgt)  -- ^ the objective function
+  -> DValue src
+  -> DValue src  -- morally DValue (ADTensorKind src)
+{-# INLINE cgrad_fwdK2 #-}
+cgrad_fwdK2 f x = (cjvp f x (1, 0), cjvp f x (0, 1))
