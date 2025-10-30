@@ -154,7 +154,7 @@ main = forever loop
               ("id", toJSON (msgId msg)) : vs
             hFlush stdout
       case msg of
-        MsgStart _ _ -> reply [("tool", "haskell")]
+        MsgStart _ _ -> reply [("tool", "haskell-ad")]
         MsgDefine _ mod -> reply [("success", toJSON $ knownModule mod)]
         MsgEvaluate _ mod fun input ->
           case L.lookup (mod, fun) modules of
