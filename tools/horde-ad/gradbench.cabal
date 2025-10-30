@@ -8,11 +8,7 @@ maintainer:         athas@sigkill.dk
 category:           Math
 build-type:         Simple
 
-common warnings
-    ghc-options: -Wall
-
 executable gradbench
-  import:           warnings
   main-is:          Main.hs
   other-modules:    GradBench.Hello
                     GradBench.KMeans
