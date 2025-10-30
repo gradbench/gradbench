@@ -34,7 +34,7 @@ t i n = negate (rscalar 1)
 
 primalPoly :: (NumScalar a, Differentiable a, ADReady target)
            => target (TKR 1 a) -> Int -> target (TKScalar a)
-primalPoly x n = kfromR $ rscalar 0.5 * rsum0 (rbuild1 n f)
+primalPoly x n = 0.5 * kfromR (rsum0 (rbuild1 n f))
  where
   f i = tlet (t i n) $ \ti ->
     let muls = rscan (*) (rscalar 1) $ rreplicate (rwidth x - 1) ti
