@@ -1,10 +1,3 @@
--- We limit the memory usage of evaluation with enableAllocationLimit,
--- as the tape-based code is otherwise very hungry. Note that this is
--- not a residency limit, but simply counts how many bytes are
--- allocated. On the other hand, we can reliably catch violations. It
--- is also appropriate for our use case where the vast majority of
--- allocations goes to the tape, which is kept until the very end.
--- Still, this precise size can be calibrated as necessary.
 module Main (main) where
 
 import Control.Applicative
