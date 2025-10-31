@@ -1,9 +1,6 @@
 {-# LANGUAGE OverloadedLists, OverloadedStrings #-}
--- | This is an implementation that directly implements the recursive
--- specification and so is fundamentally so inefficient (something like O(n!)). -- Fortunately, the workloads are necessarily tiny so this doesn't OOM.
--- Due to the tiny workloads and, consequently, numerous but tiny tensors,
--- the gradient but especially the primal are much slower than
--- when implemented with lists for haskell-ad.
+-- | This implementation is based on det.fut, which is based on
+--   https://mathworld.wolfram.com/DeterminantExpansionbyMinors.html
 module GradBench.Det
   ( Input,
     PrimalOutput,
@@ -16,6 +13,7 @@ where
 import Data.Aeson ((.:))
 import Data.Aeson qualified as JSON
 import Data.Array.Nested qualified as Nested
+import Data.Int (Int64)
 import Data.Vector.Storable qualified as VS
 import HordeAd
 
@@ -36,36 +34,68 @@ chunk :: ADReady target
       => Int -> VS.Vector Double -> target (TKR 2 Double)
 chunk n xs = rconcrete $ Nested.rfromVector [VS.length xs `div` n, n] xs
 
-picks :: ADReady target
-      => target (TKR 1 Double) -> target (TKR 2 Double)
-picks l = rgather @2 [rwidth l, rwidth l - 1] l
-                     (\ [n, n1] -> [ifH (n <=. n1) (n1 + 1) n1])
+fact :: Int -> Int
+fact n = factAcc 1 n
+ where factAcc acc i | i <= 1 = acc
+       factAcc acc i = factAcc (i * acc) (i - 1)
 
-parts :: ADReady target
-      => target (TKR 2 Double) -> target (TKR 3 Double)
-parts m = rtr $ rbuild1 (rwidth m) (\i -> picks (m ! [i]))
+-- Given the lexicographic index of a permutation, compute that
+-- permutation.
+idx_to_perm :: Int -> Int -> [Int]
+idx_to_perm len idx0 =
+  let perm0 = replicate len (-1)
+      elements0 = replicate len 0
+      fi0 = fact len
+      nthFreeSpot :: [Int] -> Int -> Int -> Int
+      nthFreeSpot elements1 n el =
+        if n <= 0 && not (elements1 !! el == 1)
+        then el
+        else if elements1 !! el == 1
+             then nthFreeSpot elements1 n (el + 1)
+             else nthFreeSpot elements1 (n - 1) (el + 1)
+      loop :: [Int] -> [Int] -> Int -> Int -> Int -> [Int]
+      loop perm _ _ _ (-1) = perm
+      loop perm elements idx fi i =
+        let fi2 = fi `div` (i + 1)
+            el = nthFreeSpot elements (idx `div` fi2) 0
+        in loop (take (len - i - 1) perm ++ [el] ++ drop (len - i) perm)
+                (take el elements ++ [1] ++ drop (el + 1) elements)
+                (idx `mod` fi2)
+                fi2
+                (i - 1)
+  in loop perm0 elements0 idx0 fi0 (len - 1)
 
-minors :: ADReady target
-       => target (TKR 2 Double) -> target (TKR 1 Double)
-minors m =
-  let parts_m = parts m
-  in rbuild1 (rwidth parts_m) (\i -> det (parts_m ! [i]))
+-- Compute the inversion number from a lexicographic index of a
+-- permutation.
+inversion_number_from_idx :: Int -> Int -> Int
+inversion_number_from_idx n idx0 =
+  let loop s _ _ i | i == 0 = s
+      loop s idx fi i =
+        let fi2 = fi `div` (i + 1)
+        in loop (s + idx `div` fi2) (idx `mod` fi2) fi2 (i - 1)
+  in loop 0 idx0 (fact n) (n - 1)
 
-det :: ADReady target
-    => target (TKR 2 Double) -> target (TKR 0 Double)
-det a | rsize a == 1 = a ! [0, 0]  -- needed to avoid "rbuild1: shape ambiguity"
-det a' = tlet a' $ \a ->
-  let minors_a = minors $ rslice 1 (rwidth a - 1) a
-      head_a = a ! [0]
-      cycle1 = ringestData [rwidth minors_a] $ take (rwidth minors_a)
-               $ cycle [1, -1]
-  in rsum0 $ cycle1 * head_a * minors_a
+productR :: ADReady target
+         => target (TKR 1 Double) -> target (TKScalar Double)
+productR = kfromR . rfold (*) (rscalar 1)
+
+det :: forall target. ADReady target
+    => target (TKR 2 Double) -> target (TKScalar Double)
+det a =
+  let ell = rwidth a
+      f :: Int -> target (TKScalar Double)
+      f i =
+        let p :: PlainOf target (TKR 1 Int64)
+            p = ringestData [ell] $ map fromIntegral $ idx_to_perm ell i
+        in (-1) ** kconcrete (fromIntegral $ inversion_number_from_idx ell i)
+           * productR (rbuild1 ell $ \i2 -> a ! [i2, kfromR $ p ! [i2]])
+      g :: Int -> target (TKScalar Double) -> target (TKScalar Double)
+      g i acc = acc + f i
+  in foldr @[] g 0 [0, 1 .. fact ell - 1]
 
 primal :: Input -> PrimalOutput
-primal (Input a ell) = unConcrete $ kfromR . det $ chunk ell a
+primal (Input a ell) = unConcrete $ det $ chunk ell a
 
 gradient :: Input -> GradientOutput
 gradient (Input a ell) =
-  Nested.rtoVector . unConcrete $ grad (kfromR . det) (chunk ell a)
-    -- non-symbolic cgrad would take much more memory and time here
-    -- due to rbuild1 above
+  Nested.rtoVector . unConcrete $ cgrad det (chunk ell a)
