@@ -44,22 +44,20 @@ fact n = factAcc 1 n
 idx_to_perm :: Int -> Int -> [Int]
 idx_to_perm len idx0 =
   let perm0 = replicate len (-1)
-      elements0 = replicate len 0
+      elements0 = [0 .. len - 1]
       fi0 = fact len
-      nthFreeSpot :: [Int] -> Int -> Int -> Int
-      nthFreeSpot elements1 n el =
-        if n <= 0 && not (elements1 !! el == 1)
-        then el
-        else if elements1 !! el == 1
-             then nthFreeSpot elements1 n (el + 1)
-             else nthFreeSpot elements1 (n - 1) (el + 1)
+      allFreeSpots :: [Int] -> [Int]
+      allFreeSpots elements1 =
+        let f (-1) acc = acc
+            f el acc = el : acc
+        in foldr f [] elements1
       loop :: [Int] -> [Int] -> Int -> Int -> Int -> [Int]
       loop perm _ _ _ (-1) = perm
       loop perm elements idx fi i =
         let fi2 = fi `div` (i + 1)
-            el = nthFreeSpot elements (idx `div` fi2) 0
+            el = allFreeSpots elements !! (idx `div` fi2)
         in loop (take (len - i - 1) perm ++ [el] ++ drop (len - i) perm)
-                (take el elements ++ [1] ++ drop (el + 1) elements)
+                (take el elements ++ [-1] ++ drop (el + 1) elements)
                 (idx `mod` fi2)
                 fi2
                 (i - 1)
