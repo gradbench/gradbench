@@ -16,6 +16,7 @@ import Data.Array.Nested qualified as Nested
 import Data.Int (Int64)
 import Data.Vector.Storable qualified as VS
 import HordeAd
+import HordeAd.Core.Ops (ttletPlain)
 
 data Input = Input
   { _inputA :: VS.Vector Double,
@@ -43,9 +44,10 @@ updateR :: ADReady target
         => Int
         -> target (TKR 0 Int64) -> target (TKR 1 Int64)
         -> target (TKR 1 Int64)
-updateR i a v = rslice 0 i v
-                `rappend` rreplicate 1 a
-                `rappend` rslice (i + 1) (rwidth v - i - 1) v
+updateR i a v' = tlet v' $ \v ->
+  rslice 0 i v
+  `rappend` rreplicate 1 a
+  `rappend` rslice (i + 1) (rwidth v - i - 1) v
 
 updateI :: ADReady target
         => PlainOf target (TKScalar Int64)
@@ -66,48 +68,58 @@ idx_to_perm len idx0 =
       perm0 = rreplicate len dummyEl
       elements0 = riota len
       fi0 = fact len
-      allFreeSpots :: target (TKR 1 Int64) -> target (TKR 1 Int64)
-      allFreeSpots elements1 =
-        let f :: forall f. ADReady f
-              => f (TKProduct (TKR 1 Int64) (TKScalar Int64)) -> f (TKR 0 Int64)
-              -> f (TKProduct (TKR 1 Int64) (TKScalar Int64))
-            f acc el =
-              ifH (el ==. occupiedSpotMark)
-                  acc
-                  (tpair
-                     (updateI (tplainPart $ tproject2 acc) el (tproject1 acc))
-                     (tproject2 acc + 1))
-        in withSNat len $ \k ->
-             tproject1
-             $ tfold k knownSTK knownSTK f (tpair (rreplicate len dummyEl) 0)
-                     elements1
-      loop :: target (TKR 1 Int64) -> target (TKR 1 Int64)
-           -> PlainOf target (TKScalar Int64) -> Int -> Int
-           -> target (TKR 1 Int64)
-      loop perm _ _ _ (-1) = perm
-      loop perm elements idx fi i =
-        let fi2 = fi `div` (i + 1)
-            el = allFreeSpots elements ! [idx `quotH` fromIntegral fi2]
-        in loop (updateR (len - i - 1) el perm)
-                (updateI (tplainPart $ kfromR el) occupiedSpotMark elements)
-                (idx `remH` fromIntegral fi2)
-                fi2
-                (i - 1)
-  in loop perm0 elements0 idx0 fi0 (len - 1)
+  in tlet (tpair (rreplicate len dummyEl) 0) $ \acc0 ->
+    let allFreeSpots :: target (TKR 1 Int64) -> target (TKR 1 Int64)
+        allFreeSpots elements1 =
+          let f :: forall f. ADReady f
+                => f (TKProduct (TKR 1 Int64) (TKScalar Int64))
+                -> f (TKR 0 Int64)
+                -> f (TKProduct (TKR 1 Int64) (TKScalar Int64))
+              f acc el =  -- sharing not needed, because these are variables
+                ifH (el ==. occupiedSpotMark)
+                    acc
+                    (tpair
+                       (updateI (tplainPart $ tproject2 acc) el (tproject1 acc))
+                       (tproject2 acc + 1))
+          in withSNat len $ \k ->
+               tproject1 $ tfold k knownSTK knownSTK f acc0 elements1
+        loop :: target (TKR 1 Int64) -> target (TKR 1 Int64)
+             -> PlainOf target (TKScalar Int64) -> Int -> Int
+             -> target (TKR 1 Int64)
+        loop perm _ _ _ (-1) = perm
+        loop perm elements' idx' fi i =
+          let fi2 = fi `div` (i + 1)
+          in tlet elements' $ \elements ->
+             ttletPlain idx' $ \idx ->
+             tlet (allFreeSpots elements
+                   ! [idx `quotH` fromIntegral fi2]) $ \el ->
+               loop (updateR (len - i - 1) el perm)
+                    (updateI (tplainPart $ kfromR el) occupiedSpotMark elements)
+                    (idx `remH` fromIntegral fi2)
+                    fi2
+                    (i - 1)
+    in loop perm0 elements0 idx0 fi0 (len - 1)
 
 -- Compute the inversion number from a lexicographic index of a
 -- permutation.
+-- This is not computed in @PlainOf target@ but, in theory, when given
+-- an argument of the form @kfromPlain i@, it should reduce to a term
+-- of the form @kfromPlain result@ already when first converted to an AST term.
 inversion_number_from_idx
-  :: ADReady target
-  => Int -> PlainOf target (TKScalar Int64) -> target (TKScalar Int64)
+  :: forall target. ADReady target
+  => Int -> target (TKScalar Int64) -> target (TKScalar Int64)
 inversion_number_from_idx n idx0 =
-  let loop s _ _ i | i == 0 = s
-      loop s idx fi i =
+  let loop :: target (TKScalar Int64)
+           -> target (TKScalar Int64)
+           -> Int -> Int
+           -> target (TKScalar Int64)
+      loop s _ _ i | i == 0 = s
+      loop s idx' fi i = tlet idx' $ \idx ->
         let fi2 = fi `div` (i + 1)
             s2 = s + idx `quotH` fromIntegral fi2
             idx2 = idx `remH` fromIntegral fi2
         in loop s2 idx2 fi2 (i - 1)
-  in kfromPlain $ loop 0 idx0 (fact n) (n - 1)
+  in loop 0 idx0 (fact n) (n - 1)
 
 productR :: ADReady target
          => target (TKR 1 Double) -> target (TKScalar Double)
@@ -121,10 +133,13 @@ det a =
       f i =
         let p :: PlainOf target (TKR 1 Int64)
             p = tplainPart $ idx_to_perm @target ell i
+              -- Ideally the delta-term discarded by this tplainPart should be
+              -- DeltaZero, but is our AST rewriting that good already?
             q :: target (TKScalar Double)
-            q = kfromIntegral $ inversion_number_from_idx ell i
+            q = kfromIntegral
+                $ inversion_number_from_idx @target ell (kfromPlain i)
         in (-1) ** q
-           * productR (rbuild1 ell $ \i2 -> a ! [i2, kfromR $ p ! [i2]])
+           * productR (rgather1 ell a $ \i2 -> [i2, kfromR $ p ! [i2]])
   in kfromR $ rsum0 $ rbuild1 (fact ell) (rfromK . f)
 
 primal :: Input -> PrimalOutput
@@ -132,4 +147,4 @@ primal (Input a ell) = unConcrete $ det $ chunk ell a
 
 gradient :: Input -> GradientOutput
 gradient (Input a ell) =
-  Nested.rtoVector . unConcrete $ cgrad det (chunk ell a)
+  Nested.rtoVector . unConcrete $ grad det (chunk ell a)
