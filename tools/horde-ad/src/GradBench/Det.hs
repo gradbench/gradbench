@@ -63,12 +63,12 @@ updateS idx a v =
 
 -- Given the lexicographic index of a permutation, compute that
 -- permutation.
-idx_to_perm :: forall target. ADReady target
-            => Int -> PlainOf target (TKScalar Int64) -> target (TKR 1 Int64)
+idx_to_perm :: forall target. (BaseTensor target, LetTensor target)
+            => Int -> target (TKScalar Int64) -> target (TKR 1 Int64)
 idx_to_perm len idx0 = withSNat len $ \(k :: SNat k) ->
-  let dummyEl :: forall f. ADReady f => f (TKR 0 Int64)
+  let dummyEl :: forall f. BaseTensor f => f (TKR 0 Int64)
       dummyEl = rscalar (-1)
-      occupiedSpotMark :: forall f. ADReady f => f (TKScalar Int64)
+      occupiedSpotMark :: forall f. BaseTensor f => f (TKScalar Int64)
       occupiedSpotMark = -1
       perm0 = rreplicate len dummyEl
       fi0 = fact len
@@ -81,11 +81,12 @@ idx_to_perm len idx0 = withSNat len $ \(k :: SNat k) ->
               -> f (TKScalar Int64)
               -> f (TKProduct (TKR 1 Int64) (TKScalar Int64))
             f acc el =  -- sharing not needed, because these are variables
-              ifH (el ==. occupiedSpotMark)
-                  acc
-                  (tpair
-                     (updateR (kplainPart $ tproject2 acc) el (tproject1 acc))
-                     (tproject2 acc + 1))
+              let spots = tproject1 acc
+                  nOfFree = tproject2 acc
+              in ifH (el <=. occupiedSpotMark)
+                     acc
+                     (tpair (updateR (kplainPart nOfFree) el spots)
+                            (nOfFree + 1))
             acc0 = tpair (rreplicate len dummyEl) 0
         in tproject1 $ tfold k knownSTK knownSTK f acc0 elements1
       mkPerm :: target (TKR 1 Int64) -> target (TKS '[k] Int64)
@@ -108,8 +109,8 @@ idx_to_perm len idx0 = withSNat len $ \(k :: SNat k) ->
                   idx = tproject1 (tproject2 (tproject2 acc))
                   fi = tproject2 (tproject2 (tproject2 acc))
               in tlet (fi `quotH` i1) $ \fi2 ->
-                 tlet (kfromR $ allFreeSpots elements
-                                ! [kplainPart $ idx `quotH` fi2]) $ \el ->
+                 tlet (allFreeSpots elements
+                       `rindex0` [kplainPart $ idx `quotH` fi2]) $ \el ->
                    let perm2 = updateR (fromIntegral len - kplainPart i1)
                                        el perm
                        elements2 = updateS (kplainPart el)
@@ -119,7 +120,7 @@ idx_to_perm len idx0 = withSNat len $ \(k :: SNat k) ->
             acc0 = tpair perm1 (tpair elements1 (tpair idx1 fi1))
             l = sslice (SNat @0) SNat (SNat @1) $ sreverse siota
         in tproject1 $ tfold k knownSTK knownSTK f acc0 l
-  in mkPerm perm0 elements0 (kfromPlain idx0) (fromIntegral fi0)
+  in mkPerm perm0 elements0 idx0 (fromIntegral fi0)
 
 -- Compute the inversion number from a lexicographic index of a
 -- permutation.
@@ -161,13 +162,13 @@ det a =
       f :: IntOf target -> target (TKScalar Double)
       f i =
         let p' :: PlainOf target (TKR 1 Int64)
-            p' = tplainPart $ idx_to_perm @target ell i
+            p' = idx_to_perm @(PlainOf target) ell i
         in tletPlain p' $ \p ->
           let q :: target (TKScalar Double)
               q = kfromIntegral
                   $ inversion_number_from_idx @target ell (kfromPlain i)
           in (-1) ** q
-             * productR (rgather1 ell a $ \i2 -> [i2, kfromR $ p ! [i2]])
+             * productR (rgather1 ell a $ \i2 -> [i2, p `rindex0` [i2]])
   in kfromR $ rsum $ rbuild1 (fact ell) (rfromK . f)
 
 primal :: Input -> PrimalOutput
