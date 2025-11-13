@@ -62,8 +62,8 @@ updateS idx a v =
 -- Given the lexicographic index of a permutation, compute that
 -- permutation.
 idx_to_perm :: forall target. (BaseTensor target, LetTensor target)
-            => Int -> target (TKScalar Int64) -> target (TKR 1 Int64)
-idx_to_perm len idx0 = withSNat len $ \(k :: SNat k) ->
+            => Int -> target (TKR 2 Int64)
+idx_to_perm len = withSNat len $ \(k :: SNat k) ->
   let dummyEl :: forall f. BaseTensor f => f (TKR 0 Int64)
       dummyEl = rscalar (-1)
       occupiedSpotMark :: forall f. BaseTensor f => f (TKScalar Int64)
@@ -118,7 +118,8 @@ idx_to_perm len idx0 = withSNat len $ \(k :: SNat k) ->
             acc0 = tpair perm1 (tpair elements1 (tpair idx1 fi1))
             l = sslice (SNat @0) SNat (SNat @1) $ sreverse siota
         in tproject1 $ tfold k knownSTK knownSTK f acc0 l
-  in mkPerm perm0 elements0 idx0 (fromIntegral fi0)
+  in rbuild1 fi0 $ \idx0 ->
+       mkPerm perm0 elements0 (kfromPlain idx0) (fromIntegral fi0)
 
 -- Compute the inversion number from a lexicographic index of a
 -- permutation.
@@ -126,10 +127,11 @@ idx_to_perm len idx0 = withSNat len $ \(k :: SNat k) ->
 -- applies @astPlainPart@ to it, which causes it to quickly reduce to a term
 -- in @PlainOf target@.
 inversion_number_from_idx
-  :: forall target. ADReady target
-  => Int -> target (TKScalar Int64) -> target (TKScalar Int64)
-inversion_number_from_idx len idx0 = withSNat (len - 1) $ \k1 ->
-  let f :: forall f. ADReady f
+  :: forall target. (BaseTensor target, LetTensor target, ConvertTensor target)
+  => Int -> target (TKR 1 Int64)
+inversion_number_from_idx len = withSNat (len - 1) $ \k1 ->
+  let fi0 = fact len
+      f :: forall f. ADReady f
         => f (TKProduct (TKScalar Int64)
                         (TKProduct (TKScalar Int64)
                                    (TKScalar Int64)))
@@ -145,9 +147,10 @@ inversion_number_from_idx len idx0 = withSNat (len - 1) $ \k1 ->
              let s2 = s + idx `quotH` fi2
                  idx2 = idx `remH` fi2
              in tpair s2 (tpair idx2 fi2)
-      acc0 = tpair 0 (tpair idx0 (fromIntegral $ fact len))
       l = sslice (SNat @0) SNat (SNat @2) $ sreverse siota
-  in tproject1 $ tfold k1 knownSTK knownSTK f acc0 l
+  in rbuild1 fi0 $ \idx0 ->
+       let acc0 = tpair 0 (tpair (kfromPlain idx0) (fromIntegral fi0))
+       in rfromK $ tproject1 $ tfold k1 knownSTK knownSTK f acc0 l
 
 productR :: ADReady target
          => target (TKR 1 Double) -> target (TKScalar Double)
@@ -157,16 +160,14 @@ det :: forall target. ADReady target
     => target (TKR 2 Double) -> target (TKScalar Double)
 det a =
   let ell = rwidth a
+      p :: PlainOf target (TKR 2 Int64)
+      p = rconcrete $ unConcrete $ idx_to_perm ell
+      q :: PlainOf target (TKR 1 Double)
+      q = rconcrete $ unConcrete $ rfromIntegral
+          $ inversion_number_from_idx ell
       f :: IntOf target -> target (TKScalar Double)
-      f i =
-        let p' :: PlainOf target (TKR 1 Int64)
-            p' = idx_to_perm @(PlainOf target) ell i
-        in tletPlain p' $ \p ->
-          let q :: target (TKScalar Double)
-              q = kfromIntegral
-                  $ inversion_number_from_idx @target ell (kfromPlain i)
-          in (-1) ** q
-             * productR (rgather1 ell a $ \i2 -> [i2, p `rindex0` [i2]])
+      f i = (-1) ** kfromPlain (q `rindex0` [i])
+            * productR (rgather1 ell a $ \i2 -> [i2, p `rindex0` [i, i2]])
   in kfromR $ rsum $ rbuild1 (fact ell) (rfromK . f)
 
 primal :: Input -> PrimalOutput
