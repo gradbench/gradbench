@@ -45,18 +45,16 @@ fact n = factAcc 1 n
  where factAcc acc i | i <= 1 = acc
        factAcc acc i = factAcc (i * acc) (i - 1)
 
-updateR :: ADReady target
-        => PlainOf target (TKScalar Int64)
-        -> target (TKScalar Int64) -> target (TKR 1 Int64)
-        -> target (TKR 1 Int64)
+updateR :: (GoodScalar r, ADReady target)
+        => IntOf target -> target (TKScalar r) -> target (TKR 1 r)
+        -> target (TKR 1 r)
 updateR idx a v =
   rgather1 (rwidth v) (v `rappend` rreplicate 1 (rfromK a)) $ \i ->
     [ifH (i ==. idx) (fromIntegral $ rwidth v) i]
 
-updateS :: forall k target. (KnownNat k, ADReady target)
-        => PlainOf target (TKScalar Int64)
-        -> target (TKScalar Int64) -> target (TKS '[k] Int64)
-        -> target (TKS '[k] Int64)
+updateS :: forall k r target. (KnownNat k, GoodScalar r, ADReady target)
+        => IntOf target -> target (TKScalar r) -> target (TKS '[k] r)
+        -> target (TKS '[k] r)
 updateS idx a v =
   sgather1 @_ @_ @'[k + 1] (v `sappend` sreplicate @1 (sfromK a)) $ \i ->
     [ifH (i ==. idx) (fromIntegral $ swidth v) i]
