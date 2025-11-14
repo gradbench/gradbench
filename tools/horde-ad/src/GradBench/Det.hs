@@ -13,12 +13,14 @@ module GradBench.Det
 where
 
 import Control.Concurrent
+import Control.Monad.ST.Strict (ST, runST)
 import Data.Aeson ((.:))
 import Data.Aeson qualified as JSON
 import Data.Array.Nested qualified as Nested
 import Data.Array.Nested.Ranked.Shape
 import Data.Int (Int64)
 import Data.Vector.Storable qualified as VS
+import Data.Vector.Storable.Mutable qualified as VSM
 import Foreign.C (CInt)
 import GHC.TypeLits (KnownNat, type (+))
 import HordeAd
@@ -48,40 +50,33 @@ fact n = factAcc 1 n
  where factAcc acc i | i <= 1 = acc
        factAcc acc i = factAcc (i * acc) (i - 1)
 
-listUpdate :: Int -> (a -> a) -> [a] -> [a]
-listUpdate 0 f (x : xs) = f x : xs
-listUpdate i f (x : xs) = x : listUpdate (i - 1) f xs
-listUpdate _ _ [] = error "listUpdate: index too large"
-
-fused :: Int -> Int -> [Int64]
-fused len idx0 =
-  let perm0 = replicate len (-1)
-      elements0 = replicate len False
-      fi0 = fact len
-      nthFreeSpot :: [Bool] -> Int -> Int64 -> Int64
-      nthFreeSpot elements1 n el =
-        let free = not (elements1 !! fromIntegral el)
-        in if n <= 0 && free
-           then el
-           else nthFreeSpot elements1 (n - fromEnum free) (el + 1)
-      loop :: [Int64] -> [Bool] -> Int -> Int -> Int -> [Int64]
-      loop perm _ _ _ 0 = perm
-      loop perm elements idx fi i2 =
+fused :: forall s. Int -> Int -> ST s (VS.Vector Int64)
+fused !len !idx0 = do
+  perm <- VSM.replicate len (-1)
+  freeSpots <- VSM.replicate len True
+  let nthFreeSpot :: Int -> Int -> ST s Int
+      nthFreeSpot !pos !el = do
+        free <- VSM.read freeSpots el
+        if pos <= 0 && free
+        then return el
+        else nthFreeSpot (pos - fromEnum free) (el + 1)
+      loop :: Int -> Int -> Int -> ST s ()
+      loop _ _ 0 = return ()
+      loop !idx !fi i2 = do
         let fi2 = fi `quot` i2
             (idxDigit, idxRest) = idx `quotRem` fi2
-            el = nthFreeSpot elements idxDigit 0
-        in loop (listUpdate (len - i2) (const el) perm )
-                (listUpdate (fromIntegral el) (const True) elements)
-                idxRest
-                fi2
-                (i2 - 1)
-  in loop perm0 elements0 idx0 fi0 len
+        el <- nthFreeSpot idxDigit 0
+        VSM.write perm (len - i2) (fromIntegral el)
+        VSM.write freeSpots el False
+        loop idxRest fi2 (i2 - 1)
+  loop idx0 (fact len) len
+  VS.unsafeFreeze perm
 
 -- Given the lexicographic index of a permutation, compute that
 -- permutation.
 idx_to_perm :: Int -> Nested.Ranked 2 Int64
 idx_to_perm n =
-  let f idx0 = Nested.rfromListPrim $ fused n idx0
+  let f idx0 = Nested.rfromVector [n] $ runST $ fused n idx0
   in tbuild1R (fact n) f
 
 tbuild1R
