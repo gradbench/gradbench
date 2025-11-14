@@ -19,7 +19,7 @@ executable gradbench
                     GradBench.Particle
                     GradBench.Saddle
                     GradBench.GD
-  build-depends:    aeson, base, bytestring, clock, deepseq, horde-ad, ox-arrays, text, vector
+  build-depends:    aeson, base, bytestring, clock, deepseq, ghc-typelits-knownnat >= 0.8.0 && < 1, horde-ad, ox-arrays, text, vector
   hs-source-dirs:   src
   default-language:   GHC2024
   default-extensions: StrictData, TypeFamilies, TypeFamilyDependencies,

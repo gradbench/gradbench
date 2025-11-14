@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedLists, OverloadedStrings #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise #-}
 -- | This implementation is based on det.fut, which is based on
 --   https://mathworld.wolfram.com/DeterminantExpansionbyMinors.html
 module GradBench.Det
@@ -12,7 +11,6 @@ module GradBench.Det
   )
 where
 
-import Control.Concurrent
 import Control.Monad.ST.Strict (ST, runST)
 import Data.Aeson ((.:))
 import Data.Aeson qualified as JSON
@@ -22,11 +20,9 @@ import Data.Int (Int64)
 import Data.Vector.Storable qualified as VS
 import Data.Vector.Storable.Mutable qualified as VSM
 import Foreign.C (CInt)
-import GHC.TypeLits (KnownNat, type (+))
 import HordeAd
 import HordeAd.Core.AstEnv
 import HordeAd.Core.AstInterpret
-import System.IO.Unsafe (unsafePerformIO)
 
 data Input = Input
   { _inputA :: VS.Vector Double,
@@ -50,10 +46,9 @@ fact n = factAcc 1 n
  where factAcc acc i | i <= 1 = acc
        factAcc acc i = factAcc (i * acc) (i - 1)
 
-fused :: forall s. Int -> Int -> ST s (VS.Vector Int64)
-fused !len !idx0 = do
-  perm <- VSM.replicate len (-1)
-  freeSpots <- VSM.replicate len True
+fused :: forall s.
+         Int -> Int -> VSM.MVector s Int64 -> VSM.MVector s Bool -> ST s ()
+fused !len !idx0 !perm !freeSpots = do
   let nthFreeSpot :: Int -> Int -> ST s Int
       nthFreeSpot !pos !el = do
         free <- VSM.read freeSpots el
@@ -70,33 +65,36 @@ fused !len !idx0 = do
         VSM.write freeSpots el False
         loop idxRest fi2 (i2 - 1)
   loop idx0 (fact len) len
-  VS.unsafeFreeze perm
+
+mutated :: forall s. Int -> ST s (VS.Vector Int64)
+mutated !len = do
+  perms <- VSM.unsafeNew (len * fact len)
+  freeSpots <- VSM.unsafeNew len
+  let loop :: Int -> ST s ()
+      loop (-1) = return ()
+      loop i = do
+        VSM.set freeSpots True
+        fused len i (VSM.slice (i * len) len perms) freeSpots
+        loop (i - 1)
+  loop (fact len - 1)
+  VS.unsafeFreeze perms
 
 -- Given the lexicographic index of a permutation, compute that
 -- permutation.
 idx_to_perm :: Int -> Nested.Ranked 2 Int64
-idx_to_perm n =
-  let f idx0 = Nested.rfromVector [n] $ runST $ fused n idx0
-  in tbuild1R (fact n) f
-
-tbuild1R
-  :: forall r n. (Nested.KnownElt r, KnownNat n)
-  => Int -> (Int -> Nested.Ranked n r) -> Nested.Ranked (1 + n) r
-tbuild1R k f =
-  Nested.runNest $ Nested.rgenerate (k :$: ZSR) $ \(i :.: ZIR) -> f i
+idx_to_perm n = Nested.rfromVector [fact n, n] $ runST $ mutated n
 
 -- Compute the inversion number from a lexicographic index of a
 -- permutation.
 inversion_number_from_idx :: Int -> Nested.Ranked 1 CInt
 inversion_number_from_idx n =
-  let loop s _ _ i | i == 1 = s
+  let loop s _ _ i | i == 1 = fromIntegral s
       loop s idx fi i =
         let fi2 = fi `quot` i
             (s1, idx2) = idx `quotRem` fi2
             s2 = s + s1
         in loop s2 idx2 fi2 (i - 1)
-      f (idx0 :.: ZIR) =
-        loop 0 (fromIntegral idx0) (fromIntegral $ fact n) (fromIntegral n)
+      f (idx0 :.: ZIR) = loop 0 idx0 (fact n) n
   in Nested.rgenerate [fact n] f
 
 productR :: ADReady target
@@ -113,7 +111,8 @@ det a =
       q = rconcrete $ inversion_number_from_idx ell
       f :: IntOf target -> target (TKScalar Double)
       f i = (-1) ** kfromPlain (kfromIntegral (q `rindex0` [i]))
-            * productR (rgather1 ell a $ \i2 -> [i2, p `rindex0` [i, i2]])
+            * productR (rgather1 ell a $ \i2 ->
+                          [i2, kfromIntegral $ p `rindex0` [i, i2]])
   in kfromR $ rsum $ rbuild1 (fact ell) (rfromK . f)
 
 primal :: Input -> PrimalOutput
