@@ -54,24 +54,28 @@ listUpdate i f (x : xs) = x : listUpdate (i - 1) f xs
 listUpdate _ _ [] = error "listUpdate: index too large"
 
 fused :: Int -> Int -> [Int64]
-fused n idx =
-  let (outPerm, _, _, _) =
-        foldl' (\(perm, used, fip1, idx') i1 ->
-                 let fi = fip1 `quot` i1
-                     (idxDigit, idxRest) = idx' `quotRem` fi
-                     el :: Int64
-                     el =
-                       let loop :: Int64 -> Int -> Int64
-                           loop j pos' =
-                             let free = not (used !! fromIntegral j)
-                             in if pos' <= 0 && free
-                                  then j
-                                  else loop (j + 1) (pos' - fromEnum free)
-                       in loop 0 idxDigit
-                 in (listUpdate (n - i1) (const el) perm, listUpdate (fromIntegral el) (const True) used, fi, idxRest))
-               (replicate n (-1), replicate n False, fact n, idx)
-               ([n, n - 1 .. 1] :: [Int])
-  in outPerm
+fused len idx0 =
+  let perm0 = replicate len (-1)
+      elements0 = replicate len False
+      fi0 = fact len
+      nthFreeSpot :: [Bool] -> Int -> Int64 -> Int64
+      nthFreeSpot elements1 n el =
+        let free = not (elements1 !! fromIntegral el)
+        in if n <= 0 && free
+           then el
+           else nthFreeSpot elements1 (n - fromEnum free) (el + 1)
+      loop :: [Int64] -> [Bool] -> Int -> Int -> Int -> [Int64]
+      loop perm _ _ _ 0 = perm
+      loop perm elements idx fi i2 =
+        let fi2 = fi `quot` i2
+            (idxDigit, idxRest) = idx `quotRem` fi2
+            el = nthFreeSpot elements idxDigit 0
+        in loop (listUpdate (len - i2) (const el) perm )
+                (listUpdate (fromIntegral el) (const True) elements)
+                idxRest
+                fi2
+                (i2 - 1)
+  in loop perm0 elements0 idx0 fi0 len
 
 -- Given the lexicographic index of a permutation, compute that
 -- permutation.
