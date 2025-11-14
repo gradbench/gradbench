@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedLists, OverloadedStrings #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
+{-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise #-}
 -- | This implementation is based on det.fut, which is based on
 --   https://mathworld.wolfram.com/DeterminantExpansionbyMinors.html
 module GradBench.Det
@@ -15,8 +16,10 @@ import Control.Concurrent
 import Data.Aeson ((.:))
 import Data.Aeson qualified as JSON
 import Data.Array.Nested qualified as Nested
+import Data.Array.Nested.Ranked.Shape
 import Data.Int (Int64)
 import Data.Vector.Storable qualified as VS
+import Foreign.C (CInt)
 import GHC.TypeLits (KnownNat, type (+))
 import HordeAd
 import HordeAd.Core.AstEnv
@@ -38,119 +41,64 @@ instance JSON.FromJSON Input where
 
 chunk :: ADReady target
       => Int -> VS.Vector Double -> target (TKR 2 Double)
-chunk n xs = rconcrete $ Nested.rfromVector [VS.length xs `div` n, n] xs
+chunk n xs = rconcrete $ Nested.rfromVector [VS.length xs `quot` n, n] xs
 
 fact :: Int -> Int
 fact n = factAcc 1 n
  where factAcc acc i | i <= 1 = acc
        factAcc acc i = factAcc (i * acc) (i - 1)
 
-updateR :: (GoodScalar r, ADReady target)
-        => IntOf target -> target (TKScalar r) -> target (TKR 1 r)
-        -> target (TKR 1 r)
-updateR idx a v =
-  rgather1 (rwidth v) (v `rappend` rreplicate 1 (rfromK a)) $ \i ->
-    [ifH (i ==. idx) (fromIntegral $ rwidth v) i]
+listUpdate :: Int -> (a -> a) -> [a] -> [a]
+listUpdate 0 f (x : xs) = f x : xs
+listUpdate i f (x : xs) = x : listUpdate (i - 1) f xs
+listUpdate _ _ [] = error "listUpdate: index too large"
 
-updateS :: forall k r target. (KnownNat k, GoodScalar r, ADReady target)
-        => IntOf target -> target (TKScalar r) -> target (TKS '[k] r)
-        -> target (TKS '[k] r)
-updateS idx a v =
-  sgather1 @_ @_ @'[k + 1] (v `sappend` sreplicate @1 (sfromK a)) $ \i ->
-    [ifH (i ==. idx) (fromIntegral $ swidth v) i]
+fused :: Int -> Int -> [Int64]
+fused n idx =
+  let (outPerm, _, _, _) =
+        foldl' (\(perm, used, fip1, idx') i1 ->
+                 let fi = fip1 `quot` i1
+                     (idxDigit, idxRest) = idx' `quotRem` fi
+                     el :: Int64
+                     el =
+                       let loop :: Int64 -> Int -> Int64
+                           loop j pos' =
+                             let free = not (used !! fromIntegral j)
+                             in if pos' <= 0 && free
+                                  then j
+                                  else loop (j + 1) (pos' - fromEnum free)
+                       in loop 0 idxDigit
+                 in (listUpdate (n - i1) (const el) perm, listUpdate (fromIntegral el) (const True) used, fi, idxRest))
+               (replicate n (-1), replicate n False, fact n, idx)
+               ([n, n - 1 .. 1] :: [Int])
+  in outPerm
 
 -- Given the lexicographic index of a permutation, compute that
 -- permutation.
-idx_to_perm :: forall target. (BaseTensor target, LetTensor target)
-            => Int -> target (TKR 2 Int64)
-idx_to_perm len = withSNat len $ \(k :: SNat k) ->
-  let dummyEl :: forall f. BaseTensor f => f (TKR 0 Int64)
-      dummyEl = rscalar (-1)
-      occupiedSpotMark :: forall f. BaseTensor f => f (TKScalar Int64)
-      occupiedSpotMark = -1
-      perm0 = rreplicate len dummyEl
-      fi0 = fact len
-      elements0 = siota
-      allFreeSpots :: forall g. ADReady g
-                   => g (TKS '[k] Int64) -> g (TKR 1 Int64)
-      allFreeSpots elements1 =
-        let f :: forall f. ADReady f
-              => f (TKProduct (TKR 1 Int64) (TKScalar Int64))
-              -> f (TKScalar Int64)
-              -> f (TKProduct (TKR 1 Int64) (TKScalar Int64))
-            f acc el =  -- sharing not needed, because these are variables
-              let spots = tproject1 acc
-                  nOfFree = tproject2 acc
-              in ifH (el <=. occupiedSpotMark)
-                     acc
-                     (tpair (updateR (kplainPart nOfFree) el spots)
-                            (nOfFree + 1))
-            acc0 = tpair (rreplicate len dummyEl) 0
-        in tproject1 $ tfold k knownSTK knownSTK f acc0 elements1
-      mkPerm :: target (TKR 1 Int64) -> target (TKS '[k] Int64)
-             -> target (TKScalar Int64) -> target (TKScalar Int64)
-             -> target (TKR 1 Int64)
-      mkPerm perm1 elements1 idx1 fi1 =
-        let f :: forall f. ADReady f
-              => f (TKProduct (TKR 1 Int64)
-                              (TKProduct (TKS '[k] Int64)
-                                         (TKProduct (TKScalar Int64)
-                                                    (TKScalar Int64))))
-              -> f (TKScalar Int64)
-              -> f (TKProduct (TKR 1 Int64)
-                              (TKProduct (TKS '[k] Int64)
-                                         (TKProduct (TKScalar Int64)
-                                                    (TKScalar Int64))))
-            f acc i1 =  -- sharing not needed, because these are variables
-              let perm = tproject1 acc  -- not tlet: projections not shared
-                  elements = tproject1 (tproject2 acc)
-                  idx = tproject1 (tproject2 (tproject2 acc))
-                  fi = tproject2 (tproject2 (tproject2 acc))
-              in tlet (fi `quotH` i1) $ \fi2 ->
-                 tlet (allFreeSpots elements
-                       `rindex0` [kplainPart $ idx `quotH` fi2]) $ \el ->
-                   let perm2 = updateR (fromIntegral len - kplainPart i1)
-                                       el perm
-                       elements2 = updateS (kplainPart el)
-                                           occupiedSpotMark elements
-                       idx2 = idx `remH` fi2
-                   in tpair perm2 (tpair elements2 (tpair idx2 fi2))
-            acc0 = tpair perm1 (tpair elements1 (tpair idx1 fi1))
-            l = sslice (SNat @0) SNat (SNat @1) $ sreverse siota
-        in tproject1 $ tfold k knownSTK knownSTK f acc0 l
-  in rbuild1 fi0 $ \idx0 ->
-       mkPerm perm0 elements0 (kfromPlain idx0) (fromIntegral fi0)
+idx_to_perm :: Int -> Nested.Ranked 2 Int64
+idx_to_perm n =
+  let f idx0 = Nested.rfromListPrim $ fused n idx0
+  in tbuild1R (fact n) f
+
+tbuild1R
+  :: forall r n. (Nested.KnownElt r, KnownNat n)
+  => Int -> (Int -> Nested.Ranked n r) -> Nested.Ranked (1 + n) r
+tbuild1R k f =
+  Nested.runNest $ Nested.rgenerate (k :$: ZSR) $ \(i :.: ZIR) -> f i
 
 -- Compute the inversion number from a lexicographic index of a
 -- permutation.
--- This is not computed in @PlainOf target@ but @kfromIntegral@
--- applies @astPlainPart@ to it, which causes it to quickly reduce to a term
--- in @PlainOf target@.
-inversion_number_from_idx
-  :: forall target. (BaseTensor target, LetTensor target, ConvertTensor target)
-  => Int -> target (TKR 1 Int64)
-inversion_number_from_idx len = withSNat (len - 1) $ \k1 ->
-  let fi0 = fact len
-      f :: forall f. ADReady f
-        => f (TKProduct (TKScalar Int64)
-                        (TKProduct (TKScalar Int64)
-                                   (TKScalar Int64)))
-        -> f (TKScalar Int64)
-        -> f (TKProduct (TKScalar Int64)
-                        (TKProduct (TKScalar Int64)
-                                   (TKScalar Int64)))
-      f acc i2 =  -- sharing not needed, because these are variables
-        let s = tproject1 acc
-            idx = tproject1 (tproject2 acc)
-            fi = tproject2 (tproject2 acc)
-        in tlet (fi `quotH` i2) $ \fi2 ->
-             let s2 = s + idx `quotH` fi2
-                 idx2 = idx `remH` fi2
-             in tpair s2 (tpair idx2 fi2)
-      l = sslice (SNat @0) SNat (SNat @2) $ sreverse siota
-  in rbuild1 fi0 $ \idx0 ->
-       let acc0 = tpair 0 (tpair (kfromPlain idx0) (fromIntegral fi0))
-       in rfromK $ tproject1 $ tfold k1 knownSTK knownSTK f acc0 l
+inversion_number_from_idx :: Int -> Nested.Ranked 1 CInt
+inversion_number_from_idx n =
+  let loop s _ _ i | i == 1 = s
+      loop s idx fi i =
+        let fi2 = fi `quot` i
+            (s1, idx2) = idx `quotRem` fi2
+            s2 = s + s1
+        in loop s2 idx2 fi2 (i - 1)
+      f (idx0 :.: ZIR) =
+        loop 0 (fromIntegral idx0) (fromIntegral $ fact n) (fromIntegral n)
+  in Nested.rgenerate [fact n] f
 
 productR :: ADReady target
          => target (TKR 1 Double) -> target (TKScalar Double)
@@ -161,12 +109,11 @@ det :: forall target. ADReady target
 det a =
   let ell = rwidth a
       p :: PlainOf target (TKR 2 Int64)
-      p = rconcrete $ unConcrete $ idx_to_perm ell
-      q :: PlainOf target (TKR 1 Double)
-      q = rconcrete $ unConcrete $ rfromIntegral
-          $ inversion_number_from_idx ell
+      p = rconcrete $ idx_to_perm ell
+      q :: PlainOf target (TKR 1 CInt)
+      q = rconcrete $ inversion_number_from_idx ell
       f :: IntOf target -> target (TKScalar Double)
-      f i = (-1) ** kfromPlain (q `rindex0` [i])
+      f i = (-1) ** kfromPlain (kfromIntegral (q `rindex0` [i]))
             * productR (rgather1 ell a $ \i2 -> [i2, p `rindex0` [i, i2]])
   in kfromR $ rsum $ rbuild1 (fact ell) (rfromK . f)
 
