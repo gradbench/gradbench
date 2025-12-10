@@ -15,11 +15,9 @@ import Control.Monad.ST.Strict (ST, runST)
 import Data.Aeson ((.:))
 import Data.Aeson qualified as JSON
 import Data.Array.Nested qualified as Nested
-import Data.Array.Nested.Ranked.Shape
-import Data.Int (Int64)
+import Data.Int (Int64, Int8)
 import Data.Vector.Storable qualified as VS
 import Data.Vector.Storable.Mutable qualified as VSM
-import Foreign.C (CInt)
 import HordeAd
 import HordeAd.Core.AstEnv
 import HordeAd.Core.AstInterpret
@@ -86,7 +84,7 @@ idx_to_perm n = Nested.rfromVector [fact n, n] $ runST $ mutated n
 
 -- Compute the inversion number from a lexicographic index of a
 -- permutation.
-inversion_number_from_idx :: Int -> Nested.Ranked 1 CInt
+inversion_number_from_idx :: Int -> Nested.Ranked 1 Int8
 inversion_number_from_idx n =
   let loop s _ _ i | i == 1 = fromIntegral s
       loop s idx fi i =
@@ -94,8 +92,8 @@ inversion_number_from_idx n =
             (s1, idx2) = idx `quotRem` fi2
             s2 = s + s1
         in loop s2 idx2 fi2 (i - 1)
-      f (idx0 :.: ZIR) = loop 0 idx0 (fact n) n
-  in Nested.rgenerate [fact n] f
+      f idx0 = loop 0 idx0 (fact n) n
+  in Nested.rfromVector [fact n] $ VS.generate (fact n) f
 
 productR :: ADReady target
          => target (TKR 1 Double) -> target (TKScalar Double)
@@ -107,13 +105,14 @@ det a =
   let ell = rwidth a
       p :: PlainOf target (TKR 2 Int64)
       p = rconcrete $ idx_to_perm ell
-      q :: PlainOf target (TKR 1 CInt)
+      q :: PlainOf target (TKR 1 Int8)
       q = rconcrete $ inversion_number_from_idx ell
       f :: IntOf target -> target (TKScalar Double)
       f i = (-1) ** kfromPlain (kfromIntegral (q `rindex0` [i]))
             * productR (rgather1 ell a $ \i2 ->
                           [i2, kfromIntegral $ p `rindex0` [i, i2]])
-  in kfromR $ rsum $ rbuild1 (fact ell) (rfromK . f)
+  in withSNat (fact ell) $ \ (SNat @k) ->
+       ssum0 $ kbuild1 @k f
 
 primal :: Input -> PrimalOutput
 primal (Input a ell) =
