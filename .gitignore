@@ -13,6 +13,9 @@
 /run/
 /stats/
 
+# Julia
+Manifest.toml
+
 # Rust
 /target/
 

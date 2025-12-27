@@ -304,6 +304,10 @@ enum RepoCommands {
         #[clap(long)]
         ruff_format: bool,
 
+        /// Run only runic
+        #[clap(long)]
+        runic: bool,
+
         /// Run only Rustfmt
         #[clap(long)]
         rustfmt: bool,
@@ -1438,6 +1442,7 @@ fn cli() -> Result<(), ExitCode> {
                     prettier,
                     ruff_check,
                     ruff_format,
+                    runic,
                     rustfmt,
                     typescript,
                 } => {
@@ -1450,6 +1455,7 @@ fn cli() -> Result<(), ExitCode> {
                     lints.flag(prettier, lint::prettier);
                     lints.flag(ruff_check, lint::ruff_check);
                     lints.flag(ruff_format, lint::ruff_format);
+                    lints.flag(runic, lint::runic);
                     lints.flag(rustfmt, lint::rustfmt);
                     lints.flag(typescript, lint::typescript);
                     lints.run(fix)

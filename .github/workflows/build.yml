@@ -46,6 +46,10 @@ jobs:
         uses: ./.github/actions/cli
       - name: Install npm dependencies
         run: nix-shell --command "bun install"
+      - name: Install runic
+        run:
+          nix-shell --command "julia --startup-file=no --project=. -e 'using
+          Pkg; Pkg.instantiate()'"
       - name: Lint
         run: nix-shell --command "gradbench repo lint"
 

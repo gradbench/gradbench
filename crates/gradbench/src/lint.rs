@@ -276,6 +276,32 @@ pub fn ruff_format(cfg: &mut Config) -> anyhow::Result<bool> {
     })
 }
 
+pub fn runic(cfg: &mut Config) -> anyhow::Result<bool> {
+    cfg.name("Runic formatter");
+    let mut cmd = Command::new("julia");
+    cmd.args([
+        "--startup-file=no",
+        "--project=.",
+        "-e \"using Runic; exit(Runic.main(ARGS))\"",
+        "--",
+    ]);
+    if cfg.fix {
+        cmd.args(["--inplace", "."]);
+    } else {
+        cmd.args(["--check", "--verbose", "."]);
+    }
+    Ok(cmd
+        .status()
+        .map_err(|_| {
+            if Command::new("julia").arg("--version").output().is_ok() {
+                anyhow!("You must install runic by running `julia --startup-file=no --project=. -e \"using Pkg; Pkg.instantiate()\"`")
+            } else {
+                anyhow!("Install julia and then install runic by running `julia --startup-file=no --project=. -e \"using Pkg; Pkg.instantiate()\"`")
+            }
+        })?
+        .success())
+}
+
 pub fn rustfmt(cfg: &mut Config) -> anyhow::Result<bool> {
     cfg.name("Rustfmt");
     let mut cmd = Command::new("cargo");
