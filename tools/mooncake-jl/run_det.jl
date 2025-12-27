@@ -5,7 +5,7 @@ import Mooncake
 import GradBench
 
 primal = GradBench.Det.Impure.PrimalDet()
-backend = AutoMooncake(; config=nothing)
+backend = AutoMooncake(; config = nothing)
 
 GradBench.register!(
     "det", Dict(

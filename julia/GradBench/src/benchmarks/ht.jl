@@ -31,8 +31,8 @@ end
 abstract type AbstractHT <: GradBench.Experiment end
 
 "Turn a vector of rows into the corresponding matrix."
-function vecvecToMatrix(v::Vector{Vector{Float64}}) :: Matrix{Float64}
-    transpose(reduce(hcat, v))
+function vecvecToMatrix(v::Vector{Vector{Float64}})::Matrix{Float64}
+    return transpose(reduce(hcat, v))
 end
 
 function GradBench.preprocess(::AbstractHT, input)
@@ -46,39 +46,61 @@ function GradBench.preprocess(::AbstractHT, input)
     end
 
     correspondences = input["data"]["correspondences"]
-    points = vecvecToMatrix(convert(Vector{Vector{Float64}},
-                                    input["data"]["points"]))
+    points = vecvecToMatrix(
+        convert(
+            Vector{Vector{Float64}},
+            input["data"]["points"]
+        )
+    )
 
-    base_positions = vecvecToMatrix(convert(Vector{Vector{Float64}},
-                                            input["data"]["model"]["base_positions"]))
-    weights = vecvecToMatrix(convert(Vector{Vector{Float64}},
-                                     input["data"]["model"]["weights"]))
+    base_positions = vecvecToMatrix(
+        convert(
+            Vector{Vector{Float64}},
+            input["data"]["model"]["base_positions"]
+        )
+    )
+    weights = vecvecToMatrix(
+        convert(
+            Vector{Vector{Float64}},
+            input["data"]["model"]["weights"]
+        )
+    )
     triangles = input["data"]["model"]["triangles"]
-    base_relatives = map(v -> vecvecToMatrix(convert(Vector{Vector{Float64}},v)),
-                         input["data"]["model"]["base_relatives"])
-    inverse_base_absolutes = map(v -> vecvecToMatrix(convert(Vector{Vector{Float64}},v)),
-                                 input["data"]["model"]["inverse_base_absolutes"])
+    base_relatives = map(
+        v -> vecvecToMatrix(convert(Vector{Vector{Float64}}, v)),
+        input["data"]["model"]["base_relatives"]
+    )
+    inverse_base_absolutes = map(
+        v -> vecvecToMatrix(convert(Vector{Vector{Float64}}, v)),
+        input["data"]["model"]["inverse_base_absolutes"]
+    )
 
-    model = Model(input["data"]["model"]["bone_names"],
-                    input["data"]["model"]["parents"] .+ 1, # Julia indexing
-                    base_relatives,
-                    inverse_base_absolutes,
-                    transpose(base_positions),
-                    transpose(weights),
-                    [ triangles[i] .+ 1 for i ∈ 1:size(triangles, 1) ], # Julia indexing
-                    input["data"]["model"]["is_mirrored"])
+    model = Model(
+        input["data"]["model"]["bone_names"],
+        input["data"]["model"]["parents"] .+ 1, # Julia indexing
+        base_relatives,
+        inverse_base_absolutes,
+        transpose(base_positions),
+        transpose(weights),
+        [ triangles[i] .+ 1 for i in 1:size(triangles, 1) ], # Julia indexing
+        input["data"]["model"]["is_mirrored"]
+    )
 
-    return (Input(model,
-                  correspondences .+ 1, # Julia indexing
-                  transpose(points),
-                  theta,
-                  us),)
+    return (
+        Input(
+            model,
+            correspondences .+ 1, # Julia indexing
+            transpose(points),
+            theta,
+            us
+        ),
+    )
 end
 
 # objective
-function angle_axis_to_rotation_matrix(angle_axis::Vector{T1})::Matrix{T1} where{T1}
-    n = sqrt(sum(abs2, angle_axis));
-    if n < .0001
+function angle_axis_to_rotation_matrix(angle_axis::Vector{T1})::Matrix{T1} where {T1}
+    n = sqrt(sum(abs2, angle_axis))
+    if n < 0.0001
         return Matrix{T1}(I, 3, 3)
     end
 
@@ -89,15 +111,15 @@ function angle_axis_to_rotation_matrix(angle_axis::Vector{T1})::Matrix{T1} where
     s = sin(n)
     c = cos(n)
 
-    [
-        x*x+(1-x*x)*c x*y*(1-c)-z*s x*z*(1-c)+y*s;
-        x*y*(1-c)+z*s y*y+(1-y*y)*c y*z*(1-c)-x*s;
-        x*z*(1-c)-y*s z*y*(1-c)+x*s z*z+(1-z*z)*c
+    return [
+        x * x + (1 - x * x) * c x * y * (1 - c) - z * s x * z * (1 - c) + y * s;
+        x * y * (1 - c) + z * s y * y + (1 - y * y) * c y * z * (1 - c) - x * s;
+        x * z * (1 - c) - y * s z * y * (1 - c) + x * s z * z + (1 - z * z) * c
     ]
 end
 
 function apply_global_transform(pose_params::Vector{Vector{T1}}, positions::Matrix{T2})::Matrix{T2} where {T1, T2}
-    (angle_axis_to_rotation_matrix(pose_params[1]) .* pose_params[2]') * positions .+ pose_params[3]
+    return (angle_axis_to_rotation_matrix(pose_params[1]) .* pose_params[2]') * positions .+ pose_params[3]
 end
 
 function relatives_to_absolutes(relatives::Vector{Matrix{T1}}, parents::Vector{Int})::Vector{Matrix{T1}} where {T1}
@@ -105,14 +127,14 @@ function relatives_to_absolutes(relatives::Vector{Matrix{T1}}, parents::Vector{I
     # random element created on one of the previous iterations, so, no way to rewrite this
     # as a comprehension. Hence looped vcat.
     absolutes = Vector{Matrix{T1}}(undef, 0)
-    for i=1:length(parents)
+    for i in 1:length(parents)
         if parents[i] == 0
-            absolutes = vcat(absolutes, [ relatives[i] ])
+            absolutes = vcat(absolutes, [relatives[i]])
         else
-            absolutes = vcat(absolutes, [ absolutes[parents[i]] * relatives[i] ])
+            absolutes = vcat(absolutes, [absolutes[parents[i]] * relatives[i]])
         end
     end
-    absolutes
+    return absolutes
 end
 
 function euler_angles_to_rotation_matrix(xyz::Vector{T1})::Matrix{T1} where {T1}
@@ -128,10 +150,10 @@ function euler_angles_to_rotation_matrix(xyz::Vector{T1})::Matrix{T1} where {T1}
     # We could define this as a 3x3 matrix and then build a block-diagonal
     # 4x4 matrix with 1. at (4, 4), but Zygote couldn't differentiate
     # any way of building that I could come up with.
-    Rx = [ 1. 0. 0. 0.; 0. costx -sintx 0.; 0. sintx costx 0.; 0. 0. 0. 1. ]
-    Ry = [ costy 0. sinty 0.; 0. 1. 0. 0.; -sinty 0. costy 0.; 0. 0. 0. 1. ]
-    Rz = [ costz -sintz 0. 0.; sintz costz 0. 0.; 0. 0. 1. 0.; 0. 0. 0. 1. ]
-    Rz * Ry * Rx
+    Rx = [ 1.0 0.0 0.0 0.0; 0.0 costx -sintx 0.0; 0.0 sintx costx 0.0; 0.0 0.0 0.0 1.0 ]
+    Ry = [ costy 0.0 sinty 0.0; 0.0 1.0 0.0 0.0; -sinty 0.0 costy 0.0; 0.0 0.0 0.0 1.0 ]
+    Rz = [ costz -sintz 0.0 0.0; sintz costz 0.0 0.0; 0.0 0.0 1.0 0.0; 0.0 0.0 0.0 1.0 ]
+    return Rz * Ry * Rx
 end
 
 function get_posed_relatives(model::Model, pose_params::Vector{Vector{T1}})::Vector{Matrix{T1}} where {T1}
@@ -139,9 +161,9 @@ function get_posed_relatives(model::Model, pose_params::Vector{Vector{T1}})::Vec
     order = [1, 3, 2]
     offset = 3
     n_bones = size(model.bone_names, 1)
-    [
+    return [
         model.base_relatives[i_bone] * euler_angles_to_rotation_matrix(pose_params[i_bone + offset][order])
-            for i_bone ∈ 1:n_bones
+            for i_bone in 1:n_bones
     ]
 end
 
@@ -149,23 +171,23 @@ function get_skinned_vertex_positions(model::Model, pose_params::Vector{Vector{T
     relatives = get_posed_relatives(model, pose_params)
     absolutes = relatives_to_absolutes(relatives, model.parents)
 
-    transforms = [ absolutes[i] * model.inverse_base_absolutes[i] for i ∈ 1:size(absolutes, 1) ]
+    transforms = [ absolutes[i] * model.inverse_base_absolutes[i] for i in 1:size(absolutes, 1) ]
 
     n_verts = size(model.base_positions, 2)
     positions = zeros(Float64, 3, n_verts)
-    for i=1:size(transforms, 1)
+    for i in 1:size(transforms, 1)
         positions = positions +
             (transforms[i][1:3, :] * model.base_positions) .* model.weights[i, :]'
     end
 
     if model.is_mirrored
-        positions = [-positions[1,:]'; positions[2:end, :]]
+        positions = [-positions[1, :]'; positions[2:end, :]]
     end
 
     if apply_global
         positions = apply_global_transform(pose_params, positions)
     end
-    positions
+    return positions
 end
 
 function to_pose_params(theta::Vector{T1}, n_bones::Int)::Vector{Vector{T1}} where {T1}
@@ -179,21 +201,21 @@ function to_pose_params(theta::Vector{T1}, n_bones::Int)::Vector{Vector{T1}} whe
     n = 3 + n_bones
     n_fingers = 5
     cols = 5 + n_fingers * 4
-    [
+    return [
         if i == 1
-            theta[1:3]
+                theta[1:3]
         elseif i == 2
-            [1., 1., 1.]
+                [1.0, 1.0, 1.0]
         elseif i == 3
-            theta[4:6]
+                theta[4:6]
         elseif i > cols || i == 4 || i % 4 == 1
-            [0., 0., 0.]
+                [0.0, 0.0, 0.0]
         elseif i % 4 == 2
-            [theta[i + 1], theta[i + 2], 0.]
+                [theta[i + 1], theta[i + 2], 0.0]
         else
-            [theta[i + 2], 0., 0.]
+                [theta[i + 2], 0.0, 0.0]
         end
-            for i ∈ 1:n
+            for i in 1:n
     ]
 end
 
@@ -203,14 +225,16 @@ function objective_simple(model::Model, correspondences::Vector{Int}, points::Ma
     vertex_positions = get_skinned_vertex_positions(model, pose_params)
 
     n_corr = length(correspondences)
-    vcat([ points[:, i] - vertex_positions[:, correspondences[i]] for i ∈ 1:n_corr ]...)
+    return vcat([ points[:, i] - vertex_positions[:, correspondences[i]] for i in 1:n_corr ]...)
 end
 
-function objective_complicated(model::Model,
-                               correspondences::Vector{Int},
-                               points::Matrix{T1},
-                               theta::Vector{T2},
-                               us::Matrix{T3}) where {T1, T2, T3}
+function objective_complicated(
+        model::Model,
+        correspondences::Vector{Int},
+        points::Matrix{T1},
+        theta::Vector{T2},
+        us::Matrix{T3}
+    ) where {T1, T2, T3}
     pose_params = to_pose_params(theta, length(model.bone_names))
     vertex_positions = get_skinned_vertex_positions(model, pose_params)
 
@@ -223,8 +247,8 @@ function objective_complicated(model::Model,
 
     # Compute the hand points in vectorized form
     hand_points = vertex_positions[:, verts1] .* us[:, 1]' .+
-                  vertex_positions[:, verts2] .* us[:, 2]' .+
-                  vertex_positions[:, verts3] .* (1 .- us[:, 1] .- us[:, 2])'
+        vertex_positions[:, verts2] .* us[:, 2]' .+
+        vertex_positions[:, verts3] .* (1 .- us[:, 1] .- us[:, 2])'
 
     # Compute the residuals and flatten to a vector
     residuals = points - hand_points
@@ -234,17 +258,21 @@ end
 struct ObjectiveHT <: HT.AbstractHT end
 function (::ObjectiveHT)(input)
     complicated = size(input.us, 1) != 0
-    if complicated
-        objective_complicated(input.model,
-                              input.correspondences,
-                              input.points,
-                              input.theta,
-                              input.us)
+    return if complicated
+        objective_complicated(
+            input.model,
+            input.correspondences,
+            input.points,
+            input.theta,
+            input.us
+        )
     else
-        objective_simple(input.model,
-                         input.correspondences,
-                         input.points,
-                         input.theta)
+        objective_simple(
+            input.model,
+            input.correspondences,
+            input.points,
+            input.theta
+        )
     end
 end
 

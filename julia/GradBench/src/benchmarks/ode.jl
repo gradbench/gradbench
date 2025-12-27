@@ -24,113 +24,115 @@ abstract type AbstractODE <: GradBench.Experiment end
 function GradBench.preprocess(::AbstractODE, message)
     x = convert(Vector{Float64}, message["x"])
     s = message["s"]
-    (; x, s)
+    return (; x, s)
 end
 
 # An implementation in a pure and vectorised style.
 module Pure
 
-using ..ODE
+    using ..ODE
 
-function ode_fun(x::Vector{T}, y::Vector{T}) where {T}
-    return [x[1]; x[2:end] .* y[1:end-1]]
-end
-
-function runge_kutta(x::Vector{T}, yf::Vector{T}, tf::Float64, s::Int) where {T}
-    h = tf / s
-
-    for _ in 1:s
-        k1 = ode_fun(x, yf)
-        k2 = ode_fun(x, yf .+ (h / 2) .* k1)
-        k3 = ode_fun(x, yf .+ (h / 2) .* k2)
-        k4 = ode_fun(x, yf .+ h .* k3)
-
-        increment = (h / 6) .* (k1 .+ 2 .* k2 .+ 2 .* k3 .+ k4)
-        yf = yf .+ increment
+    function ode_fun(x::Vector{T}, y::Vector{T}) where {T}
+        return [x[1]; x[2:end] .* y[1:(end - 1)]]
     end
 
-    return yf
-end
+    function runge_kutta(x::Vector{T}, yf::Vector{T}, tf::Float64, s::Int) where {T}
+        h = tf / s
 
-function primal(x::Vector{T}, s::Int) where {T}
-    tf = 2.0
-    yi = fill(0.0, length(x))
-    return runge_kutta(x, yi, tf, s)
-end
+        for _ in 1:s
+            k1 = ode_fun(x, yf)
+            k2 = ode_fun(x, yf .+ (h / 2) .* k1)
+            k3 = ode_fun(x, yf .+ (h / 2) .* k2)
+            k4 = ode_fun(x, yf .+ h .* k3)
 
-import ..ODE
+            increment = (h / 6) .* (k1 .+ 2 .* k2 .+ 2 .* k3 .+ k4)
+            yf = yf .+ increment
+        end
 
-struct PrimalODE <: ODE.AbstractODE end
-function (::PrimalODE)(x, s)
-    return primal(x, s)
-end
+        return yf
+    end
+
+    function primal(x::Vector{T}, s::Int) where {T}
+        tf = 2.0
+        yi = fill(0.0, length(x))
+        return runge_kutta(x, yi, tf, s)
+    end
+
+    import ..ODE
+
+    struct PrimalODE <: ODE.AbstractODE end
+    function (::PrimalODE)(x, s)
+        return primal(x, s)
+    end
 
 end # module Pure
 
 # An implementation that uses side effects.
 module Impure
 
-using ..ODE
+    using ..ODE
 
-function ode_fun(n, x, y, z)
-    z[1] = x[1]
-    for i in 2:n
-        z[i] = x[i] * y[i-1]
+    function ode_fun(n, x, y, z)
+        z[1] = x[1]
+        for i in 2:n
+            z[i] = x[i] * y[i - 1]
+        end
+        return
     end
-end
 
-function primal(n, xi::AbstractVector{T}, s, yf::Vector{T}) where {T}
-    tf = T(2)
-    h = tf / T(s)
+    function primal(n, xi::AbstractVector{T}, s, yf::Vector{T}) where {T}
+        tf = T(2)
+        h = tf / T(s)
 
-    k1 = Vector{T}(undef, n)
-    k2 = Vector{T}(undef, n)
-    k3 = Vector{T}(undef, n)
-    k4 = Vector{T}(undef, n)
-    y_tmp = Vector{T}(undef, n)
+        k1 = Vector{T}(undef, n)
+        k2 = Vector{T}(undef, n)
+        k3 = Vector{T}(undef, n)
+        k4 = Vector{T}(undef, n)
+        y_tmp = Vector{T}(undef, n)
 
-    yf .= T(0)
+        yf .= T(0)
 
-    for _ in 1:s
-        ode_fun(n, xi, yf, k1)
+        for _ in 1:s
+            ode_fun(n, xi, yf, k1)
 
-        for i in 1:n
-            y_tmp[i] = yf[i] + h * k1[i] / T(2)
+            for i in 1:n
+                y_tmp[i] = yf[i] + h * k1[i] / T(2)
+            end
+            ode_fun(n, xi, y_tmp, k2)
+
+            for i in 1:n
+                y_tmp[i] = yf[i] + h * k2[i] / T(2)
+            end
+            ode_fun(n, xi, y_tmp, k3)
+
+            for i in 1:n
+                y_tmp[i] = yf[i] + h * k3[i]
+            end
+            ode_fun(n, xi, y_tmp, k4)
+
+            for i in 1:n
+                yf[i] += h * (k1[i] + T(2) * k2[i] + T(2) * k3[i] + k4[i]) / T(6)
+            end
         end
-        ode_fun(n, xi, y_tmp, k2)
-
-        for i in 1:n
-            y_tmp[i] = yf[i] + h * k2[i] / T(2)
-        end
-        ode_fun(n, xi, y_tmp, k3)
-
-        for i in 1:n
-            y_tmp[i] = yf[i] + h * k3[i]
-        end
-        ode_fun(n, xi, y_tmp, k4)
-
-        for i in 1:n
-            yf[i] += h * (k1[i] + T(2) * k2[i] + T(2) * k3[i] + k4[i]) / T(6)
-        end
+        return
     end
-end
 
-import ...GradBench
-import ..ODE
+    import ...GradBench
+    import ..ODE
 
-struct PrimalODE <: ODE.AbstractODE end
-function (::PrimalODE)(x, s)
-    output = similar(x)
-    n = length(x)
+    struct PrimalODE <: ODE.AbstractODE end
+    function (::PrimalODE)(x, s)
+        output = similar(x)
+        n = length(x)
 
-    primal(n, x, s, output)
-    return output
-end
+        primal(n, x, s, output)
+        return output
+    end
 
 
 end # module Impure
 
-struct DIGradientODE{P,B<:AbstractADType} <: GradBench.Experiment
+struct DIGradientODE{P, B <: AbstractADType} <: GradBench.Experiment
     primal::P
     backend::B
 end

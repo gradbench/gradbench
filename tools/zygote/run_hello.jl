@@ -9,9 +9,11 @@ function (::GradientHello)(x)
     return z
 end
 
-GradBench.register!("hello", Dict(
-    "square" => GradBench.Hello.PrimalHello(),
-    "double" => GradientHello()
-))
+GradBench.register!(
+    "hello", Dict(
+        "square" => GradBench.Hello.PrimalHello(),
+        "double" => GradientHello()
+    )
+)
 
 end # module
