@@ -2,7 +2,7 @@ name: Docker
 runs:
   using: composite
   steps:
-    - uses: crazy-max/ghaction-setup-docker@v3
+    - uses: crazy-max/ghaction-setup-docker@v4
       with:
         daemon-config: |
           {
