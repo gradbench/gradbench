@@ -1,5 +1,7 @@
 import GradBench
 
+const OPTIONS = GradBench.parse_commandline()
+
 include("run_det.jl")
 include("run_gmm.jl")
 include("run_hello.jl")

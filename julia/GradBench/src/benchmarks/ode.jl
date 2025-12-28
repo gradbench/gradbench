@@ -27,7 +27,7 @@ function GradBench.preprocess(::AbstractODE, message)
     (; x, s)
 end
 
-# An implementation in a pure and vectorised style.
+# An implementation in a pure and vectorised (but sequential) style.
 module Pure
 
 using ..ODE
@@ -67,8 +67,8 @@ end
 
 end # module Pure
 
-# An implementation that uses side effects.
-module Impure
+# A serial implementation that uses side effects.
+module Serial
 
 using ..ODE
 
@@ -127,8 +127,71 @@ function (::PrimalODE)(x, s)
     return output
 end
 
+end # module Serial
 
-end # module Impure
+# A parallel implementation that uses side effects.
+module Parallel
+
+using ..ODE
+using OhMyThreads: @tasks
+
+function ode_fun(n, x, y, z)
+    z[1] = x[1]
+    @tasks for i in 2:n
+        z[i] = x[i] * y[i-1]
+    end
+end
+
+function primal(n, xi::AbstractVector{T}, s, yf::Vector{T}) where {T}
+    tf = T(2)
+    h = tf / T(s)
+
+    k1 = Vector{T}(undef, n)
+    k2 = Vector{T}(undef, n)
+    k3 = Vector{T}(undef, n)
+    k4 = Vector{T}(undef, n)
+    y_tmp = Vector{T}(undef, n)
+
+    yf .= T(0)
+
+    for _ in 1:s
+        ode_fun(n, xi, yf, k1)
+
+        @tasks for i in 1:n
+            y_tmp[i] = yf[i] + h * k1[i] / T(2)
+        end
+        ode_fun(n, xi, y_tmp, k2)
+
+        @tasks for i in 1:n
+            y_tmp[i] = yf[i] + h * k2[i] / T(2)
+        end
+        ode_fun(n, xi, y_tmp, k3)
+
+        @tasks for i in 1:n
+            y_tmp[i] = yf[i] + h * k3[i]
+        end
+        ode_fun(n, xi, y_tmp, k4)
+
+        @tasks for i in 1:n
+            yf[i] += h * (k1[i] + T(2) * k2[i] + T(2) * k3[i] + k4[i]) / T(6)
+        end
+    end
+end
+
+import ...GradBench
+import ..ODE
+
+struct PrimalODE <: ODE.AbstractODE end
+function (::PrimalODE)(x, s)
+    output = similar(x)
+    n = length(x)
+
+    primal(n, x, s, output)
+    return output
+end
+
+end # module Parallel
+
 
 struct DIGradientODE{P,B<:AbstractADType} <: GradBench.Experiment
     primal::P

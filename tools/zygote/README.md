@@ -22,5 +22,7 @@ have been improved compared to the original implementations.
 
 - `ba` has been lightly micro-optimised, but but impact is not major.
 
+### Multithreading
+
 [julia]: https://julialang.org/
 [zygote]: https://fluxml.ai/Zygote.jl/
