@@ -36,7 +36,7 @@ def run(params):
             return {"success": False, "error": str(e)}
 
 
-CFLAGS = "-O3 -march=native -fno-math-errno"
+CFLAGS = "-O3 -fno-math-errno"
 
 
 def main():

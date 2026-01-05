@@ -7,7 +7,7 @@
 
 CXX?=c++
 CC?=cc
-CXXFLAGS?=-std=c++17 -O3 -march=native -Wall -I../../cpp
+CXXFLAGS?=-std=c++17 -O3 -Wall -I../../cpp
 LDFLAGS?=-lm
 
 MULTITHREADED=no
