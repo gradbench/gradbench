@@ -15,8 +15,11 @@ NATIVE=yes
 
 # This needs to be set to "no" anytime we compile in a Dockerfile,
 # because that Docker image may get run on a different computer.
-# It's totally fine to have it set to "yes" when compiling tools,
-# though, because that does not get baked into the Docker image.
+# For example, when compiling the "manual" tool as the golden impl
+# for an eval, we can't use anything about the current native
+# architecture. But it's totally fine to have it set to "yes" when
+# compiling a tool right before running it, because that does not
+# get baked into a Docker image.
 ifeq ($(NATIVE),yes)
 CXXFLAGS+= -march=native
 endif
