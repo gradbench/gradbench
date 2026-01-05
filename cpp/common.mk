@@ -13,6 +13,10 @@ LDFLAGS?=-lm
 MULTITHREADED=no
 NATIVE=yes
 
+# This needs to be set to "no" anytime we compile in a Dockerfile,
+# because that Docker image may get run on a different computer.
+# It's totally fine to have it set to "yes" when compiling tools,
+# though, because that does not get baked into the Docker image.
 ifeq ($(NATIVE),yes)
 CXXFLAGS+= -march=native
 endif
