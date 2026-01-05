@@ -11,7 +11,7 @@ CXXFLAGS?=-std=c++17 -O3 -Wall -I../../cpp
 LDFLAGS?=-lm
 
 MULTITHREADED=no
-NATIVE?=yes
+NATIVE=yes
 
 ifeq ($(NATIVE),yes)
 CXXFLAGS+= -march=native
