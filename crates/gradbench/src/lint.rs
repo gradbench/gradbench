@@ -278,11 +278,28 @@ pub fn ruff_format(cfg: &mut Config) -> anyhow::Result<bool> {
 
 pub fn runic(cfg: &mut Config) -> anyhow::Result<bool> {
     cfg.name("Runic formatter");
+
+    // Check whether julia and Runic are installed
+    match Command::new("julia")
+        .args(["--startup-file=no", "--project=.", "--eval=using Runic"])
+        .output()
+    {
+        Ok(exit_code) => {
+            if !exit_code.status.success() {
+                return Err(anyhow!("Install runic by running `julia --startup-file=no --project=. -e \"using Pkg; Pkg.instantiate()\"`"));
+            }
+        }
+        Err(_) => {
+            return Err(anyhow!("Install julia and then install runic by running `julia --startup-file=no --project=. -e \"using Pkg; Pkg.instantiate()\"`"));
+        }
+    }
+
+    // Run Runic
     let mut cmd = Command::new("julia");
     cmd.args([
         "--startup-file=no",
         "--project=.",
-        "-e \"using Runic; exit(Runic.main(ARGS))\"",
+        "--eval=using Runic; exit(Runic.main(ARGS))",
         "--",
     ]);
     if cfg.fix {
@@ -290,16 +307,7 @@ pub fn runic(cfg: &mut Config) -> anyhow::Result<bool> {
     } else {
         cmd.args(["--check", "--verbose", "."]);
     }
-    Ok(cmd
-        .status()
-        .map_err(|_| {
-            if Command::new("julia").arg("--version").output().is_ok() {
-                anyhow!("You must install runic by running `julia --startup-file=no --project=. -e \"using Pkg; Pkg.instantiate()\"`")
-            } else {
-                anyhow!("Install julia and then install runic by running `julia --startup-file=no --project=. -e \"using Pkg; Pkg.instantiate()\"`")
-            }
-        })?
-        .success())
+    Ok(cmd.status()?.success())
 }
 
 pub fn rustfmt(cfg: &mut Config) -> anyhow::Result<bool> {
