@@ -5,7 +5,7 @@ import Mooncake
 import GradBench
 
 primal = GradBench.ODE.Impure.PrimalODE()
-backend = AutoMooncake(; config=nothing)
+backend = AutoMooncake(; config = nothing)
 
 GradBench.register!(
     "ode", Dict(

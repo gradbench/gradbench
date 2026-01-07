@@ -14,7 +14,7 @@ import ..GradBench
 abstract type AbstractLSE <: GradBench.Experiment end
 
 function GradBench.preprocess(::AbstractLSE, message)
-    (Input(convert(Vector{Float64}, message["x"])),)
+    return (Input(convert(Vector{Float64}, message["x"])),)
 end
 
 struct PrimalLSE <: AbstractLSE end

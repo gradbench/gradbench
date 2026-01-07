@@ -9,10 +9,12 @@ function (::GradientLSE)(input)
     return z
 end
 
-GradBench.register!("lse", Dict(
-    "primal" => GradBench.LSE.PrimalLSE(),
-    "gradient" => GradientLSE()
-))
+GradBench.register!(
+    "lse", Dict(
+        "primal" => GradBench.LSE.PrimalLSE(),
+        "gradient" => GradientLSE()
+    )
+)
 
 
 end # module
