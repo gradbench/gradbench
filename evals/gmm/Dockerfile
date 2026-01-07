@@ -14,7 +14,7 @@ RUN uv sync --no-default-groups --group gradbench --group numpy --group pydantic
 COPY cpp cpp
 RUN make -C cpp
 COPY tools/manual tools/manual
-RUN make -C tools/manual -Bj
+RUN make -C tools/manual -Bj NATIVE=no
 
 # `COPY` the rest of the files.
 COPY python python
