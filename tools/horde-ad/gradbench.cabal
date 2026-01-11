@@ -1,0 +1,53 @@
+cabal-version:      3.0
+name:               gradbench
+version:            0.1.0.0
+homepage:           https://gradben.ch/
+license:            MIT
+author:             Troels Henriksen
+maintainer:         athas@sigkill.dk
+category:           Math
+build-type:         Simple
+
+executable gradbench
+  main-is:          Main.hs
+  other-modules:    GradBench.Hello
+                    GradBench.KMeans
+                    GradBench.LLSq
+                    GradBench.LSE
+                    GradBench.ODE
+                    GradBench.Det
+                    GradBench.Particle
+                    GradBench.Saddle
+                    GradBench.GD
+  build-depends:    aeson, base, bytestring, clock, deepseq, ghc-typelits-knownnat >= 0.8.0 && < 1, horde-ad, ox-arrays, text, vector
+  hs-source-dirs:   src
+  default-language:   GHC2024
+  default-extensions: StrictData, TypeFamilies, TypeFamilyDependencies,
+                      FunctionalDependencies, RecordWildCards, MultiWayIf,
+                      DefaultSignatures, PatternSynonyms, NoStarIsType,
+                      TypeData, TypeAbstractions
+  other-extensions:   UnboxedTuples, CPP, ViewPatterns, OverloadedLists,
+                      DeriveAnyClass, UndecidableInstances, AllowAmbiguousTypes,
+                      QuantifiedConstraints, TemplateHaskell, DerivingVia,
+                      ImpredicativeTypes,
+                      OverloadedStrings
+  ghc-options:        -Wall -Wcompat -Widentities -Wredundant-constraints -Wmissing-export-lists -Wpartial-fields -Wunused-packages -Wredundant-bang-patterns -Woperator-whitespace -Wredundant-strictness-flags -Wterm-variable-capture -Wmissed-specialisations
+  ghc-options:        -Wmissing-poly-kind-signatures -Wmissing-role-annotations -Wno-unticked-promoted-constructors
+  ghc-options:        -fprint-explicit-kinds
+  -- This is supposedly risky, but prevents STG from creating thunks, #23848:
+  ghc-options:        -fworker-wrapper-cbv
+  -- Disabling this breaks performance:
+  ghc-options:        -fexpose-all-unfoldings -fspecialise-aggressively -fsimpl-tick-factor=200
+  -- Disabling hurts performance to some extent:
+  ghc-options:        -fdicts-cheap -flate-dmd-anal
+  -- ghc-options: -O2 -flate-specialise
+  -- Disabling a warning we can't yet fix:
+  if impl(ghc >= 9.14)
+    ghc-options:        -Wno-pattern-namespace-specifier
+    ghc-options:        -fpolymorphic-specialisation
+
+  ghc-options:        -rtsopts
+  -- Make GC more predictable in benchmarks.
+  ghc-options:        "-with-rtsopts=-A0.75g -I0"
+  -- Too big a performance hit:
+  -- ghc-options:        "-with-rtsopts=-H1.5g -A0.75g -I0"
