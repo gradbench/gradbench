@@ -1,11 +1,11 @@
-docker build . --file evals/norf/Dockerfile --tag ghcr.io/gradbench/eval-norf:latest
-docker build . --file evals/qux/Dockerfile --tag ghcr.io/gradbench/eval-qux:latest
-docker build . --file tools/bar/Dockerfile --tag ghcr.io/gradbench/tool-bar:latest
-docker build . --file tools/baz/Dockerfile --tag ghcr.io/gradbench/tool-baz:latest
-docker build . --file tools/foo/Dockerfile --tag ghcr.io/gradbench/tool-foo:latest
-gradbench run --eval 'docker run --rm --interactive ghcr.io/gradbench/eval-norf:latest' --tool 'docker run --rm --interactive ghcr.io/gradbench/tool-bar:latest'
-gradbench run --eval 'docker run --rm --interactive ghcr.io/gradbench/eval-norf:latest' --tool 'docker run --rm --interactive ghcr.io/gradbench/tool-baz:latest'
-gradbench run --eval 'docker run --rm --interactive ghcr.io/gradbench/eval-norf:latest' --tool 'docker run --rm --interactive ghcr.io/gradbench/tool-foo:latest'
-gradbench run --eval 'docker run --rm --interactive ghcr.io/gradbench/eval-qux:latest' --tool 'docker run --rm --interactive ghcr.io/gradbench/tool-bar:latest'
-gradbench run --eval 'docker run --rm --interactive ghcr.io/gradbench/eval-qux:latest' --tool 'docker run --rm --interactive ghcr.io/gradbench/tool-baz:latest'
-gradbench run --eval 'docker run --rm --interactive ghcr.io/gradbench/eval-qux:latest' --tool 'docker run --rm --interactive ghcr.io/gradbench/tool-foo:latest'
+nix build --no-link --print-out-paths '.#eval-hello'
+nix build --no-link --print-out-paths '.#eval-llsq'
+nix build --no-link --print-out-paths '.#tool-jax'
+nix build --no-link --print-out-paths '.#tool-manual'
+nix build --no-link --print-out-paths '.#tool-pytorch'
+gradbench run --eval "nix build --no-link --print-out-paths --offline '.#eval-hello' | xargs -I{} {}/bin/run" --tool "nix build --no-link --print-out-paths --offline '.#tool-jax' | xargs -I{} {}/bin/run"
+gradbench run --eval "nix build --no-link --print-out-paths --offline '.#eval-hello' | xargs -I{} {}/bin/run" --tool "nix build --no-link --print-out-paths --offline '.#tool-manual' | xargs -I{} {}/bin/run"
+gradbench run --eval "nix build --no-link --print-out-paths --offline '.#eval-hello' | xargs -I{} {}/bin/run" --tool "nix build --no-link --print-out-paths --offline '.#tool-pytorch' | xargs -I{} {}/bin/run"
+gradbench run --eval "nix build --no-link --print-out-paths --offline '.#eval-llsq' | xargs -I{} {}/bin/run" --tool "nix build --no-link --print-out-paths --offline '.#tool-jax' | xargs -I{} {}/bin/run"
+gradbench run --eval "nix build --no-link --print-out-paths --offline '.#eval-llsq' | xargs -I{} {}/bin/run" --tool "nix build --no-link --print-out-paths --offline '.#tool-manual' | xargs -I{} {}/bin/run"
+gradbench run --eval "nix build --no-link --print-out-paths --offline '.#eval-llsq' | xargs -I{} {}/bin/run" --tool "nix build --no-link --print-out-paths --offline '.#tool-pytorch' | xargs -I{} {}/bin/run"

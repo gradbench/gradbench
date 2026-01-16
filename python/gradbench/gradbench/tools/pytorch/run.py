@@ -31,7 +31,11 @@ def main():
         if message["kind"] == "start":
             response["tool"] = "pytorch"
         elif message["kind"] == "evaluate":
-            response = run(message)
+            try:
+                response = run(message)
+            except Exception as e:
+                response["error"] = "".join(traceback.format_exception(e))
+                response["success"] = False
         elif message["kind"] == "define":
             try:
                 import_module(message["module"])

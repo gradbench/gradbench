@@ -3,9 +3,9 @@
 [Zygote][] is a differentiable programming library for the [Julia][] programming
 language.
 
-## Running outside of Docker
+## Running outside of Nix
 
-[See the general instructions.](/julia/#running-outside-of-docker)
+[See the general instructions.](/julia/#running-outside-of-nix)
 
 ## Commentary
 

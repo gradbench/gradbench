@@ -10,7 +10,7 @@ integration have been removed and replaced with GradBench-specific code.
 [original code]:
   https://github.com/jasigal/ADBench/tree/b98752f96a3b785e07ff6991853dc1073e6bf075/src/ocaml
 
-## Running outside of Docker
+## Running outside of Nix
 
 You must have [opam][] and [Dune][]. Make sure the `opam` environment is set -
 this may require you to run `eval $(opam env)`, although this is usually done in

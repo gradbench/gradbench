@@ -8,7 +8,7 @@ requires manual modification. These modified generated programs have been taken
 from ADBench. See comments in the specific programs for details about the
 necessary modifications.
 
-To run this outside Docker, you'll first need to run the following commands from
+To run this outside Nix, you'll first need to run the following commands from
 the GradBench repository root to setup the C++ build, install Tapenade into the
 expected location, and build some other binaries:
 

@@ -1,12 +1,12 @@
-docker build . --file evals/norf/Dockerfile --tag ghcr.io/gradbench/eval-norf:latest
-docker build . --file evals/qux/Dockerfile --tag ghcr.io/gradbench/eval-qux:latest
-docker build . --file tools/bar/Dockerfile --tag ghcr.io/gradbench/tool-bar:latest
-docker build . --file tools/baz/Dockerfile --tag ghcr.io/gradbench/tool-baz:latest
-docker build . --file tools/foo/Dockerfile --tag ghcr.io/gradbench/tool-foo:latest
-mkdir -p 'a directory/norf' 'a directory/qux'
-gradbench run --eval 'docker run --rm --interactive ghcr.io/gradbench/eval-norf:latest' --tool 'docker run --rm --interactive ghcr.io/gradbench/tool-bar:latest' -o 'a directory/norf/bar.jsonl'
-gradbench run --eval 'docker run --rm --interactive ghcr.io/gradbench/eval-norf:latest' --tool 'docker run --rm --interactive ghcr.io/gradbench/tool-baz:latest' -o 'a directory/norf/baz.jsonl'
-gradbench run --eval 'docker run --rm --interactive ghcr.io/gradbench/eval-norf:latest' --tool 'docker run --rm --interactive ghcr.io/gradbench/tool-foo:latest' -o 'a directory/norf/foo.jsonl'
-gradbench run --eval 'docker run --rm --interactive ghcr.io/gradbench/eval-qux:latest' --tool 'docker run --rm --interactive ghcr.io/gradbench/tool-bar:latest' -o 'a directory/qux/bar.jsonl'
-gradbench run --eval 'docker run --rm --interactive ghcr.io/gradbench/eval-qux:latest' --tool 'docker run --rm --interactive ghcr.io/gradbench/tool-baz:latest' -o 'a directory/qux/baz.jsonl'
-gradbench run --eval 'docker run --rm --interactive ghcr.io/gradbench/eval-qux:latest' --tool 'docker run --rm --interactive ghcr.io/gradbench/tool-foo:latest' -o 'a directory/qux/foo.jsonl'
+nix build --no-link --print-out-paths '.#eval-hello'
+nix build --no-link --print-out-paths '.#eval-llsq'
+nix build --no-link --print-out-paths '.#tool-jax'
+nix build --no-link --print-out-paths '.#tool-manual'
+nix build --no-link --print-out-paths '.#tool-pytorch'
+mkdir -p 'a directory/hello' 'a directory/llsq'
+gradbench run --eval "nix build --no-link --print-out-paths --offline '.#eval-hello' | xargs -I{} {}/bin/run" --tool "nix build --no-link --print-out-paths --offline '.#tool-jax' | xargs -I{} {}/bin/run" -o 'a directory/hello/jax.jsonl'
+gradbench run --eval "nix build --no-link --print-out-paths --offline '.#eval-hello' | xargs -I{} {}/bin/run" --tool "nix build --no-link --print-out-paths --offline '.#tool-manual' | xargs -I{} {}/bin/run" -o 'a directory/hello/manual.jsonl'
+gradbench run --eval "nix build --no-link --print-out-paths --offline '.#eval-hello' | xargs -I{} {}/bin/run" --tool "nix build --no-link --print-out-paths --offline '.#tool-pytorch' | xargs -I{} {}/bin/run" -o 'a directory/hello/pytorch.jsonl'
+gradbench run --eval "nix build --no-link --print-out-paths --offline '.#eval-llsq' | xargs -I{} {}/bin/run" --tool "nix build --no-link --print-out-paths --offline '.#tool-jax' | xargs -I{} {}/bin/run" -o 'a directory/llsq/jax.jsonl'
+gradbench run --eval "nix build --no-link --print-out-paths --offline '.#eval-llsq' | xargs -I{} {}/bin/run" --tool "nix build --no-link --print-out-paths --offline '.#tool-manual' | xargs -I{} {}/bin/run" -o 'a directory/llsq/manual.jsonl'
+gradbench run --eval "nix build --no-link --print-out-paths --offline '.#eval-llsq' | xargs -I{} {}/bin/run" --tool "nix build --no-link --print-out-paths --offline '.#tool-pytorch' | xargs -I{} {}/bin/run" -o 'a directory/llsq/pytorch.jsonl'

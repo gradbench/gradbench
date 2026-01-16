@@ -26,11 +26,17 @@ partial def loop (stdin : IO.FS.Stream) (stdout : IO.FS.Stream) :
   if line.isEmpty then
     return ok ()
   else
+    let message <- match Json.parse line with
+      | ok message => pure message
+      | error err =>
+          IO.eprintln err
+          return error err
+    let id : Json := match Json.getObjVal? message "id" with
+      | ok id => id
+      | error _ => Json.null
     let result := do
-      let message <- Json.parse line
       let kind <- Json.getObjVal? message "kind"
       if kind == "start" then
-        let id <- Json.getObjVal? message "id"
         return do
           return Json.mkObj [("id", id), ("tool", "scilean")]
       if kind == "define" then
@@ -54,11 +60,18 @@ partial def loop (stdin : IO.FS.Stream) (stdout : IO.FS.Stream) :
           let response : Response := { id, success, output, timings }
           return toJson response
       else
-        let id <- Json.getObjVal? message "id"
         return do
           return Json.mkObj [("id", id)]
     match result with
-    | error err => return error err
+    | error err => do
+      let response := Json.mkObj [
+        ("id", id),
+        ("success", toJson false),
+        ("error", toJson err),
+      ]
+      IO.println (Json.compress response)
+      stdout.flush
+      loop stdin stdout
     | ok action => do
       let response <- action
       -- IO.eprintln (Json.compress response)
