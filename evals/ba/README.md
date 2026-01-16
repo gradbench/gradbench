@@ -1,138 +1,187 @@
 # Bundle Adjustment (BA)
 
-This eval implements Bundle Adjustment from Microsoft's [ADBench][], based on
-their Python implementation. Here are links to the [I/O file][io] and [data
-folder][data] from that original implementation.
-
-## Generation
-
-Files are provided with information to generate the below inputs. 3 values, N,
-M, and P are used alongside one camera's paremters $c \in \mathbb{R}^{11}$, one
-point $x \in \mathbb{R}^{3}$, one weight $w \in \mathbb{R}$, and one feature
-$f \in \mathbb{R}^{2}$. N is the number of cameras, M is the numer of points,
-and P is the number of observations.
-
-## Description
-
-### Inputs
-
-The data generator returns a dictionary with the following inputs
-
-1. Cams: Set of camera parameters used. The parameters are rotation, camera
-   center, focal length, principal point, and radial distortion. $c$ is
-   duplicated N times to create
-
-   $$cams \in \mathbb{R}^{N \times 11}$$
-
-2. X: Set of projected 3D points used. $x$ is duplicated M times to create
-
-   $$X \in \mathbb{R}^{M \times 3}$$
-
-3. W: Set of weights used to regularize points. $w$ is duplicated P times to
-   create
-
-   $$W \in \mathbb{R}^{P}$$
-
-4. Feats: Set of observed 2D points used to compute the reprojection error of 3D
-   points. $f$ is duplicated P times to create
-
-   $$feats \in \mathbb{R}^{P \times 2}$$
-
-5. Obs: Set of P pairs of indices of camera parameters and points.
-
-   $$obs \in \mathbb{R}^{P \times 2}$$
-
-### Outputs
-
-1. Reproj-Error: Reprojection error of how well the projected 3D structure
-   aligns with the given 2D image.
-
-$$reproj_{error} \in \mathbb{R}^{2P}$$
-
-2. W-Error: Regularization error ensures the weights are confined to a specific
-   range. In this scenario it penalized $w$ if it deviates from 1.
-
-$$w_{error} \in \mathbb{R}^{P}$$
-
-3. Jacobian ($J$): How the reprojection error will change given adjustments to
-   the above inputs.
-
-$$SparseMat \in \mathbb{R}^{(2P + P) \times (11N +3M + P)}$$
-
-> **Example**
->
-> If $N = 21$, $M = 11315$, and $P = 36455$, $J$ is a SparseMat with 109365 rows
-> and 70631 columns
-
-## Protocol
-
-The eval sends a leading `DefineMessage` followed by `EvaluateMessages`. The
-`input` field of any `EvaluateMessage` will be an instance of the `BAInput`
-interface defined below. The `function` field will be either the string
-`"objective"` or `"jacobian"`.
-
-### Inputs
+This eval is adapted from "Objective BA: Bundle Adjustment" from section 4.2 of
+the [ADBench paper][], with a more complete, self-contained specification. It
+computes the residuals and Jacobian for a sparse bundle adjustment problem with
+radial distortion and a per-observation weight regularizer. It defines a module
+named `ba`, which consists of two functions `objective` and `jacobian`, both of
+which take the same input:
 
 ```typescript
-interface BAInput extends Runs {
-  n: int;
-  m: int;
-  p: int;
-  cam: double[];
-  x: double[];
-  w: number;
-  feat: double[];
+import type { Float, Int, Runs } from "gradbench";
+
+/** The full input. */
+interface Input extends Runs {
+  /** Number of cameras. */
+  n: Int;
+
+  /** Number of points. */
+  m: Int;
+
+  /** Number of observations. */
+  p: Int;
+
+  /** Camera parameters. */
+  cam: Float[];
+
+  /** 3D point. */
+  x: Float[];
+
+  /** Weight. */
+  w: Float;
+
+  /** Observed image coordinates. */
+  feat: Float[];
+}
+
+interface ObjectiveOutput {
+  reproj_error: { elements: Float[]; repeated: Int };
+  w_err: { element: Float; repeated: Int };
+}
+
+interface JacobianOutput {
+  rows: Int[];
+  cols: Int[];
+  vals: Float[];
+}
+
+export namespace ba {
+  /** Compute the residuals. */
+  function objective(input: Input): ObjectiveOutput;
+
+  /** Compute the Jacobian of the residuals. */
+  function jacobian(input: Input): JacobianOutput;
 }
 ```
 
-The `p` input is a duplication parameter - the tool is expected to duplicate the
-input `p` times. The tool must not actually exploit this duplication to reduce
-the work.
+## Definition
 
-### Outputs
+We define a single camera using the parameter vector
+$`\boldsymbol{p} \in \mathbb{R}^{11}`$ with layout
 
-A tool must respond to an `EvaluateMessage` with an `EvaluateResponse`. The type
-of the `output` field in the `EvaluateResponse` depends on the `function` field
-in the `EvaluateMessage`:
-
-- `"objective"`: `BAObjectiveOutput`.
-- `"jacobian"`: `BAJacobianOutput`.
-
-```typescript
-interface BAObjectiveOutput {
-  reproj_err: double[];
-  w_err: double[];
-}
+```math
+\boldsymbol{p} = [r_1, r_2, r_3, C_1, C_2, C_3, f, u_0, v_0, k_1, k_2],
 ```
 
-```typescript
-interface BAJacobianOutput {
-  cols: int[31];
-  rows: int[31];
-  vals: double[31];
-}
+where $`\boldsymbol{r} = (r_1, r_2, r_3)`$ is the [axis-angle][] rotation,
+$`\boldsymbol{C} = (C_1, C_2, C_3)`$ is the camera center, $`f`$ is the focal
+length, $`\boldsymbol{x}_0 = (u_0, v_0)`$ is the principal point, and
+$`\boldsymbol{\kappa} = (k_1, k_2)`$ are the radial distortion parameters. The
+inputs `cam`, `x`, `w`, and `feat` are a single camera, a single 3D point, a
+single weight, and a single 2D feature. The eval expands them into full arrays
+as follows:
+
+- `cams` is $`\mathbb{R}^{N \times 11}`$, formed by duplicating `cam` `n` times.
+- `X` is $`\mathbb{R}^{M \times 3}`$, formed by duplicating `x` `m` times.
+- `w` is $`\mathbb{R}^{P}`$, formed by duplicating the scalar `w` `p` times.
+- `feats` is $`\mathbb{R}^{P \times 2}`$, formed by duplicating `feat` `p`
+  times.
+- `obs` is $`\mathbb{N}^{P \times 2}`$ where the $`i`$-th entry is
+  $`(i \bmod n, i \bmod m)`$.
+
+Each observation $`i`$ uses camera $`\boldsymbol{p}_{c(i)}`$, point
+$`\boldsymbol{X}_{x(i)}`$, weight $`w_i`$, and feature $`\boldsymbol{m}_i`$,
+where $`c(i)`$ and $`x(i)`$ are the indices from `obs`. Although the data are
+duplicated, tools must still perform the full `p` observations without
+exploiting repetition to reduce work.
+
+The projection function is defined by
+
+```math
+\operatorname{project}(\boldsymbol{p}, \boldsymbol{X}) =
+f \cdot \operatorname{distort}(\boldsymbol{\kappa},
+\operatorname{p2e}(\operatorname{rodrigues}(\boldsymbol{r}, \boldsymbol{X} - \boldsymbol{C}))) + \boldsymbol{x}_0,
 ```
 
-The `BAJacobianOutput` represents a sparse matrix in [COO][] format, albeit in
-the form of three lists instead of a list of triples. Further, to make the
-matrix smaller, we undo the factor-`p` duplication of the input (see above) and
-store only a subset of the full lists. Specifically, we transmit only the first
-30 elements and the last element.
+with helper functions
 
-Because the input extends `Runs`, the tool is expected to run the function some
-number of times. It should include one timing entry with the name `"evaluate"`
-for each time it ran the function.
+```math
+\operatorname{p2e}(\boldsymbol{u}) = \frac{u_{1:2}}{u_3}
+```
+
+and
+
+```math
+\operatorname{distort}(\boldsymbol{\kappa}, \boldsymbol{u}) =
+\boldsymbol{u} (1 + k_1 \|\boldsymbol{u}\|^2 + k_2 \|\boldsymbol{u}\|^4).
+```
+
+The Rodrigues rotation used above is
+
+```math
+\operatorname{rodrigues}(\boldsymbol{r}, \boldsymbol{x}) =
+\boldsymbol{x} \cos \theta + (\boldsymbol{v} \times \boldsymbol{x}) \sin \theta + \boldsymbol{v} (\boldsymbol{v}^\top \boldsymbol{x}) (1 - \cos \theta),
+```
+
+where $`\theta = \|\boldsymbol{r}\|`$ and
+$`\boldsymbol{v} = \boldsymbol{r} / \theta`$ for $`\theta \neq 0`$. For
+$`\theta = 0`$, the eval uses the first-order approximation
+$`\operatorname{rodrigues}(\boldsymbol{r}, \boldsymbol{x}) = \boldsymbol{x} + \boldsymbol{r} \times \boldsymbol{x}`$.
+
+The residuals for observation $`i`$ are
+
+```math
+\boldsymbol{e}_i =
+\begin{bmatrix}
+w_i (\operatorname{project}(\boldsymbol{p}_{c(i)}, \boldsymbol{X}_{x(i)}) - \boldsymbol{m}_i) \\
+1 - w_i^2
+\end{bmatrix},
+```
+
+and the `objective` function returns all reprojection residuals
+$`\text{reproj\_error} \in \mathbb{R}^{2P}`$ and weight residuals
+$`\text{w\_err} \in \mathbb{R}^P`$ without summing or squaring them.
+
+## Jacobian structure
+
+Let $`J`$ be the Jacobian of the full residual vector
+$`[\boldsymbol{e}_1^\top, \dots, \boldsymbol{e}_P^\top]^\top`$ with respect to
+all independent variables $`\{\boldsymbol{p}_i\}_{i=1}^N`$,
+$`\{\boldsymbol{X}_j\}_{j=1}^M`$, and $`\{w_i\}_{i=1}^P`$. Its shape is
+
+```math
+J \in \mathbb{R}^{(2P + P) \times (11N + 3M + P)}.
+```
+
+Column ordering is: all camera parameters (11 per camera), then all 3D points (3
+per point), then all weights (1 per observation). Row ordering is: all
+reprojection rows (2 per observation), then all weight rows (1 per observation).
+Each reprojection row depends only on one camera, one point, and one weight, so
+each of those rows has exactly $`11 + 3 + 1 = 15`$ non-zero entries. The weight
+rows have a single non-zero entry:
+
+```math
+\frac{\partial}{\partial w_i}(1 - w_i^2) = -2 w_i.
+```
+
+The full sparse Jacobian is represented in a compressed-row format where `rows`
+has length $`(2P + P + 1)`$ and `cols`/`vals` have length
+$`(11 + 3 + 1) \cdot 2P + P`$. For each row $`r`$, the non-zero columns are
+stored in `cols[rows[r] .. rows[r + 1] - 1]` with corresponding values from
+`vals`.
+
+## Output encoding
+
+Because the input data are formed by duplication, the output is transmitted in a
+compressed form:
+
+- `objective` returns the first two reprojection residuals in
+  `reproj_error.elements`, along with `reproj_error.repeated = p`; the full
+  `reproj_error` vector is obtained by repeating those two elements `p` times in
+  order. Similarly, `w_err.element` is the first weight residual with
+  `w_err.repeated = p`.
+- `jacobian` returns `rows`, `cols`, and `vals` each with length 31, containing
+  the first 30 elements and the last element of the full arrays. Equivalently,
+  if `A` is one of the full arrays, the output is
+  `A[0..29] ++ [A[A.length - 1]]`.
 
 ## Commentary
 
-The actual objective function in this benchmark is not particularly challenging,
-and is mostly a bunch of scalar control flow with a bounded control flow graph.
-The annoying part is that the result must be reported as a particular encoding
-of a sparse matrix. This is not so difficult if you are implementing this eval
-in C++ - use the provided data structure in [ba.hpp][] and look at how
-[tools/manual/run_ba.cpp] does it. It is a lot more annoying if you are using
-another language, and _particularly_ if you want to compute the sparse Jacobian
-in parallel. See [tools/futhark/ba.fut][] for how to do this.
+The objective function is straightforward, but the result must be reported as a
+particular compressed sparse encoding. If you are implementing this eval in C++,
+use the data structure in [ba.hpp][]. For other languages, it can be handy to
+compare against the manual implementation in [tools/manual/ba.cpp][]. See
+[tools/futhark/ba.fut][] for a parallel-friendly approach.
 
 ### Parallel execution
 
@@ -143,14 +192,8 @@ For `jacobian`, it is straightforward to parallelise the computation of the
 nonzero blocks, but it is tricky (but doable) to assemble the sparse
 representation of the Jacobian in parallel.
 
-[adbench]:
-  https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87
-[data]:
-  https://github.com/microsoft/ADBench/tree/38cb7931303a830c3700ca36ba9520868327ac87/data/ba
-[io]:
-  https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/shared/BAData.py
-[typescript]: https://www.typescriptlang.org/
-[COO]: https://en.wikipedia.org/wiki/Sparse_matrix#Coordinate_list_(COO)
+[adbench paper]: https://arxiv.org/abs/1807.10129
+[axis-angle]: https://en.wikipedia.org/wiki/Axis%E2%80%93angle_representation
 [ba.hpp]: /cpp/gradbench/evals/ba.hpp
-[tools/manual/run_ba.cpp]: /tools/manual/run_ba.cpp
 [tools/futhark/ba.fut]: /tools/futhark/ba.fut
+[tools/manual/ba.cpp]: /tools/manual/ba.cpp
