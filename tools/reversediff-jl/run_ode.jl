@@ -5,7 +5,7 @@ import ReverseDiff
 import GradBench
 
 primal = GradBench.ODE.Impure.PrimalODE()
-backend = AutoReverseDiff(; compile=false)  # compilation is useless when there are constant arguments, we can't afford to hardcode them in the tape
+backend = AutoReverseDiff(; compile = false)  # compilation is useless when there are constant arguments, we can't afford to hardcode them in the tape
 
 GradBench.register!(
     "ode", Dict(

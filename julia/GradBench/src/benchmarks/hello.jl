@@ -13,13 +13,13 @@ import ..DifferentiationInterface as DI
 abstract type AbstractHello <: GradBench.Experiment end
 
 function GradBench.preprocess(::AbstractHello, input)
-    (; input)
+    return (; input)
 end
 
 struct PrimalHello <: AbstractHello end
 (::PrimalHello)(x) = square(x)
 
-struct DIGradientHello{B<:AbstractADType} <: GradBench.Experiment
+struct DIGradientHello{B <: AbstractADType} <: GradBench.Experiment
     backend::B
 end
 

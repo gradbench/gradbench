@@ -33,7 +33,7 @@ function primal(x::Vector{T}, n::Int64) where {T}
         return (sign(ti) + inner_sum)^2
     end
 
-    return sum(f(i) for i in 0:n-1) / 2
+    return sum(f(i) for i in 0:(n - 1)) / 2
 end
 
 struct PrimalLLSQ <: AbstractLLSQ end

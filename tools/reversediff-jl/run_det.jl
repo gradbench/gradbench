@@ -5,7 +5,7 @@ import ReverseDiff
 import GradBench
 
 primal = GradBench.Det.Impure.PrimalDet()
-backend = AutoReverseDiff(; compile=true)
+backend = AutoReverseDiff(; compile = true)
 
 GradBench.register!(
     "det", Dict(

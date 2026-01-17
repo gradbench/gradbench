@@ -9,22 +9,22 @@ import Zygote
 import GradBench
 
 function pack(cam, X, w)
-    [cam[:]; X[:]; w]
+    return [cam[:]; X[:]; w]
 end
 
 function unpack(packed)
-    packed[1:end-4], packed[end-3:end-1], packed[end]
+    return packed[1:(end - 4)], packed[(end - 3):(end - 1)], packed[end]
 end
 
 function compute_w_err(w)
-    1.0 - w * w
+    return 1.0 - w * w
 end
 
 compute_w_err_d = x -> Zygote.gradient(compute_w_err, x)[1]
 
 function compute_reproj_err_d(params, feat)
     cam, X, w = unpack(params)
-    GradBench.BA.compute_reproj_err(cam, X, w, feat)
+    return GradBench.BA.compute_reproj_err(cam, X, w, feat)
 end
 
 function compute_ba_J(cams, X, w, obs, feats)
@@ -66,9 +66,11 @@ function (::JacobianBA)(input)
 end
 
 
-GradBench.register!("ba", Dict(
-    "objective" => GradBench.BA.ObjectiveBA(),
-    "jacobian" => JacobianBA()
-))
+GradBench.register!(
+    "ba", Dict(
+        "objective" => GradBench.BA.ObjectiveBA(),
+        "jacobian" => JacobianBA()
+    )
+)
 
 end

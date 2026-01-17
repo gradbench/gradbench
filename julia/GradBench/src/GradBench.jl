@@ -24,7 +24,7 @@ function postprocess(::Experiment, ret)
     return ret
 end
 
-const DISPATCH_TABLE = Dict{String,Dict{String,Experiment}}()
+const DISPATCH_TABLE = Dict{String, Dict{String, Experiment}}()
 
 function register!(mod, experiments)
     if haskey(DISPATCH_TABLE, mod)
@@ -67,7 +67,7 @@ function run(params)
     while i <= min_runs || elapsed_seconds <= min_seconds
         _, t = measure(func, args...)
         push!(timings, Dict("name" => "evaluate", "nanoseconds" => t))
-        elapsed_seconds += t / 1e9
+        elapsed_seconds += t / 1.0e9
         i += 1
     end
 

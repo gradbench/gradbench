@@ -87,21 +87,22 @@ function insert_reproj_err_block!(matrix::SparseMatrix, obsIdx::Int, camIdx::Int
     n_new_cols = N_CAM_PARAMS + 3 + 1
     lastrow = matrix.rows[end]
     push!(matrix.rows, lastrow + n_new_cols, lastrow + n_new_cols + n_new_cols)
-    for i_row ∈ 1:2
-        for i ∈ 1:N_CAM_PARAMS
+    for i_row in 1:2
+        for i in 1:N_CAM_PARAMS
             push!(matrix.cols, N_CAM_PARAMS * camIdxZeroBased + (i - 1))
             push!(matrix.vals, J[i_row, i])
         end
         col_offset = N_CAM_PARAMS * matrix.n
-        for i ∈ 1:3
+        for i in 1:3
             push!(matrix.cols, col_offset + 3 * ptIdxZeroBased + (i - 1))
-            push!(matrix.vals, J[i_row, N_CAM_PARAMS+i])
+            push!(matrix.vals, J[i_row, N_CAM_PARAMS + i])
         end
         col_offset += 3 * matrix.m
         val_offset = N_CAM_PARAMS + 3
         push!(matrix.cols, col_offset + obsIdxZeroBased)
-        push!(matrix.vals, J[i_row, val_offset+1])
+        push!(matrix.vals, J[i_row, val_offset + 1])
     end
+    return
 end
 
 function insert_w_err_block!(matrix::SparseMatrix, wIdx::Int, w_d::Float64)
@@ -111,19 +112,22 @@ function insert_w_err_block!(matrix::SparseMatrix, wIdx::Int, w_d::Float64)
     push!(matrix.rows, matrix.rows[end] + 1)
     push!(matrix.cols, N_CAM_PARAMS * matrix.n + 3 * matrix.m + wIdxZeroBased)
     push!(matrix.vals, w_d)
+    return
 end
 
 # The BA input is duplicated during unpacking, so we deduplicate the
 # Jacobian at the end.
 function dedup_jacobian(J)
-    Dict("rows" => vcat(J.rows[1:30], [J.rows[end]]),
+    return Dict(
+        "rows" => vcat(J.rows[1:30], [J.rows[end]]),
         "cols" => vcat(J.cols[1:30], [J.cols[end]]),
-        "vals" => vcat(J.vals[1:30], [J.vals[end]]))
+        "vals" => vcat(J.vals[1:30], [J.vals[end]])
+    )
 end
 
 function rodrigues_rotate_point(rot::Vector{T}, X::Vector{T}) where {T}
     sqtheta = sum(rot .* rot)
-    if sqtheta > 1e-10
+    return if sqtheta > 1.0e-10
         theta = sqrt(sqtheta)
         costheta = cos(theta)
         sintheta = sin(theta)
@@ -142,17 +146,17 @@ end
 function radial_distort(rad_params, proj)
     rsq = sum(proj .* proj)
     L = 1.0 + rad_params[1] * rsq + rad_params[2] * rsq * rsq
-    proj * L
+    return proj * L
 end
 
 function project(cam, X)
-    Xcam = rodrigues_rotate_point(cam[ROT_IDX:ROT_IDX+2], X - cam[C_IDX:C_IDX+2])
-    distorted = radial_distort(cam[RAD_IDX:RAD_IDX+1], Xcam[1:2] / Xcam[3])
-    distorted * cam[F_IDX] + cam[X0_IDX:X0_IDX+1]
+    Xcam = rodrigues_rotate_point(cam[ROT_IDX:(ROT_IDX + 2)], X - cam[C_IDX:(C_IDX + 2)])
+    distorted = radial_distort(cam[RAD_IDX:(RAD_IDX + 1)], Xcam[1:2] / Xcam[3])
+    return distorted * cam[F_IDX] + cam[X0_IDX:(X0_IDX + 1)]
 end
 
 function compute_reproj_err(cam, X, w, feat)
-    w * (project(cam, X) - feat)
+    return w * (project(cam, X) - feat)
 end
 
 function objective(cams, X, w, obs, feats)
@@ -161,22 +165,25 @@ function objective(cams, X, w, obs, feats)
         reproj_err[:, i] = compute_reproj_err(cams[:, obs[1, i]], X[:, obs[2, i]], w[i], feats[:, i])
     end
     w_err = 1.0 .- w .* w
-    (reproj_err, w_err)
+    return (reproj_err, w_err)
 end
 
 struct ObjectiveBA <: BA.AbstractBA end
 function (::ObjectiveBA)(input)
     (r_err, w_err) =
-        objective(input.cams,
-                  input.X,
-                  input.w,
-                  input.obs,
-                  input.feats)
+        objective(
+        input.cams,
+        input.X,
+        input.w,
+        input.obs,
+        input.feats
+    )
     num_r = size(r_err, 2)
     num_w = size(w_err, 1)
-    Dict("reproj_error" => Dict("elements" => r_err[:,1], "repeated" => num_r),
-         "w_err" => Dict("element" => w_err[1], "repeated" => num_w)
-         )
+    return Dict(
+        "reproj_error" => Dict("elements" => r_err[:, 1], "repeated" => num_r),
+        "w_err" => Dict("element" => w_err[1], "repeated" => num_w)
+    )
 end
 
 

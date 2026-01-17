@@ -6,9 +6,11 @@ import GradBench
 
 backend = AutoForwardDiff()
 
-GradBench.register!("hello", Dict(
-    "square" => GradBench.Hello.PrimalHello(),
-    "double" => GradBench.Hello.DIGradientHello(backend)
-))
+GradBench.register!(
+    "hello", Dict(
+        "square" => GradBench.Hello.PrimalHello(),
+        "double" => GradBench.Hello.DIGradientHello(backend)
+    )
+)
 
 end # module
