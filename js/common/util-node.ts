@@ -10,7 +10,14 @@ export const main = async ({
 }) => {
   for await (const line of readline.createInterface({ input: stdin })) {
     const message: Message = JSON.parse(line);
-    const response = await respond({ message, getModule });
+    let response: any;
+    try {
+      response = await respond({ message, getModule });
+    } catch (err: any) {
+      let error = `${err.stack}`;
+      if (!error.includes(`${err}`)) error = `${err}\n${error}`;
+      response = { id: message.id, success: false, error };
+    }
     console.log(JSON.stringify(response));
   }
 };

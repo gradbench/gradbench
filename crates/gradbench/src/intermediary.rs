@@ -173,8 +173,7 @@ impl<
             match &message {
                 Message::Start { .. } => {
                     // Don't print message ID because we're still waiting for the tool to say it's
-                    // ready, and e.g. if the tool is using `docker run` then it may mess with the
-                    // terminal output until it actually starts.
+                    // ready, and some runners can delay or reorder early terminal output.
                 }
                 Message::Define { id, module } => {
                     line.start(&mut self.out, *id)?;

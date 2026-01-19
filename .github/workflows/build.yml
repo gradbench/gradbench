@@ -113,67 +113,10 @@ jobs:
         id: matrix
         run: gradbench repo matrix | tee -a "$GITHUB_OUTPUT"
 
-  eval:
-    needs:
-      - cli
-      - matrix
-    strategy:
-      fail-fast: false
-      matrix:
-        eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup multi-platform Docker
-        uses: ./.github/actions/docker
-      - name: Install CLI from artifact
-        uses: ./.github/actions/cli
-      - name: Build eval Docker image
-        run: |
-          gradbench repo build-eval --platform linux/amd64,linux/arm64 ${{ matrix.eval }}
-      - name: Serialize eval Docker image
-        run: |
-          docker save --output eval-${{ matrix.eval }}.tar ghcr.io/gradbench/eval-${{ matrix.eval }}
-      - name: Upload eval Docker image as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: eval-${{ matrix.eval }}
-          path: eval-${{ matrix.eval }}.tar
-
-  tool-x86:
-    needs:
-      - cli
-      - matrix
-    strategy:
-      fail-fast: false
-      matrix:
-        include: ${{ fromJSON(needs.matrix.outputs.tool) }}
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Increase disk space
-        uses: ./.github/actions/space
-      - name: Install CLI from artifact
-        uses: ./.github/actions/cli
-      - name: Build tool Docker image
-        run: gradbench repo build-tool ${{ matrix.tool }}
-      - name: Serialize tool Docker image
-        run: |
-          docker save --output tool-${{ matrix.tool }}.tar ghcr.io/gradbench/tool-${{ matrix.tool }}
-      - name: Upload tool Docker image as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: tool-${{ matrix.tool }}
-          path: tool-${{ matrix.tool }}.tar
-
   run:
     needs:
       - cli
       - matrix
-      - eval
-      - tool-x86
     strategy:
       fail-fast: false
       matrix:
@@ -184,6 +127,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Increase disk space
         uses: ./.github/actions/space
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Run
@@ -191,7 +136,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gradbench repo run --download-github ${{ github.run_id }} --check -o run --timeout 600 ${{ matrix.args }}
+          gradbench repo run --check -o run --timeout 600 ${{ matrix.args }}
       - name: Upload logs as artifact
         if: success() || steps.run.conclusion == 'failure'
         uses: actions/upload-artifact@v4
@@ -263,27 +208,3 @@ jobs:
 
             > [!NOTE]
             > Workflow run [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) was triggered by commit ${{ github.event.pull_request.head.sha }}, which was merged with the latest commit from branch `${{ github.event.pull_request.base.ref }}` before running, so the workflow was run on the merge commit ${{ github.sha }}.
-
-  tool:
-    needs:
-      - cli
-      - matrix
-      - run # Not strictly necessary, but GitHub Actions has concurrency limits.
-    strategy:
-      fail-fast: false
-      matrix:
-        include: ${{ fromJSON(needs.matrix.outputs.tool) }}
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Increase disk space
-        uses: ./.github/actions/space
-      - name: Setup multi-platform Docker
-        uses: ./.github/actions/docker
-      - name: Install CLI from artifact
-        uses: ./.github/actions/cli
-      - name: Build tool Docker image
-        if: ${{ matrix.cross }}
-        run: |
-          gradbench repo build-tool --platform linux/amd64,linux/arm64 ${{ matrix.tool }}

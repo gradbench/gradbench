@@ -11,7 +11,7 @@ tools. For example, [Zygote][] cannot handle destructive updates, while
 [Enzyme.jl][] often performs better using an imperative style. Each module
 should document the differences between its various versions.
 
-## Running outside of Docker
+## Running outside of Nix
 
 The following instructions apply to any Julia-based `foo` unless otherwise
 specified. First make sure the `julia` executable is on your `PATH`. Then run

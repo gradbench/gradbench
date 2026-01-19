@@ -27,3 +27,10 @@ members = ["python/*"]
 [tool.ruff.lint]
 extend-select = ["I", "RUF"]
 ignore = ["E741"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = []

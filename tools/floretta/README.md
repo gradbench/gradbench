@@ -2,7 +2,7 @@
 
 [Floretta][] is an automatic differentiation tool for [WebAssembly][].
 
-To run this outside Docker, use the following command:
+To run this outside Nix, use the following command:
 
 ```sh
 node --disable-warning=ExperimentalWarning js/floretta/run.ts

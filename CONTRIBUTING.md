@@ -6,8 +6,7 @@
 - [Dependencies](#dependencies)
 - [CLI](#cli)
   - [Code formatters and linters](#code-formatters-and-linters)
-- [Docker](#docker)
-  - [Multi-platform images](#multi-platform-images)
+- [Nix](#nix)
 - [Tools](#tools)
   - [Implementing a new eval for a tool](#implementing-a-new-eval-for-a-tool)
 - [Evals](#evals)
@@ -50,12 +49,16 @@ cd gradbench
 
 ## Dependencies
 
-You need [Docker][].
+You need [Nix][].
 
-If you use [Nix][], pretty much everything else you need is in the `shell.nix`
-file at the root of this repo.
+Everything else you need is in the `shell.nix` file at the root of this repo.
+Enter the dev shell with:
 
-Otherwise, make sure you have the following tools installed:
+```sh
+nix-shell
+```
+
+If you do not use Nix, make sure you have the following tools installed:
 
 - [Python][]
 - [Rust][]
@@ -101,11 +104,12 @@ If you use [VS Code][], our configuration in this repository should
 automatically recommend that you install extensions for all the code formatters
 we use, and run the relevant one anytime you save a file.
 
-## Docker
+## Nix
 
-Use the `run` subcommand to run a given eval on a given tool. You can use pass
-any commands for the eval and tool, but to use the Docker images, the easiest
-way is to use the `repo eval` and `repo tool` subcommands:
+Use the `run` subcommand to run a given eval on a given tool. You can pass any
+commands for the eval and tool, but the easiest way is to use the `repo eval`
+and `repo tool` subcommands, which run the local implementations in the Nix
+environment:
 
 ```sh
 ./gradbench run --eval "./gradbench repo eval hello" --tool "./gradbench repo tool pytorch"
@@ -124,53 +128,22 @@ So for instance, to increase `n` for the GMM eval:
 ./gradbench run --eval "./gradbench repo eval gmm -- -n10000" --tool "./gradbench repo tool pytorch"
 ```
 
-### Multi-platform images
-
-The `repo eval` and `repo tool` subcommands are just for convenience when
-building and running the Docker images locally; they do not build multi-platform
-images. If you have followed the above instructions to configure Docker for
-building such images, you can do so using the `--platform` flag on the
-`repo build-eval` and `repo build-tool` subcommands:
-
-```sh
-./gradbench repo build-eval --platform linux/amd64,linux/arm64 hello
-./gradbench repo build-tool --platform linux/amd64,linux/arm64 pytorch
-```
-
-This typically takes much longer, so it tends not to be convenient for local
-development. However, if a tool does not support your machine's native
-architecture, emulation may be your only option, in which case you can select
-just one platform which is supported by that tool:
-
-```sh
-./gradbench run --eval "./gradbench repo eval hello" --tool "./gradbench repo tool --platform linux/amd64 scilean"
-```
-
 ## Tools
 
 If you'd like to contribute a new tool: awesome! We're always excited to expand
 the set of automatic differentiation tools in GradBench. The main thing you need
-to do is create a subdirectory under the `tools` directory in this repo, and
-create a `Dockerfile` in that new subdirectory. Other than having an
-`ENTRYPOINT`, you can pretty much do whatever you want; take a look at the
-already-supported tools to see some examples! You must include the following as
-the last line in your `Dockerfile`, though:
-
-```Dockerfile
-LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
-```
-
-We'd also really appreciate it if you also write a short `README.md` file next
-to your `Dockerfile`; this can be as minimal as just a link to the tool's
-website, but can also include more information, e.g. anything specific about
-this setup of that tool for GradBench.
+to do is create a subdirectory under the `tools` directory in this repo, add a
+`README.md` with usage notes, and provide a runnable entrypoint (for example a
+`run.py`, `run.jl`, or a compiled binary) that speaks the GradBench protocol.
+Then add a `tools/<tool>/default.nix` file that defines how to build and run the
+tool, following the existing patterns in `tools/*/default.nix`.
 
 Before taking a look at any of the other evals, you should implement the
 [`hello` eval](evals/hello) for the tool you're adding! This will help you get
 all the structure for the GradBench protocol working correctly first, after
 which you can implement other evals for that tool over time. Once you've done
 so, add a file called `evals.txt` in your tool directory (next to your
-`Dockerfile`) with the names of all the evals your tool supports, each on their
+`README.md`) with the names of all the evals your tool supports, each on their
 own line, in sorted order; otherwise GitHub Actions will squawk at you saying it
 expected your tool to be `undefined` on those evals.
 
@@ -187,8 +160,8 @@ using some bespoke mechanism. That is in fact
 
 ### Implementing a new eval for a tool
 
-For some tools, the infrastructure has been built (speaking the protocol,
-writing the `Dockerfile`), but not yet implementations of all benchmarks.
+For some tools, the infrastructure has been built (speaking the protocol and
+wiring up the local runner), but not yet implementations of all benchmarks.
 Sometimes this is because we have not gotten around to it, but at other times it
 is because those benchmarks require something that is tricky to do in a specific
 tool.
@@ -218,6 +191,9 @@ with various functions and inputs. All of the GradBench evals are currently
 written in Python - this is not a hard requirement, but since evals are not
 performance-sensitive or particularly complicated, writing them in Python means
 you can reuse existing utility libraries.
+
+When adding an eval, also add a corresponding `evals/<eval>/default.nix` file so
+the CLI can build and run it in the Nix environment.
 
 Beyond the technical effort of specifying and implementing a benchmark, another
 question is which benchmarks are _worthwhile_. The whole point of GradBench is
@@ -252,9 +228,8 @@ Any changes you make to files in `js/website/src` should automatically appear.
 
 ## Python
 
-The Docker images should be considered canonical, but for local development, it
-can be more convenient to instead install and run tools directly. You can use
-`uv run` to do this:
+The Nix dev shell should be considered canonical, but for local development, it
+can be more convenient to run tools directly. You can use `uv run` to do this:
 
 ```sh
 ./gradbench run --eval "./gradbench repo eval hello" --tool "uv run python/gradbench/gradbench/tools/pytorch/run.py"
@@ -501,16 +476,11 @@ export interface Runs {
 ```
 
 [bun]: https://bun.sh/
-[containerd]: https://docs.docker.com/storage/containerd/
-[docker]: https://docs.docker.com/engine/install/
 [github cli]: https://github.com/cli/cli#installation
 [json]: https://json.org/
 [make]: https://en.wikipedia.org/wiki/Make_(software)
-[multi-platform images]: https://docs.docker.com/build/building/multi-platform/
 [nix]: https://nixos.org/
 [python]: https://docs.astral.sh/uv/guides/install-python/
-[qemu]:
-  https://docs.docker.com/build/building/multi-platform/#install-qemu-manually
 [rust]: https://www.rust-lang.org/tools/install
 [typescript]: https://www.typescriptlang.org/
 [uv]: https://docs.astral.sh/uv

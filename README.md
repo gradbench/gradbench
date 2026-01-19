@@ -22,14 +22,13 @@ website, where rows are [evals](evals) and columns are [tools](tools).
 - [Motivation](#motivation)
 - [Usage](#usage)
   - [Running GradBench locally](#running-gradbench-locally)
-  - [Without using Docker](#without-using-docker)
-    - [Running evals outside of Docker](#running-evals-outside-of-docker)
+  - [Without using Nix](#without-using-nix)
+    - [Running evals outside of Nix](#running-evals-outside-of-nix)
       - [Using uv](#using-uv)
       - [Not using uv](#not-using-uv)
-    - [Running tools outside of Docker](#running-tools-outside-of-docker)
+    - [Running tools outside of Nix](#running-tools-outside-of-nix)
       - [Running C++-based tools](#running-c-based-tools)
   - [Multithreading](#multithreading)
-  - [Without cloning this repository](#without-cloning-this-repository)
 - [Citing](#citing)
 - [License](#license)
 
@@ -61,11 +60,11 @@ this space:
 The evals in GradBench are a strict superset of all those benchmarks. What
 really sets this project apart is the focus on supporting tools for many
 different programming languages in an easily extensible way. We achieve this by
-packaging each eval and tool into its own Docker image, and running benchmarks
-by having the eval and tool talk to each other over a common JSON-based
-protocol. We also make our benchmarks and data as easily accessible as possible,
-via nightly builds that publish our Docker images and run every eval against
-every tool to generate performance charts on the GradBench website.
+running evals and tools directly in a Nix-provided environment, and by having
+the eval and tool talk to each other over a common JSON-based protocol. We also
+make our benchmarks and data as easily accessible as possible, via nightly runs
+that execute every eval against every tool to generate performance charts on the
+GradBench website.
 
 ## Usage
 
@@ -88,11 +87,11 @@ gh repo clone gradbench/gradbench
 cd gradbench
 ```
 
-Make sure you have the following tools available on your system:
+Make sure you have [Nix][] installed, then enter the dev shell:
 
-- [Python][]
-- [Rust][]
-- [Docker][]
+```sh
+nix-shell
+```
 
 All the command-line scripts for working with GradBench are packaged into the
 _GradBench CLI_, which you can run using the [`./gradbench`](gradbench) script
@@ -147,21 +146,22 @@ other possible options:
 ./gradbench repo run --help
 ```
 
-### Without using Docker
+### Without using Nix
 
 The `--eval` and `--tool` options passed to the `repo run` subcommand use named
 evals and tools in this repository by default, but they can also take arbitrary
-shell commands when prefixed with a `$`, so the default use of Docker is merely
-a convenience. It is possible to run GradBench without using Docker, although it
+shell commands when prefixed with a `$`, so the default use of Nix is merely a
+convenience. It is possible to run GradBench without using Nix, although it
 requires you to set up the necessary dependencies on your system. This section
 describes how to do that.
 
 While the dependencies required for the evals are somewhat restrained, tool
 dependencies can be very diverse and difficult to install. Details are provided
-below. If you use Nix or NixOS, then the [`shell.nix`](./shell.nix) provides an
-easy way to install the dependencies needed for most evals and tools.
+below. If you later decide to use Nix or NixOS, then the
+[`shell.nix`](./shell.nix) provides an easy way to install the dependencies
+needed for most evals and tools.
 
-#### Running evals outside of Docker
+#### Running evals outside of Nix
 
 As of this writing, all evals are written in Python, and depend on Python
 packages that must be made available. Further, many evals perform validation by
@@ -218,13 +218,13 @@ follows:
 PYTHONPATH=python/gradbench/:$PYTHONPATH python3 python/gradbench/gradbench/evals/hello/run.py
 ```
 
-#### Running tools outside of Docker
+#### Running tools outside of Nix
 
-Each tool README should document how to run that tool outside of Docker, which
+Each tool README should document how to run that tool outside of Nix, which
 may require installing dependencies or setting environment variables. For some
 tools that can be quite challenging. However, there is also some commonality
-between related tools. When the documentation is insufficient, you can always
-look at the `Dockerfile` to see exactly what needs to be installed.
+between related tools. When the documentation is insufficient, you can look at
+the tool's README and `default.nix` to see exactly what needs to be installed.
 
 ##### Running C++-based tools
 
@@ -246,7 +246,7 @@ make -C tools/foo bin/bar
 
 However, you do not need to do this in advance - compilation is done by a Python
 module `cpp.py` that implements the GradBench protocol and runs the executables
-(except for `manual`, [see above](#running-evals-outside-of-docker)).
+(except for `manual`, [see above](#running-evals-outside-of-nix)).
 Specifically, to run tool `foo` we would do:
 
 ```sh
@@ -304,32 +304,6 @@ their differentiated functions:
 - [jax](tools/jax)
 - [manual](tools/manual)
 
-### Without cloning this repository
-
-> [!WARNING]  
-> Only use this method if you have a specific reason not to use the primary
-> method documented above.
-
-It's also possible to install and run the GradBench CLI without cloning this
-repository, if you'd prefer. In this case you don't need Python but you still
-need Rust and Docker. Use [`cargo install`][] with the `--git` flag (note that
-this command only installs GradBench once; to update, you'll need to re-run it):
-
-```sh
-cargo install --locked gradbench --git https://github.com/gradbench/gradbench --branch nightly
-```
-
-Then, you can use the newly installed `gradbench` CLI to download and run our
-[nightly Docker images][packages]. For instance, if you have [jq][] installed,
-you can run these commands to grab the date of the most recent successful
-nightly build, then download and run those images for the `hello` eval and the
-`pytorch` tool:
-
-```sh
-DATE=$(curl https://raw.githubusercontent.com/gradbench/gradbench/refs/heads/ci/refs/heads/nightly/summary.json | jq --raw-output .date)
-gradbench run --eval "gradbench eval hello --tag $DATE" --tool "gradbench tool pytorch --tag $DATE"
-```
-
 ## Citing
 
 GradBench is largely developed by academics and we appreciate a citation if you
@@ -344,7 +318,6 @@ based on work used under other licenses - this is clearly noted at the top of a
 file, along with attribution, when applicable. All files are available under
 [OSI-approved licenses][].
 
-[`cargo install`]: https://doc.rust-lang.org/cargo/commands/cargo-install.html
 [ad2016 benchmarks]: https://www.bcl.hamilton.ie/~qobi/ad2016-benchmarks/
 [ad2016]: https://arxiv.org/abs/1611.03416
 [adbench]: https://github.com/microsoft/ADBench
@@ -353,12 +326,10 @@ file, along with attribution, when applicable. All files are available under
 [cmpad]: https://cmpad.readthedocs.io/
 [differentiable programming]:
   https://en.wikipedia.org/wiki/Differentiable_programming
-[docker]: https://docs.docker.com/desktop/
 [github cli]: https://github.com/cli/cli#installation
-[jq]: https://jqlang.org/
 [json lines]: https://jsonlines.org/
+[nix]: https://nixos.org/
 [osi-approved licenses]: https://opensource.org/licenses
-[packages]: https://github.com/orgs/gradbench/packages
 [python]: https://docs.astral.sh/uv/guides/install-python/
 [pytorch]: https://pytorch.org/
 [rust]: https://www.rust-lang.org/tools/install
