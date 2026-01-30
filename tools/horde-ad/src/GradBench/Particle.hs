@@ -22,6 +22,7 @@ pplus u v = (fst u + fst v, snd u + snd v)
 ktimesp :: (Num a) => a -> Point a -> Point a
 ktimesp k u = (k * fst u, k * snd u)
 
+-- No sharing, so not good for the symbolic pipeline.
 sqr :: (Floating a) => a -> a
 sqr x = x * x
 
@@ -46,7 +47,7 @@ naiveEuler accel' w =
       x_t_f = x `pplus` (delta_t_f `ktimesp` xdot)
    in sqr (fst x_t_f)
  where
-  charges = [(10, (10 - w)), (10, 0)]
+  charges = [(10, 10 - w), (10, 0)]
   delta_t = 1e-1
   loop x xdot =
     let xddot = (-1) `ktimesp` accel' charges x
@@ -57,8 +58,7 @@ naiveEuler accel' w =
 
 -- TODO: this is very slow; see the comment in Saddle.hs
 rr, ff, fr, rf :: Input -> Output
-rr (Input w0) = unConcrete $ kfromR
-                $ multivariateArgmin g (rrepl [1] w0) ! [0]
+rr (Input w0) = unConcrete $ multivariateArgmin g (rrepl [1] w0) `rindex0` [0]
   where
     accel' :: forall target.
               ( ADReadyNoLet target, ShareTensor target
@@ -73,16 +73,14 @@ rr (Input w0) = unConcrete $ kfromR
          , ShareTensor (PrimalOf target), ShareTensor (PlainOf target)
          , Ord (target (TKScalar Double)) )
       => target (TKR 1 Double) -> target (TKScalar Double)
-    f w = naiveEuler accel' (kfromR $ w ! [0])
+    f w = naiveEuler accel' (w `rindex0` [0])
     g :: ( ADReadyNoLet target, ShareTensor target
          , ShareTensor (PrimalOf target), ShareTensor (PlainOf target)
          , Ord (target (TKScalar Double)) )
       => target (TKR 1 Double)
-      -> (target (TKR 0 Double), target (TKR 1 Double))
-    g a = let (res0, res1) = cgrad2 f a
-          in (rfromK res0, res1)
-ff (Input w0) = unConcrete $ kfromR
-                $ multivariateArgmin g (rrepl [1] w0) ! [0]
+      -> (target (TKScalar Double), target (TKR 1 Double))
+    g a = cgrad2 f a
+ff (Input w0) = unConcrete $ multivariateArgmin g (rrepl [1] w0) `rindex0` [0]
   where
     accel' :: forall target.
               ( ADReadyNoLet target, ShareTensor target
@@ -97,16 +95,14 @@ ff (Input w0) = unConcrete $ kfromR
          , ShareTensor (PrimalOf target), ShareTensor (PlainOf target)
          , Ord (target (TKScalar Double)) )
       => target (TKR 1 Double) -> target (TKScalar Double)
-    f w = naiveEuler accel' (kfromR $ w ! [0])
+    f w = naiveEuler accel' (w `rindex0` [0])
     g :: ( ADReadyNoLet target, ShareTensor target
          , ShareTensor (PrimalOf target), ShareTensor (PlainOf target)
          , Ord (target (TKScalar Double)) )
       => target (TKR 1 Double)
-      -> (target (TKR 0 Double), target (TKR 1 Double))
-    g a = let (res0, res1) = cgrad2_fwdR f a
-          in (rfromK res0, res1)
-fr (Input w0) = unConcrete $ kfromR
-                $ multivariateArgmin g (rrepl [1] w0) ! [0]
+      -> (target (TKScalar Double), target (TKR 1 Double))
+    g a = cgrad2_fwdR f a
+fr (Input w0) = unConcrete $ multivariateArgmin g (rrepl [1] w0) `rindex0` [0]
   where
     accel' :: forall target.
               ( ADReadyNoLet target, ShareTensor target
@@ -121,16 +117,14 @@ fr (Input w0) = unConcrete $ kfromR
          , ShareTensor (PrimalOf target), ShareTensor (PlainOf target)
          , Ord (target (TKScalar Double)) )
       => target (TKR 1 Double) -> target (TKScalar Double)
-    f w = naiveEuler accel' (kfromR $ w ! [0])
+    f w = naiveEuler accel' (w `rindex0` [0])
     g :: ( ADReadyNoLet target, ShareTensor target
          , ShareTensor (PrimalOf target), ShareTensor (PlainOf target)
          , Ord (target (TKScalar Double)) )
       => target (TKR 1 Double)
-      -> (target (TKR 0 Double), target (TKR 1 Double))
-    g a = let (res0, res1) = cgrad2_fwdR f a
-          in (rfromK res0, res1)
-rf (Input w0) = unConcrete $ kfromR
-                $ multivariateArgmin g (rrepl [1] w0) ! [0]
+      -> (target (TKScalar Double), target (TKR 1 Double))
+    g a = cgrad2_fwdR f a
+rf (Input w0) = unConcrete $ multivariateArgmin g (rrepl [1] w0) `rindex0` [0]
   where
     accel' :: forall target.
               ( ADReadyNoLet target, ShareTensor target
@@ -145,11 +139,10 @@ rf (Input w0) = unConcrete $ kfromR
          , ShareTensor (PrimalOf target), ShareTensor (PlainOf target)
          , Ord (target (TKScalar Double)) )
       => target (TKR 1 Double) -> target (TKScalar Double)
-    f w = naiveEuler accel' (kfromR $ w ! [0])
+    f w = naiveEuler accel' (w `rindex0` [0])
     g :: ( ADReadyNoLet target, ShareTensor target
          , ShareTensor (PrimalOf target), ShareTensor (PlainOf target)
          , Ord (target (TKScalar Double)) )
       => target (TKR 1 Double)
-      -> (target (TKR 0 Double), target (TKR 1 Double))
-    g a = let (res0, res1) = cgrad2 f a
-          in (rfromK res0, res1)
+      -> (target (TKScalar Double), target (TKR 1 Double))
+    g a = cgrad2 f a

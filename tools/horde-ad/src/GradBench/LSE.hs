@@ -33,7 +33,7 @@ logsumexpTarget :: (NumScalar a, Differentiable a, ADReady target)
 logsumexpTarget x' =
   tlet x' $ \x ->
   tlet (rmaximum x) $ \a ->  -- fails for empty x
-    kfromR . (+ a) . log . rsum . exp . subtract (rreplicate (rwidth x) a) $ x
+    (+ a) . log . rsum0 . exp . subtract (rreplicate (rwidth x) (rfromK a)) $ x
 
 primal :: Input -> PrimalOutput
 primal (Input x) = logsumexp x

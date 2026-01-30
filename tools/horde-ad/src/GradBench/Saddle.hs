@@ -18,12 +18,14 @@ instance JSON.FromJSON Input where
 
 fp :: (Floating a) => a -> a -> a -> a -> a
 fp p1x p1y p2x p2y = (p1x ** 2 + p1y ** 2) - (p2x ** 2 + p2y ** 2)
+  -- this is slower:
+  -- fp p1x p1y p2x p2y = (sqr p1x + sqr p1y) - (sqr p2x + sqr p2y)
 
 saddleGen
-  :: (NumScalar a, Differentiable a)
-  => (Concrete (TKR 1 a) -> (Concrete (TKR 0 a), Concrete (TKR 1 a)))
+  :: (NumScalar a, Differentiable a, Ord (Concrete (TKScalar a)))
+  => (Concrete (TKR 1 a) -> (Concrete (TKScalar a), Concrete (TKR 1 a)))
   -> (Concrete (TKR 1 a) -> Concrete (TKR 1 a)
-      -> (Concrete (TKR 0 a), Concrete (TKR 1 a)))
+      -> (Concrete (TKScalar a), Concrete (TKR 1 a)))
   -> Concrete (TKR 1 a)
   -> Concrete (TKR 1 a)
 {-# INLINE saddleGen #-}
@@ -46,84 +48,70 @@ rr (Input (x, y)) = Nested.rtoVector . unConcrete
   where
     start = rfromList [rscalar x, rscalar y]
     r1cost p1 = multivariateMax (r2cost' p1) (rfromPrimal start)
-    r1cost' p1 = let (res0, res1) = cgrad2 (kfromR . r1cost) p1
-                 in (rfromK res0, res1)
+    r1cost' p1 = cgrad2 (r1cost) p1
     r2cost :: forall target a. (NumScalar a, Differentiable a, ADReady target)
            => target (TKR 1 a) -> target (TKR 1 a)
            -> target (TKScalar a)
-    r2cost r1 r2 = fp (kfromR $ r1 ! [0]) (kfromR $ r1 ! [1])
-                      (kfromR $ r2 ! [0]) (kfromR $ r2 ! [1])
+    r2cost r1 r2 = fp (r1 `rindex0` [0]) (r1 `rindex0` [1])
+                      (r2 `rindex0` [0]) (r2 `rindex0` [1])
     r2cost' :: forall target a.
                ( ADReadyNoLet target, ShareTensor target
                , ShareTensor (PrimalOf target), ShareTensor (PlainOf target)
                , NumScalar a, Differentiable a )
             => target (TKR 1 a) -> target (TKR 1 a)
-            -> (target (TKR 0 a), target (TKR 1 a))
-    r2cost' r1 r2 =
-      let (res0, res1) = cgrad2 @_ @_ @_ @target (r2cost (rfromPrimal r1)) r2
-      in (rfromK res0, res1)
+            -> (target (TKScalar a), target (TKR 1 a))
+    r2cost' r1 r2 = cgrad2 @_ @_ @_ @target (r2cost (rfromPrimal r1)) r2
 ff (Input (x, y)) = Nested.rtoVector . unConcrete
                     $ saddleGen r1cost' r2cost' start
   where
     start = rfromList [rscalar x, rscalar y]
     r1cost p1 = multivariateMax (r2cost' p1) (rfromPrimal start)
-    r1cost' p1 = let (res0, res1) = cgrad2_fwdR (kfromR . r1cost) p1
-                 in (rfromK res0, res1)
+    r1cost' p1 = cgrad2_fwdR (r1cost) p1
     r2cost :: forall target a. (NumScalar a, Differentiable a, ADReady target)
            => target (TKR 1 a) -> target (TKR 1 a)
            -> target (TKScalar a)
-    r2cost r1 r2 = fp (kfromR $ r1 ! [0]) (kfromR $ r1 ! [1])
-                      (kfromR $ r2 ! [0]) (kfromR $ r2 ! [1])
-    r2cost' :: forall target a.
-               ( ADReadyNoLet target, ShareTensor target
-               , ShareTensor (PrimalOf target), ShareTensor (PlainOf target)
-               , NumScalar a, Differentiable a, ADTensorScalar a ~ a )
-            => target (TKR 1 a) -> target (TKR 1 a)
-            -> (target (TKR 0 a), target (TKR 1 a))
-    r2cost' r1 r2 =
-      let (res0, res1) =
-            cgrad2_fwdR @_ @_ @_ @target (r2cost (rfromPrimal r1)) r2
-      in (rfromK res0, res1)
-rf (Input (x, y)) = Nested.rtoVector . unConcrete
-                    $ saddleGen r1cost' r2cost' start
-  where
-    start = rfromList [rscalar x, rscalar y]
-    r1cost p1 = multivariateMax (r2cost' p1) (rfromPrimal start)
-    r1cost' p1 = let (res0, res1) = cgrad2 (kfromR . r1cost) p1
-                 in (rfromK res0, res1)
-    r2cost :: forall target a. (NumScalar a, Differentiable a, ADReady target)
-           => target (TKR 1 a) -> target (TKR 1 a)
-           -> target (TKScalar a)
-    r2cost r1 r2 = fp (kfromR $ r1 ! [0]) (kfromR $ r1 ! [1])
-                      (kfromR $ r2 ! [0]) (kfromR $ r2 ! [1])
-    r2cost' :: forall target a.
-               ( ADReadyNoLet target, ShareTensor target
-               , ShareTensor (PrimalOf target), ShareTensor (PlainOf target)
-               , NumScalar a, Differentiable a, ADTensorScalar a ~ a )
-            => target (TKR 1 a) -> target (TKR 1 a)
-            -> (target (TKR 0 a), target (TKR 1 a))
-    r2cost' r1 r2 =
-      let (res0, res1) =
-            cgrad2_fwdR @_ @_ @_ @target (r2cost (rfromPrimal r1)) r2
-      in (rfromK res0, res1)
-fr (Input (x, y)) = Nested.rtoVector . unConcrete
-                    $ saddleGen r1cost' r2cost' start
-  where
-    start = rfromList [rscalar x, rscalar y]
-    r1cost p1 = multivariateMax (r2cost' p1) (rfromPrimal start)
-    r1cost' p1 = let (res0, res1) = cgrad2_fwdR (kfromR . r1cost) p1
-                 in (rfromK res0, res1)
-    r2cost :: forall target a. (NumScalar a, Differentiable a, ADReady target)
-           => target (TKR 1 a) -> target (TKR 1 a)
-           -> target (TKScalar a)
-    r2cost r1 r2 = fp (kfromR $ r1 ! [0]) (kfromR $ r1 ! [1])
-                      (kfromR $ r2 ! [0]) (kfromR $ r2 ! [1])
+    r2cost r1 r2 = fp (r1 `rindex0` [0]) (r1 `rindex0` [1])
+                      (r2 `rindex0` [0]) (r2 `rindex0` [1])
     r2cost' :: forall target a.
                ( ADReadyNoLet target, ShareTensor target
                , ShareTensor (PrimalOf target), ShareTensor (PlainOf target)
                , NumScalar a, Differentiable a )
             => target (TKR 1 a) -> target (TKR 1 a)
-            -> (target (TKR 0 a), target (TKR 1 a))
-    r2cost' r1 r2 =
-      let (res0, res1) = cgrad2 @_ @_ @_ @target (r2cost (rfromPrimal r1)) r2
-      in (rfromK res0, res1)
+            -> (target (TKScalar a), target (TKR 1 a))
+    r2cost' r1 r2 = cgrad2_fwdR @_ @_ @_ @target (r2cost (rfromPrimal r1)) r2
+rf (Input (x, y)) = Nested.rtoVector . unConcrete
+                    $ saddleGen r1cost' r2cost' start
+  where
+    start = rfromList [rscalar x, rscalar y]
+    r1cost p1 = multivariateMax (r2cost' p1) (rfromPrimal start)
+    r1cost' p1 = cgrad2 (r1cost) p1
+    r2cost :: forall target a. (NumScalar a, Differentiable a, ADReady target)
+           => target (TKR 1 a) -> target (TKR 1 a)
+           -> target (TKScalar a)
+    r2cost r1 r2 = fp (r1 `rindex0` [0]) (r1 `rindex0` [1])
+                      (r2 `rindex0` [0]) (r2 `rindex0` [1])
+    r2cost' :: forall target a.
+               ( ADReadyNoLet target, ShareTensor target
+               , ShareTensor (PrimalOf target), ShareTensor (PlainOf target)
+               , NumScalar a, Differentiable a )
+            => target (TKR 1 a) -> target (TKR 1 a)
+            -> (target (TKScalar a), target (TKR 1 a))
+    r2cost' r1 r2 = cgrad2_fwdR @_ @_ @_ @target (r2cost (rfromPrimal r1)) r2
+fr (Input (x, y)) = Nested.rtoVector . unConcrete
+                    $ saddleGen r1cost' r2cost' start
+  where
+    start = rfromList [rscalar x, rscalar y]
+    r1cost p1 = multivariateMax (r2cost' p1) (rfromPrimal start)
+    r1cost' p1 = cgrad2_fwdR (r1cost) p1
+    r2cost :: forall target a. (NumScalar a, Differentiable a, ADReady target)
+           => target (TKR 1 a) -> target (TKR 1 a)
+           -> target (TKScalar a)
+    r2cost r1 r2 = fp (r1 `rindex0` [0]) (r1 `rindex0` [1])
+                      (r2 `rindex0` [0]) (r2 `rindex0` [1])
+    r2cost' :: forall target a.
+               ( ADReadyNoLet target, ShareTensor target
+               , ShareTensor (PrimalOf target), ShareTensor (PlainOf target)
+               , NumScalar a, Differentiable a )
+            => target (TKR 1 a) -> target (TKR 1 a)
+            -> (target (TKScalar a), target (TKR 1 a))
+    r2cost' r1 r2 = cgrad2 @_ @_ @_ @target (r2cost (rfromPrimal r1)) r2

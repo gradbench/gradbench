@@ -14,17 +14,24 @@ import GHC.TypeLits (KnownNat)
 import HordeAd
 import HordeAd.Core.Adaptor
 
+{-
+import Data.Type.Equality ((:~:) (Refl))
+import Data.Array.Nested.Convert (withShsFromShR)
+import Data.Array.Nested.Lemmas
+import Data.Array.Nested.Shaped.Shape
+-}
+
 square :: (NumScalar a, ADReady target)
        => target (TKR 1 a) -> target (TKR 1 a)
 square x' = tlet x' $ \x -> x * x
--- slower even symbolically: square x = x ** rrepl (rshape x) 2
+  -- slower even symbolically: square x = x ** rrepl (rshape x) 2
 
 magnitude_squared :: (NumScalar a, ADReady target)
-                  => target (TKR 1 a) -> target (TKR 0 a)
+                  => target (TKR 1 a) -> target (TKScalar a)
 magnitude_squared = rsum0 . square
 
 magnitude :: (NumScalar a, Differentiable a, ADReady target)
-          => target (TKR 1 a) -> target (TKR 0 a)
+          => target (TKR 1 a) -> target (TKScalar a)
 magnitude = sqrt . magnitude_squared
 
 scale :: (NumScalar a, ADReady target)
@@ -32,27 +39,27 @@ scale :: (NumScalar a, ADReady target)
 scale x v = rrepl (rshape v) x * v
 
 distance_squared :: (NumScalar a, ADReady target)
-                 => target (TKR 1 a) -> target (TKR 1 a) -> target (TKR 0 a)
+                 => target (TKR 1 a) -> target (TKR 1 a) -> target (TKScalar a)
 distance_squared u v = magnitude_squared (u - v)
 
 distance :: (NumScalar a, Differentiable a, ADReady target)
-         => target (TKR 1 a) -> target (TKR 1 a) -> target (TKR 0 a)
+         => target (TKR 1 a) -> target (TKR 1 a) -> target (TKScalar a)
 distance u v = sqrt $ distance_squared u v
 
 -- | The solver must be invoked with a function returning a pair: the cost
 -- and the gradient.
 multivariateArgmin
-  :: (NumScalar a, Differentiable a, ADReady target, Ord (target (TKR 0 a)))
-  => (target (TKR 1 a) -> (target (TKR 0 a), target (TKR 1 a)))
+  :: (NumScalar a, Differentiable a, ADReady target, Ord (target (TKScalar a)))
+  => (target (TKR 1 a) -> (target (TKScalar a), target (TKR 1 a)))
   -> target (TKR 1 a) -> target (TKR 1 a)
 {-# INLINE multivariateArgmin #-}
 multivariateArgmin fg x0 = loop (x0, fx0, gx0, 1e-5, 0 :: Int)
   where
     (fx0, gx0) = fg x0
     loop (x, fx, gx, eta, i)
-      | magnitude gx <= rscalar 1e-5 = x
+      | magnitude gx <= 1e-5 = x
       | i == 10 = loop (x, fx, gx, 2 * eta, 0)
-      | distance x x_prime <= rscalar 1e-5 = x
+      | distance x x_prime <= 1e-5 = x
       | fx_prime < fx = loop (x_prime, fx_prime, gx_prime, eta, i + 1)
       | otherwise = loop (x, fx, gx, eta / 2, 0)
       where
@@ -60,17 +67,17 @@ multivariateArgmin fg x0 = loop (x0, fx0, gx0, 1e-5, 0 :: Int)
         (fx_prime, gx_prime) = fg x_prime
 
 multivariateArgmax
-  :: (NumScalar a, Differentiable a, ADReady target, Ord (target (TKR 0 a)))
-  => (target (TKR 1 a) -> (target (TKR 0 a), target (TKR 1 a)))
+  :: (NumScalar a, Differentiable a, ADReady target, Ord (target (TKScalar a)))
+  => (target (TKR 1 a) -> (target (TKScalar a), target (TKR 1 a)))
   -> target (TKR 1 a) -> target (TKR 1 a)
 {-# INLINE multivariateArgmax #-}
 multivariateArgmax fg = multivariateArgmin (\arg -> let (c, g) = fg arg
                                                     in (-c, -g))
 
 multivariateMax
-  :: (NumScalar a, Differentiable a, ADReady target, Ord (target (TKR 0 a)))
-  => (target (TKR 1 a) -> (target (TKR 0 a), target (TKR 1 a)))
-  -> target (TKR 1 a) -> target (TKR 0 a)
+  :: (NumScalar a, Differentiable a, ADReady target, Ord (target (TKScalar a)))
+  => (target (TKR 1 a) -> (target (TKScalar a), target (TKR 1 a)))
+  -> target (TKR 1 a) -> target (TKScalar a)
 {-# INLINE multivariateMax #-}
 multivariateMax fg x = fst $ fg $ multivariateArgmax fg x
 
@@ -87,10 +94,19 @@ cgrad2_fwdR
      , DValue src )  -- morally DValue (ADTensorKind src)
 {-# INLINE cgrad2_fwdR #-}
 cgrad2_fwdR f x =
-  let sh = rshape $ fromDValue @src x
+  let shr = rshape $ fromDValue @src x
       g :: IxROf target n -> target (TKScalar r)
-      g i = cjvp f x (roneHot sh (rscalar 1) i)
-  in (kprimalPart $ f (fromDValue x), rbuild sh (rfromK . g))
+      g i = cjvp f x (roneHot shr (rscalar 1) i)
+  in (kprimalPart $ f (fromDValue x), rbuild shr (rfromK . g))
+{- TODO: optimize by switching the signature to shaped and using s simplified
+   version of this (or switch to symbolic pipeline):
+  in withShsFromShR shr $ \(sh :: ShS sh)->
+     withKnownShS sh $
+     case lemAppNil @sh  of
+       Refl ->
+         let g :: IxSOf target sh -> target (TKScalar r)
+             g i = cjvp f x (rfromS $ soneHot @sh (sscalar 1) i)
+         in (kprimalPart $ f (fromDValue x), rfromS $ kbuild @sh g) -}
 
 cgrad_fwdK2
   :: forall src r tgt target.

@@ -77,8 +77,8 @@ primal (Input x s) =
 gradient :: Input -> GradientOutput
 gradient (Input x s) =
   let f a = let res = primalPoly a s
-            in kfromR $ res ! [fromIntegral $ rwidth res - 1]
+            in res `rindex0` [fromIntegral $ rwidth res - 1]
   in Nested.rtoVector $ unConcrete
-     $ cgrad f (rconcrete $ Nested.rfromVector [VS.length x] x)
-    -- cgrad is here many times faster than the symbolic grad
-    -- for tests with s (loop count) much higher than n (data size)
+     $ grad f (rconcrete $ Nested.rfromVector [VS.length x] x)
+    -- cgrad is here as fast as the symbolic grad, which is expected
+    -- for a test with s (loop count) much higher than n (data size)

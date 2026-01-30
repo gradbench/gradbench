@@ -19,7 +19,18 @@ executable gradbench
                     GradBench.Particle
                     GradBench.Saddle
                     GradBench.GD
-  build-depends:    aeson, base, bytestring, clock, deepseq, ghc-typelits-knownnat >= 0.8.0 && < 1, horde-ad, ox-arrays, text, vector
+  build-depends:
+      aeson
+    , base
+    , bytestring
+    , clock
+    , deepseq
+    , ghc-typelits-knownnat >= 0.8.0 && < 1
+    , ghc-typelits-natnormalise >= 0.8.1 && < 1
+    , horde-ad
+    , ox-arrays
+    , text
+    , vector
   hs-source-dirs:   src
   default-language:   GHC2024
   default-extensions: StrictData, TypeFamilies, TypeFamilyDependencies,
@@ -31,22 +42,34 @@ executable gradbench
                       QuantifiedConstraints, TemplateHaskell, DerivingVia,
                       ImpredicativeTypes,
                       OverloadedStrings
+  -- * Warnings and similar.
   ghc-options:        -Wall -Wcompat -Widentities -Wredundant-constraints -Wmissing-export-lists -Wpartial-fields -Wunused-packages -Wredundant-bang-patterns -Woperator-whitespace -Wredundant-strictness-flags -Wterm-variable-capture -Wmissed-specialisations
   ghc-options:        -Wmissing-poly-kind-signatures -Wmissing-role-annotations -Wno-unticked-promoted-constructors
-  ghc-options:        -fprint-explicit-kinds
+  -- Disables a warning we can't yet fix:
+  if impl(ghc >= 9.14)
+    ghc-options:      -Wno-pattern-namespace-specifier
+  ghc-options:        -fprint-explicit-kinds -fsimpl-tick-factor=200
+
+  -- * Performance.
   -- This is supposedly risky, but prevents STG from creating thunks, #23848:
   ghc-options:        -fworker-wrapper-cbv
-  -- Disabling this breaks performance:
-  ghc-options:        -fexpose-all-unfoldings -fspecialise-aggressively -fsimpl-tick-factor=200
-  -- Disabling hurts performance to some extent:
-  ghc-options:        -fdicts-cheap -flate-dmd-anal
-  -- ghc-options: -O2 -flate-specialise
-  -- Disabling a warning we can't yet fix:
+  -- These improve performance, but slow down compilation:
+  if impl(ghc >= 9.12)
+    ghc-options:      -fexpose-overloaded-unfoldings
+  ghc-options:        -fspecialise-aggressively
   if impl(ghc >= 9.14)
-    ghc-options:        -Wno-pattern-namespace-specifier
-    ghc-options:        -fpolymorphic-specialisation
+    ghc-options:      -fpolymorphic-specialisation
+  -- This one improves both performance and compilation speed:
+  ghc-options:        -fkeep-auto-rules
+  -- These improve performance to some extent:
+  ghc-options:        -fdicts-cheap -flate-dmd-anal
+  -- Twice the compilation time and no consistent performance boost:
+  -- ghc-options      -flate-specialise
+  -- 30% longer compilation for small and inconsistent performance benefits:
+  -- ghc-options:     -O2
 
-  ghc-options:        -rtsopts
+  -- * Misc.
+  ghc-options:        -rtsopts -threaded
   -- Make GC more predictable in benchmarks.
   ghc-options:        "-with-rtsopts=-A0.75g -I0"
   -- Too big a performance hit:

@@ -53,20 +53,22 @@ instance NFData DirOutput where
 square :: (NumScalar a, ADReady target)
        => target (TKR 1 a) -> target (TKR 1 a)
 square x' = tlet x' $ \x -> x * x
--- slower even symbolically: square x = x ** rrepl (rshape x) 2
+  -- slower even symbolically: square x = x ** rrepl (rshape x) 2
 
 dist2 :: (NumScalar a, ADReady target)
-      => target (TKR 1 a) -> target (TKR 1 a) -> target (TKR 0 a)
+      => target (TKR 1 a) -> target (TKR 1 a) -> target (TKScalar a)
 dist2 a b = rsum0 $ square $ a - b
 
 -- TODO: try fold instead of build
 costGeneric :: (NumScalar a, ADReady target)
             => target (TKR 2 a) -> target (TKR 2 a) -> target (TKScalar a)
 costGeneric points centroids =
-  kfromR $ rsum0
-  $ rbuild1 (rwidth points)
-            (\ip -> rminimum
-                    $ rbuild1 (rwidth centroids)
+  withSNat (rwidth points) $ \ (SNat @npoints) ->
+  withSNat (rwidth centroids) $ \ (SNat @ncentroids) ->
+  ssum0
+  $ kbuild1 @npoints
+            (\ip -> sminimum
+                    $ kbuild1 @ncentroids
                               (\ic -> dist2 (points ! [ip]) (centroids ! [ic])))
 
 cost :: Input -> CostOutput
@@ -74,20 +76,24 @@ cost (Input d points' centroids') =
   let points =
         rconcrete
         $ Nested.rfromVector [VS.length points' `div` d, d] points'
-      csh = [VS.length centroids' `div` d, d]
-      centroids = rconcrete $ Nested.rfromVector csh centroids'
+      centroids =
+        rconcrete
+        $ Nested.rfromVector [VS.length centroids' `div` d, d] centroids'
   in unConcrete $ costGeneric points centroids
 
 dir :: Input -> DirOutput
 dir (Input d points' centroids') =
   let points :: ADReady target => target (TKR 2 Double)
       points =
-        rconcrete $ Nested.rfromVector [VS.length points' `div` d, d] points'
-      csh = [VS.length centroids' `div` d, d]
-      centroids = rconcrete $ Nested.rfromVector csh centroids'
-      (cost', cost'') = jvp2 (kgrad (costGeneric points) (FTKR csh FTKScalar))
+        rconcrete
+        $ Nested.rfromVector [VS.length points' `div` d, d] points'
+      centroids =
+        rconcrete
+        $ Nested.rfromVector [VS.length centroids' `div` d, d] centroids'
+      ftk = FTKR [VS.length centroids' `div` d, d] FTKScalar
+      (cost', cost'') = jvp2 (kgrad (costGeneric points) ftk)
                              centroids
                              (rrepl (rshape centroids) 1)
   in DirOutput d . Nested.rtoVector . unConcrete $ cost' / cost''
     -- non-symbolic cjvp2 would take much more memory and time here
-    -- due to rbuild1 above
+    -- due to kbuild1 above
