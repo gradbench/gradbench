@@ -120,8 +120,8 @@ det a =
 
 primal :: Input -> PrimalOutput
 primal (Input a ell) =
-  let ast = simplifyInlineContract $ tlet (chunk ell a) det
-  in -- traceShow ("pre", printAstPrettyButNested ast) $
+  let ast = simplifyInlineContract $ det (chunk ell a)
+  in -- traceShow ("primal", printAstPrettyButNested ast) $
      unConcrete $ interpretAstFull emptyEnv ast
 
 gradient :: Input -> GradientOutput

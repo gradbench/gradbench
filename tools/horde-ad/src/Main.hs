@@ -12,6 +12,7 @@ import Data.List qualified as L
 import Data.Maybe (fromMaybe, isJust)
 import Data.Text qualified as T
 import GradBench.Det qualified
+import GradBench.GMM qualified
 import GradBench.Hello qualified
 import GradBench.KMeans qualified
 import GradBench.LLSq qualified
@@ -93,7 +94,9 @@ modules =
     (("saddle", "rr"), wrap GradBench.Saddle.rr),
     (("saddle", "ff"), wrap GradBench.Saddle.ff),
     (("saddle", "fr"), wrap GradBench.Saddle.fr),
-    (("saddle", "rf"), wrap GradBench.Saddle.rf)
+    (("saddle", "rf"), wrap GradBench.Saddle.rf),
+    (("gmm", "objective"), wrap GradBench.GMM.objective),
+    (("gmm", "jacobian"), wrap GradBench.GMM.jacobian)
   ]
 
 type Id = Int

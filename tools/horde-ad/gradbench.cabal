@@ -1,24 +1,33 @@
-cabal-version:      3.0
+cabal-version:      3.6
 name:               gradbench
+-- The package version.
+-- See the Haskell package versioning policy (PVP) for standards
+-- guiding when and how versions should be incremented.
+-- https://pvp.haskell.org
+-- PVP summary:     +-+------- breaking API changes
+--                  | | +----- non-breaking API additions
+--                  | | | +--- code changes with no API change
 version:            0.1.0.0
+synopsis:           Gradbench entry to horde-ad. A lot of this code is copied from https://github.com/gradbench/gradbench/tree/main/tools/haskell-ad and https://github.com/tomsmeding/ADBench/blob/accelerate/tools/Accelerate/src/
 homepage:           https://gradben.ch/
 license:            MIT
-author:             Troels Henriksen
-maintainer:         athas@sigkill.dk
+author:             Mikolaj Konarski and others
+maintainer:         mikolaj.konarski@funktory.com
 category:           Math
 build-type:         Simple
 
 executable gradbench
   main-is:          Main.hs
-  other-modules:    GradBench.Hello
+  other-modules:    GradBench.Det
+                    GradBench.GD
+                    GradBench.GMM
+                    GradBench.Hello
                     GradBench.KMeans
                     GradBench.LLSq
                     GradBench.LSE
                     GradBench.ODE
-                    GradBench.Det
                     GradBench.Particle
                     GradBench.Saddle
-                    GradBench.GD
   build-depends:
       aeson
     , base

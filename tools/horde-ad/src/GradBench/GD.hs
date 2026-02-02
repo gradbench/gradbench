@@ -1,5 +1,5 @@
 -- | This is not an eval, but rather a (simple) implementation of
--- Gradient Descent. It is very naive (e.g. using lists), but this is
+-- Gradient Descent. It is very naive, but this is
 -- sufficient for the 'particle' and 'saddle' evals.
 module GradBench.GD
   ( multivariateArgmin,
