@@ -17,6 +17,7 @@ import GradBench.Hello qualified
 import GradBench.KMeans qualified
 import GradBench.LLSq qualified
 import GradBench.LSE qualified
+import GradBench.LSTM qualified
 import GradBench.ODE qualified
 import GradBench.Particle qualified
 import GradBench.Saddle qualified
@@ -96,7 +97,9 @@ modules =
     (("saddle", "fr"), wrap GradBench.Saddle.fr),
     (("saddle", "rf"), wrap GradBench.Saddle.rf),
     (("gmm", "objective"), wrap GradBench.GMM.objective),
-    (("gmm", "jacobian"), wrap GradBench.GMM.jacobian)
+    (("gmm", "jacobian"), wrap GradBench.GMM.jacobian),
+    (("lstm", "objective"), wrap GradBench.LSTM.objective),
+    (("lstm", "jacobian"), wrap GradBench.LSTM.jacobian)
   ]
 
 type Id = Int

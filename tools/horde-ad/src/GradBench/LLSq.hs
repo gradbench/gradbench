@@ -33,10 +33,10 @@ instance JSON.FromJSON Input where
   parseJSON = JSON.withObject "input" $ \o ->
     Input <$> (o .: "x") <*> o .: "n"
 
-square :: (NumScalar a, ADReady target)
-       => target (TKScalar a) -> target (TKScalar a)
-square x' = tlet x' $ \x -> x * x
-  -- slower even symbolically: square x = x ** rrepl (rshape x) 2
+ksquare :: (NumScalar a, ADReady target)
+        => target (TKScalar a) -> target (TKScalar a)
+ksquare x' = tlet x' $ \x -> x * x
+  -- slower even symbolically: ksquare x = x ** 2
 
 primalPoly :: forall nxm1 a target.
               (KnownNat nxm1, NumScalar a, Differentiable a, ADReady target )
@@ -45,8 +45,8 @@ primalPoly n x =
   let f i = tletPlain (t i n) $ \ti ->
         let muls :: PlainOf target (TKS '[nxm1 + 1] a)
             muls = tscan (SNat @nxm1) STKScalar STKScalar
-                         (*) 1 $ sreplicate0N @'[nxm1] ti
-        in square (kfromPlain (signum ti)
+                         (*) 1 (sreplicate0N @'[nxm1] ti)
+        in ksquare (kfromPlain (signum ti)
                    - ssum0 (x * tfromPlain
                                   (STKS (SNat @(nxm1 + 1) :$$ ZSS) STKScalar)
                                   muls))
@@ -80,7 +80,7 @@ primalPoly x n =
                                   (tproject2 ti_tii_acc
                                    + tproject2 (tproject1 ti_tii_acc) * ex))
                          (tpair (tpair ti 1) 0) x
-        in square (signum ti - tproject2 muls)
+        in ksquare (signum ti - tproject2 muls)
   in 0.5 * ssum0 (kbuild1 @n f) -}
 
 primal :: Input -> PrimalOutput

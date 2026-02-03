@@ -21,14 +21,9 @@ import Data.Array.Nested.Lemmas
 import Data.Array.Nested.Shaped.Shape
 -}
 
-square :: (NumScalar a, ADReady target)
-       => target (TKR 1 a) -> target (TKR 1 a)
-square x' = tlet x' $ \x -> x * x
-  -- slower even symbolically: square x = x ** rrepl (rshape x) 2
-
 magnitude_squared :: (NumScalar a, ADReady target)
                   => target (TKR 1 a) -> target (TKScalar a)
-magnitude_squared = rsum0 . square
+magnitude_squared = rsum0 . rsquare
 
 magnitude :: (NumScalar a, Differentiable a, ADReady target)
           => target (TKR 1 a) -> target (TKScalar a)

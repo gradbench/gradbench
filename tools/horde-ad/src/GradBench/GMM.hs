@@ -98,25 +98,13 @@ logGammaDistrib a d =
   fromIntegral (d * (d - 1)) * 0.25 * log pi
   + sum [lgamma (a + fromIntegral (1 - i) * 0.5) | i <- [1 .. d]]
 
-square :: (NumScalar a, ADReady target)
-       => target (TKR n a) -> target (TKR n a)
-square x' = tlet x' $ \x -> x * x
-  -- slower even symbolically: square x = x ** rrepl (rshape x) 2
-
 frobeniusNormSq :: (KnownNat n, ADReady target)
                 => target (TKR n Double) -> target (TKScalar Double)
-frobeniusNormSq = rsum0 . square
+frobeniusNormSq = rsum0 . rsquare
 
 logsumexp' :: ADReady target
            => target (TKR 1 Double) -> target (TKScalar Double)
 logsumexp' x = log (rsum0 (exp x))
-
-logsumexp :: ADReady target
-          => target (TKR 1 Double) -> target (TKScalar Double)
-logsumexp x' = tlet x' $ \x -> tlet (rmaximum x) $ \maxx ->
-  let shiftedx = x - rreplicate0N (rshape x) maxx
-      logged = log (rsum0 (exp shiftedx))
-  in logged + maxx
 
 logWishartPrior
   :: ADReady target

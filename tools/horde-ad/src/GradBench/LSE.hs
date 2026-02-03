@@ -22,24 +22,17 @@ instance JSON.FromJSON Input where
     Input <$> (o .: "x")
 
 -- Fails for empty argument.
-logsumexp :: (NumScalar a, Differentiable a)
-          => VS.Vector a -> a
-logsumexp x = unConcrete
-              . logsumexpTarget
+logsumexpVS :: (NumScalar a, Differentiable a)
+            => VS.Vector a -> a
+logsumexpVS x = unConcrete
+              . (logsumexp @1)
               . rconcrete . Nested.rfromVector [VS.length x] $ x
 
-logsumexpTarget :: (NumScalar a, Differentiable a, ADReady target)
-                => target (TKR 1 a) -> target (TKScalar a)
-logsumexpTarget x' =
-  tlet x' $ \x ->
-  tlet (rmaximum x) $ \a ->  -- fails for empty x
-    (+ a) . log . rsum0 . exp . subtract (rreplicate (rwidth x) (rfromK a)) $ x
-
 primal :: Input -> PrimalOutput
-primal (Input x) = logsumexp x
+primal (Input x) = logsumexpVS x
 
 gradient :: Input -> GradientOutput
 gradient (Input x) = Nested.rtoVector . unConcrete
-                     . grad logsumexpTarget
+                     . grad (logsumexp @1)
                      . rconcrete . Nested.rfromVector [VS.length x] $ x
   -- cgrad and the symbolic grad are here equally fast

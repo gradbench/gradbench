@@ -20,8 +20,7 @@ getPoint :: VS.Storable a => Int -> VS.Vector a -> Int -> VS.Vector a
 getPoint d v i = VS.slice (i * d) d v
 
 getPoints :: VS.Storable a => Int -> VS.Vector a -> [VS.Vector a]
-getPoints d v =
-  map (getPoint d v) [0 .. (VS.length v `div` d - 1)]
+getPoints d v = map (getPoint d v) [0 .. (VS.length v `div` d - 1)]
 
 data Input = Input
   { inputD :: Int,
@@ -50,14 +49,9 @@ instance JSON.ToJSON DirOutput where
 instance NFData DirOutput where
   rnf (DirOutput _ v) = rnf v
 
-square :: (NumScalar a, ADReady target)
-       => target (TKR 1 a) -> target (TKR 1 a)
-square x' = tlet x' $ \x -> x * x
-  -- slower even symbolically: square x = x ** rrepl (rshape x) 2
-
 dist2 :: (NumScalar a, ADReady target)
       => target (TKR 1 a) -> target (TKR 1 a) -> target (TKScalar a)
-dist2 a b = rsum0 $ square $ a - b
+dist2 a b = rsum0 $ rsquare $ a - b
 
 -- TODO: try fold instead of build
 costGeneric :: (NumScalar a, ADReady target)

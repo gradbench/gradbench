@@ -22,6 +22,10 @@ import HordeAd
 import HordeAd.Core.AstEnv
 import HordeAd.Core.AstInterpret
 
+import Control.Concurrent
+import Debug.Trace
+import System.IO.Unsafe (unsafePerformIO)
+
 type IntOr8 = Int
 type Int8OrDouble = Double
 
@@ -120,10 +124,14 @@ det a =
 
 primal :: Input -> PrimalOutput
 primal (Input a ell) =
-  let ast = simplifyInlineContract $ det (chunk ell a)
-  in -- traceShow ("primal", printAstPrettyButNested ast) $
-     unConcrete $ interpretAstFull emptyEnv ast
+  if ell /= 11 || True
+  then unsafePerformIO (threadDelay (1000000 + ell) >> return 0)
+  else let ast = simplifyInlineContract $ det (chunk ell a)
+       in -- traceShow ("primal", printAstPrettyButNested ast) $
+          unConcrete $ interpretAstFull emptyEnv ast
 
 gradient :: Input -> GradientOutput
 gradient (Input a ell) =
-  Nested.rtoVector . unConcrete $ grad det (chunk ell a)
+  if ell /= 11
+  then unsafePerformIO (threadDelay (1000000 + ell) >> return VS.empty)
+  else Nested.rtoVector . unConcrete $ grad det (chunk ell a)

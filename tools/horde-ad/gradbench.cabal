@@ -25,6 +25,7 @@ executable gradbench
                     GradBench.KMeans
                     GradBench.LLSq
                     GradBench.LSE
+                    GradBench.LSTM
                     GradBench.ODE
                     GradBench.Particle
                     GradBench.Saddle
@@ -47,7 +48,7 @@ executable gradbench
                       DefaultSignatures, PatternSynonyms, NoStarIsType,
                       TypeData, TypeAbstractions
   other-extensions:   UnboxedTuples, CPP, ViewPatterns, OverloadedLists,
-                      DeriveAnyClass, UndecidableInstances, AllowAmbiguousTypes,
+                      DeriveAnyClass, UndecidableInstances,
                       QuantifiedConstraints, TemplateHaskell, DerivingVia,
                       ImpredicativeTypes,
                       OverloadedStrings
