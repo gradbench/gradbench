@@ -20,17 +20,17 @@ def lstmModel [d]
   let hidden2 = map2 (*) outgate <| map f64.tanh cell2
   in (hidden2, cell2)
 
-def lstmPredict [slen] [d]
-                (mainParams: [slen][2][4][d]f64)
+def lstmPredict [stlen] [d]
+                (mainParams: [stlen][2][4][d]f64)
                 (extraParams: [3][d]f64)
-                (state: [slen][2][d]f64)
-                (input: [d]f64) : ([d]f64, [slen][2][d]f64) =
+                (state: [stlen][2][d]f64)
+                (input: [d]f64) : ([d]f64, [stlen][2][d]f64) =
   let x0 = map2 (*) input extraParams[0]
-  let state_ini = replicate slen <| replicate 2 <| replicate d 0f64
-  -- : [slen][2][d]f64
+  let state_ini = replicate stlen <| replicate 2 <| replicate d 0f64
+  -- : [stlen][2][d]f64
   let (state', x') =
     loop (s, x) = (state_ini, x0)
-    for i < slen do
+    for i < stlen do
       let (h, c) = lstmModel mainParams[i, 0] mainParams[i, 1] state[i, 0] state[i, 1] x
       let s[i, 0] = h
       let s[i, 1] = c
