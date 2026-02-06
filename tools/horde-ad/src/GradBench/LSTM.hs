@@ -91,19 +91,20 @@ lstmPredict :: forall target. ADReady target
                  -- :: ([d], [stlen][2][d])
 lstmPredict mainParams extraParams state input =
   let x0 = rconcrete (unConcrete input) * extraParams ! [0]
-      loop :: [target (TKR 2 Double)] -> target (TKR 1 Double) -> Int
-           -> ([target (TKR 2 Double)], target (TKR 1 Double))
-      loop l x i | i >= rwidth mainParams = (l, x)
-      loop l x i =
-        let (h, c) = lstmModel (mainParams ! [kconcrete i, 0])
-                               (mainParams ! [kconcrete i, 1])
-                               (state ! [kconcrete i, 0])
-                               (state ! [kconcrete i, 1])
-                               x
-        in loop (rfromList [h, c] : l) h (i + 1)
-      (l', x') = loop [] x0 0
+      loop :: ([target (TKR 1 Double)], target (TKR 1 Double))
+           -> (target (TKR 3 Double), target (TKR 2 Double))
+           -> ([target (TKR 1 Double)], target (TKR 1 Double))
+      loop !(!l, !x) (mainParamsI, stateI) =
+        let !(!h, !c) = lstmModel (mainParamsI ! [0])
+                                  (mainParamsI ! [1])
+                                  (stateI ! [0])
+                                  (stateI ! [1])
+                                  x
+        in (c : h : l, h)
+      (l', x') = foldl' loop ([], x0) (zip (runravelToList mainParams)
+                                           (runravelToList state))
       v' = x' * extraParams ! [1] + extraParams ! [2]
-  in (v', rfromList $ NonEmpty.fromList $ reverse l')
+  in (v', rreshape (rshape state) $ rfromList $ NonEmpty.fromList $ reverse l')
 
 lstmObjective :: forall target. ADReady target
               => LSTMInputAux -> LSTMParams target -> target (TKScalar Double)
@@ -114,29 +115,31 @@ lstmObjective LSTMInputAux{..} (lstmMainParams, lstmExtraParams) =
       state = rconcrete $ unConcrete $ rreshape [lstmStLen, 2, lstmD] lstmState
       -- To represent this as rfold, we'd need to keep mainParams
       -- and lstmExtraParams unchaged in the accumulator (in addition
-      -- to the changing oldState and oldTotal) and reformulate the loop
-      -- to only use the i-th element of lstmSequence.
-      loop :: Concrete (TKR 1 Double) -> target (TKR 3 Double)
-           -> target (TKScalar Double) -> Int
-           -> target (TKScalar Double)
-      loop _ _ oldTotal i | i >= lstmLenSeq - 1 = oldTotal
-      loop inputi oldState oldTotal i =
-        let (y_pred, newState) =
-              lstmPredict mainParams lstmExtraParams oldState inputi
+      -- to the changing oldYnorm, oldState and oldTotal).
+      loop :: ( target (TKR 1 Double)
+              , target (TKR 3 Double)
+              , target (TKScalar Double) )
+           -> Concrete (TKR 1 Double)
+           -> ( target (TKR 1 Double)
+              , target (TKR 3 Double)
+              , target (TKScalar Double) )
+      loop !(!oldYnorm, !oldState, !oldTotal) input =
+        let newTotal = oldTotal + rdot0 (rconcrete $ unConcrete input)
+                                        oldYnorm
+            (y_pred, newState) =
+              lstmPredict mainParams lstmExtraParams oldState input
             tmp_sum = rsum0 $ exp y_pred
             tmp_log = - log (tmp_sum + 2)
             ynorm = y_pred + rreplicate0N (rshape y_pred) tmp_log
-            inputi1 = lstmSequence ! [kconcrete (i + 1)]
-            newTotal = oldTotal + rdot0 (rconcrete $ unConcrete inputi1) ynorm
-        in loop inputi1 newState newTotal (i + 1)
-      total = loop (lstmSequence ! [0]) state 0 0
+        in (ynorm, newState, newTotal)
+      (_, _, total) = foldl' loop (rreplicate0N [lstmD] 0, state, 0)
+                             (runravelToList lstmSequence)
       count = lstmD * (lstmLenSeq - 1)
   in - total / kconcrete (fromIntegral count)
 
 objective :: LSTMInput Concrete -> Double
 objective (LSTMInput lstmInputAux lSTMParams) =
   unConcrete $ lstmObjective lstmInputAux lSTMParams
-
 
 jacobian :: LSTMInput Concrete -> LSTMOutput
 jacobian (LSTMInput lstmParams lstmInputAux) =
