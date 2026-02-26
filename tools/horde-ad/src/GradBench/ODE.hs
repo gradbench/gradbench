@@ -13,6 +13,8 @@ import Data.Aeson qualified as JSON
 import Data.Array.Nested qualified as Nested
 import Data.Vector.Storable qualified as VS
 import HordeAd
+import HordeAd.Core.AstEnv
+import HordeAd.Core.AstInterpret
 
 data Input = Input
   { _inputX :: VS.Vector Double,
@@ -71,8 +73,10 @@ primalPoly x' s =
 
 primal :: Input -> PrimalOutput
 primal (Input x s) =
-  Nested.rtoVector $ unConcrete
-  $ primalPoly (rconcrete $ Nested.rfromVector [VS.length x] x) s
+  let y = rconcrete . Nested.rfromVector [VS.length x] $ x
+      ast = simplifyInlineContract $ primalPoly y s
+  in -- unsafePerformIO (threadDelay 1000000) `seq` traceShow ("primal", printAstPrettyButNested (simplifyInlineContract $ primalPoly (AstVar @FullSpan (mkAstVarName (FTKR [100] (FTKScalar @Double)) (intToAstVarId 1))) s)) $
+     Nested.rtoVector $ unConcrete $ interpretAstFull emptyEnv ast
 
 gradient :: Input -> GradientOutput
 gradient (Input x s) =

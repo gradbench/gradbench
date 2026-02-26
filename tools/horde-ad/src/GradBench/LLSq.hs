@@ -98,4 +98,4 @@ gradient (Input x n) =
   let y = sconcrete . Nested.sfromVector (SNat @(nxm1 + 1) :$$ ZSS) $ x
   in Nested.stoVector . unConcrete $ grad (primalPoly n) y
     -- non-symbolic cgrad would take much more memory and time here
-    -- due to rbuild1 above
+    -- due to kbuild1 above

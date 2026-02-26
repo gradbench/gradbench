@@ -15,6 +15,8 @@ import Data.Array.Nested qualified as Nested
 import Data.List.NonEmpty qualified as NE
 import Data.Vector.Storable qualified as VS
 import HordeAd
+import HordeAd.Core.AstEnv
+import HordeAd.Core.AstInterpret
 
 getPoint :: VS.Storable a => Int -> VS.Vector a -> Int -> VS.Vector a
 getPoint d v i = VS.slice (i * d) d v
@@ -73,7 +75,10 @@ cost (Input d points' centroids') =
       centroids =
         rconcrete
         $ Nested.rfromVector [VS.length centroids' `div` d, d] centroids'
-  in unConcrete $ costGeneric points centroids
+      ast = simplifyInlineContract $ costGeneric points centroids
+  in -- traceShow ("primal", printAstPrettyButNested ast) $
+     unConcrete $ interpretAstFull emptyEnv ast
+
 
 dir :: Input -> DirOutput
 dir (Input d points' centroids') =

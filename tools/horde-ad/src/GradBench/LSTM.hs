@@ -204,7 +204,7 @@ objective (LSTMInput lstmInputAux (lstmMainParams, lstmExtraParams)) =
             $ lstmObjective lstmInputAux
                             ( rconcrete $ unConcrete lstmMainParams
                             , rconcrete $ unConcrete lstmExtraParams )
-  in -- traceShow ("primal", printAstPrettyButNested ast) $
+  in -- unsafePerformIO (threadDelay 1000000) `seq` traceShow ("primal", printAstPrettyButNested (simplifyInlineContract $ lstmObjective lstmInputAux (AstVar @FullSpan (mkAstVarName (FTKR (rshape lstmMainParams) (FTKScalar @Double)) (intToAstVarId 1)), AstVar @FullSpan (mkAstVarName (FTKR (rshape lstmExtraParams) (FTKScalar @Double)) (intToAstVarId 2))))) $
      unConcrete $ interpretAstFull emptyEnv ast
 -}
 

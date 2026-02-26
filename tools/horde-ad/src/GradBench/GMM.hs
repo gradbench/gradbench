@@ -102,9 +102,9 @@ frobeniusNormSq :: (KnownNat n, ADReady target)
                 => target (TKR n Double) -> target (TKScalar Double)
 frobeniusNormSq = rsum0 . rsquare
 
-logsumexp' :: ADReady target
-           => target (TKR 1 Double) -> target (TKScalar Double)
-logsumexp' x = log (rsum0 (exp x))
+rlogsumexp' :: ADReady target
+            => target (TKR 1 Double) -> target (TKScalar Double)
+rlogsumexp' x = log (rsum0 (exp x))
 
 logWishartPrior
   :: ADReady target
@@ -142,7 +142,7 @@ objectiveTarget input@GMMIn{..} =
       tlet (rsum $ rtr $ gmmInQ) $ \sums ->
       let innerTerm =
             rbuild1 n (\i ->
-              rfromK $ logsumexp
+              rfromK $ rlogsumexp
                 (gmmInAlphas + sums
                  - (rbuild1 k $ \j ->
                       let qximuk = rmatvecmul (qs ! [j])
@@ -150,7 +150,7 @@ objectiveTarget input@GMMIn{..} =
                       in rfromK (0.5 * frobeniusNormSq qximuk))))
           slse = rsum0 innerTerm
       in slse
-         - kconcrete (fromIntegral n) * logsumexp' gmmInAlphas
+         - kconcrete (fromIntegral n) * rlogsumexp' gmmInAlphas
          + logWishartPrior qs sums gmmInWisGamma gmmInWisM prec
          - kconcrete c1
 
