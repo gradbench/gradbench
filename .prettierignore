@@ -1,4 +1,5 @@
 /.venv/
 /nix/sources.json
-/tools/haskell/dist-newstyle/
+/tools/haskell-ad/dist-newstyle/
+/tools/horde-ad/dist-newstyle/
 /tools/scilean/lake-manifest.json

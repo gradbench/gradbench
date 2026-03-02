@@ -38,15 +38,15 @@ chunk n xs =
    in bef : chunk n aft
 
 picks :: [a] -> [[a]]
-picks l = zipWith (<>) (L.inits l) (map tail $ init $ L.tails l)
+picks l = zipWith (<>) (L.inits l) (tail $ L.tails l)
 
 parts :: [[a]] -> [[[a]]]
 parts = L.transpose . map picks . tail
 
-minors :: (Fractional a) => [[a]] -> [a]
+minors :: (Num a) => [[a]] -> [a]
 minors = map det . parts
 
-det :: (Fractional a) => [[a]] -> a
+det :: (Num a) => [[a]] -> a
 det [[x]] = x
 det a = sum $ do
   (f, aij, mij) <- zip3 (cycle [1, -1]) (head a) $ minors a

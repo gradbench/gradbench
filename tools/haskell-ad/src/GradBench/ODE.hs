@@ -70,5 +70,5 @@ primalPoly x s = rungeKutta (odeFun x) (V.map (const 0) x) tf s
 primal :: Input -> PrimalOutput
 primal (Input x s) = primalPoly x s
 
-gradient :: Input -> PrimalOutput
+gradient :: Input -> GradientOutput
 gradient (Input x s) = D.grad (V.last . flip primalPoly s) x
