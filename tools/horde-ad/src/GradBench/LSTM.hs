@@ -66,6 +66,8 @@ sigmoid :: ADReady target
 sigmoid x = let one = rrepl (rshape x) 1
             in one / (one + exp (- x))
 
+-- No sharing for weight and bias, because they are indexed with different
+-- indexes in each occurrence and sharing partial indexing is not beneficial.
 lstmModel :: ADReady target
           => target (TKR 2 Double)  -- :: [4][d]
           -> target (TKR 2 Double)  -- :: [4][d]
@@ -96,12 +98,12 @@ lstmPredict mainParams extraParams state input =
            => f (TKR 1 Double)
            -> f (TKProduct (TKR 3 Double) (TKR 2 Double))
            -> f (TKProduct (TKR 1 Double) (TKR 2 Double))
-      loop !x !el =
+      loop !x !el = tlet (tproject2 el ! [0]) $ \hidden ->
         let !(!o, !c') = lstmModel (tproject1 el ! [0])
                                    (tproject1 el ! [1])
-                                   (tproject2 el ! [0])
+                                   hidden
                                    (tproject2 el ! [1])
-                                   x
+                                   x  -- not shared, because a variable
        in tlet c' $ \c ->
           tlet (tanh c * o) $ \ !h ->
             tpair h (rfromList [h, c])
@@ -113,41 +115,6 @@ lstmPredict mainParams extraParams state input =
                            (FTKR [2, rwidth input] FTKScalar))
                loop x0 (tpair mainParams state)
 
-lstmObjective :: forall target. ADReady target
-              => LSTMInputAux -> LSTMParams target -> target (TKScalar Double)
-lstmObjective LSTMInputAux{..} (lstmMainParams, lstmExtraParams) =
-  let mainParams :: target (TKR 4 Double)  -- [stlen][2][4][d]
-      mainParams = rreshape [lstmStLen, 2, 4, lstmD] lstmMainParams
-      state :: target (TKR 3 Double)  -- [stlen][2][d]
-      state = rconcrete $ unConcrete $ rreshape [lstmStLen, 2, lstmD] lstmState
-      loop :: ( target (TKR 1 Double)
-              , target (TKR 3 Double)
-              , target (TKScalar Double) )
-           -> Concrete (TKR 1 Double)
-           -> ( target (TKR 1 Double)
-              , target (TKR 3 Double)
-              , target (TKScalar Double) )
-      loop !(!oldYnorm, !oldState, !oldTotal) input' =
-        let input = rconcrete $ unConcrete input'
-            prediction = lstmPredict mainParams lstmExtraParams oldState input
-            y_pred = tproject1 prediction * lstmExtraParams ! [1]
-                     + lstmExtraParams ! [2]
-            newState = tproject2 prediction
-            newTotal = oldTotal + rdot0 input oldYnorm
-            tmp_sum = rsum0 $ exp y_pred
-            tmp_log = - log (tmp_sum + 2)
-            ynorm = y_pred + rreplicate0N (rshape y_pred) tmp_log
-        in (ynorm, newState, newTotal)
-      (_, _, total) = foldl' loop (rreplicate0N [lstmD] 0, state, 0)
-                             (runravelToList lstmSequence)
-      count = lstmD * (lstmLenSeq - 1)
-  in - total / kconcrete (fromIntegral count)
-
-objective :: LSTMInput Concrete -> Double
-objective (LSTMInput lstmInputAux lSTMParams) =
-  unConcrete $ lstmObjective lstmInputAux lSTMParams
-
-{- This shares better, so it's for the symbolic pipeline, which is slower:
 lstmObjective :: forall target. ADReady target
               => LSTMInputAux -> LSTMParams target -> target (TKScalar Double)
 lstmObjective LSTMInputAux{..} (lstmMainParams, lstmExtraParams) =
@@ -206,8 +173,7 @@ objective (LSTMInput lstmInputAux (lstmMainParams, lstmExtraParams)) =
                             , rconcrete $ unConcrete lstmExtraParams )
   in -- unsafePerformIO (threadDelay 1000000) `seq` traceShow ("primal", printAstPrettyButNested (simplifyInlineContract $ lstmObjective lstmInputAux (AstVar @FullSpan (mkAstVarName (FTKR (rshape lstmMainParams) (FTKScalar @Double)) (intToAstVarId 1)), AstVar @FullSpan (mkAstVarName (FTKR (rshape lstmExtraParams) (FTKScalar @Double)) (intToAstVarId 2))))) $
      unConcrete $ interpretAstFull emptyEnv ast
--}
 
 jacobian :: LSTMInput Concrete -> LSTMOutput
 jacobian (LSTMInput lstmParams lstmInputAux) =
-  LSTMOutput $ cgrad (lstmObjective lstmParams) lstmInputAux
+  LSTMOutput $ grad (lstmObjective lstmParams) lstmInputAux
