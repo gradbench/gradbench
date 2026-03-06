@@ -1112,20 +1112,30 @@ fn run_multiple(
             };
             println!("{actual}");
             if cfg.check {
-                let expected = eval_map.get(tool_string.as_str()).map(|o| match o {
-                    Some(bad_outcome) => <&str>::from(bad_outcome),
-                    None => "success",
-                });
-                match expected {
-                    Some(o) => {
-                        if actual == o {
-                            println!("{} {}", "expected".green().bold(), o.green());
+                match eval_map.get(tool_string.as_str()) {
+                    Some(Some(outcomes)) => {
+                        let expected_str = if outcomes.is_empty() {
+                            "success".to_string()
                         } else {
-                            println!("{} {}", "expected".red().bold(), o.red());
+                            outcomes
+                                .iter()
+                                .map(|o| <&str>::from(*o))
+                                .collect::<Vec<_>>()
+                                .join("+")
+                        };
+                        let matches = if outcomes.is_empty() {
+                            actual == "success"
+                        } else {
+                            outcomes.iter().any(|o| actual == <&str>::from(*o))
+                        };
+                        if matches {
+                            println!("{} {}", "expected".green().bold(), expected_str.green());
+                        } else {
+                            println!("{} {}", "expected".red().bold(), expected_str.red());
                             pass = false;
                         }
                     }
-                    None => {
+                    _ => {
                         println!("{} {}", "expected".yellow().bold(), "unknown".yellow());
                         pass = false;
                     }
@@ -1144,8 +1154,16 @@ fn github_output(name: &str, value: impl Serialize) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// The set of accepted outcomes for an eval/tool combination.
+///
+/// `None` indicates the tool is not listed in this eval's `evals.txt` (undefined).
+/// `Some(outcomes)` indicates the listed outcomes are acceptable:
+///   - An empty `Vec` means only "success" is acceptable.
+///   - A non-empty `Vec` means any outcome in the list is acceptable.
+type AcceptedOutcomes = Option<Vec<BadOutcome>>;
+
 /// A map from eval names to the tools that support them.
-type Matrix = BTreeMap<String, BTreeMap<Rc<str>, Option<BadOutcome>>>;
+type Matrix = BTreeMap<String, BTreeMap<Rc<str>, AcceptedOutcomes>>;
 
 /// Return a map from eval names to the tools that support them.
 fn evals_to_tools(evals: Vec<String>) -> anyhow::Result<Matrix> {
@@ -1162,27 +1180,37 @@ fn evals_to_tools(evals: Vec<String>) -> anyhow::Result<Matrix> {
                 .map_err(|name| anyhow!("invalid file name {name:?}"))?,
         );
         for eval_map in map.values_mut() {
-            eval_map.insert(Rc::clone(&tool), Some(BadOutcome::Undefined));
+            eval_map.insert(Rc::clone(&tool), None);
         }
         let path = entry.path().join("evals.txt");
         let evals = fs::read_to_string(&path).unwrap_or_default();
         for line in evals.lines() {
-            let (eval, outcome) = match line.split_once(' ') {
-                None => (line, None),
-                Some((eval, outcome)) => {
-                    let bad_outcome = BadOutcome::from_str(outcome).with_context(|| {
-                        format!("{path:?}: invalid outcome {outcome:?} for eval {eval:?}")
-                    })?;
-                    (eval, Some(bad_outcome))
+            let (eval, outcomes) = match line.split_once(' ') {
+                None => (line, Some(vec![])),
+                Some((eval, outcome_str)) => {
+                    let outcomes = parse_outcomes(outcome_str)
+                        .with_context(|| format!("{path:?}: invalid outcome for eval {eval:?}"))?;
+                    (eval, Some(outcomes))
                 }
             };
             *map.get_mut(eval)
                 .ok_or_else(|| anyhow!("eval {eval:?} not found"))?
                 .get_mut(&tool)
-                .unwrap() = outcome;
+                .unwrap() = outcomes;
         }
     }
     Ok(map)
+}
+
+/// Parse a `+`-separated list of outcome names into a `Vec<BadOutcome>`.
+fn parse_outcomes(outcome_str: &str) -> anyhow::Result<Vec<BadOutcome>> {
+    let mut outcomes = Vec::new();
+    for part in outcome_str.split('+') {
+        let bad_outcome =
+            BadOutcome::from_str(part).with_context(|| format!("invalid outcome {part:?}"))?;
+        outcomes.push(bad_outcome);
+    }
+    Ok(outcomes)
 }
 
 /// A single entry in the `tool` matrix for GitHub Actions.
@@ -1753,5 +1781,25 @@ mod tests {
             let mut file = mint.new_goldenfile(subpath).unwrap();
             file.write_all(join_lines(&tools).as_bytes()).unwrap();
         }
+    }
+
+    #[test]
+    fn test_parse_outcomes_single() {
+        use crate::{parse_outcomes, BadOutcome};
+        let outcomes = parse_outcomes("timeout").unwrap();
+        assert_eq!(outcomes, vec![BadOutcome::Timeout]);
+    }
+
+    #[test]
+    fn test_parse_outcomes_multiple() {
+        use crate::{parse_outcomes, BadOutcome};
+        let outcomes = parse_outcomes("timeout+error").unwrap();
+        assert_eq!(outcomes, vec![BadOutcome::Timeout, BadOutcome::Error]);
+    }
+
+    #[test]
+    fn test_parse_outcomes_invalid() {
+        use crate::parse_outcomes;
+        assert!(parse_outcomes("unknown").is_err());
     }
 }
