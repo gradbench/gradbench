@@ -1,4 +1,4 @@
-EXECUTABLES=hello ba det gmm llsq lse lstm ode particle
+EXECUTABLES=hello ba det gmm kmeans llsq lse lstm ode particle
 
 EXTRA_DEPS=include/ad.hpp
 
@@ -6,6 +6,10 @@ include ../../cpp/common.mk
 
 GIT_TAG=v1.7.1
 CXXFLAGS+=-Iinclude
+
+bin/kmeans:
+	echo "kmeans temporarily disabled, see #654"
+	exit 1
 
 include/ad.hpp:
 	mkdir -p include
