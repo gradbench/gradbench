@@ -421,21 +421,28 @@ pub fn generate(input: PathBuf, output: PathBuf, metadata: StatsMetadata) -> any
         println!("{}", eval);
         let mut row = Vec::new();
         let mut scorer = scorer(eval);
-        for (tool, &outcome) in supported {
-            let score = match outcome {
-                Some(BadOutcome::Undefined) => None,
-                _ => {
-                    let path = input.join(format!("{eval}/{tool}.jsonl"));
-                    println!("  {}", path.display());
-                    let reader = io::BufReader::new(fs::File::open(&path)?);
-                    // Always run the `score` method, to gather fine-grained data.
-                    let score = scorer.score(tool, reader)?;
-                    // Only give the tool an overall score if it successfully completed the eval.
-                    if outcome.is_none() {
-                        Some(score)
-                    } else {
-                        None
-                    }
+        for (tool, accepted) in supported {
+            // Convert AcceptedOutcomes to a single Option<BadOutcome> for display.
+            // None (undefined) maps to Some(BadOutcome::Undefined); Some([]) (success)
+            // maps to None; Some([o, ...]) (bad outcomes) maps to Some(o).
+            let outcome: Option<BadOutcome> = match accepted {
+                None => Some(BadOutcome::Undefined),
+                Some(outcomes) => outcomes.first().copied(),
+            };
+            let score = if accepted.is_none() {
+                // Undefined: skip this tool entirely.
+                None
+            } else {
+                let path = input.join(format!("{eval}/{tool}.jsonl"));
+                println!("  {}", path.display());
+                let reader = io::BufReader::new(fs::File::open(&path)?);
+                // Always run the `score` method, to gather fine-grained data.
+                let score = scorer.score(tool, reader)?;
+                // Only give the tool an overall score if it successfully completed the eval.
+                if outcome.is_none() {
+                    Some(score)
+                } else {
+                    None
                 }
             };
             row.push(Col {
