@@ -1135,7 +1135,16 @@ fn run_multiple(
                             pass = false;
                         }
                     }
-                    _ => {
+                    Some(None) => {
+                        let expected_str = <&str>::from(BadOutcome::Undefined);
+                        if actual == expected_str {
+                            println!("{} {}", "expected".green().bold(), expected_str.green());
+                        } else {
+                            println!("{} {}", "expected".red().bold(), expected_str.red());
+                            pass = false;
+                        }
+                    }
+                    None => {
                         println!("{} {}", "expected".yellow().bold(), "unknown".yellow());
                         pass = false;
                     }
