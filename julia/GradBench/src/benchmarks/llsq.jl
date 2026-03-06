@@ -1,6 +1,8 @@
 module LLSQ
 
 import GradBench
+using ..ADTypes: AbstractADType
+import ..DifferentiationInterface as DI
 
 struct Input
     x::Vector{Float64}
@@ -12,7 +14,7 @@ abstract type AbstractLLSQ <: GradBench.Experiment end
 function GradBench.preprocess(::AbstractLLSQ, message)
     x = convert(Vector{Float64}, message["x"])
     n = message["n"]
-    return (Input(x, n),)
+    return (; input = Input(x, n))
 end
 
 function t(i::Int64, n::Int64)
@@ -41,5 +43,20 @@ function (::PrimalLLSQ)(input)
     return primal(input.x, input.n)
 end
 
+struct DIGradientLLSQ{B <: AbstractADType} <: GradBench.Experiment
+    backend::B
+end
+
+function GradBench.preprocess(g::DIGradientLLSQ, message)
+    (; backend) = g
+    (; input) = GradBench.preprocess(PrimalLLSQ(), message)
+    prep = DI.prepare_gradient(primal, backend, input.x, DI.Constant(input.n))
+    return (; prep, input)
+end
+
+function (g::DIGradientLLSQ)(prep, input)
+    (; backend) = g
+    return DI.gradient(primal, prep, backend, input.x, DI.Constant(input.n))
+end
 
 end
