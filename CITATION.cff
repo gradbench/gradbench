@@ -29,6 +29,11 @@ authors:
   - given-names: Max
     family-names: Sagebaum
     email: max.sagebaum@scicomp.uni-kl.de
+  - given-names: Guillaume
+    family-names: Dalle
+    email: guillaume.dalle@enpc.fr
+    orcid: "https://orcid.org/0000-0003-4866-1687"
+    website: "https://gdalle.github.io/"
 repository-code: "https://github.com/gradbench/gradbench"
 url: "https://gradben.ch"
 abstract: >-
