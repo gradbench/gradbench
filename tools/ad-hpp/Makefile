@@ -1,4 +1,4 @@
-EXECUTABLES=hello ba det gmm kmeans llsq lse lstm ode particle
+EXECUTABLES=hello ba det gmm llsq lse lstm ode particle
 
 EXTRA_DEPS=include/ad.hpp
 
