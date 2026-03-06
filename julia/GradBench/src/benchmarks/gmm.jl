@@ -8,6 +8,8 @@ module GMM
 import GradBench
 using SpecialFunctions
 using LinearAlgebra
+using ..ADTypes: AbstractADType
+import ..DifferentiationInterface as DI
 
 struct Wishart
     gamma::Float64
@@ -35,7 +37,7 @@ function GradBench.preprocess(::AbstractGMM, j)
     gamma = convert(Float64, j["gamma"])
     m = convert(Int, j["m"])
 
-    return (Input(alphas, means, icfs, x, Wishart(gamma, m)),)
+    return (; input = Input(alphas, means, icfs, x, Wishart(gamma, m)))
 end
 
 "Computes logsumexp. Input should be 1 dimensional"
@@ -146,6 +148,11 @@ function objective(alphas, means, Qs, x, wishart::Wishart)
     return CONSTANT + slse - n * logsumexp(alphas) + log_wishart_prior(wishart, sum_qs, Qs, k)
 end
 
+function objective_tup((alphas, means, Qs), x, wishart::Wishart)
+    # gather all differentiated terms into first argument, necessary for DI
+    return objective(alphas, means, Qs, x, wishart)
+end
+
 struct ObjectiveGMM <: GMM.AbstractGMM end
 function (::ObjectiveGMM)(input)
     k = size(input.means, 2)
@@ -153,6 +160,53 @@ function (::ObjectiveGMM)(input)
     Qs = GradBench.GMM.get_Qs(input.icfs, k, d)
 
     return objective(input.alphas, input.means, Qs, input.x, input.wishart)
+end
+
+struct DIGradientGMM{B <: AbstractADType} <: GradBench.Experiment
+    backend::B
+end
+
+function GradBench.preprocess(g::DIGradientGMM, message)
+    (; backend) = g
+    (; input) = GradBench.preprocess(ObjectiveGMM(), message)
+    k = size(input.means, 2)
+    d = size(input.x, 1)
+    Qs = get_Qs(input.icfs, k, d)
+
+    prep = DI.prepare_gradient(
+        objective_tup,
+        backend,
+        (input.alphas, input.means, Qs),
+        DI.Constant(input.x),
+        DI.Constant(input.wishart)
+    )
+    return (; prep, input)
+end
+
+function (g::DIGradientGMM)(prep, input)
+    (; backend) = g
+
+    k = size(input.means, 2)
+    d = size(input.x, 1)
+    Qs = get_Qs(input.icfs, k, d)
+
+    (alpha_d, mu_d, Qs_d) = DI.gradient(
+        objective_tup,
+        prep,
+        backend,
+        (input.alphas, input.means, Qs),
+        DI.Constant(input.x),
+        DI.Constant(input.wishart)
+    )
+
+    q_d, l_d = Qs_to_q_l(d, Qs_d)
+
+    return Dict(
+        "alpha" => alpha_d,
+        "mu" => mu_d,
+        "q" => q_d,
+        "l" => l_d
+    )
 end
 
 end

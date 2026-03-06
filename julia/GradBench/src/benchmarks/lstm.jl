@@ -6,6 +6,8 @@
 module LSTM
 
 import GradBench
+using ..ADTypes: AbstractADType
+import ..DifferentiationInterface as DI
 
 struct LSTMInput
     main_params::Matrix{Float64}
@@ -22,7 +24,7 @@ function GradBench.preprocess(::AbstractLSTM, input)
     state = reduce(hcat, convert(Vector{Vector{Float64}}, input["state"]))
     sequence = reduce(hcat, convert(Vector{Vector{Float64}}, input["sequence"]))
 
-    return (LSTMInput(main_params, extra_params, state, sequence),)
+    return (; input = LSTMInput(main_params, extra_params, state, sequence))
 end
 
 function sigmoid(x)
@@ -79,6 +81,15 @@ function objective(
     return -total / count
 end
 
+
+function objective_tup(
+        (main_params, extra_params)::NTuple{2, Matrix{Float64}},
+        state::Matrix{Float64},
+        sequence::Matrix{Float64}
+    )::Float64
+    return objective(main_params, extra_params, state, sequence)
+end
+
 struct ObjectiveLSTM <: LSTM.AbstractLSTM end
 function (::ObjectiveLSTM)(input)
     return GradBench.LSTM.objective(
@@ -89,5 +100,34 @@ function (::ObjectiveLSTM)(input)
     )
 end
 
+struct DIGradientLSTM{B <: AbstractADType} <: GradBench.Experiment
+    backend::B
+end
+
+function GradBench.preprocess(g::DIGradientLSTM, message)
+    (; backend) = g
+    (; input) = GradBench.preprocess(ObjectiveLSTM(), message)
+    prep = DI.prepare_gradient(
+        objective_tup,
+        backend,
+        (input.main_params, input.extra_params),
+        DI.Constant(input.state),
+        DI.Constant(input.sequence)
+    )
+    return (; prep, input)
+end
+
+function (g::DIGradientLSTM)(prep, input)
+    (; backend) = g
+    dmain_params, dextra_params = DI.gradient(
+        objective_tup,
+        prep,
+        backend,
+        (input.main_params, input.extra_params),
+        DI.Constant(input.state),
+        DI.Constant(input.sequence)
+    )
+    return [reduce(vcat, dmain_params); reduce(vcat, dextra_params)]
+end
 
 end
