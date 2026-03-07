@@ -9,8 +9,8 @@ backend = SecondOrder(AutoMooncakeForward(), AutoMooncake())
 
 GradBench.register!(
     "kmeans", Dict(
-        "cost" => GradBench.KMeans.PrimalKMeans(),
-        "dir" => GradBench.KMeans.DINewtonKMeans(backend)
+        "cost" => GradBench.KMeans.Pure.PrimalKMeans(),
+        "dir" => GradBench.KMeans.DINewtonKMeans(GradBench.KMeans.Pure.PrimalKMeans(), backend)
     )
 )
 
