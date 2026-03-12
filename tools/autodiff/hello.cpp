@@ -7,11 +7,10 @@ using namespace autodiff;
 
 class Double : public Function<hello::Input, hello::DoubleOutput> {
 public:
-  Double(hello::Input& input) : Function(input) {
-  }
+  Double(hello::Input& input) : Function(input) {}
 
   void compute(hello::DoubleOutput& output) {
-    dual x =_input;
+    dual x = _input;
     output = derivative(hello::square<dual>, wrt(x), at(x));
   }
 };
