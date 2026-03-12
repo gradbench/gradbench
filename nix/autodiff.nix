@@ -1,12 +1,4 @@
-{
-  lib,
-  stdenv,
-  fetchFromGitHub,
-  cmake,
-  eigen,
-  catch2_3,
-  python3Packages
-}:
+{ lib, stdenv, fetchFromGitHub, cmake, eigen, catch2_3, python3Packages }:
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "autodiff";
@@ -19,13 +11,8 @@ stdenv.mkDerivation (finalAttrs: {
     hash = "sha256-hKIufS5o5tfsbVchwTJxms1n5Im1iTfY3KGWD1s5g9M=";
   };
 
-  nativeBuildInputs = [
-    cmake
-    eigen
-    catch2_3
-    python3Packages.pybind11
-    python3Packages.distutils
-  ];
+  nativeBuildInputs =
+    [ cmake eigen catch2_3 python3Packages.pybind11 python3Packages.distutils ];
 
   postPatch =
     # https://github.com/autodiff/autodiff/pull/391
