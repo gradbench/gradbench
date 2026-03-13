@@ -6,23 +6,27 @@
 #include <autodiff/reverse/var/eigen.hpp>
 using namespace autodiff;
 
+using Eigen::VectorXd;
+
 class Gradient : public Function<llsq::Input, llsq::GradientOutput> {
+private:
+  VectorXvar _x;
+
 public:
-  Gradient(llsq::Input& input) : Function(input) {}
+  Gradient(llsq::Input& input) : Function(input), _x(input.x.size()) {
+    for (auto i = 0; i < _x.size(); i++) {
+      _x[i] = _input.x[i];
+    }
+  }
 
   void compute(llsq::GradientOutput& output) {
     size_t n = _input.n;
     size_t m = _input.x.size();
     output.resize(m);
 
-    using Eigen::VectorXd;
-    VectorXvar x(m);
-    for (size_t i = 0; i < m; i++) {
-      x[i] = _input.x[i];
-    }
     var y;
-    llsq::primal<var>(n, m, x.data(), &y);
-    VectorXd dydx = gradient(y, x);
+    llsq::primal<var>(n, m, _x.data(), &y);
+    VectorXd dydx = gradient(y, _x);
     for (size_t i = 0; i < m; i++) {
       output[i] = dydx[i];
     }
