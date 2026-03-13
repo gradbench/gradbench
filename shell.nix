@@ -16,6 +16,7 @@ let
   pkgs = import sources.nixpkgs { };
 
   floretta = pkgs.callPackage ./nix/floretta.nix { };
+  autodiff = pkgs.callPackage ./nix/autodiff.nix { };
   GRADBENCH_PATH = builtins.getEnv "PWD";
 
   isX86 = builtins.currentSystem == "x86_64-linux";
@@ -55,6 +56,7 @@ in pkgs.stdenv.mkDerivation rec {
 
     # Custom
     floretta
+    autodiff
 
     # Haskell
     pkgs.cabal-install
