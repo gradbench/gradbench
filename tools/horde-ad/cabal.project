@@ -1,0 +1,4 @@
+packages: gradbench.cabal
+
+package ox-arrays
+  flags: +nonportable-simd
