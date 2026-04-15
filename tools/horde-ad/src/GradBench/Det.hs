@@ -15,7 +15,7 @@ import Control.Monad.ST.Strict (ST, runST)
 import Data.Aeson ((.:))
 import Data.Aeson qualified as JSON
 import Data.Array.Nested qualified as Nested
--- import Data.Int (Int8)
+import Data.Int (Int8)
 import Data.Vector.Storable qualified as VS
 import Data.Vector.Storable.Mutable qualified as VSM
 import HordeAd
@@ -26,8 +26,8 @@ import HordeAd.Core.AstInterpret
 -- import Debug.Trace
 -- import System.IO.Unsafe (unsafePerformIO)
 
-type IntOr8 = Int
-type Int8OrDouble = Double
+type IntOr8 = Int8
+type Int8OrDouble = Int8
 
 data Input = Input
   { _inputA :: VS.Vector Double,
@@ -66,7 +66,7 @@ fused !len !idx0 !perm !freeSpots = do
         let fi2 = fi `quot` i2
             (idxDigit, idxRest) = idx `quotRem` fi2
         el <- nthFreeSpot idxDigit 0
-        VSM.write perm (len - i2) el  -- (fromIntegral el)
+        VSM.write perm (len - i2) (fromIntegral el)
         VSM.write freeSpots el False
         loop idxRest fi2 (i2 - 1)
   loop idx0 (fact len) len
@@ -116,7 +116,7 @@ det a =
       q :: PlainOf target (TKR 1 Int8OrDouble)
       q = rconcrete $ inversion_number_from_idx ell
       f :: IntOf target -> target (TKScalar Double)
-      f i = (-1) **  kfromPlain (q `rindex0` [i])
+      f i = (-1) ** kfromIntegral (kfromPlain (q `rindex0` [i]))
             * productR (rgather1 ell a $ \i2 ->
                           [i2, kfromIntegral $ p `rindex0` [i, i2]])
   in withSNat (fact ell) $ \ (SNat @k) ->
