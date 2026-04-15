@@ -1,7 +1,10 @@
 {-# LANGUAGE OverloadedLists, OverloadedStrings #-}
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
--- | This implementation is based on det.fut, which is based on
---   https://mathworld.wolfram.com/DeterminantExpansionbyMinors.html
+-- | This is an implementation that directly implements the recursive
+-- specification and so is fundamentally so inefficient (something like O(n!)).
+-- Fortunately, the workloads are necessarily tiny so this doesn't OOM.
+-- Due to the tiny workloads and, consequently, numerous but tiny tensors,
+-- the gradient but especially the primal are much slower than
+-- when implemented with lists for haskell-ad.
 module GradBench.Det
   ( Input,
     PrimalOutput,
@@ -11,23 +14,13 @@ module GradBench.Det
   )
 where
 
-import Control.Monad.ST.Strict (ST, runST)
 import Data.Aeson ((.:))
 import Data.Aeson qualified as JSON
 import Data.Array.Nested qualified as Nested
-import Data.Int (Int8)
 import Data.Vector.Storable qualified as VS
-import Data.Vector.Storable.Mutable qualified as VSM
 import HordeAd
 import HordeAd.Core.AstEnv
 import HordeAd.Core.AstInterpret
-
--- import Control.Concurrent
--- import Debug.Trace
--- import System.IO.Unsafe (unsafePerformIO)
-
-type IntOr8 = Int8
-type Int8OrDouble = Int8
 
 data Input = Input
   { _inputA :: VS.Vector Double,
@@ -44,96 +37,41 @@ instance JSON.FromJSON Input where
 
 chunk :: ADReady target
       => Int -> VS.Vector Double -> target (TKR 2 Double)
-chunk n xs = rconcrete $ Nested.rfromVector [VS.length xs `quot` n, n] xs
+chunk n xs = rconcrete $ Nested.rfromVector [VS.length xs `div` n, n] xs
 
-fact :: Int -> Int
-fact !n = factAcc 1 n
- where factAcc !acc !i | i <= 1 = acc
-       factAcc acc i = factAcc (i * acc) (i - 1)
+picks :: ADReady target
+      => target (TKR 1 Double) -> target (TKR 2 Double)
+picks l = rgather @2 [rwidth l, rwidth l - 1] l
+                     (\ [n, n1] -> [ifH (n <=. n1) (n1 + 1) n1])
 
-fused :: forall s.
-         Int -> Int -> VSM.MVector s IntOr8 -> VSM.MVector s Bool -> ST s ()
-fused !len !idx0 !perm !freeSpots = do
-  let nthFreeSpot :: Int -> Int -> ST s Int
-      nthFreeSpot !pos !el = do
-        free <- VSM.read freeSpots el
-        if pos <= 0 && free
-        then return el
-        else nthFreeSpot (pos - fromEnum free) (el + 1)
-      loop :: Int -> Int -> Int -> ST s ()
-      loop !_ !_ 0 = return ()
-      loop idx fi i2 = do
-        let fi2 = fi `quot` i2
-            (idxDigit, idxRest) = idx `quotRem` fi2
-        el <- nthFreeSpot idxDigit 0
-        VSM.write perm (len - i2) (fromIntegral el)
-        VSM.write freeSpots el False
-        loop idxRest fi2 (i2 - 1)
-  loop idx0 (fact len) len
+parts :: ADReady target
+      => target (TKR 2 Double) -> target (TKR 3 Double)
+parts m = rtr $ rbuild1 (rwidth m) (\i -> picks (m ! [i]))
 
-mutated :: forall s. Int -> ST s (VS.Vector IntOr8)
-mutated !len = do
-  perms <- VSM.unsafeNew (len * fact len)
-  freeSpots <- VSM.unsafeNew len
-  let loop :: Int -> ST s ()
-      loop (-1) = return ()
-      loop i = do
-        VSM.set freeSpots True
-        fused len i (VSM.slice (i * len) len perms) freeSpots
-        loop (i - 1)
-  loop (fact len - 1)
-  VS.unsafeFreeze perms
+minors :: ADReady target
+       => target (TKR 2 Double) -> target (TKR 1 Double)
+minors m =
+  let parts_m = parts m
+  in rbuild1 (rwidth parts_m) (\i -> rfromK $ det (parts_m ! [i]))
 
--- Given the lexicographic index of a permutation, compute that
--- permutation.
-idx_to_perm :: Int -> Nested.Ranked 2 IntOr8
-idx_to_perm n = Nested.rfromVector [fact n, n] $ runST $ mutated n
-
--- Compute the inversion number from a lexicographic index of a
--- permutation.
-inversion_number_from_idx :: Int -> Nested.Ranked 1 Int8OrDouble
-inversion_number_from_idx !n =
-  let loop :: Int -> Int -> Int -> Int -> Int8OrDouble
-      loop !s !_ !_ !i | i == 1 = fromIntegral s
-      loop s idx fi i =
-        let fi2 = fi `quot` i
-            (s1, idx2) = idx `quotRem` fi2
-            s2 = s + s1
-        in loop s2 idx2 fi2 (i - 1)
-      f idx0 = loop 0 idx0 (fact n) n
-  in Nested.rfromVector [fact n] $ VS.generate (fact n) f
-
-productR :: ADReady target
-         => target (TKR 1 Double) -> target (TKScalar Double)
-productR = kfromR . rfold (*) (rscalar 1)
-
-det :: forall target. ADReady target
+det :: ADReady target
     => target (TKR 2 Double) -> target (TKScalar Double)
-det a =
-  let ell = rwidth a
-      p :: PlainOf target (TKR 2 IntOr8)
-      p = rconcrete $ idx_to_perm ell
-      q :: PlainOf target (TKR 1 Int8OrDouble)
-      q = rconcrete $ inversion_number_from_idx ell
-      f :: IntOf target -> target (TKScalar Double)
-      f i = (-1) ** kfromIntegral (kfromPlain (q `rindex0` [i]))
-            * productR (rgather1 ell a $ \i2 ->
-                          [i2, kfromIntegral $ p `rindex0` [i, i2]])
-  in withSNat (fact ell) $ \ (SNat @k) ->
-       ssum0 $ kbuild1 @k f
+det a | rwidth a == 1 = a `rindex0` [0, 0]
+det a' = tlet a' $ \a ->
+  let minors_a = minors $ rslice 1 (rwidth a - 1) a
+      head_a = a ! [0]
+      cycle1 = ringestData [rwidth minors_a] $ take (rwidth minors_a)
+               $ cycle [1, -1]
+  in rsum0 $ cycle1 * head_a * minors_a
 
 primal :: Input -> PrimalOutput
 primal (Input a ell) =
-  -- if ell /= 11 || True
-  -- then unsafePerformIO (threadDelay (1000000 + ell) >> return 0)
-  -- else
-    let ast = simplifyInlineContract $ det (chunk ell a)
-    in -- traceShow ("primal", printAstPrettyButNested ast) $
-       unConcrete $ interpretAstFull emptyEnv ast
+  let ast = simplifyInlineContract $ det (chunk ell a)
+  in -- traceShow ("primal", printAstPrettyButNested ast) $
+     unConcrete $ interpretAstFull emptyEnv ast
 
 gradient :: Input -> GradientOutput
 gradient (Input a ell) =
-  -- if ell /= 11
-  -- then unsafePerformIO (threadDelay (1000000 + ell) >> return VS.empty)
-  -- else
-    Nested.rtoVector . unConcrete $ grad det (chunk ell a)
+  Nested.rtoVector . unConcrete $ grad det (chunk ell a)
+    -- non-symbolic cgrad would take much more memory and time here
+    -- due to rbuild1 above
