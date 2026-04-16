@@ -37,7 +37,7 @@ executable gradbench
     , deepseq
     , ghc-typelits-knownnat >= 0.8.0 && < 1
     , ghc-typelits-natnormalise >= 0.8.1 && < 1
-    , horde-ad >= 0.3 && < 0.4
+    , horde-ad:horde-ad >= 0.3 && < 0.4
     , ox-arrays >= 0.2 && < 0.3
     , text
     , vector
