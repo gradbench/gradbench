@@ -2,3 +2,6 @@ packages: gradbench.cabal
 
 package ox-arrays
   flags: +nonportable-simd
+
+index-state:
+  hackage.haskell.org 2026-04-15T12:29:52Z
