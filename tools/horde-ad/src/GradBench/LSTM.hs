@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedLists, OverloadedStrings #-}
+{-# LANGUAGE OverloadedLists #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise #-}
 module GradBench.LSTM (objective, jacobian) where
 

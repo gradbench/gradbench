@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedLists, OverloadedStrings #-}
+{-# LANGUAGE OverloadedLists #-}
 module GradBench.Saddle (Input, Output, rr, ff, fr, rf) where
 
 import Data.Aeson ((.:))

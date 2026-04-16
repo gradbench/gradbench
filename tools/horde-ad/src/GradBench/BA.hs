@@ -1,7 +1,7 @@
 -- TODO
 -- See https://github.com/tomsmeding/ADBench/blob/accelerate/tools/Accelerate/src/BA.hs and https://tomsmeding.com/f/master.pdf and https://github.com/gradbench/gradbench/tree/main/evals/ba
 
-{-# LANGUAGE OverloadedLists, OverloadedStrings #-}
+{-# LANGUAGE OverloadedLists #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise #-}
 module GradBench.BA (objective, jacobian) where
 

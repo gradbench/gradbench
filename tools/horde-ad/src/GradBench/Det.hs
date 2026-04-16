@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedLists, OverloadedStrings #-}
+{-# LANGUAGE OverloadedLists #-}
 -- | This is an implementation that directly implements the recursive
 -- specification and so is fundamentally so inefficient (something like O(n!)).
 -- Fortunately, the workloads are necessarily tiny so this doesn't OOM.

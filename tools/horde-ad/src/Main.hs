@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 module Main (main) where
 
 import Control.Applicative
@@ -21,11 +20,12 @@ import GradBench.LSTM qualified
 import GradBench.ODE qualified
 import GradBench.Particle qualified
 import GradBench.Saddle qualified
-import Prelude hiding (mod)
 import System.Clock (Clock (Monotonic), getTime, toNanoSecs)
 import System.Exit
 import System.IO
 import System.IO.Error (isEOFError)
+
+import Prelude hiding (mod)
 
 data Runs = Runs
   { minRuns :: Int,
@@ -88,12 +88,12 @@ modules =
     (("det", "gradient"), wrap GradBench.Det.gradient),
     (("lse", "primal"), wrap GradBench.LSE.primal),
     (("lse", "gradient"), wrap GradBench.LSE.gradient),
-    (("particle", "rr"), wrap GradBench.Particle.rr),
     (("particle", "ff"), wrap GradBench.Particle.ff),
     (("particle", "fr"), wrap GradBench.Particle.fr),
+    (("particle", "rr"), wrap GradBench.Particle.rr),
     (("particle", "rf"), wrap GradBench.Particle.rf),
-    (("saddle", "rr"), wrap GradBench.Saddle.rr),
     (("saddle", "ff"), wrap GradBench.Saddle.ff),
+    (("saddle", "rr"), wrap GradBench.Saddle.rr),
     (("saddle", "fr"), wrap GradBench.Saddle.fr),
     (("saddle", "rf"), wrap GradBench.Saddle.rf),
     (("gmm", "objective"), wrap GradBench.GMM.objective),

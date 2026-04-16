@@ -41,9 +41,10 @@ executable gradbench
     , ox-arrays >= 0.2 && < 0.3
     , text
     , vector
-  hs-source-dirs:   src
+  hs-source-dirs:     src
   default-language:   GHC2024
-  default-extensions: StrictData, TypeFamilies, TypeFamilyDependencies,
+  default-extensions: OverloadedStrings,
+                      StrictData, TypeFamilies, TypeFamilyDependencies,
                       FunctionalDependencies, RecordWildCards, MultiWayIf,
                       DefaultSignatures, PatternSynonyms, NoStarIsType,
                       TypeData, TypeAbstractions
@@ -51,7 +52,6 @@ executable gradbench
                       DeriveAnyClass, UndecidableInstances,
                       QuantifiedConstraints, TemplateHaskell, DerivingVia,
                       ImpredicativeTypes,
-                      OverloadedStrings
   -- * Warnings and similar.
   ghc-options:        -Wall -Wcompat -Widentities -Wredundant-constraints -Wmissing-export-lists -Wpartial-fields -Wunused-packages -Wredundant-bang-patterns -Woperator-whitespace -Wredundant-strictness-flags -Wterm-variable-capture -Wmissed-specialisations
   ghc-options:        -Wmissing-poly-kind-signatures -Wmissing-role-annotations -Wno-unticked-promoted-constructors
@@ -81,6 +81,6 @@ executable gradbench
   -- * Misc.
   ghc-options:        -rtsopts -threaded
   -- Make GC more predictable in benchmarks.
-  ghc-options:        "-with-rtsopts=-A0.75g -I0"
+  ghc-options:        "-with-rtsopts=-A0.75g"
   -- Too big a performance hit:
   -- ghc-options:        "-with-rtsopts=-H1.5g -A0.75g -I0"

@@ -2,13 +2,7 @@ module Main (main) where
 
 import Control.Applicative
 import Control.DeepSeq (NFData, rnf)
-import Control.Exception
-  ( SomeException,
-    catch,
-    evaluate,
-    fromException,
-    throw,
-  )
+import Control.Exception (SomeException, catch, evaluate, fromException, throw)
 import Control.Monad (forever, guard)
 import Data.Aeson (ToJSON (..), (.:))
 import Data.Aeson qualified as JSON
@@ -28,6 +22,7 @@ import System.Clock (Clock (Monotonic), getTime, toNanoSecs)
 import System.Exit
 import System.IO
 import System.IO.Error (isEOFError)
+
 import Prelude hiding (mod)
 
 data Runs = Runs
@@ -91,14 +86,14 @@ modules =
     (("det", "gradient"), wrap GradBench.Det.gradient),
     (("lse", "primal"), wrap GradBench.LSE.primal),
     (("lse", "gradient"), wrap GradBench.LSE.gradient),
-    (("particle", "rr"), wrap GradBench.Particle.rr),
-    (("particle", "fr"), wrap GradBench.Particle.fr),
-    (("particle", "rf"), wrap GradBench.Particle.rf),
     (("particle", "ff"), wrap GradBench.Particle.ff),
+    (("particle", "fr"), wrap GradBench.Particle.fr),
+    (("particle", "rr"), wrap GradBench.Particle.rr),
+    (("particle", "rf"), wrap GradBench.Particle.rf),
+    (("saddle", "ff"), wrap GradBench.Saddle.ff),
     (("saddle", "rr"), wrap GradBench.Saddle.rr),
     (("saddle", "fr"), wrap GradBench.Saddle.fr),
-    (("saddle", "rf"), wrap GradBench.Saddle.rf),
-    (("saddle", "ff"), wrap GradBench.Saddle.ff)
+    (("saddle", "rf"), wrap GradBench.Saddle.rf)
   ]
 
 type Id = Int
