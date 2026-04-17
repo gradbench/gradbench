@@ -8,7 +8,7 @@ name:               gradbench
 --                  | | +----- non-breaking API additions
 --                  | | | +--- code changes with no API change
 version:            0.1.0.0
-synopsis:           Gradbench entry to horde-ad. A lot of this code is copied from https://github.com/gradbench/gradbench/tree/main/tools/haskell-ad and https://github.com/tomsmeding/ADBench/blob/accelerate/tools/Accelerate/src/
+synopsis:           GradBench entry to horde-ad. A lot of this code is copied from tools/haskell-ad in GradBench, as well as https://github.com/tomsmeding/ADBench/tree/101508da93cd4fc80c0ea7a690c6de824c815ca6/tools/Accelerate/src
 homepage:           https://gradben.ch/
 license:            MIT
 author:             Mikolaj Konarski and others
