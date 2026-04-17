@@ -1,21 +1,8 @@
--- We limit the memory usage of evaluation with enableAllocationLimit,
--- as the tape-based code is otherwise very hungry. Note that this is
--- not a residency limit, but simply counts how many bytes are
--- allocated. On the other hand, we can reliably catch violations. It
--- is also appropriate for our use case where the vast majority of
--- allocations goes to the tape, which is kept until the very end.
--- Still, this precise size can be calibrated as necessary.
 module Main (main) where
 
 import Control.Applicative
 import Control.DeepSeq (NFData, rnf)
-import Control.Exception
-  ( SomeException,
-    catch,
-    evaluate,
-    fromException,
-    throw,
-  )
+import Control.Exception (SomeException, catch, evaluate, fromException, throw)
 import Control.Monad (forever, guard)
 import Data.Aeson (ToJSON (..), (.:))
 import Data.Aeson qualified as JSON
@@ -24,10 +11,12 @@ import Data.List qualified as L
 import Data.Maybe (fromMaybe, isJust)
 import Data.Text qualified as T
 import GradBench.Det qualified
+import GradBench.GMM qualified
 import GradBench.Hello qualified
 import GradBench.KMeans qualified
 import GradBench.LLSq qualified
 import GradBench.LSE qualified
+import GradBench.LSTM qualified
 import GradBench.ODE qualified
 import GradBench.Particle qualified
 import GradBench.Saddle qualified
@@ -35,6 +24,7 @@ import System.Clock (Clock (Monotonic), getTime, toNanoSecs)
 import System.Exit
 import System.IO
 import System.IO.Error (isEOFError)
+
 import Prelude hiding (mod)
 
 data Runs = Runs
@@ -98,14 +88,18 @@ modules =
     (("det", "gradient"), wrap GradBench.Det.gradient),
     (("lse", "primal"), wrap GradBench.LSE.primal),
     (("lse", "gradient"), wrap GradBench.LSE.gradient),
-    (("particle", "rr"), wrap GradBench.Particle.rr),
-    (("particle", "fr"), wrap GradBench.Particle.fr),
-    (("particle", "rf"), wrap GradBench.Particle.rf),
     (("particle", "ff"), wrap GradBench.Particle.ff),
+    (("particle", "fr"), wrap GradBench.Particle.fr),
+    (("particle", "rr"), wrap GradBench.Particle.rr),
+    (("particle", "rf"), wrap GradBench.Particle.rf),
+    (("saddle", "ff"), wrap GradBench.Saddle.ff),
     (("saddle", "rr"), wrap GradBench.Saddle.rr),
     (("saddle", "fr"), wrap GradBench.Saddle.fr),
     (("saddle", "rf"), wrap GradBench.Saddle.rf),
-    (("saddle", "ff"), wrap GradBench.Saddle.ff)
+    (("gmm", "objective"), wrap GradBench.GMM.objective),
+    (("gmm", "jacobian"), wrap GradBench.GMM.jacobian),
+    (("lstm", "objective"), wrap GradBench.LSTM.objective),
+    (("lstm", "jacobian"), wrap GradBench.LSTM.jacobian)
   ]
 
 type Id = Int
@@ -161,7 +155,7 @@ main = forever loop
               ("id", toJSON (msgId msg)) : vs
             hFlush stdout
       case msg of
-        MsgStart _ _ -> reply [("tool", "haskell")]
+        MsgStart _ _ -> reply [("tool", "horde-ad")]
         MsgDefine _ mod -> reply [("success", toJSON $ knownModule mod)]
         MsgEvaluate _ mod fun input ->
           case L.lookup (mod, fun) modules of
