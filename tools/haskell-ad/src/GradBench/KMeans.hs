@@ -7,24 +7,24 @@ module GradBench.KMeans
   )
 where
 
-import Control.DeepSeq (NFData (..))
-import Data.Aeson (ToJSON (..), (.:))
-import Data.Aeson qualified as JSON
-import Data.List qualified as L
-import Data.List.NonEmpty qualified as NE
-import Data.Vector qualified as V
-import Numeric.AD.Double qualified as D
+import           Control.DeepSeq    (NFData (..))
+import           Data.Aeson         (ToJSON (..), (.:))
+import qualified Data.Aeson         as JSON
+import qualified Data.List          as L
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Vector        as V
+import qualified Numeric.AD.Double  as D
 
-getPoint :: Int -> V.Vector a -> Int -> V.Vector a
-getPoint d v i = V.slice (i * d) d v
+getPoint :: Int -> V.Vector a -> Int -> [a]
+getPoint d v i = V.toList $ V.slice (i * d) d v
 
-getPoints :: Int -> V.Vector a -> [V.Vector a]
+getPoints :: Int -> V.Vector a -> [[a]]
 getPoints d v =
   map (getPoint d v) [0 .. (V.length v `div` d - 1)]
 
 data Input = Input
-  { inputD :: Int,
-    inputPoints :: V.Vector Double,
+  { inputD         :: Int,
+    inputPoints    :: V.Vector Double,
     inputCentroids :: V.Vector Double
   }
 
@@ -52,8 +52,8 @@ instance NFData DirOutput where
 square :: (Num a) => a -> a
 square x = x * x
 
-dist2 :: (Num a) => V.Vector a -> V.Vector a -> a
-dist2 a b = V.sum $ V.map square $ V.zipWith (-) a b
+dist2 :: (Num a) => [a] -> [a] -> a
+dist2 a b = sum $ map square $ zipWith (-) a b
 
 sum' :: (Num a) => [a] -> a
 sum' = L.foldl' (+) 0
