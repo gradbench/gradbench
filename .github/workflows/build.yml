@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Test Rust code
         run: cargo test
 
@@ -22,14 +22,14 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Build CLI
         uses: houseabsolute/actions-rust-cross@v1
         with:
           target: x86_64-unknown-linux-musl
           args: --package=gradbench --profile=release-with-debug
       - name: Upload CLI as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cli
           path: target/x86_64-unknown-linux-musl/release-with-debug/gradbench
@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Nix
         uses: cachix/install-nix-action@v31
       - name: Install CLI from artifact
@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Bun
         uses: oven-sh/setup-bun@v2
       - name: Install npm dependencies
@@ -66,7 +66,7 @@ jobs:
       - name: Build website
         run: bun run --filter=@gradbench/website build
       - name: Upload website artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: js/website/dist
 
@@ -83,7 +83,7 @@ jobs:
     steps:
       - name: Deploy website
         id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
   windows:
     runs-on: windows-2022
@@ -93,7 +93,7 @@ jobs:
           git config --global core.autocrlf false
           git config --global core.eol lf
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Test Rust code
         run: cargo test
 
@@ -106,7 +106,7 @@ jobs:
       run: ${{ steps.matrix.outputs.run }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Compute job parameters
@@ -124,7 +124,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Setup multi-platform Docker
         uses: ./.github/actions/docker
       - name: Install CLI from artifact
@@ -136,7 +136,7 @@ jobs:
         run: |
           docker save --output eval-${{ matrix.eval }}.tar ghcr.io/gradbench/eval-${{ matrix.eval }}
       - name: Upload eval Docker image as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: eval-${{ matrix.eval }}
           path: eval-${{ matrix.eval }}.tar
@@ -152,7 +152,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Increase disk space
         uses: ./.github/actions/space
       - name: Install CLI from artifact
@@ -163,7 +163,7 @@ jobs:
         run: |
           docker save --output tool-${{ matrix.tool }}.tar ghcr.io/gradbench/tool-${{ matrix.tool }}
       - name: Upload tool Docker image as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tool-${{ matrix.tool }}
           path: tool-${{ matrix.tool }}.tar
@@ -181,7 +181,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Increase disk space
         uses: ./.github/actions/space
       - name: Install CLI from artifact
@@ -194,7 +194,7 @@ jobs:
           gradbench repo run --download-github ${{ github.run_id }} --check -o run --timeout 600 ${{ matrix.args }}
       - name: Upload logs as artifact
         if: success() || steps.run.conclusion == 'failure'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: run-${{ matrix.artifact }}
           path: run
@@ -207,7 +207,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Download all log artifacts
@@ -218,7 +218,7 @@ jobs:
       - name: Flatten log directory structure
         run: gradbench log flatten artifacts -o run
       - name: Checkout stats branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: stats
           ref: ci/refs/heads/main
@@ -234,7 +234,7 @@ jobs:
         run: |
           gradbench repo stats run -o stats --commit ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Upload stats as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: stats
           path: stats
@@ -276,7 +276,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Increase disk space
         uses: ./.github/actions/space
       - name: Setup multi-platform Docker
