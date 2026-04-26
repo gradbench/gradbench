@@ -23,9 +23,9 @@ getPoints d v =
   map (getPoint d v) [0 .. (V.length v `div` d - 1)]
 
 data Input = Input
-  { inputD         :: Int,
-    inputPoints    :: V.Vector Double,
-    inputCentroids :: V.Vector Double
+  { inputD         :: !Int,
+    inputPoints    :: !(V.Vector Double),
+    inputCentroids :: !(V.Vector Double)
   }
 
 instance JSON.FromJSON Input where
@@ -41,7 +41,7 @@ instance JSON.FromJSON Input where
 
 type CostOutput = Double
 
-data DirOutput = DirOutput Int (V.Vector Double)
+data DirOutput = DirOutput !Int !(V.Vector Double)
 
 instance JSON.ToJSON DirOutput where
   toJSON (DirOutput d v) = JSON.toJSON $ getPoints d v

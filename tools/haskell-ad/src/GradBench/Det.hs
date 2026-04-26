@@ -19,8 +19,8 @@ import Data.List qualified as L
 import Numeric.AD.Double qualified as D
 
 data Input = Input
-  { _inputA :: [Double],
-    _inputEll :: Int
+  { _inputA :: ![Double],
+    _inputEll :: !Int
   }
 
 type PrimalOutput = Double

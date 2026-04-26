@@ -13,8 +13,8 @@ import Data.Vector qualified as V
 import Numeric.AD.Double qualified as D
 
 data Input = Input
-  { _inputX :: V.Vector Double,
-    _inputS :: Int
+  { _inputX :: !(V.Vector Double),
+    _inputS :: !Int
   }
 
 type PrimalOutput = V.Vector Double

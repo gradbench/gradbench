@@ -64,7 +64,7 @@ wrap f input =
   case JSON.fromJSON input of
     JSON.Error e ->
       pure $ Left $ "Invalid input:\n" <> T.pack e
-    JSON.Success v -> do
+    JSON.Success !v -> do  -- the bang excludes samples processing time from score
       (output, timings) <- doRuns [] 1 0 (getRuns input) f v
       pure $ Right (JSON.toJSON output, timings)
 
