@@ -28,4 +28,5 @@ executable gradbench
     default-language: GHC2021
     default-extensions: OverloadedStrings
     -- Idle GC makes benchmarks less deterministic, hence disabled.
-    ghc-options:      -rtsopts "-with-rtsopts=-A500m -I0"
+    -- Also make sure to crash after RAM exhausted instead of swapping, etc.
+    ghc-options:      -rtsopts "-with-rtsopts=-A500m -I0 -M30G"
