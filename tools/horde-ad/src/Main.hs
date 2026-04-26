@@ -24,6 +24,7 @@ import System.Clock (Clock (Monotonic), getTime, toNanoSecs)
 import System.Exit
 import System.IO
 import System.IO.Error (isEOFError)
+import System.Mem (performBlockingMajorGC)
 
 import Prelude hiding (mod)
 
@@ -67,6 +68,18 @@ wrap f input =
     JSON.Error e ->
       pure $ Left $ "Invalid input:\n" <> T.pack e
     JSON.Success !v -> do  -- the bang excludes samples processing time from score
+      -- We force GC here to prevent
+      -- 1. counting GC time incurred by data sample batch receiving and processing
+      --    as part of the actual benchmark time
+      -- 2. randomly sometimes counting the time of a GC incurred by the benchmark
+      --    for the previous data batch as part of the benchmark time for
+      --    the current data batch
+      -- The resulting measurement is similar to when a tool is restarted before
+      -- each data sample batch (disregarding the negligible RTS startup time)
+      -- in that after each batch finishes, the heap is cleaned-up up for free.
+      -- The time of each GC performed during benchmarking of a batch is correctly
+      -- attributed to that batch, so this is as expected.
+      performBlockingMajorGC
       (output, timings) <- doRuns [] 1 0 (getRuns input) f v
       pure $ Right (JSON.toJSON output, timings)
 
