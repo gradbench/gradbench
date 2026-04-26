@@ -1,7 +1,17 @@
 packages: gradbench.cabal
 
+-- Of all the options below, nonportable-simd helps across the board,
+-- while ffast-math helps immensely in lse and kmeans, but much less elsewhere.
+-- The other options sound like plausible speedups looking at their documentation
+-- and apparently don't lower performance at least.
 package ox-arrays
   flags: +nonportable-simd
+  ghc-options: -optc-ffast-math -optc-fassociative-math -optc-fno-signed-zeros -optc-fno-trapping-math -optc-freciprocal-math
+
+ghc-options: -fexcess-precision
+
+package *
+  ghc-options: -fexcess-precision
 
 index-state:
   hackage.haskell.org 2026-04-15T12:29:52Z
