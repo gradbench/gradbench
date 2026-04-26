@@ -80,7 +80,7 @@ executable gradbench
 
   -- * Misc.
   ghc-options:        -rtsopts -threaded
-  -- Make GC more predictable in benchmarks.
-  ghc-options:        "-with-rtsopts=-A0.75g"
+  -- Make GC more predictable in benchmarks (especially through disabling idle GC).
+  ghc-options:        "-with-rtsopts=-A0.75g -I0"
   -- Too big a performance hit:
   -- ghc-options:        "-with-rtsopts=-H1.5g -A0.75g -I0"

@@ -27,4 +27,5 @@ executable gradbench
     hs-source-dirs:   src
     default-language: GHC2021
     default-extensions: OverloadedStrings
-    ghc-options:      -rtsopts "-with-rtsopts=-A500m"
+    -- Idle GC makes benchmarks less deterministic, hence disabled.
+    ghc-options:      -rtsopts "-with-rtsopts=-A500m -I0"
