@@ -17,9 +17,9 @@ vMinus :: (Floating a) => V.Vector a -> V.Vector a -> V.Vector a
 vMinus = V.zipWith (-)
 
 data Matrix a = Matrix
-  { matRows :: Int,
-    matCols :: Int,
-    matVals :: V.Vector a
+  { matRows :: !Int,
+    matCols :: !Int,
+    matVals :: !V.Vector a
   }
 
 matRow :: Matrix a -> Int -> V.Vector a
