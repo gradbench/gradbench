@@ -82,6 +82,4 @@ executable gradbench
   ghc-options:        -rtsopts -threaded
   -- Make GC more predictable in benchmarks (especially through disabling idle GC).
   -- Also make sure to crash after RAM exhausted instead of swapping, etc.
-  ghc-options:        "-with-rtsopts=-A0.75g -I0 -M30G"
-  -- Too big a performance hit:
-  -- ghc-options:        "-with-rtsopts=-H1.5g -A0.75g -I0"
+  ghc-options:        "-with-rtsopts=-A2G -I0 -M14G"
