@@ -112,10 +112,16 @@ let () =
           | Msg_Evaluate (_id, mname, fname, input) ->
              match look (mname, fname) modules with
                f ->
-               let (output, timings) = f input in
-               let timings' = `List (List.map timing_of timings)
-               in reply [("success", `Bool true);
-                         ("output",output);
-                         ("timings", timings')])
+               try
+                 let (output, timings) = f input in
+                 let timings' = `List (List.map timing_of timings)
+                 in reply [("success", `Bool true);
+                           ("output", output);
+                           ("timings", timings')]
+               with e ->
+                 let msg = Printexc.to_string e in
+                 reply [("success", `Bool false);
+                        ("error", `String (Printf.sprintf "tool exception:\n%s" msg))];
+                 raise e)
     | None -> exit 0
   done
