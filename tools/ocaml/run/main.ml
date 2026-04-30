@@ -110,6 +110,7 @@ let () =
           | Msg_Define (_id, mname) ->
              reply [("success", `Bool (List.exists (fun l -> fst (fst l) = mname) modules))]
           | Msg_Evaluate (_id, mname, fname, input) ->
+            try
              match look (mname, fname) modules with
                f ->
                try
@@ -122,6 +123,9 @@ let () =
                  let msg = Printexc.to_string e in
                  reply [("success", `Bool false);
                         ("error", `String (Printf.sprintf "tool exception:\n%s" msg))];
-                 raise e)
+                 raise e
+            with _ ->
+              reply [("success", `Bool false);
+                     ("error", `String (Printf.sprintf "unknown function: %s" fname))])
     | None -> exit 0
   done
