@@ -8,10 +8,9 @@ def prepare(server, input):
 
 
 def cost(server, input):
-    (o,), times = futhark_utils.run(
+    o, times = futhark_utils.run(
         server,
         "cost",
-        ("output",),
         ("points", "centroids"),
         input["min_runs"],
         input["min_seconds"],
@@ -20,10 +19,9 @@ def cost(server, input):
 
 
 def dir(server, input):
-    (o,), times = futhark_utils.run(
+    o, times = futhark_utils.run(
         server,
         "dir",
-        ("output",),
         ("points", "centroids"),
         input["min_runs"],
         input["min_seconds"],

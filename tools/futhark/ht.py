@@ -20,10 +20,9 @@ def prepare(server, input):
 
 
 def objective(server, input):
-    (obj,), times = futhark_utils.run(
+    obj, times = futhark_utils.run(
         server,
         "calculate_objective",
-        ("obj",),
         (
             "parents",
             "base_relatives",
@@ -44,10 +43,9 @@ def objective(server, input):
 
 
 def jacobian(server, input):
-    (J,), times = futhark_utils.run(
+    J, times = futhark_utils.run(
         server,
         "calculate_jacobian",
-        ("J",),
         (
             "parents",
             "base_relatives",

@@ -7,14 +7,14 @@ def prepare(server, input):
 
 
 def square(server, input):
-    (out,), times = futhark_utils.run(
-        server, "square", ("output",), ("input",), min_runs=1, min_seconds=0
+    out, times = futhark_utils.run(
+        server, "square", ("input",), min_runs=1, min_seconds=0
     )
     return (out, times)
 
 
 def double(server, input):
-    (out,), times = futhark_utils.run(
-        server, "double", ("output",), ("input",), min_runs=1, min_seconds=0
+    out, times = futhark_utils.run(
+        server, "double", ("input",), min_runs=1, min_seconds=0
     )
     return (out, times)

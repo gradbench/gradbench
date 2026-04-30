@@ -7,10 +7,9 @@ def prepare(server, input):
 
 
 def entry(server, input, variant):
-    (o,), times = futhark_utils.run(
+    o, times = futhark_utils.run(
         server,
         variant,
-        ("output",),
         ("w",),
         input["min_runs"],
         input["min_seconds"],
