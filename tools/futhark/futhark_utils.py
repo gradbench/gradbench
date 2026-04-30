@@ -16,15 +16,15 @@ def run(server, entry_name, inputs, min_runs, min_seconds):
     elapsed = 0
     while len(timings) < min_runs or elapsed < min_seconds:
         if len(timings) > 0:
-            server.cmd_free('out')
+            server.cmd_free("out")
         log = server.cmd_call(
             entry_name,
-            'out',
+            "out",
             *inputs,
         )
         ns = get_runtime_ns(log)
         timings.append(ns)
         elapsed += ns / 1e9
-    vals = server.get_value('out')
-    server.cmd_free('out')
+    vals = server.get_value("out")
+    server.cmd_free("out")
     return (vals, timings)
