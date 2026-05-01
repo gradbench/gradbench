@@ -13,10 +13,9 @@ def prepare(server, input):
 
 
 def objective(server, input):
-    (o,), times = futhark_utils.run(
+    o, times = futhark_utils.run(
         server,
         "calculate_objective",
-        ("output",),
         ("alpha", "mu", "q", "l", "x", "gamma", "m"),
         input["min_runs"],
         input["min_seconds"],
@@ -28,7 +27,6 @@ def jacobian(server, input):
     (alpha_d, mu_d, q_d, l_d), times = futhark_utils.run(
         server,
         "calculate_jacobian",
-        ("output0", "output1", "output2", "output3"),
         ("alpha", "mu", "q", "l", "x", "gamma", "m"),
         input["min_runs"],
         input["min_seconds"],

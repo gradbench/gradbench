@@ -11,22 +11,20 @@ def get_runtime_ns(ls):
     )
 
 
-def run(server, entry_name, outputs, inputs, min_runs, min_seconds):
+def run(server, entry_name, inputs, min_runs, min_seconds):
     timings = []
     elapsed = 0
     while len(timings) < min_runs or elapsed < min_seconds:
         if len(timings) > 0:
-            for o in outputs:
-                server.cmd_free(o)
-        out = server.cmd_call(
+            server.cmd_free("out")
+        log = server.cmd_call(
             entry_name,
-            *outputs,
+            "out",
             *inputs,
         )
-        ns = get_runtime_ns(out)
+        ns = get_runtime_ns(log)
         timings.append(ns)
         elapsed += ns / 1e9
-    return (
-        tuple([server.get_value(o) for o in outputs]),
-        timings,
-    )
+    vals = server.get_value("out")
+    server.cmd_free("out")
+    return (vals, timings)

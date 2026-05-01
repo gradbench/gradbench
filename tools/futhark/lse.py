@@ -7,10 +7,9 @@ def prepare(server, input):
 
 
 def primal(server, input):
-    (o,), times = futhark_utils.run(
+    o, times = futhark_utils.run(
         server,
         "primal",
-        ("output",),
         ("x"),
         input["min_runs"],
         input["min_seconds"],
@@ -19,10 +18,9 @@ def primal(server, input):
 
 
 def gradient(server, input):
-    (o,), times = futhark_utils.run(
+    o, times = futhark_utils.run(
         server,
         "gradient",
-        ("output",),
         ("x"),
         input["min_runs"],
         input["min_seconds"],
