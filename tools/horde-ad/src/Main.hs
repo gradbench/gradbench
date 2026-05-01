@@ -167,10 +167,18 @@ main = forever loop
             BS.putStrLn . BS.toStrict . JSON.encode . JSON.object $
               ("id", toJSON (msgId msg)) : vs
             hFlush stdout
+          onRunError :: SomeException -> IO a
+          onRunError e = do
+            reply
+              [ ("success", toJSON False),
+                ("error", toJSON $ "tool exception:\n" <> take 1000 (show e))
+              ]
+            throw e
       case msg of
         MsgStart _ _ -> reply [("tool", "horde-ad")]
         MsgDefine _ mod -> reply [("success", toJSON $ knownModule mod)]
         MsgEvaluate _ mod fun input ->
+          (`catch` onRunError) $
           case L.lookup (mod, fun) modules of
             Nothing ->
               reply
