@@ -2,7 +2,7 @@ name: Docker
 runs:
   using: composite
   steps:
-    - uses: crazy-max/ghaction-setup-docker@v4
+    - uses: crazy-max/ghaction-setup-docker@v5
       with:
         daemon-config: |
           {
@@ -10,6 +10,6 @@ runs:
               "containerd-snapshotter": true
             }
           }
-    - uses: docker/setup-qemu-action@v3
+    - uses: docker/setup-qemu-action@v4
       with:
         platforms: linux/amd64,linux/arm64

@@ -17,14 +17,14 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Build CLI
         uses: houseabsolute/actions-rust-cross@v1
         with:
           target: x86_64-unknown-linux-musl
           args: --package=gradbench --profile=release-with-debug
       - name: Upload CLI as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cli
           path: target/x86_64-unknown-linux-musl/release-with-debug/gradbench
@@ -39,7 +39,7 @@ jobs:
       run: ${{ steps.matrix.outputs.run }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Compute job parameters
@@ -60,7 +60,7 @@ jobs:
       TAG: ${{ fromJSON(needs.matrix.outputs.date) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Setup multi-platform Docker
         uses: ./.github/actions/docker
       - name: Install CLI from artifact
@@ -81,7 +81,7 @@ jobs:
       - name: Serialize eval Docker image
         run: docker save --output eval-${{ matrix.eval }}.tar $IMAGE
       - name: Upload eval Docker image as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: eval-${{ matrix.eval }}
           path: eval-${{ matrix.eval }}.tar
@@ -100,7 +100,7 @@ jobs:
       TAG: ${{ fromJSON(needs.matrix.outputs.date) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Increase disk space
         uses: ./.github/actions/space
       - name: Setup multi-platform Docker
@@ -127,7 +127,7 @@ jobs:
       - name: Serialize tool Docker image
         run: docker save --output tool-${{ matrix.tool }}.tar $IMAGE
       - name: Upload tool Docker image as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tool-${{ matrix.tool }}
           path: tool-${{ matrix.tool }}.tar
@@ -145,7 +145,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Increase disk space
         uses: ./.github/actions/space
       - name: Install CLI from artifact
@@ -158,7 +158,7 @@ jobs:
           gradbench repo run --download-github ${{ github.run_id }} --check -o run --timeout 600 ${{ matrix.args }}
       - name: Upload log as artifact
         if: success() || steps.run.conclusion == 'failure'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: run-${{ matrix.artifact }}
           path: run
@@ -171,7 +171,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Download all log artifacts
@@ -182,7 +182,7 @@ jobs:
       - name: Flatten log directory structure
         run: gradbench log flatten artifacts -o run
       - name: Checkout nightly stats branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: stats
           ref: ci/refs/heads/nightly
@@ -196,7 +196,7 @@ jobs:
         run: |
           gradbench repo stats run -o stats --date "$DATE" --commit "$GITHUB_SHA"
       - name: Upload stats as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: stats
           path: stats
