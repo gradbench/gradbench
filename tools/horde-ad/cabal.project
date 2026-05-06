@@ -13,6 +13,10 @@ packages: gradbench.cabal
 if arch(x86_64)
   package ox-arrays
     ghc-options: -optc-march=x86-64-v3
+    -- The following is still safe, but in the best case of the same CPU
+    -- for compilation and runtime, it gets close to the "-march=native"
+    -- performance, while in the worst case, the performance is lowered a bit.
+    ghc-options: -optc-mtune=native
 
 package ox-arrays
   -- These seem safe always:
