@@ -25,3 +25,8 @@ package *
 
 index-state:
   hackage.haskell.org 2026-04-15T12:29:52Z
+
+-- Run compilation-only validations 100 times faster by not trying to optimize so hard:
+if !arch(x86_64)
+  package *
+    optimization: False
