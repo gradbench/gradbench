@@ -49,6 +49,7 @@ let
     "pytorch"
     "jax"
     "tensorflow"
+    "futhark"
   ] pyTool;
 
   prefix = p: set:

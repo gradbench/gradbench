@@ -104,11 +104,12 @@ in rec {
 
   # A Python/ML tool that runs against a uv2nix-built `venv`. The gradbench
   # package is supplied via PYTHONPATH (it is excluded from the venv; see
-  # python.nix), matching how the evals work.
-  mkPyTool = { name, venv, entrypoint, extraSetup ? "" }:
+  # python.nix), matching how the evals work. `extraInputs` adds non-Python
+  # programs to PATH (e.g. a compiler), and `extraSetup` runs extra shell.
+  mkPyTool = { name, venv, entrypoint, extraInputs ? [ ], extraSetup ? "" }:
     mkTool {
       inherit name entrypoint;
-      runtimeInputs = [ venv ];
+      runtimeInputs = [ venv ] ++ extraInputs;
       setup = ''
         export PYTHONPATH="$root/python/gradbench''${PYTHONPATH:+:$PYTHONPATH}"
         ${extraSetup}
