@@ -49,6 +49,41 @@ in rec {
   mkTool = { name, ... }@args:
     mkRunner (builtins.removeAttrs args [ ] // { name = "tool-${name}"; });
 
+  # A C++-based tool driven by cpp.py, which compiles `tools/<name>/bin/<eval>`
+  # on demand (per `define` message) and runs it. The toolchain and AD library
+  # must therefore be available at run time; compile-on-demand is intentional,
+  # so GradBench can measure each tool's compilation cost.
+  #
+  #   libs        nixpkgs packages providing headers/libraries (and any
+  #               pkg-config files) for the AD library; their include, lib, and
+  #               lib/pkgconfig directories are put on the usual search paths.
+  #   compiler    the C/C++ compiler package (default gcc).
+  #   extraInputs additional tools to put on PATH (e.g. pkg-config, lld).
+  #   extraSetup  extra raw shell run before the entrypoint.
+  mkCppTool = { name, libs ? [ ], compiler ? pkgs.gcc, extraInputs ? [ ]
+    , extraSetup ? "" }:
+    let
+      includePath = lib.makeSearchPathOutput "dev" "include" ([ jsonInclude ] ++ libs);
+      libraryPath = lib.makeLibraryPath libs;
+      pkgConfigPath = lib.makeSearchPathOutput "dev" "lib/pkgconfig" libs;
+    in mkTool {
+      inherit name;
+      runtimeInputs = [ pkgs.python3 pkgs.gnumake compiler ] ++ libs
+        ++ extraInputs;
+      setup = ''
+        export CPATH="${includePath}''${CPATH:+:$CPATH}"
+        export LIBRARY_PATH="${libraryPath}''${LIBRARY_PATH:+:$LIBRARY_PATH}"
+        export LD_LIBRARY_PATH="${libraryPath}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+        export PKG_CONFIG_PATH="${pkgConfigPath}''${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+        # The Nix cc-wrapper disables -march=native for build purity. These
+        # tools are compiled immediately before running (common.mk defaults
+        # NATIVE=yes) and not baked into any image, so re-enable native codegen.
+        export NIX_ENFORCE_NO_NATIVE=0
+        ${extraSetup}
+      '';
+      entrypoint = "python3 python/gradbench/gradbench/cpp.py ${name}";
+    };
+
   # Build an OCI image from a native runner's closure. The repository source is
   # embedded read-only; at startup it is copied to a writable workdir so that
   # compile-on-demand tools can write into tools/<tool>/bin. This is the only

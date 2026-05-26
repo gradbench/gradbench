@@ -9,7 +9,18 @@ let
 
   evals = { hello = import ./evals/hello.nix { inherit pkgs gblib; }; };
 
-  tools = { manual = import ./tools/manual.nix { inherit pkgs gblib; }; };
+  tool = name: import (./tools + "/${name}.nix") { inherit pkgs gblib; };
+  tools = lib.genAttrs [
+    # C++-based tools (cpp.py, compile-on-demand).
+    "manual"
+    "finite"
+    "codipack"
+    "cppad"
+    "adol-c"
+    "adept"
+    "enzyme"
+    "ad-hpp"
+  ] tool;
 
   prefix = p: set:
     lib.mapAttrs' (name: drv: lib.nameValuePair "${p}${name}" drv) set;
