@@ -50,6 +50,8 @@ let
     "reversediff-jl"
     "mooncake-jl"
     "enzyme-jl"
+    # Haskell.
+    "haskell-ad"
   ] tool // lib.genAttrs [
     # Python/ML tools (uv2nix).
     "pytorch"
