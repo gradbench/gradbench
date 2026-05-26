@@ -6,7 +6,8 @@
 
 let
   adHpp = pkgs.fetchurl {
-    url = "https://gitlab.stce.rwth-aachen.de/stce/ad/-/raw/v1.7.1/include/ad.hpp";
+    url =
+      "https://gitlab.stce.rwth-aachen.de/stce/ad/-/raw/v1.7.1/include/ad.hpp";
     hash = "sha256-EGJSC5s08QmN7ljcH9yAee94qEGLWWECllAbadRPMXw=";
   };
 in gblib.mkCppTool {

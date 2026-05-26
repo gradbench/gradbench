@@ -63,7 +63,8 @@ in rec {
   mkCppTool = { name, libs ? [ ], compiler ? pkgs.gcc, extraInputs ? [ ]
     , extraSetup ? "" }:
     let
-      includePath = lib.makeSearchPathOutput "dev" "include" ([ jsonInclude ] ++ libs);
+      includePath =
+        lib.makeSearchPathOutput "dev" "include" ([ jsonInclude ] ++ libs);
       libraryPath = lib.makeLibraryPath libs;
       pkgConfigPath = lib.makeSearchPathOutput "dev" "lib/pkgconfig" libs;
     in mkTool {
@@ -82,6 +83,23 @@ in rec {
         ${extraSetup}
       '';
       entrypoint = "python3 python/gradbench/gradbench/cpp.py ${name}";
+    };
+
+  # A Python eval. All evals are Python and use Nixpkgs' Python packages rather
+  # than uv2nix: version fidelity matters little for the harness/validator, and
+  # this keeps closures small and cached. numpy, pydantic, and dataclasses-json
+  # cover every eval; `pythonPackages` adds any extras (e.g. scipy for gmm).
+  mkPyEval = { name, pythonPackages ? (ps: [ ]) }:
+    let
+      pythonEnv = pkgs.python311.withPackages (ps:
+        (with ps; [ numpy pydantic dataclasses-json ]) ++ pythonPackages ps);
+    in mkEval {
+      inherit name;
+      runtimeInputs = [ pythonEnv ];
+      setup = ''
+        export PYTHONPATH="$root/python/gradbench''${PYTHONPATH:+:$PYTHONPATH}"
+      '';
+      entrypoint = "python3 python/gradbench/gradbench/evals/${name}/run.py";
     };
 
   # Build an OCI image from a native runner's closure. The repository source is

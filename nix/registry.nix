@@ -7,7 +7,21 @@ let
   inherit (pkgs) lib;
   gblib = import ./lib.nix { inherit pkgs src; };
 
-  evals = { hello = import ./evals/hello.nix { inherit pkgs gblib; }; };
+  eval = name: import (./evals + "/${name}.nix") { inherit pkgs gblib; };
+  evals = lib.genAttrs [
+    "ba"
+    "det"
+    "gmm"
+    "hello"
+    "ht"
+    "kmeans"
+    "llsq"
+    "lse"
+    "lstm"
+    "ode"
+    "particle"
+    "saddle"
+  ] eval;
 
   tool = name: import (./tools + "/${name}.nix") { inherit pkgs gblib; };
   tools = lib.genAttrs [
