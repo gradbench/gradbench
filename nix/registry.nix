@@ -34,6 +34,8 @@ let
     "adept"
     "enzyme"
     "ad-hpp"
+    # JavaScript tools.
+    "floretta"
   ] tool;
 
   prefix = p: set:
