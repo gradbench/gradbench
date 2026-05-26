@@ -12,9 +12,28 @@
   inputs = {
     nixpkgs.url =
       "github:NixOS/nixpkgs/d89fc19e405cb2d55ce7cc114356846a0ee5e956";
+
+    # uv2nix and friends build hermetic Python environments from uv.lock, used
+    # for the ML/Python tools (pytorch, jax, tensorflow, ...). Evals use plain
+    # Nixpkgs Python instead.
+    pyproject-nix = {
+      url = "github:pyproject-nix/pyproject.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    uv2nix = {
+      url = "github:pyproject-nix/uv2nix";
+      inputs.pyproject-nix.follows = "pyproject-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    pyproject-build-systems = {
+      url = "github:pyproject-nix/build-system-pkgs";
+      inputs.pyproject-nix.follows = "pyproject-nix";
+      inputs.uv2nix.follows = "uv2nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs }:
+  outputs = inputs@{ self, nixpkgs, ... }:
     let
       # The proof-of-concept currently targets x86_64-linux only. Adding
       # aarch64-linux and aarch64-darwin later should just mean extending this
@@ -41,6 +60,7 @@
         (import ./nix/registry.nix {
           inherit pkgs;
           src = self;
+          inherit (inputs) uv2nix pyproject-nix pyproject-build-systems;
         }).packages);
 
       # `nix run .#eval-hello`, `nix run .#tool-manual`, etc.
@@ -49,6 +69,7 @@
           registry = import ./nix/registry.nix {
             inherit pkgs;
             src = self;
+            inherit (inputs) uv2nix pyproject-nix pyproject-build-systems;
           };
         in builtins.mapAttrs (name: pkg: {
           type = "app";

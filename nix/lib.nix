@@ -102,6 +102,19 @@ in rec {
       entrypoint = "python3 python/gradbench/gradbench/evals/${name}/run.py";
     };
 
+  # A Python/ML tool that runs against a uv2nix-built `venv`. The gradbench
+  # package is supplied via PYTHONPATH (it is excluded from the venv; see
+  # python.nix), matching how the evals work.
+  mkPyTool = { name, venv, entrypoint, extraSetup ? "" }:
+    mkTool {
+      inherit name entrypoint;
+      runtimeInputs = [ venv ];
+      setup = ''
+        export PYTHONPATH="$root/python/gradbench''${PYTHONPATH:+:$PYTHONPATH}"
+        ${extraSetup}
+      '';
+    };
+
   # Build an OCI image from a native runner's closure. The repository source is
   # embedded read-only; at startup it is copied to a writable workdir so that
   # compile-on-demand tools can write into tools/<tool>/bin. This is the only
