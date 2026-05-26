@@ -44,6 +44,12 @@ let
     "floretta"
     # OCaml.
     "ocaml"
+    # Julia.
+    "zygote"
+    "forwarddiff-jl"
+    "reversediff-jl"
+    "mooncake-jl"
+    "enzyme-jl"
   ] tool // lib.genAttrs [
     # Python/ML tools (uv2nix).
     "pytorch"

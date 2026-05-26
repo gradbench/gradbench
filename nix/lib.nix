@@ -116,6 +116,56 @@ in rec {
       '';
     };
 
+  # A Julia tool. Each lives in tools/<name> with a Project.toml + Manifest.toml
+  # and a relative path dependency on the local julia/GradBench package, which
+  # resolves against the checkout. The dependency depot is produced by
+  # `Pkg.instantiate()` in a fixed-output derivation; we prune the
+  # non-deterministic parts (registries, logs, precompile caches) and keep the
+  # content-addressed packages/artifacts. At run time JULIA_DEPOT_PATH points at
+  # a writable overlay (for precompile caches) followed by that read-only depot.
+  mkJuliaTool = { name, depotHash }:
+    let
+      julia = pkgs.julia_110;
+      depot = pkgs.stdenvNoCC.mkDerivation {
+        name = "gradbench-julia-${name}-depot";
+        inherit src;
+        nativeBuildInputs = [ julia pkgs.cacert pkgs.git ];
+        dontConfigure = true;
+        # Don't let fixupPhase rewrite shebangs in shipped package scripts to
+        # /nix/store/...-bash: that would make the depot reference the build
+        # shell, which a fixed-output derivation may not do. Julia uses the
+        # runtime shell, not these scripts' shebangs.
+        dontPatchShebangs = true;
+        buildPhase = ''
+          export HOME="$TMPDIR"
+          export JULIA_DEPOT_PATH="$out"
+          export JULIA_PKG_PRECOMPILE_AUTO=0
+          julia --project=tools/${name} -e 'import Pkg; Pkg.instantiate()'
+        '';
+        installPhase = ''
+          # Keep only the content-addressed, reproducible parts of the depot.
+          rm -rf "$out/registries" "$out/logs" "$out/compiled" \
+                 "$out/scratchspaces" || true
+        '';
+        outputHashMode = "recursive";
+        outputHashAlgo = "sha256";
+        outputHash = depotHash;
+      };
+    in mkTool {
+      inherit name;
+      runtimeInputs = [ julia pkgs.coreutils ];
+      setup = ''
+        # A persistent writable depot for precompile caches (so we don't
+        # recompile every run), with the prebuilt read-only depot underneath.
+        # Offline so Julia never reaches the network.
+        writable="''${XDG_CACHE_HOME:-$HOME/.cache}/gradbench/julia-${name}"
+        mkdir -p "$writable"
+        export JULIA_DEPOT_PATH="$writable:${depot}"
+        export JULIA_PKG_OFFLINE=true
+      '';
+      entrypoint = "julia --project=tools/${name} tools/${name}/run.jl";
+    };
+
   # Build an OCI image from a native runner's closure. The repository source is
   # embedded read-only; at startup it is copied to a writable workdir so that
   # compile-on-demand tools can write into tools/<tool>/bin. This is the only
