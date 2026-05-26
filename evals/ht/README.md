@@ -110,6 +110,12 @@ $`\mathbf{P}`$ with all entries zero, then set:
 - $`\mathbf{P}_{:,1} = (1, 1, 1)`$ (global scale, fixed),
 - $`\mathbf{P}_{:,2} = (p_3, p_4, p_5)`$ (global translation).
 
+These first three columns record the global transform for bookkeeping, but the
+per-bone construction below never reads them: it only reads the bone columns
+$`c = i + 3`$ for $`i \in \{0, \dots, B-1\}`$. The global rotation
+$`\boldsymbol{\omega}`$ and translation $`\boldsymbol{t}`$ are instead applied
+separately at the very end (see $`\boldsymbol{v}'_j`$ below).
+
 The remaining entries are filled in a fixed pattern that matches the model's
 bone order in `bone_names` (the provided datasets use the order
 `wrist, thumb1..4, index1..4, middle1..4, ring1..4, pinky1..4, forearm`). Let
@@ -137,10 +143,39 @@ to get the relative transform
 \mathbf{R}_i = \mathbf{R}_z(z)\mathbf{R}_y(y)\mathbf{R}_x(x)
 ```
 
-where $`x = \mathbf{P}_{0,c}`$, $`z = \mathbf{P}_{1,c}`$, and
-$`y = \mathbf{P}_{2,c}`$ for column $`c = i + 3`$. In the provided
-parameterization, $`y`$ is always zero; the two-angle joints use both $`x`$ and
-$`z`$, while one-angle joints use only $`x`$.
+for column $`c = i + 3`$. The three angles are read from the rows of column
+$`c`$, but **not** in $`(x, y, z)`$ row order: matching the $`xzy`$ Euler
+convention, the $`x`$ angle comes from row 0, the $`z`$ angle from row 1, and
+the $`y`$ angle from row 2,
+
+```math
+x = \mathbf{P}_{0,c}, \qquad z = \mathbf{P}_{1,c}, \qquad y = \mathbf{P}_{2,c}.
+```
+
+In the provided parameterization, $`y`$ is always zero; the two-angle joints use
+both $`x`$ and $`z`$ (so the second angle assigned to a joint feeds the
+$`\mathbf{R}_z`$ factor), while one-angle joints use only $`x`$. The factors are
+the standard right-handed [rotation matrices][] about each axis:
+
+```math
+\mathbf{R}_x(x) = \begin{bmatrix}
+  1 & 0 & 0 \\
+  0 & \cos x & -\sin x \\
+  0 & \sin x & \cos x
+\end{bmatrix},
+\quad
+\mathbf{R}_y(y) = \begin{bmatrix}
+  \cos y & 0 & \sin y \\
+  0 & 1 & 0 \\
+  -\sin y & 0 & \cos y
+\end{bmatrix},
+\quad
+\mathbf{R}_z(z) = \begin{bmatrix}
+  \cos z & -\sin z & 0 \\
+  \sin z & \cos z & 0 \\
+  0 & 0 & 1
+\end{bmatrix}.
+```
 
 ```math
 \mathbf{A}_i = \mathbf{R}^{\text{base}}_i
@@ -174,16 +209,33 @@ Let $`\bar{\boldsymbol{x}}_j \in \mathbb{R}^4`$ denote the $`j`$-th row of
 $`\mathbf{X}`$. The skinned vertex positions are
 
 ```math
-\boldsymbol{v}_j = \sum_{i=1}^B w_{j,i} \, (\mathbf{S}_i \bar{\boldsymbol{x}}_j)_{1:3}
+\boldsymbol{v}_j = \sum_{i=0}^{B-1} w_{j,i} \, (\mathbf{S}_i \bar{\boldsymbol{x}}_j)_{1:3}
 ```
 
-where $`w_{j,i}`$ is the weight from $`\mathbf{W}`$. If `is_mirrored` is true,
-the $`x`$ coordinate of every $`\boldsymbol{v}_j`$ is negated. Then the global
-transform is applied using the [angle-axis][] rotation matrix
+where $`w_{j,i}`$ is the weight from $`\mathbf{W}`$ and $`(\cdot)_{1:3}`$
+denotes the first three (spatial) components of the resulting homogeneous
+4-vector, discarding the final coordinate. If `is_mirrored` is true, the $`x`$
+coordinate of every $`\boldsymbol{v}_j`$ is negated. Then the global transform
+is applied using the [angle-axis][] rotation matrix
 $`\mathbf{R}(\boldsymbol{\omega})`$:
 
 ```math
 \boldsymbol{v}'_j = \mathbf{R}(\boldsymbol{\omega}) \boldsymbol{v}_j + \boldsymbol{t}.
+```
+
+The angle-axis rotation matrix is given by [Rodrigues' rotation formula][]. Let
+$`n = \|\boldsymbol{\omega}\|`$ be the rotation angle. If $`n < 10^{-4}`$, then
+$`\mathbf{R}(\boldsymbol{\omega}) = \mathbf{I}`$ is the identity (this guards
+against division by zero for near-zero rotations); otherwise, writing
+$`(x, y, z) = \boldsymbol{\omega} / n`$ for the unit axis and $`s = \sin n`$,
+$`c = \cos n`$,
+
+```math
+\mathbf{R}(\boldsymbol{\omega}) = \begin{bmatrix}
+  x^2 + (1 - x^2)c & xy(1 - c) - zs & xz(1 - c) + ys \\
+  xy(1 - c) + zs & y^2 + (1 - y^2)c & yz(1 - c) - xs \\
+  xz(1 - c) - ys & zy(1 - c) + xs & z^2 + (1 - z^2)c
+\end{bmatrix}.
 ```
 
 Finally, the predicted correspondence point depends on `us`:
@@ -242,4 +294,7 @@ independently.
 [linear blend skinning]:
   https://en.wikipedia.org/wiki/Skeletal_animation#Skinning
 [row-major]: https://en.wikipedia.org/wiki/Row-_and_column-major_order
+[rodrigues' rotation formula]:
+  https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
+[rotation matrices]: https://en.wikipedia.org/wiki/Rotation_matrix
 [c++ implementation]: /cpp/gradbench/evals/ht.hpp
