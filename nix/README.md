@@ -60,16 +60,39 @@ The GradBench CLI uses these: `gradbench eval/tool <name>` runs
 See [`tools/manual.nix`](tools/manual.nix) (a compile-on-demand C++ tool) and
 [`evals/hello.nix`](evals/hello.nix) (a Python eval) as templates.
 
+## Status
+
+Converted and verified (run successfully against their evals):
+
+- **All 12 evals** (Nixpkgs Python).
+- **C++ tools** (compile-on-demand): manual, finite, codipack, cppad, adol-c,
+  adept, enzyme, ad-hpp.
+- **JavaScript**: floretta.
+- **OCaml**: ocaml.
+- **Python/ML** (uv2nix, CPU): pytorch, jax, tensorflow, futhark, tapenade.
+
+Not yet converted: the **Julia** tools (zygote, forwarddiff-jl,
+reversediff-jl, mooncake-jl, enzyme-jl), the **Haskell** tools (haskell-ad,
+horde-ad), and the **Lean** tool (scilean).
+
 ## Known follow-ups
 
 These are tracked for later phases of the migration:
 
-- **Python tools** (jax, pytorch, tensorflow, futhark): need `uv2nix` (or an
-  equivalent) to build a hermetic venv from `uv.lock`, since wheel-version
-  fidelity matters for these. Evals deliberately use Nixpkgs' Python packages
-  instead.
-- **Julia, Haskell, OCaml, Lean, JS tools**: not yet converted. Julia's
-  `Manifest.toml` path-baking is the riskiest case.
+- **Julia tools** (5): need a hermetic Julia depot. The path dependency on the
+  local `julia/GradBench` resolves naturally when running against the checkout
+  (same directory layout as the Dockerfiles assume). The hard part is producing
+  a deterministic depot for `Pkg.instantiate()` in a fixed-output derivation
+  (Julia's depot has precompile caches/timestamps); disable auto-precompile and
+  keep only `packages/` (content-addressed by tree hash). This is the riskiest
+  remaining ecosystem.
+- **Haskell tools** (2): `cabal build` against Hackage. Try
+  `haskellPackages.callCabal2nix` (haskell-ad depends on `ad`, which is in
+  Nixpkgs); horde-ad is newer and may need extra package overrides or
+  `haskell.nix`.
+- **Lean tool** (scilean): bootstraps a toolchain via elan and downloads Lake
+  dependencies; wrap `lake build` in a fixed-output derivation producing
+  `.lake/build/bin/gradbench`.
 - **CI**: workflows still build Docker images. The plan is to pass built
   derivations between jobs as serialized store closures
   (`nix-store --export` → artifact → `nix-store --import`); the CLI's
