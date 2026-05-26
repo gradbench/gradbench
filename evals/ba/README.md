@@ -54,6 +54,18 @@ export namespace ba {
 }
 ```
 
+The protocol is specified in terms of [TypeScript][] types and references [types
+defined in the GradBench protocol description][protocol], from which `Float`,
+`Int`, and `Runs` are imported above. The eval sends a leading `DefineMessage`
+followed by `EvaluateMessages`. The `input` field of any `EvaluateMessage` is an
+`Input`, and the `function` field is either the string `"objective"` or
+`"jacobian"`; the type of the `output` field in the corresponding
+`EvaluateResponse` is `ObjectiveOutput` or `JacobianOutput`, respectively.
+
+Because the input extends `Runs`, the tool is expected to run the function some
+number of times. It should include one timing entry with the name `"evaluate"`
+for each time it ran the function.
+
 ## Definition
 
 We define a single camera using the parameter vector
@@ -158,7 +170,9 @@ The full sparse Jacobian is represented in a compressed-row format where `rows`
 has length $`(2P + P + 1)`$ and `cols`/`vals` have length
 $`(11 + 3 + 1) \cdot 2P + P`$. For each row $`r`$, the non-zero columns are
 stored in `cols[rows[r] .. rows[r + 1] - 1]` with corresponding values from
-`vals`.
+`vals`, in increasing column order. So within a reprojection row the 15 entries
+are the 11 camera columns, then the 3 point columns, then the single weight
+column.
 
 ## Output encoding
 
@@ -194,6 +208,8 @@ representation of the Jacobian in parallel.
 
 [adbench paper]: https://arxiv.org/abs/1807.10129
 [axis-angle]: https://en.wikipedia.org/wiki/Axis%E2%80%93angle_representation
+[protocol]: /CONTRIBUTING.md#types
+[typescript]: https://www.typescriptlang.org/
 [ba.hpp]: /cpp/gradbench/evals/ba.hpp
 [tools/futhark/ba.fut]: /tools/futhark/ba.fut
 [tools/manual/ba.cpp]: /tools/manual/ba.cpp
