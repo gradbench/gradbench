@@ -62,7 +62,7 @@ See [`tools/manual.nix`](tools/manual.nix) (a compile-on-demand C++ tool) and
 
 ## Status
 
-Converted and verified (run successfully against their evals):
+**34 of 36 images converted**, each verified by running it against its evals:
 
 - **All 12 evals** (Nixpkgs Python).
 - **C++ tools** (compile-on-demand): manual, finite, codipack, cppad, adol-c,
@@ -70,29 +70,29 @@ Converted and verified (run successfully against their evals):
 - **JavaScript**: floretta.
 - **OCaml**: ocaml.
 - **Python/ML** (uv2nix, CPU): pytorch, jax, tensorflow, futhark, tapenade.
+- **Julia** (fixed-output depots): zygote, forwarddiff-jl, reversediff-jl,
+  mooncake-jl, enzyme-jl.
+- **Haskell**: haskell-ad (callCabal2nix, GHC 9.12).
 
-Not yet converted: the **Julia** tools (zygote, forwarddiff-jl,
-reversediff-jl, mooncake-jl, enzyme-jl), the **Haskell** tools (haskell-ad,
-horde-ad), and the **Lean** tool (scilean).
+Not yet converted (2), both blocked on toolchains absent from the pinned
+Nixpkgs — see below.
 
 ## Known follow-ups
 
 These are tracked for later phases of the migration:
 
-- **Julia tools** (5): need a hermetic Julia depot. The path dependency on the
-  local `julia/GradBench` resolves naturally when running against the checkout
-  (same directory layout as the Dockerfiles assume). The hard part is producing
-  a deterministic depot for `Pkg.instantiate()` in a fixed-output derivation
-  (Julia's depot has precompile caches/timestamps); disable auto-precompile and
-  keep only `packages/` (content-addressed by tree hash). This is the riskiest
-  remaining ecosystem.
-- **Haskell tools** (2): `cabal build` against Hackage. Try
-  `haskellPackages.callCabal2nix` (haskell-ad depends on `ad`, which is in
-  Nixpkgs); horde-ad is newer and may need extra package overrides or
-  `haskell.nix`.
-- **Lean tool** (scilean): bootstraps a toolchain via elan and downloads Lake
-  dependencies; wrap `lake build` in a fixed-output derivation producing
-  `.lake/build/bin/gradbench`.
+- **horde-ad** (Haskell): needs **GHC 9.14** (pinned Nixpkgs has only 9.10 and
+  9.12) and the `horde-ad`/`ox-arrays` libraries, which aren't in Nixpkgs, at a
+  pinned Hackage `index-state`. Realistic options: adopt `haskell.nix` (handles
+  `cabal.project`, `index-state`, `--allow-newer`, and its own GHCs natively),
+  or bump the Nixpkgs pin to one with GHC 9.14 and package the missing
+  libraries. This is an architectural decision (extra flake input or pin bump).
+- **scilean** (Lean): the `lean-toolchain` pins **Lean v4.16.0** (Nixpkgs has
+  4.19.0), and it pulls SciLean from a git branch plus prebuilt `.olean` caches
+  via `lake exe cache get`. Likely approach: a fixed-output derivation that uses
+  `elan` (in Nixpkgs) to fetch the pinned toolchain and runs `lake exe cache
+  get` + `lake build`, then autoPatchelf the resulting binary and shared libs.
+  Determinism of the Lake build/cache is the risk.
 - **CI**: workflows still build Docker images. The plan is to pass built
   derivations between jobs as serialized store closures
   (`nix-store --export` → artifact → `nix-store --import`); the CLI's
