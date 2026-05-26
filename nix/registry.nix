@@ -50,6 +50,7 @@ let
     "jax"
     "tensorflow"
     "futhark"
+    "tapenade"
   ] pyTool;
 
   prefix = p: set:
