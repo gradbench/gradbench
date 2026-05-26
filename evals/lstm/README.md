@@ -56,38 +56,38 @@ We define the elementwise sigmoid function as
 ### Parameters
 
 For each layer `i` in `0..l-1`, define weight vectors
-`\mathbf{w}_f^{(i)}, \mathbf{w}_i^{(i)}, \mathbf{w}_o^{(i)}, \mathbf{w}_c^{(i)} \in \mathbb{R}^b`
+$`\mathbf{w}_f^{(i)}, \mathbf{w}_i^{(i)}, \mathbf{w}_o^{(i)}, \mathbf{w}_c^{(i)} \in \mathbb{R}^b`$
 and bias vectors
-`\mathbf{b}_f^{(i)}, \mathbf{b}_i^{(i)}, \mathbf{b}_o^{(i)}, \mathbf{b}_c^{(i)} \in \mathbb{R}^b`
+$`\mathbf{b}_f^{(i)}, \mathbf{b}_i^{(i)}, \mathbf{b}_o^{(i)}, \mathbf{b}_c^{(i)} \in \mathbb{R}^b`$
 by splitting the rows of `main_params`:
 
 - Row `2i` is the concatenation
-  `[\mathbf{w}_f^{(i)} \mid \mathbf{w}_i^{(i)} \mid   \mathbf{w}_o^{(i)} \mid \mathbf{w}_c^{(i)}]`.
+  $`[\mathbf{w}_f^{(i)} \mid \mathbf{w}_i^{(i)} \mid \mathbf{w}_o^{(i)} \mid \mathbf{w}_c^{(i)}]`$.
 - Row `2i + 1` is the concatenation
-  `[\mathbf{b}_f^{(i)} \mid \mathbf{b}_i^{(i)} \mid   \mathbf{b}_o^{(i)} \mid \mathbf{b}_c^{(i)}]`.
+  $`[\mathbf{b}_f^{(i)} \mid \mathbf{b}_i^{(i)} \mid \mathbf{b}_o^{(i)} \mid \mathbf{b}_c^{(i)}]`$.
 
 The `extra_params` rows define vectors
-`\mathbf{w}_{\text{in}}, \mathbf{w}_{\text{out}}, \mathbf{b}_{\text{out}} \in \mathbb{R}^b`
+$`\mathbf{w}_{\text{in}}, \mathbf{w}_{\text{out}}, \mathbf{b}_{\text{out}} \in \mathbb{R}^b`$
 as
 
-- Row `0` is `\mathbf{w}_{\text{in}}`.
-- Row `1` is `\mathbf{w}_{\text{out}}`.
-- Row `2` is `\mathbf{b}_{\text{out}}`.
+- Row `0` is $`\mathbf{w}_{\text{in}}`$.
+- Row `1` is $`\mathbf{w}_{\text{out}}`$.
+- Row `2` is $`\mathbf{b}_{\text{out}}`$.
 
 The `state` rows define initial hidden and cell vectors
-`\mathbf{h}^{(i)}_0, \mathbf{c}^{(i)}_0 \in \mathbb{R}^b` for each layer:
+$`\mathbf{h}^{(i)}_0, \mathbf{c}^{(i)}_0 \in \mathbb{R}^b`$ for each layer:
 
-- Row `2i` is `\mathbf{h}^{(i)}_0`.
-- Row `2i + 1` is `\mathbf{c}^{(i)}_0`.
+- Row `2i` is $`\mathbf{h}^{(i)}_0`$.
+- Row `2i + 1` is $`\mathbf{c}^{(i)}_0`$.
 
-Finally, `sequence[t]` is the input vector `\mathbf{x}_t \in \mathbb{R}^b` at
+Finally, `sequence[t]` is the input vector $`\mathbf{x}_t \in \mathbb{R}^b`$ at
 time step `t`.
 
 ### LSTM step
 
-Given a layer input `\mathbf{x} \in \mathbb{R}^b`, hidden state
-`\mathbf{h} \in \mathbb{R}^b`, and cell state `\mathbf{c} \in \mathbb{R}^b`, the
-update for layer `i` is defined elementwise as
+Given a layer input $`\mathbf{x} \in \mathbb{R}^b`$, hidden state
+$`\mathbf{h} \in \mathbb{R}^b`$, and cell state $`\mathbf{c} \in \mathbb{R}^b`$,
+the update for layer `i` is defined elementwise as
 
 ```math
 \begin{aligned}
@@ -100,12 +100,12 @@ update for layer `i` is defined elementwise as
 \end{aligned}
 ```
 
-where `\odot` denotes elementwise multiplication. Note that all weight matrices
-are diagonal in this benchmark; no cross-dimension mixing occurs.
+where $`\odot`$ denotes elementwise multiplication. Note that all weight
+matrices are diagonal in this benchmark; no cross-dimension mixing occurs.
 
 ### Prediction
 
-Given input `\mathbf{x}_t`, the prediction step uses the extra parameters and
+Given input $`\mathbf{x}_t`$, the prediction step uses the extra parameters and
 all `l` layers:
 
 ```math
@@ -135,9 +135,9 @@ Define a nonstandard log-sum-exp with two extra constant terms:
 \log\left(2 + \sum_{i=1}^b e^{y_i}\right).
 ```
 
-For each `t` in `0..c-2`, compute `\mathbf{y}_t` from `\mathbf{x}_t`, then
-normalize as `\mathbf{y}_t - \operatorname{lse}(\mathbf{y}_t)`. Let
-`\mathbf{x}_{t+1}` be the next element of the sequence. The loss is
+For each `t` in `0..c-2`, compute $`\mathbf{y}_t`$ from $`\mathbf{x}_t`$, then
+normalize as $`\mathbf{y}_t - \operatorname{lse}(\mathbf{y}_t)`$. Let
+$`\mathbf{x}_{t+1}`$ be the next element of the sequence. The loss is
 
 ```math
 L = -\frac{1}{b(c-1)} \sum_{t=0}^{c-2}
