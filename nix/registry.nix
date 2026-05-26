@@ -47,6 +47,8 @@ let
   ] tool // lib.genAttrs [
     # Python/ML tools (uv2nix).
     "pytorch"
+    "jax"
+    "tensorflow"
   ] pyTool;
 
   prefix = p: set:
