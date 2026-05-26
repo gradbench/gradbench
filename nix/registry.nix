@@ -36,6 +36,8 @@ let
     "ad-hpp"
     # JavaScript tools.
     "floretta"
+    # OCaml.
+    "ocaml"
   ] tool;
 
   prefix = p: set:
