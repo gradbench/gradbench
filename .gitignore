@@ -4,6 +4,8 @@
 # Nix
 /.direnv/
 /.envrc
+/result
+/result-*
 
 # Emacs
 *~

@@ -1,11 +1,11 @@
-docker build . --file evals/norf/Dockerfile --tag ghcr.io/gradbench/eval-norf:latest
-docker build . --file evals/qux/Dockerfile --tag ghcr.io/gradbench/eval-qux:latest
-docker build . --file tools/bar/Dockerfile --tag ghcr.io/gradbench/tool-bar:latest
-docker build . --file tools/baz/Dockerfile --tag ghcr.io/gradbench/tool-baz:latest
-docker build . --file tools/foo/Dockerfile --tag ghcr.io/gradbench/tool-foo:latest
-gradbench run --timeout 42 --eval 'docker run --rm --interactive ghcr.io/gradbench/eval-norf:latest' --tool 'docker run --rm --interactive ghcr.io/gradbench/tool-bar:latest'
-gradbench run --timeout 42 --eval 'docker run --rm --interactive ghcr.io/gradbench/eval-norf:latest' --tool 'docker run --rm --interactive ghcr.io/gradbench/tool-baz:latest'
-gradbench run --timeout 42 --eval 'docker run --rm --interactive ghcr.io/gradbench/eval-norf:latest' --tool 'docker run --rm --interactive ghcr.io/gradbench/tool-foo:latest'
-gradbench run --timeout 42 --eval 'docker run --rm --interactive ghcr.io/gradbench/eval-qux:latest' --tool 'docker run --rm --interactive ghcr.io/gradbench/tool-bar:latest'
-gradbench run --timeout 42 --eval 'docker run --rm --interactive ghcr.io/gradbench/eval-qux:latest' --tool 'docker run --rm --interactive ghcr.io/gradbench/tool-baz:latest'
-gradbench run --timeout 42 --eval 'docker run --rm --interactive ghcr.io/gradbench/eval-qux:latest' --tool 'docker run --rm --interactive ghcr.io/gradbench/tool-foo:latest'
+nix build '.#eval-norf'
+nix build '.#eval-qux'
+nix build '.#tool-bar'
+nix build '.#tool-baz'
+nix build '.#tool-foo'
+gradbench run --timeout 42 --eval "nix run '.#eval-norf' --" --tool "nix run '.#tool-bar' --"
+gradbench run --timeout 42 --eval "nix run '.#eval-norf' --" --tool "nix run '.#tool-baz' --"
+gradbench run --timeout 42 --eval "nix run '.#eval-norf' --" --tool "nix run '.#tool-foo' --"
+gradbench run --timeout 42 --eval "nix run '.#eval-qux' --" --tool "nix run '.#tool-bar' --"
+gradbench run --timeout 42 --eval "nix run '.#eval-qux' --" --tool "nix run '.#tool-baz' --"
+gradbench run --timeout 42 --eval "nix run '.#eval-qux' --" --tool "nix run '.#tool-foo' --"
