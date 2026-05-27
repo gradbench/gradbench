@@ -14,9 +14,8 @@ integration have been removed and replaced with GradBench-specific code.
 
 You must have [opam][] and [Dune][]. Make sure the `opam` environment is set -
 this may require you to run `eval $(opam env)`, although this is usually done in
-your shell configuration, and it is not necessary when using the
-[shell.nix](/shell.nix). You may need to do `opam init` if you have not done so
-before.
+your shell configuration, and it is not necessary when using `nix develop`. You
+may need to do `opam init` if you have not done so before.
 
 Standing in the root of the GradBench repository, first run
 

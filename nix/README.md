@@ -1,36 +1,35 @@
 # Nix packaging
 
-GradBench is migrating from per-eval/per-tool `Dockerfile`s to a single Nix
-flake. Each eval and tool becomes a **runnable Nix derivation** (a wrapper
-script that bakes in the dependencies and entrypoint that used to live in the
-`Dockerfile`), which can either be run directly on the host or wrapped into an
-OCI image via `dockerTools`.
+GradBench builds and runs each eval and tool as a **Nix derivation** (a wrapper
+script that bakes in the dependencies and entrypoint that used to live in a
+per-eval/per-tool `Dockerfile`), which can either be run directly on the host or
+wrapped into an OCI image via `dockerTools`.
 
-This directory and the top-level [`flake.nix`](../flake.nix) implement that.
-This is a work in progress: only some evals and tools have been converted.
+This directory and the top-level [`flake.nix`](../flake.nix) implement that. All
+36 evals and tools are converted (the old `Dockerfile`s have been removed).
 
 ## Layout
 
 - [`../flake.nix`](../flake.nix) — inputs (pinned Nixpkgs) and the per-system
   outputs (`packages`, `apps`, `devShells`, `formatter`).
-- [`registry.nix`](registry.nix) — the list of converted evals and tools.
-  **This is the file you edit to add an eval or tool.** Everything else (native
+- [`registry.nix`](registry.nix) — the list of converted evals and tools. **This
+  is the file you edit to add an eval or tool.** Everything else (native
   runners, OCI images, `nix run` apps) is derived from it.
 - [`lib.nix`](lib.nix) — the helpers `mkEval` / `mkTool` (native runners) and
   `mkImage` (OCI images), plus shared bits like the `json.hpp` include.
 - [`evals/`](evals) and [`tools/`](tools) — one file per converted eval/tool.
-- [`devshell.nix`](devshell.nix) — the development shell (`nix develop`); the
-  flake-based successor to the legacy niv-pinned [`../shell.nix`](../shell.nix).
+- [`devshell.nix`](devshell.nix) — the development shell (`nix develop`, or
+  `direnv allow` via the flake-based `.envrc`).
 - [`floretta.nix`](floretta.nix) — a custom package not yet in Nixpkgs.
 
 ## Outputs
 
 For an eval or tool named `<name>`:
 
-| Output | What it is |
-| --- | --- |
-| `packages.<system>.eval-<name>` / `tool-<name>` | native runner; `nix build` it or run via the app |
-| `apps.<system>.eval-<name>` / `tool-<name>` | `nix run .#eval-<name>` / `.#tool-<name>` |
+| Output                                                      | What it is                                                |
+| ----------------------------------------------------------- | --------------------------------------------------------- |
+| `packages.<system>.eval-<name>` / `tool-<name>`             | native runner; `nix build` it or run via the app          |
+| `apps.<system>.eval-<name>` / `tool-<name>`                 | `nix run .#eval-<name>` / `.#tool-<name>`                 |
 | `packages.<system>.image-eval-<name>` / `image-tool-<name>` | OCI image (`dockerTools`) built from the runner's closure |
 
 ## Run modes
@@ -43,9 +42,9 @@ For an eval or tool named `<name>`:
 - **OCI image**: `mkImage` embeds the source read-only and copies it to a
   writable workdir at container startup, so compile-on-demand still works.
 
-The GradBench CLI uses these: `gradbench eval/tool <name>` runs
-`.#eval-<name>` / `.#tool-<name>`, and `gradbench repo run --eval <name> --tool
-<name>` builds them with `nix build` and then runs them.
+The GradBench CLI uses these: `gradbench eval/tool <name>` runs `.#eval-<name>`
+/ `.#tool-<name>`, and `gradbench repo run --eval <name> --tool <name>` builds
+them with `nix build` and then runs them.
 
 ## Adding an eval or tool
 
@@ -54,8 +53,9 @@ The GradBench CLI uses these: `gradbench eval/tool <name>` runs
    `Dockerfile`: `runtimeInputs` are the dependencies, `setup` holds any
    `export`s, and `entrypoint` is the `ENTRYPOINT` command.
 2. Register it in [`registry.nix`](registry.nix).
-3. Verify: `nix run .#tool-<name>` and `gradbench repo run --eval hello --tool
-   <name>` (or an eval the tool supports).
+3. Verify: `nix run .#tool-<name>` and
+   `gradbench repo run --eval hello --tool <name>` (or an eval the tool
+   supports).
 
 See [`tools/manual.nix`](tools/manual.nix) (a compile-on-demand C++ tool) and
 [`evals/hello.nix`](evals/hello.nix) (a Python eval) as templates.
@@ -91,9 +91,9 @@ to end); IOG's binary cache makes that fast (see below).
 
 The GitHub Actions workflows (`.github/workflows/{build,nightly}.yml`) build
 with Nix instead of Docker: the `eval`/`tool` jobs run `nix build .#eval-<name>`
-/ `.#tool-<name>`, serialize the result's store closure
-(`nix-store --export` → a `<name>.closure` artifact), and the `run` job imports
-them (`gradbench repo run --download-github`, which downloads the artifacts and
+/ `.#tool-<name>`, serialize the result's store closure (`nix-store --export` →
+a `<name>.closure` artifact), and the `run` job imports them
+(`gradbench repo run --download-github`, which downloads the artifacts and
 `nix-store --import`s them, then `nix run`s). Nix is installed via
 `.github/actions/nix`, which also enables IOG's binary cache. The `lint`/`site`
 jobs are unchanged, and OCI image publishing to GHCR is dropped for now (the
@@ -123,7 +123,7 @@ Two tools build large toolchains from source unless an upstream cache is read:
   never elaborated from source. (If even that becomes a CI bottleneck, a hosted
   cache like Garnix would cache the whole build.)
 
-  The Lake *build* output is ~35.8 GB (mathlib oleans plus the dereferenced,
+  The Lake _build_ output is ~35.8 GB (mathlib oleans plus the dereferenced,
   writable dependency trees SciLean's module precompilation needs). None of that
   is needed at run time: the `gradbench` executable statically links the Lean
   runtime, SciLean and mathlib and -- verified by `strace` -- opens nothing from
@@ -137,20 +137,20 @@ Two tools build large toolchains from source unless an upstream cache is read:
 ## Why no push cache
 
 A push cache (e.g. the GitHub-native Magic Nix Cache, or a hosted one like
-Garnix) would let jobs share builds instead of passing closures as artifacts.
-We measured what such a cache would have to hold -- the union, deduplicated, of
+Garnix) would let jobs share builds instead of passing closures as artifacts. We
+measured what such a cache would have to hold -- the union, deduplicated, of
 every locally-built (non-upstream) store path across all 36 build jobs,
 compressed (what counts against a cache's quota):
 
-| segment | uncompressed | compressed |
-| --- | ---: | ---: |
-| the other 35 evals/tools | 6.6 GB | 2.44 GB |
-| scilean's dependency builds (compiled SciLean, mathlib oleans, the `lake exe cache get` FOD, lean) | 29 GB | 8.07 GB |
-| scilean's final Lake output (not needed; see above) | 34 GB | — |
+| segment                                                                                            | uncompressed | compressed |
+| -------------------------------------------------------------------------------------------------- | -----------: | ---------: |
+| the other 35 evals/tools                                                                           |       6.6 GB |    2.44 GB |
+| scilean's dependency builds (compiled SciLean, mathlib oleans, the `lake exe cache get` FOD, lean) |        29 GB |    8.07 GB |
+| scilean's final Lake output (not needed; see above)                                                |        34 GB |          — |
 
 The 35 non-scilean images compress to **2.44 GB** -- a comfortable fit for the
 **GitHub Actions cache (~10 GB/repo, LRU)** that Magic Nix Cache uses. But
-scilean's *dependency* builds alone are **~8 GB compressed**: lean4-nix realizes
+scilean's _dependency_ builds alone are **~8 GB compressed**: lean4-nix realizes
 each Lake dependency (SciLean, mathlib, ...) as its own store path full of
 `.olean`s plus the dereferenced writable copies `makeDepsWritable` makes, and a
 post-build-hook cache uploads all of them -- the runtime trim above can't avoid
@@ -170,11 +170,16 @@ this is the first thing to revisit if CI build time becomes a problem.
   re-evaluating via `nix run`.
 - **Multi-platform**: the flake currently targets `x86_64-linux` only; extend
   `systems` in `flake.nix` for `aarch64-linux` / `aarch64-darwin`.
-- **Cleanup**: once parity is reached, remove the `Dockerfile`s,
-  `.dockerignore`, the legacy `shell.nix`, and switch `.envrc` to `use flake`.
-- **scilean build disk**: building scilean realizes ~63 GB of store paths
-  (~34 GB final output + ~29 GB dependency builds), which exceeds the ~14 GB
-  free disk on standard GitHub-hosted runners. Its `build` job will need a
-  larger/self-hosted runner, or scilean's Lake outputs would need slimming
-  (e.g. avoiding `makeDepsWritable`'s `cp -rL` duplication of mathlib/batteries
-  into each consumer's `.lake`).
+- **Usage docs**: the `Dockerfile`s, `.dockerignore`, legacy `shell.nix` and niv
+  `nix/sources.*` are removed, and `.envrc` uses the flake. The Docker-centric
+  _narrative_ in the top-level [`README.md`](../README.md) and
+  [`CONTRIBUTING.md`](../CONTRIBUTING.md) (the "## Docker" section, image
+  building, `--platform` emulation) still needs a pass to match the Nix
+  workflow; that is best done alongside finalizing the CLI surface and the
+  multi-platform work above.
+- **scilean build disk**: building scilean realizes ~63 GB of store paths (~34
+  GB final output + ~29 GB dependency builds), which exceeds the ~14 GB free
+  disk on standard GitHub-hosted runners. Its `build` job will need a
+  larger/self-hosted runner, or scilean's Lake outputs would need slimming (e.g.
+  avoiding `makeDepsWritable`'s `cp -rL` duplication of mathlib/batteries into
+  each consumer's `.lake`).

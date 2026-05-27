@@ -13,8 +13,8 @@ make -C cpp
 
 You need to download and compile Adept and set the environment variable
 `ADEPT_DIR` to point to the directory containing Adept (you don't need to
-install it, but you do need to compile it). See the [Dockerfile](Dockerfile) for
-details.
+install it, but you do need to compile it). See
+[`nix/tools/adept.nix`](/nix/tools/adept.nix) for details.
 
 Then, to run the tool itself:
 
