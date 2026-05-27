@@ -62,10 +62,11 @@ See [`tools/manual.nix`](tools/manual.nix) (a compile-on-demand C++ tool) and
 
 ## Status
 
-**All 36 images are converted.** 35 build and run with only cache.nixos.org as a
-substituter (scilean additionally compiles mathlib from source); horde-ad builds
-given one extra binary cache (see below). Each converted tool has been verified
-by running it against its evals.
+**All 36 images are converted and verified** by running each against its evals.
+35 build with only cache.nixos.org as a substituter (scilean additionally
+compiles mathlib from source). horde-ad builds GHC 9.14 and its dependency tree
+from source here (verified end to end); IOG's binary cache makes that fast (see
+below).
 
 - **All 12 evals** (Nixpkgs Python).
 - **C++ tools** (compile-on-demand): manual, finite, codipack, cppad, adol-c,
@@ -77,9 +78,11 @@ by running it against its evals.
   mooncake-jl, enzyme-jl.
 - **Haskell**: haskell-ad (callCabal2nix, GHC 9.12).
 - **Lean**: scilean (lean4-nix; mathlib and the other Lake deps from source).
-- **horde-ad** (Haskell): converted via `haskell.nix` (`tools/horde-ad.nix`).
-  The build plan resolves with GHC 9.14 honoring the cabal `index-state`;
-  realizing it needs IOG's binary cache (else GHC 9.14 is compiled from source).
+- **horde-ad** (Haskell): converted via `haskell.nix` (`tools/horde-ad.nix`),
+  which resolves a GHC 9.14 plan from Hackage at the cabal `index-state` (with
+  `allow-newer: all`, as the Dockerfile uses) -- picking 9.14-compatible
+  dependency versions Nixpkgs lacks. Runs det/hello/llsq/gmm. Builds GHC 9.14
+  from source unless IOG's cache is configured.
 
 ## Known follow-ups
 
