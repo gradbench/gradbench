@@ -1,7 +1,7 @@
 # The registry of all evals and tools. As more are converted from Dockerfiles,
 # add them to the `evals` and `tools` attribute sets below; everything else
 # (native runners, OCI images, `nix run` apps) is derived automatically.
-{ pkgs, src, uv2nix, pyproject-nix, pyproject-build-systems }:
+{ pkgs, pkgsUnstable, src, uv2nix, pyproject-nix, pyproject-build-systems }:
 
 let
   inherit (pkgs) lib;
@@ -42,6 +42,7 @@ let
     "ad-hpp"
     # JavaScript tools.
     "floretta"
+    "tensorflow-js"
     # OCaml.
     "ocaml"
     # Julia.
@@ -60,6 +61,10 @@ let
     "futhark"
     "tapenade"
   ] pyTool;
+  # Work in progress, not yet built by default (see each file's header):
+  #   tools/scilean.nix   - builds, but the Lake output isn't bit-reproducible.
+  #   tools/horde-ad.nix  - needs GHC 9.14 + haskell.nix (uses pkgsUnstable,
+  #                         which is why that input is still threaded through).
 
   prefix = p: set:
     lib.mapAttrs' (name: drv: lib.nameValuePair "${p}${name}" drv) set;

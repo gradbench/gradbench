@@ -13,6 +13,12 @@
     nixpkgs.url =
       "github:NixOS/nixpkgs/d89fc19e405cb2d55ce7cc114356846a0ee5e956";
 
+    # A newer Nixpkgs used ONLY for tools that need a toolchain the pinned
+    # Nixpkgs lacks (currently horde-ad, which needs GHC 9.14). Keeping it
+    # separate avoids rebuilding/revalidating every other tool against a new
+    # pin. Everything else uses `nixpkgs` above.
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+
     # uv2nix and friends build hermetic Python environments from uv.lock, used
     # for the ML/Python tools (pytorch, jax, tensorflow, ...). Evals use plain
     # Nixpkgs Python instead.
@@ -44,6 +50,7 @@
           f {
             inherit system;
             pkgs = import nixpkgs { inherit system; };
+            pkgsUnstable = import inputs.nixpkgs-unstable { inherit system; };
           });
     in {
       # Each eval and tool is exposed as a runnable package:
@@ -56,18 +63,18 @@
       # The native wrapper and the OCI image are two outputs of the same
       # underlying derivation: the wrapper bakes in the dependencies and
       # entrypoint that used to live in the tool's Dockerfile.
-      packages = forAllSystems ({ pkgs, ... }:
+      packages = forAllSystems ({ pkgs, pkgsUnstable, ... }:
         (import ./nix/registry.nix {
-          inherit pkgs;
+          inherit pkgs pkgsUnstable;
           src = self;
           inherit (inputs) uv2nix pyproject-nix pyproject-build-systems;
         }).packages);
 
       # `nix run .#eval-hello`, `nix run .#tool-manual`, etc.
-      apps = forAllSystems ({ pkgs, system }:
+      apps = forAllSystems ({ pkgs, pkgsUnstable, system }:
         let
           registry = import ./nix/registry.nix {
-            inherit pkgs;
+            inherit pkgs pkgsUnstable;
             src = self;
             inherit (inputs) uv2nix pyproject-nix pyproject-build-systems;
           };

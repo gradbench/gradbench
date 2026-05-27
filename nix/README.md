@@ -67,7 +67,7 @@ See [`tools/manual.nix`](tools/manual.nix) (a compile-on-demand C++ tool) and
 - **All 12 evals** (Nixpkgs Python).
 - **C++ tools** (compile-on-demand): manual, finite, codipack, cppad, adol-c,
   adept, enzyme, ad-hpp.
-- **JavaScript**: floretta.
+- **JavaScript**: floretta, tensorflow-js.
 - **OCaml**: ocaml.
 - **Python/ML** (uv2nix, CPU): pytorch, jax, tensorflow, futhark, tapenade.
 - **Julia** (fixed-output depots): zygote, forwarddiff-jl, reversediff-jl,
