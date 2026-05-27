@@ -33,6 +33,11 @@ __pycache__/
 /cpp/json.hpp
 bin/
 
-# Tapenade
+# Futhark: `futhark pkg sync` populates this at run time (the Nix runner
+# symlinks it into the store); never commit it. No trailing slash, so the
+# pattern also matches the symlink, not just a real directory.
+/tools/futhark/lib
+
+# Tapenade: extracted dir (Docker) or store symlink (Nix); never commit it.
 /tapenade_3.16.tar
-/tapenade_3.16/
+/tapenade_3.16
