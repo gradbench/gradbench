@@ -62,9 +62,10 @@ See [`tools/manual.nix`](tools/manual.nix) (a compile-on-demand C++ tool) and
 
 ## Status
 
-**34 of 36 images build from cache.nixos.org and are verified** by running them
-against their evals; a 35th (horde-ad) is converted but needs an extra binary
-cache to build (see below).
+**All 36 images are converted.** 35 build and run with only cache.nixos.org as a
+substituter (scilean additionally compiles mathlib from source); horde-ad builds
+given one extra binary cache (see below). Each converted tool has been verified
+by running it against its evals.
 
 - **All 12 evals** (Nixpkgs Python).
 - **C++ tools** (compile-on-demand): manual, finite, codipack, cppad, adol-c,
@@ -75,30 +76,22 @@ cache to build (see below).
 - **Julia** (fixed-output depots): zygote, forwarddiff-jl, reversediff-jl,
   mooncake-jl, enzyme-jl.
 - **Haskell**: haskell-ad (callCabal2nix, GHC 9.12).
-- **horde-ad** (Haskell): converted via `haskell.nix` (`tools/horde-ad.nix`,
-  wired into the registry). The build plan resolves with GHC 9.14 honoring the
-  cabal `index-state`, but realizing it needs IOG's binary cache
-  (`https://cache.iog.io`) as a trusted substituter, or GHC 9.14 is compiled
-  from source. Not built end-to-end in this environment (untrusted user).
-
-One tool remains unconverted: **scilean** (see below).
+- **Lean**: scilean (lean4-nix; mathlib and the other Lake deps from source).
+- **horde-ad** (Haskell): converted via `haskell.nix` (`tools/horde-ad.nix`).
+  The build plan resolves with GHC 9.14 honoring the cabal `index-state`;
+  realizing it needs IOG's binary cache (else GHC 9.14 is compiled from source).
 
 ## Known follow-ups
 
 These are tracked for later phases of the migration:
 
-- **horde-ad**: add IOG's substituter to `nix.conf` as a trusted user, then
-  `nix build .#tool-horde-ad` works:
+- **horde-ad**: for fast builds add IOG's substituter to `nix.conf` as a trusted
+  user (otherwise GHC 9.14 builds from source):
   `extra-substituters = https://cache.iog.io`,
   `extra-trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ=`.
-- **scilean** (Lean): `tools/scilean.nix` builds end-to-end (elan fetches the
-  pinned Lean 4.16.0, `lake exe cache get` + `lake build` produce the binary,
-  BLAS from Nixpkgs), but the Lake-compiled `.so`/binary are not bit-
-  reproducible (confirmed across three builds, even after pruning build
-  intermediates), so it can't be a fixed-output derivation. Fix: split into a
-  fetch FOD (toolchain + git deps + `.olean` cache, all deterministic) plus a
-  normal derivation that runs `lake build` offline against them. Not wired into
-  the registry yet.
+- **scilean**: mathlib is compiled from source (it isn't in Nixpkgs), which is
+  slow on a first build. A Lean/mathlib binary cache (e.g. via Garnix, or a
+  self-hosted cache populated by CI) would make it fast.
 - **CI**: workflows still build Docker images. The plan is to pass built
   derivations between jobs as serialized store closures
   (`nix-store --export` → artifact → `nix-store --import`); the CLI's

@@ -16,6 +16,10 @@ let
   project = pkgsHaskellNix.haskell-nix.cabalProject' {
     src = ../../tools/horde-ad;
     compiler-nix-name = "ghc9141";
+    # The Dockerfile builds with `cabal --allow-newer`; some transitive deps
+    # (e.g. criterion, microstache) carry stale `base < 4.22` bounds that
+    # otherwise make the GHC 9.14 plan unsolvable. Relax all bounds likewise.
+    cabalProjectLocal = "allow-newer: all";
   };
   gradbench-hs = project.hsPkgs.gradbench.components.exes.gradbench;
 in gblib.mkTool {
