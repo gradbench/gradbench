@@ -145,9 +145,26 @@ let
       runHook postBuild
     '';
   } // blasEnv); # the gradbench executable also links -lblas.
+
+  # The compiled `gradbench` executable is fully self-contained: it statically
+  # links the Lean runtime, SciLean and mathlib, and at run time opens nothing
+  # from the ~35.8 GB Lake build tree (oleans, dereferenced writable dep copies)
+  # -- verified by strace; it only needs BLAS and libc (see `ldd`). It does,
+  # however, embed the 3.2 GB Lean toolchain path as a dead `.rodata` string
+  # (empty rpath, not in DT_NEEDED, never opened). So for the runtime closure we
+  # take just the binary and nuke that one unused reference, cutting the closure
+  # from ~35.8 GB to a few hundred MB.
+  scileanBin = pkgs.runCommand "scilean-bin" {
+    nativeBuildInputs = [ pkgs.removeReferencesTo ];
+  } ''
+    mkdir -p "$out/bin"
+    cp ${scilean}/bin/gradbench "$out/bin/gradbench"
+    chmod u+w "$out/bin/gradbench"
+    remove-references-to -t ${pkgs.lean.lean-all} "$out/bin/gradbench"
+  '';
 in gblib.mkTool {
   name = "scilean";
-  runtimeInputs = [ scilean ];
+  runtimeInputs = [ scileanBin ];
   setup = ''
     export LD_LIBRARY_PATH="${blasLibPath}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
   '';

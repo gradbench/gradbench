@@ -64,9 +64,9 @@ See [`tools/manual.nix`](tools/manual.nix) (a compile-on-demand C++ tool) and
 
 **All 36 images are converted and verified** by running each against its evals.
 35 build with only cache.nixos.org as a substituter (scilean additionally
-compiles mathlib from source). horde-ad builds GHC 9.14 and its dependency tree
-from source here (verified end to end); IOG's binary cache makes that fast (see
-below).
+fetches mathlib's prebuilt oleans from the Lean community cache; see below).
+horde-ad builds GHC 9.14 and its dependency tree from source here (verified end
+to end); IOG's binary cache makes that fast (see below).
 
 - **All 12 evals** (Nixpkgs Python).
 - **C++ tools** (compile-on-demand): manual, finite, codipack, cppad, adol-c,
@@ -77,7 +77,10 @@ below).
 - **Julia** (fixed-output depots): zygote, forwarddiff-jl, reversediff-jl,
   mooncake-jl, enzyme-jl.
 - **Haskell**: haskell-ad (callCabal2nix, GHC 9.12).
-- **Lean**: scilean (lean4-nix; mathlib and the other Lake deps from source).
+- **Lean**: scilean (lean4-nix; mathlib's oleans from the Lean community cache,
+  the other Lake deps from source). The compiled `gradbench` binary is fully
+  self-contained, so the runtime closure is trimmed to just that binary (397 MiB
+  total) rather than the ~35.8 GB Lake build tree (see below).
 - **horde-ad** (Haskell): converted via `haskell.nix` (`tools/horde-ad.nix`),
   which resolves a GHC 9.14 plan from Hackage at the cabal `index-state` (with
   `allow-newer: all`, as the Dockerfile uses) -- picking 9.14-compatible
@@ -113,6 +116,17 @@ Two tools build large toolchains from source unless a cache is available:
   compilation still take a while, but mathlib -- by far the largest piece -- is
   never elaborated from source. (If even that becomes a CI bottleneck, a hosted
   cache like Garnix would cache the whole build.)
+
+  The Lake *build* output is ~35.8 GB (mathlib oleans plus the dereferenced,
+  writable dependency trees SciLean's module precompilation needs). None of that
+  is needed at run time: the `gradbench` executable statically links the Lean
+  runtime, SciLean and mathlib and -- verified by `strace` -- opens nothing from
+  the Lake tree, needing only BLAS and libc. So `scilean.nix` exposes a
+  `scilean-bin` derivation that copies out just the binary and uses
+  `remove-references-to` to strip the one dead `.rodata` reference to the 3.2 GB
+  Lean toolchain, leaving a 397 MiB runtime closure. The full build tree is
+  still produced (and would be cached by a hosted cache), but never shipped to
+  the `run` jobs.
 
 ## Other follow-ups
 
