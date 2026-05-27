@@ -101,7 +101,13 @@ jobs are unchanged, and OCI image publishing to GHCR is dropped for now (the
 
 ## Binary caches
 
-Two tools build large toolchains from source unless a cache is available:
+We **read** from public upstream substituters but do **not** run our own
+**push** cache: CI moves built closures between the `build` and `run` jobs as
+artifacts (see [CI](#ci) above), the same way the old setup pushed images to
+GHCR but never actually pulled them in practice. The reasoning is recorded under
+[Why no push cache](#why-no-push-cache) below.
+
+Two tools build large toolchains from source unless an upstream cache is read:
 
 - **horde-ad** → **IOG's public cache** `https://cache.iog.io` (key
   `hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ=`). CI enables it;
@@ -125,8 +131,35 @@ Two tools build large toolchains from source unless a cache is available:
   `scilean-bin` derivation that copies out just the binary and uses
   `remove-references-to` to strip the one dead `.rodata` reference to the 3.2 GB
   Lean toolchain, leaving a 397 MiB runtime closure. The full build tree is
-  still produced (and would be cached by a hosted cache), but never shipped to
-  the `run` jobs.
+  still produced (and would be cached by a hosted cache), but only the 397 MiB
+  runtime closure is shipped (as an artifact) to the `run` jobs.
+
+## Why no push cache
+
+A push cache (e.g. the GitHub-native Magic Nix Cache, or a hosted one like
+Garnix) would let jobs share builds instead of passing closures as artifacts.
+We measured what such a cache would have to hold -- the union, deduplicated, of
+every locally-built (non-upstream) store path across all 36 build jobs,
+compressed (what counts against a cache's quota):
+
+| segment | uncompressed | compressed |
+| --- | ---: | ---: |
+| the other 35 evals/tools | 6.6 GB | 2.44 GB |
+| scilean's dependency builds (compiled SciLean, mathlib oleans, the `lake exe cache get` FOD, lean) | 29 GB | 8.07 GB |
+| scilean's final Lake output (not needed; see above) | 34 GB | — |
+
+The 35 non-scilean images compress to **2.44 GB** -- a comfortable fit for the
+**GitHub Actions cache (~10 GB/repo, LRU)** that Magic Nix Cache uses. But
+scilean's *dependency* builds alone are **~8 GB compressed**: lean4-nix realizes
+each Lake dependency (SciLean, mathlib, ...) as its own store path full of
+`.olean`s plus the dereferenced writable copies `makeDepsWritable` makes, and a
+post-build-hook cache uploads all of them -- the runtime trim above can't avoid
+that, since those are build inputs, not the final output. 8 GB + 2.44 GB busts
+the 10 GB budget and would thrash it via LRU. Caching scilean's build therefore
+needs a hosted cache with no 10 GB ceiling (Garnix's free-tier storage limit is
+unpublished and 8 GB may exceed it; self-hosted S3/MinIO or paid Cachix would
+work). For now we run no push cache at all, matching the prior GHCR behaviour;
+this is the first thing to revisit if CI build time becomes a problem.
 
 ## Other follow-ups
 
@@ -139,3 +172,9 @@ Two tools build large toolchains from source unless a cache is available:
   `systems` in `flake.nix` for `aarch64-linux` / `aarch64-darwin`.
 - **Cleanup**: once parity is reached, remove the `Dockerfile`s,
   `.dockerignore`, the legacy `shell.nix`, and switch `.envrc` to `use flake`.
+- **scilean build disk**: building scilean realizes ~63 GB of store paths
+  (~34 GB final output + ~29 GB dependency builds), which exceeds the ~14 GB
+  free disk on standard GitHub-hosted runners. Its `build` job will need a
+  larger/self-hosted runner, or scilean's Lake outputs would need slimming
+  (e.g. avoiding `makeDepsWritable`'s `cp -rL` duplication of mathlib/batteries
+  into each consumer's `.lake`).
