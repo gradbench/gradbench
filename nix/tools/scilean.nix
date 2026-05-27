@@ -38,6 +38,35 @@ let
     hash = "sha256-69d/mQmLSRBD+dIjfJN74Ov+2JoMldUAlk3gNq4Rfmw=";
   };
 
+  # mathlib is the slowest dependency to elaborate from source. Instead, fetch
+  # its prebuilt .olean/.c from the Lean community's own cache (`lake exe cache
+  # get`) -- which serves exactly this rev built with this toolchain -- in a
+  # fixed-output derivation. Injecting these lets Lake skip mathlib's
+  # elaboration and only compile the .c to .so. The locally-built `cache` exe's
+  # artifacts (the only ones referencing the build Lean toolchain) are dropped
+  # so this stays a valid, deterministic FOD.
+  mathlibCache = pkgs.stdenvNoCC.mkDerivation {
+    name = "gradbench-mathlib-cache";
+    src = builtins.fetchGit {
+      url = "https://github.com/leanprover-community/mathlib4";
+      rev = "a6276f4c6097675b1cf5ebd49b1146b735f38c02";
+    };
+    nativeBuildInputs = [ pkgs.lean.lean-all pkgs.git pkgs.cacert pkgs.curl ];
+    dontConfigure = true;
+    buildPhase = ''
+      export HOME="$TMPDIR"
+      lake exe cache get
+    '';
+    installPhase = ''
+      mkdir -p "$out"
+      cp -r .lake/build/lib .lake/build/ir "$out/"
+      rm -rf "$out/lib/Cache" "$out/ir/Cache" "$out/bin"
+    '';
+    outputHashMode = "recursive";
+    outputHashAlgo = "sha256";
+    outputHash = "sha256-2p9UooXQhxFgMF8AjiKm3yeEYdKJRcdeMNAAw/t6xd4=";
+  };
+
   # lean4-nix's default buildPhase derives the library name by capitalizing the
   # package's first letter (e.g. leanblas -> Leanblas), which is wrong for these
   # packages, so we provide the correct library name explicitly.
@@ -92,6 +121,15 @@ let
           tar xzf ${proofwidgetsRelease} -C .lake/build
         '';
         buildPhase = libBuildPhase "proofwidgets" "ProofWidgets";
+      };
+      # Drop mathlib's prebuilt oleans/.c into .lake/build so Lake skips
+      # elaborating mathlib from source and only compiles the .c to .so.
+      mathlib = {
+        preConfigure = ''
+          mkdir -p .lake/build
+          cp -r --no-preserve=mode,ownership ${mathlibCache}/. .lake/build/
+        '';
+        buildPhase = libBuildPhase "mathlib" "Mathlib";
       };
     };
     # The gradbench executable links SciLean's precompiled modules, so its

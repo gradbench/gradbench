@@ -104,13 +104,15 @@ Two tools build large toolchains from source unless a cache is available:
   `hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ=`). CI enables it;
   for local builds add it to `nix.conf` as a trusted user, else GHC 9.14 is
   built from source.
-- **scilean** (mathlib) → **no public Nix cache exists**. mathlib isn't in
-  Nixpkgs; lean4-nix's `cache.garnix.io` only holds its own toolchain/tests, and
-  Lean's `lake exe cache get` serves `.olean`s over HTTP (not a Nix
-  substituter). So mathlib compiles from source. Options to avoid recompiling:
-  enable Garnix CI on the repo (hosted, free for public repos — caches every
-  derivation incl. mathlib), or a self-hosted/Cachix cache. Until then scilean's
-  CI job is the slow one.
+- **scilean** (mathlib) → no Nix cache needed. mathlib isn't in Nixpkgs and the
+  Lean community cache serves `.olean`s over HTTP (not a Nix substituter), so
+  instead `tools/scilean.nix` runs `lake exe cache get` in a fixed-output
+  derivation (`mathlibCache`) to fetch mathlib's prebuilt `.olean`/`.c` for the
+  pinned rev (~40s), then injects them so Lake skips elaborating mathlib and
+  only compiles its `.c` to `.so`. SciLean's own elaboration and that `.so`
+  compilation still take a while, but mathlib -- by far the largest piece -- is
+  never elaborated from source. (If even that becomes a CI bottleneck, a hosted
+  cache like Garnix would cache the whole build.)
 
 ## Other follow-ups
 
