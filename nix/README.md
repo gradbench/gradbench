@@ -84,25 +84,41 @@ below).
   dependency versions Nixpkgs lacks. Runs det/hello/llsq/gmm. Builds GHC 9.14
   from source unless IOG's cache is configured.
 
-## Known follow-ups
+## CI
 
-These are tracked for later phases of the migration:
+The GitHub Actions workflows (`.github/workflows/{build,nightly}.yml`) build
+with Nix instead of Docker: the `eval`/`tool` jobs run `nix build .#eval-<name>`
+/ `.#tool-<name>`, serialize the result's store closure
+(`nix-store --export` → a `<name>.closure` artifact), and the `run` job imports
+them (`gradbench repo run --download-github`, which downloads the artifacts and
+`nix-store --import`s them, then `nix run`s). Nix is installed via
+`.github/actions/nix`, which also enables IOG's binary cache. The `lint`/`site`
+jobs are unchanged, and OCI image publishing to GHCR is dropped for now (the
+`image-*` flake outputs and `dockerTools` are still there to re-enable it).
 
-- **horde-ad**: for fast builds add IOG's substituter to `nix.conf` as a trusted
-  user (otherwise GHC 9.14 builds from source):
-  `extra-substituters = https://cache.iog.io`,
-  `extra-trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ=`.
-- **scilean**: mathlib is compiled from source (it isn't in Nixpkgs), which is
-  slow on a first build. A Lean/mathlib binary cache (e.g. via Garnix, or a
-  self-hosted cache populated by CI) would make it fast.
-- **CI**: workflows still build Docker images. The plan is to pass built
-  derivations between jobs as serialized store closures
-  (`nix-store --export` → artifact → `nix-store --import`); the CLI's
-  `repo run --download-github` path already expects `.closure` artifacts.
+## Binary caches
+
+Two tools build large toolchains from source unless a cache is available:
+
+- **horde-ad** → **IOG's public cache** `https://cache.iog.io` (key
+  `hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ=`). CI enables it;
+  for local builds add it to `nix.conf` as a trusted user, else GHC 9.14 is
+  built from source.
+- **scilean** (mathlib) → **no public Nix cache exists**. mathlib isn't in
+  Nixpkgs; lean4-nix's `cache.garnix.io` only holds its own toolchain/tests, and
+  Lean's `lake exe cache get` serves `.olean`s over HTTP (not a Nix
+  substituter). So mathlib compiles from source. Options to avoid recompiling:
+  enable Garnix CI on the repo (hosted, free for public repos — caches every
+  derivation incl. mathlib), or a self-hosted/Cachix cache. Until then scilean's
+  CI job is the slow one.
+
+## Other follow-ups
+
 - **`nix run` startup**: `gradbench repo run` spawns two `nix run` processes
   concurrently, which can print a harmless "SQLite database is busy" eval-cache
-  warning. A cleaner approach is to have the run command exec the already-built
-  store path directly instead of re-evaluating via `nix run`.
+  warning; and for horde-ad it re-runs haskell.nix's plan IFD on each run. A
+  cleaner approach is to exec the already-built store path directly instead of
+  re-evaluating via `nix run`.
 - **Multi-platform**: the flake currently targets `x86_64-linux` only; extend
   `systems` in `flake.nix` for `aarch64-linux` / `aarch64-darwin`.
 - **Cleanup**: once parity is reached, remove the `Dockerfile`s,

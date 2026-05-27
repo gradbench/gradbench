@@ -10,7 +10,6 @@ concurrency:
 
 permissions:
   contents: write
-  packages: write
 
 jobs:
   cli:
@@ -48,89 +47,57 @@ jobs:
 
   eval:
     needs:
-      - cli
       - matrix
     strategy:
       fail-fast: false
       matrix:
         eval: ${{ fromJSON(needs.matrix.outputs.eval) }}
     runs-on: ubuntu-24.04
-    env:
-      IMAGE: ghcr.io/gradbench/eval-${{ matrix.eval }}
-      TAG: ${{ fromJSON(needs.matrix.outputs.date) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - name: Setup multi-platform Docker
-        uses: ./.github/actions/docker
-      - name: Install CLI from artifact
-        uses: ./.github/actions/cli
-      - name: Build eval Docker image
+      - name: Install Nix
+        uses: ./.github/actions/nix
+      - name: Build eval
+        run: nix build .#eval-${{ matrix.eval }} -o result --print-build-logs
+      - name: Serialize eval closure
         run: |
-          gradbench repo build-eval --platform linux/amd64,linux/arm64 ${{ matrix.eval }}
-      - name: Tag eval Docker image
-        run: docker tag $IMAGE $IMAGE:$TAG
-      - name: Login to GitHub Container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Push eval Docker image to GitHub Container registry
-        run: docker push --all-tags $IMAGE
-      - name: Serialize eval Docker image
-        run: docker save --output eval-${{ matrix.eval }}.tar $IMAGE
-      - name: Upload eval Docker image as artifact
+          # word splitting is intentional: pass every closure path as an arg
+          # shellcheck disable=SC2046
+          nix-store --export $(nix-store -qR result) > eval-${{ matrix.eval }}.closure
+      - name: Upload eval closure as artifact
         uses: actions/upload-artifact@v7
         with:
           name: eval-${{ matrix.eval }}
-          path: eval-${{ matrix.eval }}.tar
+          path: eval-${{ matrix.eval }}.closure
 
   tool:
     needs:
-      - cli
       - matrix
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(needs.matrix.outputs.tool) }}
+        tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
     runs-on: ubuntu-24.04
-    env:
-      IMAGE: ghcr.io/gradbench/tool-${{ matrix.tool }}
-      TAG: ${{ fromJSON(needs.matrix.outputs.date) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Increase disk space
         uses: ./.github/actions/space
-      - name: Setup multi-platform Docker
-        uses: ./.github/actions/docker
-      - name: Install CLI from artifact
-        uses: ./.github/actions/cli
-      - name: Build tool Docker image
-        if: ${{ matrix.cross }}
+      - name: Install Nix
+        uses: ./.github/actions/nix
+      - name: Build tool
+        run: nix build .#tool-${{ matrix.tool }} -o result --print-build-logs
+      - name: Serialize tool closure
         run: |
-          gradbench repo build-tool --platform linux/amd64,linux/arm64 ${{ matrix.tool }}
-      - name: Build x86-only Docker image as a fallback
-        if: ${{ !matrix.cross }}
-        run: gradbench repo build-tool ${{ matrix.tool }}
-      - name: Tag tool Docker image
-        run: docker tag $IMAGE $IMAGE:$TAG
-      - name: Login to GitHub Container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Push tool Docker image to GitHub Container registry
-        run: docker push --all-tags $IMAGE
-      - name: Serialize tool Docker image
-        run: docker save --output tool-${{ matrix.tool }}.tar $IMAGE
-      - name: Upload tool Docker image as artifact
+          # word splitting is intentional: pass every closure path as an arg
+          # shellcheck disable=SC2046
+          nix-store --export $(nix-store -qR result) > tool-${{ matrix.tool }}.closure
+      - name: Upload tool closure as artifact
         uses: actions/upload-artifact@v7
         with:
           name: tool-${{ matrix.tool }}
-          path: tool-${{ matrix.tool }}.tar
+          path: tool-${{ matrix.tool }}.closure
 
   run:
     needs:
@@ -148,6 +115,8 @@ jobs:
         uses: actions/checkout@v6
       - name: Increase disk space
         uses: ./.github/actions/space
+      - name: Install Nix
+        uses: ./.github/actions/nix
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Run

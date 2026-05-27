@@ -1,4 +1,5 @@
 name: Space
+description: Free up disk space by removing unused preinstalled software.
 runs:
   using: composite
   steps:

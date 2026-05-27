@@ -113,9 +113,10 @@ jobs:
         id: matrix
         run: gradbench repo matrix | tee -a "$GITHUB_OUTPUT"
 
+  # Build each eval's Nix package and upload its store closure as an artifact.
+  # The `run` job imports these closures, so it never rebuilds anything.
   eval:
     needs:
-      - cli
       - matrix
     strategy:
       fail-fast: false
@@ -125,55 +126,57 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - name: Setup multi-platform Docker
-        uses: ./.github/actions/docker
-      - name: Install CLI from artifact
-        uses: ./.github/actions/cli
-      - name: Build eval Docker image
+      - name: Install Nix
+        uses: ./.github/actions/nix
+      - name: Build eval
+        run: nix build .#eval-${{ matrix.eval }} -o result --print-build-logs
+      - name: Serialize eval closure
         run: |
-          gradbench repo build-eval --platform linux/amd64,linux/arm64 ${{ matrix.eval }}
-      - name: Serialize eval Docker image
-        run: |
-          docker save --output eval-${{ matrix.eval }}.tar ghcr.io/gradbench/eval-${{ matrix.eval }}
-      - name: Upload eval Docker image as artifact
+          # word splitting is intentional: pass every closure path as an arg
+          # shellcheck disable=SC2046
+          nix-store --export $(nix-store -qR result) > eval-${{ matrix.eval }}.closure
+      - name: Upload eval closure as artifact
         uses: actions/upload-artifact@v7
         with:
           name: eval-${{ matrix.eval }}
-          path: eval-${{ matrix.eval }}.tar
+          path: eval-${{ matrix.eval }}.closure
 
-  tool-x86:
+  # Same as `eval`, for each tool. (scilean compiles mathlib from source and
+  # horde-ad builds against IOG's cache; both are heavier than the rest.)
+  tool:
     needs:
-      - cli
       - matrix
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(needs.matrix.outputs.tool) }}
+        tool: ${{ fromJSON(needs.matrix.outputs.tool) }}
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Increase disk space
         uses: ./.github/actions/space
-      - name: Install CLI from artifact
-        uses: ./.github/actions/cli
-      - name: Build tool Docker image
-        run: gradbench repo build-tool ${{ matrix.tool }}
-      - name: Serialize tool Docker image
+      - name: Install Nix
+        uses: ./.github/actions/nix
+      - name: Build tool
+        run: nix build .#tool-${{ matrix.tool }} -o result --print-build-logs
+      - name: Serialize tool closure
         run: |
-          docker save --output tool-${{ matrix.tool }}.tar ghcr.io/gradbench/tool-${{ matrix.tool }}
-      - name: Upload tool Docker image as artifact
+          # word splitting is intentional: pass every closure path as an arg
+          # shellcheck disable=SC2046
+          nix-store --export $(nix-store -qR result) > tool-${{ matrix.tool }}.closure
+      - name: Upload tool closure as artifact
         uses: actions/upload-artifact@v7
         with:
           name: tool-${{ matrix.tool }}
-          path: tool-${{ matrix.tool }}.tar
+          path: tool-${{ matrix.tool }}.closure
 
   run:
     needs:
       - cli
       - matrix
       - eval
-      - tool-x86
+      - tool
     strategy:
       fail-fast: false
       matrix:
@@ -184,6 +187,8 @@ jobs:
         uses: actions/checkout@v6
       - name: Increase disk space
         uses: ./.github/actions/space
+      - name: Install Nix
+        uses: ./.github/actions/nix
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Run
@@ -246,7 +251,7 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git add .
           git commit --allow-empty -m 'Stats for commit ${{ github.event.pull_request.head.sha || github.sha }}'
-          echo "CI_COMMIT_SHA=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          echo "CI_COMMIT_SHA=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - name: Push to stats branch
         continue-on-error: true
         working-directory: stats
@@ -263,27 +268,3 @@ jobs:
 
             > [!NOTE]
             > Workflow run [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) was triggered by commit ${{ github.event.pull_request.head.sha }}, which was merged with the latest commit from branch `${{ github.event.pull_request.base.ref }}` before running, so the workflow was run on the merge commit ${{ github.sha }}.
-
-  tool:
-    needs:
-      - cli
-      - matrix
-      - run # Not strictly necessary, but GitHub Actions has concurrency limits.
-    strategy:
-      fail-fast: false
-      matrix:
-        include: ${{ fromJSON(needs.matrix.outputs.tool) }}
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-      - name: Increase disk space
-        uses: ./.github/actions/space
-      - name: Setup multi-platform Docker
-        uses: ./.github/actions/docker
-      - name: Install CLI from artifact
-        uses: ./.github/actions/cli
-      - name: Build tool Docker image
-        if: ${{ matrix.cross }}
-        run: |
-          gradbench repo build-tool --platform linux/amd64,linux/arm64 ${{ matrix.tool }}

@@ -1,4 +1,5 @@
 name: CLI
+description: Install the gradbench CLI from the `cli` build artifact.
 runs:
   using: composite
   steps:

@@ -1035,16 +1035,6 @@ fn parse_outcomes(outcome_str: &str) -> anyhow::Result<Vec<BadOutcome>> {
     Ok(outcomes)
 }
 
-/// A single entry in the `tool` matrix for GitHub Actions.
-#[derive(Serialize)]
-struct ToolEntry<'a> {
-    /// The name of the tool.
-    tool: &'a str,
-
-    /// Whether the tool can be built for `linux/arm64`, as opposed to just `linux/amd64`.
-    cross: bool,
-}
-
 /// A single entry in the `run` matrix for GitHub Actions.
 #[derive(Serialize)]
 struct RunEntry {
@@ -1070,16 +1060,7 @@ fn matrix() -> anyhow::Result<()> {
     github_output("eval", &evals)?;
     let mut tools = ls("tools")?;
     tools.sort();
-    github_output(
-        "tool",
-        tools
-            .iter()
-            .map(|tool| ToolEntry {
-                tool,
-                cross: tool != "scilean",
-            })
-            .collect::<Vec<_>>(),
-    )?;
+    github_output("tool", &tools)?;
     let evals_squish = ["hello", "llsq", "lstm", "particle", "saddle"];
     let mut runs = Vec::new();
     for tool in &tools {
