@@ -1,8 +1,8 @@
 # SciLean (Lean 4), built with lean4-nix. It installs the pinned Lean 4.16.0
 # toolchain (from lean-toolchain) and turns lake-manifest.json + the Lake build
 # graph into normal Nix derivations -- so each dependency (SciLean, mathlib,
-# LeanBLAS, ...) is a normal derivation built from source. mathlib is not in
-# Nixpkgs, so it is compiled from source here (large, but cacheable).
+# LeanBLAS, ...) is a normal derivation. mathlib's oleans are fetched from the
+# Lean community cache (see mathlibCache) rather than elaborated from source.
 #
 # LeanBLAS compiles C against <cblas.h> and the final binary links -lblas, so we
 # inject BLAS (from Nixpkgs) into the leanblas dependency build and the gradbench
