@@ -25,6 +25,12 @@
     # Nixpkgs. Best used with IOG's binary cache (https://cache.iog.io).
     haskellNix.url = "github:input-output-hk/haskell.nix";
 
+    # lean4-nix builds Lake projects with Nix: it installs the pinned Lean
+    # toolchain and turns lake-manifest.json + the Lake build graph into normal
+    # Nix derivations. Used ONLY for scilean. (Its deps, incl. mathlib, are
+    # built from source, since mathlib isn't in Nixpkgs.)
+    lean4-nix.url = "github:lenianiva/lean4-nix";
+
     # uv2nix and friends build hermetic Python environments from uv.lock, used
     # for the ML/Python tools (pytorch, jax, tensorflow, ...). Evals use plain
     # Nixpkgs Python instead.
@@ -76,20 +82,22 @@
       # The native wrapper and the OCI image are two outputs of the same
       # underlying derivation: the wrapper bakes in the dependencies and
       # entrypoint that used to live in the tool's Dockerfile.
-      packages = forAllSystems ({ pkgs, pkgsUnstable, pkgsHaskellNix, ... }:
+      packages = forAllSystems ({ pkgs, pkgsUnstable, pkgsHaskellNix, system }:
         (import ./nix/registry.nix {
-          inherit pkgs pkgsUnstable pkgsHaskellNix;
+          inherit pkgs pkgsUnstable pkgsHaskellNix system;
           src = self;
-          inherit (inputs) uv2nix pyproject-nix pyproject-build-systems;
+          inherit (inputs)
+            uv2nix pyproject-nix pyproject-build-systems lean4-nix;
         }).packages);
 
       # `nix run .#eval-hello`, `nix run .#tool-manual`, etc.
       apps = forAllSystems ({ pkgs, pkgsUnstable, pkgsHaskellNix, system }:
         let
           registry = import ./nix/registry.nix {
-            inherit pkgs pkgsUnstable pkgsHaskellNix;
+            inherit pkgs pkgsUnstable pkgsHaskellNix system;
             src = self;
-            inherit (inputs) uv2nix pyproject-nix pyproject-build-systems;
+            inherit (inputs)
+              uv2nix pyproject-nix pyproject-build-systems lean4-nix;
           };
         in builtins.mapAttrs (name: pkg: {
           type = "app";

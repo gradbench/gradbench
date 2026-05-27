@@ -1,8 +1,8 @@
 # The registry of all evals and tools. As more are converted from Dockerfiles,
 # add them to the `evals` and `tools` attribute sets below; everything else
 # (native runners, OCI images, `nix run` apps) is derived automatically.
-{ pkgs, pkgsUnstable, pkgsHaskellNix, src, uv2nix, pyproject-nix
-, pyproject-build-systems }:
+{ pkgs, pkgsUnstable, pkgsHaskellNix, system, src, uv2nix, pyproject-nix
+, pyproject-build-systems, lean4-nix }:
 
 let
   inherit (pkgs) lib;
@@ -67,10 +67,9 @@ let
     # nix/tools/horde-ad.nix. The build plan resolves; not built in CI yet.
     horde-ad =
       import ./tools/horde-ad.nix { inherit pkgs pkgsHaskellNix gblib; };
+    # scilean: built with lean4-nix (its deps, incl. mathlib, from source).
+    scilean = import ./tools/scilean.nix { inherit lean4-nix system gblib; };
   };
-  # tools/scilean.nix is WIP and intentionally not in the set above: it builds,
-  # but the Lake output isn't bit-reproducible, so it can't be a fixed-output
-  # derivation (see that file for the fetch-then-build fix).
 
   prefix = p: set:
     lib.mapAttrs' (name: drv: lib.nameValuePair "${p}${name}" drv) set;
