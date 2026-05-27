@@ -45,13 +45,13 @@ jobs:
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Install npm dependencies
-        run: nix-shell --command "bun install"
+        run: nix develop --command bun install
       - name: Install runic
         run:
-          nix-shell --command "julia --startup-file=no --project=. -e 'using
-          Pkg; Pkg.instantiate()'"
+          nix develop --command julia --startup-file=no --project=. -e 'using
+          Pkg; Pkg.instantiate()'
       - name: Lint
-        run: nix-shell --command "gradbench repo lint"
+        run: nix develop --command gradbench repo lint
 
   site:
     needs: lint
@@ -135,11 +135,16 @@ jobs:
           # word splitting is intentional: pass every closure path as an arg
           # shellcheck disable=SC2046
           nix-store --export $(nix-store -qR result) > eval-${{ matrix.eval }}.closure
+          # The runner's store path, so the `run` job can exec it directly
+          # instead of re-evaluating the flake with `nix run`.
+          readlink -f result > eval-${{ matrix.eval }}.path
       - name: Upload eval closure as artifact
         uses: actions/upload-artifact@v7
         with:
           name: eval-${{ matrix.eval }}
-          path: eval-${{ matrix.eval }}.closure
+          path: |
+            eval-${{ matrix.eval }}.closure
+            eval-${{ matrix.eval }}.path
 
   # Same as `eval`, for each tool. (scilean compiles mathlib from source and
   # horde-ad builds against IOG's cache; both are heavier than the rest.)
@@ -165,11 +170,16 @@ jobs:
           # word splitting is intentional: pass every closure path as an arg
           # shellcheck disable=SC2046
           nix-store --export $(nix-store -qR result) > tool-${{ matrix.tool }}.closure
+          # The runner's store path, so the `run` job can exec it directly
+          # instead of re-evaluating the flake with `nix run`.
+          readlink -f result > tool-${{ matrix.tool }}.path
       - name: Upload tool closure as artifact
         uses: actions/upload-artifact@v7
         with:
           name: tool-${{ matrix.tool }}
-          path: tool-${{ matrix.tool }}.closure
+          path: |
+            tool-${{ matrix.tool }}.closure
+            tool-${{ matrix.tool }}.path
 
   run:
     needs:
