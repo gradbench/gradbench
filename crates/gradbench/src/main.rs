@@ -7,11 +7,10 @@ mod util;
 
 use std::{
     backtrace::BacktraceStatus,
-    collections::{BTreeMap, BTreeSet, HashSet, VecDeque},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque},
     env,
     fmt::Write as _,
-    fs,
-    io,
+    fs, io,
     path::{Path, PathBuf},
     process::{Command, ExitCode, ExitStatus, Output, Stdio},
     rc::Rc,
@@ -366,6 +365,42 @@ fn run(command: &mut Command) -> Result<Output, ExitCode> {
     Ok(output)
 }
 
+/// Read a store path written by the CI build job (a `.path` file naming the
+/// root of an imported closure), trimming surrounding whitespace.
+fn read_out_path(path: &str) -> anyhow::Result<String> {
+    let contents =
+        fs::read_to_string(path).with_context(|| format!("reading store path {path:?}"))?;
+    let out_path = contents.trim().to_string();
+    if out_path.is_empty() {
+        bail!("store path file {path:?} is empty");
+    }
+    Ok(out_path)
+}
+
+/// Turn a [`RunCmd`] into a spawnable [`Command`], execing built Nix runners
+/// directly out of their store paths (looked up in `eval_paths`/`tool_paths`).
+fn materialize_run_cmd(
+    run_cmd: RunCmd,
+    eval_paths: &HashMap<String, String>,
+    tool_paths: &HashMap<String, String>,
+) -> anyhow::Result<Command> {
+    match run_cmd {
+        RunCmd::Custom(cmd) => Ok(cmd),
+        RunCmd::Nix { kind, name, args } => {
+            let paths = match kind {
+                RunItemKind::Eval => eval_paths,
+                RunItemKind::Tool => tool_paths,
+            };
+            let out_path = paths
+                .get(&name)
+                .ok_or_else(|| anyhow!("no built store path for {} {name:?}", kind.prefix()))?;
+            let mut cmd = Nix::runner_cmd(kind.prefix(), &name, out_path, &args);
+            configure_intermediary_subcommand(&mut cmd);
+            Ok(cmd)
+        }
+    }
+}
+
 /// Import a serialized Nix store closure from a file into the local store.
 fn import_closure(path: &str) -> anyhow::Result<Result<(), ExitCode>> {
     let file = fs::File::open(path).with_context(|| format!("opening closure {path:?}"))?;
@@ -398,21 +433,26 @@ impl<'a> Nix<'a> {
         format!(".#{prefix}-{name}")
     }
 
-    /// A command to build the native runner for an eval.
+    /// A command to build the native runner for an eval. Used only for display
+    /// (e.g. `--dry-run`); the actual build adds `--print-out-paths` (see
+    /// [`Self::build`]).
     fn build_eval_cmd(&self) -> Command {
         let mut cmd = Command::new("nix");
         cmd.args(["build", &Self::attr("eval", self.name)]);
         cmd
     }
 
-    /// A command to build the native runner for a tool.
+    /// A command to build the native runner for a tool. See
+    /// [`Self::build_eval_cmd`].
     fn build_tool_cmd(&self) -> Command {
         let mut cmd = Command::new("nix");
         cmd.args(["build", &Self::attr("tool", self.name)]);
         cmd
     }
 
-    /// A command to run an eval out of the Nix store.
+    /// A command to run an eval via `nix run`. This re-evaluates the flake, so
+    /// it is used only for display (e.g. `--dry-run`); to actually run, we
+    /// build and then exec the store path directly (see [`Self::runner_cmd`]).
     fn eval_cmd(&self, args: &[String]) -> Command {
         let mut cmd = Command::new("nix");
         cmd.args(["run", &Self::attr("eval", self.name), "--"])
@@ -420,7 +460,7 @@ impl<'a> Nix<'a> {
         cmd
     }
 
-    /// A command to run a tool out of the Nix store.
+    /// A command to run a tool via `nix run`. See [`Self::eval_cmd`].
     fn tool_cmd(&self, args: &[String]) -> Command {
         let mut cmd = Command::new("nix");
         cmd.args(["run", &Self::attr("tool", self.name), "--"])
@@ -428,36 +468,67 @@ impl<'a> Nix<'a> {
         cmd
     }
 
-    /// Build the native runner for an eval. `nix build` is quiet when the
-    /// result is already cached, so no special handling is needed.
-    fn build_eval(&self) -> Result<(), ExitCode> {
-        let name = self.name;
-        if name.is_empty() || !fs::exists(Path::new("evals").join(name)).unwrap_or(false) {
-            return Err(err_fail(anyhow!("can't find eval to build: {name:?}")));
-        }
-        run(&mut self.build_eval_cmd())?;
-        Ok(())
+    /// A command to exec a built runner directly out of its store path, instead
+    /// of via `nix run`. This avoids re-evaluating the flake on every run, which
+    /// for haskell.nix-based tools (horde-ad) would otherwise re-run their plan
+    /// import-from-derivation each time.
+    fn runner_cmd(prefix: &str, name: &str, out_path: &str, args: &[String]) -> Command {
+        let mut cmd = Command::new(format!("{out_path}/bin/{prefix}-{name}"));
+        cmd.args(args);
+        cmd
     }
 
-    /// Build the native runner for a tool.
-    fn build_tool(&self) -> Result<(), ExitCode> {
-        let name = self.name;
-        if name.is_empty() || !fs::exists(Path::new("tools").join(name)).unwrap_or(false) {
-            return Err(err_fail(anyhow!("can't find tool to build: {name:?}")));
-        }
-        run(&mut self.build_tool_cmd())?;
-        Ok(())
+    /// Build the native runner for an eval and return its store path. `nix
+    /// build` is quiet when the result is already cached, so no special
+    /// handling is needed.
+    fn build_eval(&self) -> Result<String, ExitCode> {
+        self.build("evals", "eval")
     }
 
-    /// Run an eval out of the Nix store.
+    /// Build the native runner for a tool and return its store path.
+    fn build_tool(&self) -> Result<String, ExitCode> {
+        self.build("tools", "tool")
+    }
+
+    /// Build a native runner and return its store path. `dir` is the source
+    /// directory to sanity-check (`evals`/`tools`) and `prefix` is the flake
+    /// output prefix (`eval`/`tool`).
+    fn build(&self, dir: &str, prefix: &str) -> Result<String, ExitCode> {
+        let name = self.name;
+        if name.is_empty() || !fs::exists(Path::new(dir).join(name)).unwrap_or(false) {
+            return Err(err_fail(anyhow!("can't find {prefix} to build: {name:?}")));
+        }
+        // Capture stdout for the store path; build progress goes to stderr,
+        // which is inherited so it still streams to the terminal.
+        let mut cmd = Command::new("nix");
+        cmd.args([
+            "build",
+            &Self::attr(prefix, name),
+            "--no-link",
+            "--print-out-paths",
+        ]);
+        cmd.stdout(Stdio::piped());
+        let output = run(&mut cmd)?;
+        let out_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if out_path.is_empty() {
+            return Err(err_fail(anyhow!(
+                "`nix build` produced no store path for {prefix} {name:?}"
+            )));
+        }
+        Ok(out_path)
+    }
+
+    /// Build an eval and run it directly out of the Nix store.
     fn run_eval(&self, args: &[String]) -> Result<(), ExitCode> {
-        run(&mut self.eval_cmd(args))?;
+        let out_path = self.build_eval()?;
+        run(&mut Self::runner_cmd("eval", self.name, &out_path, args))?;
         Ok(())
     }
 
-    /// Run a tool out of the Nix store.
+    /// Build a tool and run it directly out of the Nix store.
     fn run_tool(&self, args: &[String]) -> Result<(), ExitCode> {
-        run(&mut self.tool_cmd(args))?;
+        let out_path = self.build_tool()?;
+        run(&mut Self::runner_cmd("tool", self.name, &out_path, args))?;
         Ok(())
     }
 }
@@ -579,6 +650,7 @@ struct RunRaw {
 }
 
 /// Choice between talking about evals or talking about tools.
+#[derive(Clone, Copy)]
 enum RunItemKind {
     /// Evals.
     Eval,
@@ -587,8 +659,66 @@ enum RunItemKind {
     Tool,
 }
 
-/// A raw `String` and the processed `Command` representing its semantics.
-type RunItem = (String, Command);
+impl RunItemKind {
+    /// The flake output prefix for this kind: `eval` or `tool`.
+    fn prefix(self) -> &'static str {
+        match self {
+            RunItemKind::Eval => "eval",
+            RunItemKind::Tool => "tool",
+        }
+    }
+}
+
+/// How to run one item in the matrix.
+enum RunCmd {
+    /// A user-provided `$`-prefixed command, ready to spawn.
+    Custom(Command),
+
+    /// A Nix eval/tool: build it, then exec it directly from its store path
+    /// (rather than via a re-evaluating `nix run`).
+    Nix {
+        kind: RunItemKind,
+        name: String,
+        args: Vec<String>,
+    },
+}
+
+impl RunCmd {
+    /// A shell-quoted string of the `nix run` command equivalent to this item,
+    /// for display only (e.g. `--dry-run`).
+    fn display_string(&self) -> anyhow::Result<String> {
+        match self {
+            RunCmd::Custom(cmd) => shlex_cmd(cmd),
+            RunCmd::Nix { kind, name, args } => {
+                let nix = Nix::new(name);
+                let cmd = match kind {
+                    RunItemKind::Eval => nix.eval_cmd(args),
+                    RunItemKind::Tool => nix.tool_cmd(args),
+                };
+                shlex_cmd(&cmd)
+            }
+        }
+    }
+
+    /// Convert into the `nix run` [`Command`] equivalent to this item. Used by
+    /// tests; actual runs build and exec the store path via [`Nix::runner_cmd`].
+    #[cfg(test)]
+    fn into_display_command(self) -> Command {
+        match self {
+            RunCmd::Custom(cmd) => cmd,
+            RunCmd::Nix { kind, name, args } => {
+                let nix = Nix::new(&name);
+                match kind {
+                    RunItemKind::Eval => nix.eval_cmd(&args),
+                    RunItemKind::Tool => nix.tool_cmd(&args),
+                }
+            }
+        }
+    }
+}
+
+/// A raw `String` and the processed command representing its semantics.
+type RunItem = (String, RunCmd);
 
 /// Return a string like the input but with a restricted alphabet.
 ///
@@ -662,24 +792,26 @@ fn process_run_items(
             let first = parts
                 .pop_front()
                 .ok_or_else(|| anyhow!("empty `--{kind}` after splitting: {string:?}"))?;
-            let (build, mut cmd) = if first == "$" {
+            let (build, run_cmd) = if first == "$" {
                 let program = parts
                     .pop_front()
                     .ok_or_else(|| anyhow!("empty `--{kind}` after `$`: {string:?}"))?;
-                let cmd = Command::new(program);
-                (None, cmd)
+                let mut cmd = Command::new(program);
+                for arg in parts {
+                    cmd.arg(arg);
+                }
+                configure_intermediary_subcommand(&mut cmd);
+                (None, RunCmd::Custom(cmd))
             } else {
-                let cmd = (match item_kind {
-                    RunItemKind::Eval => Nix::eval_cmd,
-                    RunItemKind::Tool => Nix::tool_cmd,
-                })(&Nix::new(&first), &[]);
-                (Some(first), cmd)
+                let args = parts.into_iter().collect();
+                let run_cmd = RunCmd::Nix {
+                    kind: item_kind,
+                    name: first.clone(),
+                    args,
+                };
+                (Some(first), run_cmd)
             };
-            for arg in parts {
-                cmd.arg(arg);
-            }
-            configure_intermediary_subcommand(&mut cmd);
-            Ok((build, (string, cmd)))
+            Ok((build, (string, run_cmd)))
         })
         .process_results::<_, _, anyhow::Error, (BTreeSet<Option<String>>, Vec<RunItem>)>(|it| {
             it.unzip()
@@ -727,10 +859,16 @@ fn run_dry(
                 writeln!(stdout)?;
             }
             for eval in evals_build {
-                writeln!(stdout, "nix-store --import < eval-{eval}/eval-{eval}.closure")?;
+                writeln!(
+                    stdout,
+                    "nix-store --import < eval-{eval}/eval-{eval}.closure"
+                )?;
             }
             for tool in tools_build {
-                writeln!(stdout, "nix-store --import < tool-{tool}/tool-{tool}.closure")?;
+                writeln!(
+                    stdout,
+                    "nix-store --import < tool-{tool}/tool-{tool}.closure"
+                )?;
             }
         }
         None => {
@@ -757,8 +895,8 @@ fn run_dry(
     }
     for (eval_string, eval_cmd) in evals_run {
         for (tool_string, tool_cmd) in tools_run {
-            let eval = shlex_cmd(eval_cmd)?;
-            let tool = shlex_cmd(tool_cmd)?;
+            let eval = eval_cmd.display_string()?;
+            let tool = tool_cmd.display_string()?;
             write!(stdout, "{this} run")?;
             if let Some(seconds) = cfg.timeout {
                 write!(stdout, " --timeout {seconds}")?;
@@ -791,9 +929,9 @@ fn run_multiple(
     }: RunRaw,
 ) -> anyhow::Result<Result<(), ExitCode>> {
     let evals = ls("evals")?;
-    let (evals_build, mut evals_run) =
+    let (evals_build, evals_run) =
         process_run_items(RunItemKind::Eval, eval, no_eval, || Ok(evals.clone()))?;
-    let (tools_build, mut tools_run) =
+    let (tools_build, tools_run) =
         process_run_items(RunItemKind::Tool, tool, no_tool, || ls("tools"))?;
     if dry_run {
         let this = env::args()
@@ -813,6 +951,10 @@ fn run_multiple(
         return Ok(Ok(()));
     }
     let map = evals_to_tools(evals)?;
+    // The store path of each built eval/tool runner, so we can exec it directly
+    // instead of via a re-evaluating `nix run`.
+    let mut eval_paths: HashMap<String, String> = HashMap::new();
+    let mut tool_paths: HashMap<String, String> = HashMap::new();
     match cfg.download_github {
         Some(run_id) => {
             let mut cmd = Command::new("gh");
@@ -833,19 +975,24 @@ fn run_multiple(
                 return Ok(Err(code));
             }
             println!();
-            // Each artifact is a serialized Nix store closure (see the CI
-            // workflow); import it into the local store.
+            // Each artifact is a serialized Nix store closure plus a `.path`
+            // file naming its root (see the CI workflow); import the closure and
+            // record the path so we can exec the runner directly.
             for eval in &evals_build {
                 println!("{} {eval}", "loading eval".blue().bold());
                 if let Err(code) = import_closure(&format!("eval-{eval}/eval-{eval}.closure"))? {
                     return Ok(Err(code));
                 }
+                let path = read_out_path(&format!("eval-{eval}/eval-{eval}.path"))?;
+                eval_paths.insert(eval.clone(), path);
             }
             for tool in tools_build {
                 println!("{} {tool}", "loading tool".magenta().bold());
                 if let Err(code) = import_closure(&format!("tool-{tool}/tool-{tool}.closure"))? {
                     return Ok(Err(code));
                 }
+                let path = read_out_path(&format!("tool-{tool}/tool-{tool}.path"))?;
+                tool_paths.insert(tool, path);
             }
         }
         None => {
@@ -853,14 +1000,20 @@ fn run_multiple(
             // there is no need to suppress output as we did for `docker build`.
             for eval in &evals_build {
                 println!("{} {eval}", "building eval".blue().bold());
-                if let Err(code) = Nix::new(eval).build_eval() {
-                    return Ok(Err(code));
+                match Nix::new(eval).build_eval() {
+                    Ok(path) => {
+                        eval_paths.insert(eval.clone(), path);
+                    }
+                    Err(code) => return Ok(Err(code)),
                 }
             }
             for tool in tools_build {
                 println!("{} {tool}", "building tool".magenta().bold());
-                if let Err(code) = Nix::new(&tool).build_tool() {
-                    return Ok(Err(code));
+                match Nix::new(&tool).build_tool() {
+                    Ok(path) => {
+                        tool_paths.insert(tool, path);
+                    }
+                    Err(code) => return Ok(Err(code)),
                 }
             }
             if let Some(dir) = &cfg.output {
@@ -868,6 +1021,16 @@ fn run_multiple(
             }
         }
     }
+    // Now that every runner's store path is known, build the spawnable
+    // commands (execing the store paths directly, not `nix run`).
+    let mut evals_run: Vec<(String, Command)> = evals_run
+        .into_iter()
+        .map(|(string, rc)| Ok((string, materialize_run_cmd(rc, &eval_paths, &tool_paths)?)))
+        .collect::<anyhow::Result<_>>()?;
+    let mut tools_run: Vec<(String, Command)> = tools_run
+        .into_iter()
+        .map(|(string, rc)| Ok((string, materialize_run_cmd(rc, &eval_paths, &tool_paths)?)))
+        .collect::<anyhow::Result<_>>()?;
     if let Some(dir) = &cfg.output {
         for (eval_string, _) in &evals_run {
             fs::create_dir_all(eval_subpath(dir, eval_string))?;
@@ -1191,20 +1354,10 @@ fn cli() -> Result<(), ExitCode> {
                     Ok(res) => res,
                     Err(err) => Err(err_fail(err)),
                 },
-                RepoCommands::Eval { eval, args } => {
-                    let nix = Nix::new(&eval);
-                    nix.build_eval()?;
-                    nix.run_eval(&args)?;
-                    Ok(())
-                }
-                RepoCommands::Tool { tool, args } => {
-                    let nix = Nix::new(&tool);
-                    nix.build_tool()?;
-                    nix.run_tool(&args)?;
-                    Ok(())
-                }
-                RepoCommands::BuildEval { eval } => Nix::new(&eval).build_eval(),
-                RepoCommands::BuildTool { tool } => Nix::new(&tool).build_tool(),
+                RepoCommands::Eval { eval, args } => Nix::new(&eval).run_eval(&args),
+                RepoCommands::Tool { tool, args } => Nix::new(&tool).run_tool(&args),
+                RepoCommands::BuildEval { eval } => Nix::new(&eval).build_eval().map(|_| ()),
+                RepoCommands::BuildTool { tool } => Nix::new(&tool).build_tool().map(|_| ()),
                 RepoCommands::Lint {
                     fix,
                     clang_format,
@@ -1353,7 +1506,12 @@ mod tests {
             Ok((builds, runs)) => Ok((
                 builds,
                 runs.into_iter()
-                    .map(|(string, cmd)| (string, strings(&stringify_cmd(&cmd).unwrap())))
+                    .map(|(string, rc)| {
+                        (
+                            string,
+                            strings(&stringify_cmd(&rc.into_display_command()).unwrap()),
+                        )
+                    })
                     .collect(),
             )),
             Err(error) => Err(format!("{error:#}")),
