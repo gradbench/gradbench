@@ -1,35 +1,23 @@
-# horde-ad. WORK IN PROGRESS, not yet wired into the registry.
+# horde-ad. Needs GHC 9.14 and the horde-ad/ox-arrays libraries plus GHC
+# typelits plugins that aren't 9.14-ready in Nixpkgs. Built with haskell.nix,
+# which reads tools/horde-ad/cabal.project directly -- honoring its pinned
+# Hackage index-state, so it picks 9.14-compatible plugin versions -- and
+# provides GHC 9.14. The build plan resolves cleanly (ghc9141 accepted,
+# index-state honored).
 #
-# Needs GHC 9.14, which only the newer Nixpkgs (pkgsUnstable) has. horde-ad and
-# ox-arrays are present there but marked broken, and the GHC typelits plugins
-# they depend on carry stale `ghc < 9.13` bounds. Unbreaking + jailbreaking gets
-# past those, but the plugin sources themselves do not build on GHC 9.14 in this
-# snapshot (e.g. ghc-tcplugins-extra 0.5: "can't find source for Internal") --
-# which is why Nixpkgs marks the whole stack broken on 9.14.
-#
-# The blocker: callCabal2nix resolves against the Nixpkgs package set, so it
-# can't honor the cabal.project's pinned Hackage `index-state` (2026-04-15),
-# where 9.14-compatible plugin versions presumably live. Producing horde-ad
-# really wants `haskell.nix` (which resolves a consistent plan from Hackage at
-# that index-state). The override scaffolding below is kept as a starting point.
-{ pkgs, pkgsUnstable, gblib }:
+# IMPORTANT: this requires IOG's binary cache, or GHC 9.14 is built from source
+# (hours). Add to your nix.conf (as a trusted user):
+#   extra-substituters = https://cache.iog.io
+#   extra-trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ=
+# Then `nix build .#tool-horde-ad` works.
+{ pkgs, pkgsHaskellNix, gblib }:
 
 let
-  hl = pkgsUnstable.haskell.lib;
-  hp = pkgsUnstable.haskell.packages.ghc914.override {
-    overrides = self: super: {
-      ox-arrays = hl.markUnbroken super.ox-arrays;
-      horde-ad = hl.doJailbreak (hl.markUnbroken super.horde-ad);
-      # These carry stale `ghc < 9.13` upper bounds; relax them (the Dockerfile
-      # builds with --allow-newer for the same reason).
-      ghc-tcplugins-extra = hl.doJailbreak super.ghc-tcplugins-extra;
-      ghc-typelits-knownnat = hl.doJailbreak super.ghc-typelits-knownnat;
-      ghc-typelits-natnormalise =
-        hl.doJailbreak super.ghc-typelits-natnormalise;
-    };
+  project = pkgsHaskellNix.haskell-nix.cabalProject' {
+    src = ../../tools/horde-ad;
+    compiler-nix-name = "ghc9141";
   };
-  gradbench-hs =
-    hl.doJailbreak (hp.callCabal2nix "gradbench" ../../tools/horde-ad { });
+  gradbench-hs = project.hsPkgs.gradbench.components.exes.gradbench;
 in gblib.mkTool {
   name = "horde-ad";
   runtimeInputs = [ gradbench-hs ];

@@ -19,6 +19,12 @@
     # pin. Everything else uses `nixpkgs` above.
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
 
+    # haskell.nix builds Haskell projects directly from their cabal.project,
+    # honoring the pinned Hackage index-state and providing GHCs (incl. 9.14).
+    # Used ONLY for horde-ad, whose plugin dependencies aren't 9.14-ready in
+    # Nixpkgs. Best used with IOG's binary cache (https://cache.iog.io).
+    haskellNix.url = "github:input-output-hk/haskell.nix";
+
     # uv2nix and friends build hermetic Python environments from uv.lock, used
     # for the ML/Python tools (pytorch, jax, tensorflow, ...). Evals use plain
     # Nixpkgs Python instead.
@@ -51,6 +57,13 @@
             inherit system;
             pkgs = import nixpkgs { inherit system; };
             pkgsUnstable = import inputs.nixpkgs-unstable { inherit system; };
+            # haskell.nix-enabled pkgs (its overlay on its own nixpkgs), for
+            # horde-ad only.
+            pkgsHaskellNix = import inputs.haskellNix.inputs.nixpkgs {
+              inherit system;
+              inherit (inputs.haskellNix) config;
+              overlays = [ inputs.haskellNix.overlay ];
+            };
           });
     in {
       # Each eval and tool is exposed as a runnable package:
@@ -63,18 +76,18 @@
       # The native wrapper and the OCI image are two outputs of the same
       # underlying derivation: the wrapper bakes in the dependencies and
       # entrypoint that used to live in the tool's Dockerfile.
-      packages = forAllSystems ({ pkgs, pkgsUnstable, ... }:
+      packages = forAllSystems ({ pkgs, pkgsUnstable, pkgsHaskellNix, ... }:
         (import ./nix/registry.nix {
-          inherit pkgs pkgsUnstable;
+          inherit pkgs pkgsUnstable pkgsHaskellNix;
           src = self;
           inherit (inputs) uv2nix pyproject-nix pyproject-build-systems;
         }).packages);
 
       # `nix run .#eval-hello`, `nix run .#tool-manual`, etc.
-      apps = forAllSystems ({ pkgs, pkgsUnstable, system }:
+      apps = forAllSystems ({ pkgs, pkgsUnstable, pkgsHaskellNix, system }:
         let
           registry = import ./nix/registry.nix {
-            inherit pkgs pkgsUnstable;
+            inherit pkgs pkgsUnstable pkgsHaskellNix;
             src = self;
             inherit (inputs) uv2nix pyproject-nix pyproject-build-systems;
           };

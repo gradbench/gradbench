@@ -1,7 +1,8 @@
 # The registry of all evals and tools. As more are converted from Dockerfiles,
 # add them to the `evals` and `tools` attribute sets below; everything else
 # (native runners, OCI images, `nix run` apps) is derived automatically.
-{ pkgs, pkgsUnstable, src, uv2nix, pyproject-nix, pyproject-build-systems }:
+{ pkgs, pkgsUnstable, pkgsHaskellNix, src, uv2nix, pyproject-nix
+, pyproject-build-systems }:
 
 let
   inherit (pkgs) lib;
@@ -60,11 +61,16 @@ let
     "tensorflow"
     "futhark"
     "tapenade"
-  ] pyTool;
-  # Work in progress, not yet built by default (see each file's header):
-  #   tools/scilean.nix   - builds, but the Lake output isn't bit-reproducible.
-  #   tools/horde-ad.nix  - needs GHC 9.14 + haskell.nix (uses pkgsUnstable,
-  #                         which is why that input is still threaded through).
+  ] pyTool // {
+    # horde-ad: converted via haskell.nix. NOTE: building it requires IOG's
+    # binary cache (https://cache.iog.io) or GHC 9.14 is built from source; see
+    # nix/tools/horde-ad.nix. The build plan resolves; not built in CI yet.
+    horde-ad =
+      import ./tools/horde-ad.nix { inherit pkgs pkgsHaskellNix gblib; };
+  };
+  # tools/scilean.nix is WIP and intentionally not in the set above: it builds,
+  # but the Lake output isn't bit-reproducible, so it can't be a fixed-output
+  # derivation (see that file for the fetch-then-build fix).
 
   prefix = p: set:
     lib.mapAttrs' (name: drv: lib.nameValuePair "${p}${name}" drv) set;

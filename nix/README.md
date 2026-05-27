@@ -62,7 +62,9 @@ See [`tools/manual.nix`](tools/manual.nix) (a compile-on-demand C++ tool) and
 
 ## Status
 
-**34 of 36 images converted**, each verified by running it against its evals:
+**34 of 36 images build from cache.nixos.org and are verified** by running them
+against their evals; a 35th (horde-ad) is converted but needs an extra binary
+cache to build (see below).
 
 - **All 12 evals** (Nixpkgs Python).
 - **C++ tools** (compile-on-demand): manual, finite, codipack, cppad, adol-c,
@@ -73,26 +75,30 @@ See [`tools/manual.nix`](tools/manual.nix) (a compile-on-demand C++ tool) and
 - **Julia** (fixed-output depots): zygote, forwarddiff-jl, reversediff-jl,
   mooncake-jl, enzyme-jl.
 - **Haskell**: haskell-ad (callCabal2nix, GHC 9.12).
+- **horde-ad** (Haskell): converted via `haskell.nix` (`tools/horde-ad.nix`,
+  wired into the registry). The build plan resolves with GHC 9.14 honoring the
+  cabal `index-state`, but realizing it needs IOG's binary cache
+  (`https://cache.iog.io`) as a trusted substituter, or GHC 9.14 is compiled
+  from source. Not built end-to-end in this environment (untrusted user).
 
-Not yet converted (2), both blocked on toolchains absent from the pinned
-Nixpkgs — see below.
+One tool remains unconverted: **scilean** (see below).
 
 ## Known follow-ups
 
 These are tracked for later phases of the migration:
 
-- **horde-ad** (Haskell): needs **GHC 9.14** (pinned Nixpkgs has only 9.10 and
-  9.12) and the `horde-ad`/`ox-arrays` libraries, which aren't in Nixpkgs, at a
-  pinned Hackage `index-state`. Realistic options: adopt `haskell.nix` (handles
-  `cabal.project`, `index-state`, `--allow-newer`, and its own GHCs natively),
-  or bump the Nixpkgs pin to one with GHC 9.14 and package the missing
-  libraries. This is an architectural decision (extra flake input or pin bump).
-- **scilean** (Lean): the `lean-toolchain` pins **Lean v4.16.0** (Nixpkgs has
-  4.19.0), and it pulls SciLean from a git branch plus prebuilt `.olean` caches
-  via `lake exe cache get`. Likely approach: a fixed-output derivation that uses
-  `elan` (in Nixpkgs) to fetch the pinned toolchain and runs `lake exe cache
-  get` + `lake build`, then autoPatchelf the resulting binary and shared libs.
-  Determinism of the Lake build/cache is the risk.
+- **horde-ad**: add IOG's substituter to `nix.conf` as a trusted user, then
+  `nix build .#tool-horde-ad` works:
+  `extra-substituters = https://cache.iog.io`,
+  `extra-trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ=`.
+- **scilean** (Lean): `tools/scilean.nix` builds end-to-end (elan fetches the
+  pinned Lean 4.16.0, `lake exe cache get` + `lake build` produce the binary,
+  BLAS from Nixpkgs), but the Lake-compiled `.so`/binary are not bit-
+  reproducible (confirmed across three builds, even after pruning build
+  intermediates), so it can't be a fixed-output derivation. Fix: split into a
+  fetch FOD (toolchain + git deps + `.olean` cache, all deterministic) plus a
+  normal derivation that runs `lake build` offline against them. Not wired into
+  the registry yet.
 - **CI**: workflows still build Docker images. The plan is to pass built
   derivations between jobs as serialized store closures
   (`nix-store --export` → artifact → `nix-store --import`); the CLI's
