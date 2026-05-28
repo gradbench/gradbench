@@ -55,36 +55,69 @@ let
     '';
     installPhase = ''
       runHook preInstall
-      # In each cloned dep's `.git/`, keep only the small, deterministic
-      # metadata Lake actually needs (`config`, `HEAD`, `refs/`,
-      # `packed-refs`) and an empty `objects/` -- git refuses to recognise
-      # the dir as a repo without `objects/`. Pack files, logs, index, etc.
-      # are non-deterministic across `git clone` runs, so we drop them.
-      # Lake's manifest path is offline-aware: when the dir exists and
-      # `getHeadRevision?` already matches the pinned rev, it skips
-      # `git fetch` entirely (see Lake's Materialize.lean), so this minimal
-      # `.git/` is enough for the compile step to proceed without network.
+      # Keep the FOD's contents narrow: just what the compile step truly
+      # cannot regenerate offline. FODs are fragile -- anything we ship
+      # that drifts between machines or wall-clock times (upstream refs,
+      # build-env-tagged trace files, locally-built helper exes) becomes
+      # a hash-mismatch landmine.
+      #
+      # Things we KEEP:
+      #   * each cloned dep's source tree, at its pinned commit
+      #   * mathlib's `.lake/build/lib` and `.lake/build/ir` (the prebuilt
+      #     oleans + .c from the Lean community cache -- the whole point
+      #     of running `lake exe cache get`)
+      #   * a minimal `.git/` per dep so Lake's offline manifest path
+      #     recognises the dir as a repo and reads HEAD without fetching
+      #
+      # Things we DROP:
+      #   * the live `.git/` contents (`refs/`, `packed-refs`, the pack
+      #     files etc.) -- pack files are non-deterministic across `git
+      #     clone` runs, and `packed-refs` captures upstream refs at
+      #     clone time, both of which drift between machines/times.
+      #     We replace each `.git/` with a hand-built minimal one
+      #     (`HEAD` + `config` + empty `objects/`).
+      #   * gradbench's and each dep's elaborated `lakefile.olean` and
+      #     `lakefile.olean.trace` -- the compile step regenerates these
+      #     in seconds, and the `.trace` files include build-env data.
+      #   * non-mathlib deps' `.lake/build/` -- those are cheap to rebuild
+      #     and we don't ship the mathlib cache equivalent for them.
+      #   * mathlib's locally-built `cache` exe artifacts (`bin/`,
+      #     `lib/Cache`, `ir/Cache`) -- they reference the build-time
+      #     Lean toolchain and we only needed `cache` to fetch the olean
+      #     cache.
+      #   * proofwidgets' downloaded widget tarball -- we have our own
+      #     pinned `fetchurl` and inject it at compile time.
       for pkg in .lake/packages/*; do
         if [ -d "$pkg/.git" ]; then
-          find "$pkg/.git" -mindepth 1 -maxdepth 1 \
-            ! -name config ! -name HEAD ! -name refs ! -name packed-refs \
-            -exec rm -rf {} +
-          mkdir -p "$pkg/.git/objects"
+          rev=$(git -C "$pkg" rev-parse HEAD)
+          rm -rf "$pkg/.git"
+          # git requires both `objects/` and `refs/` (even if empty) to
+          # recognise the dir as a repository at all.
+          mkdir -p "$pkg/.git/objects" "$pkg/.git/refs"
+          printf '[core]\n\trepositoryformatversion = 0\n' > "$pkg/.git/config"
+          printf '%s\n' "$rev" > "$pkg/.git/HEAD"
         fi
       done
-      # Drop the locally-built `cache` exe artifacts: they reference the
-      # build-time Lean toolchain and we only needed them to fetch the
-      # olean cache.
-      rm -rf .lake/packages/mathlib/.lake/build/bin
-      rm -rf .lake/packages/mathlib/.lake/build/lib/Cache
-      rm -rf .lake/packages/mathlib/.lake/build/ir/Cache
+      rm -f .lake/lakefile.olean .lake/lakefile.olean.trace
+      for pkg in .lake/packages/*; do
+        name=$(basename "$pkg")
+        rm -f "$pkg/.lake/lakefile.olean" "$pkg/.lake/lakefile.olean.trace"
+        if [ "$name" != mathlib ]; then
+          rm -rf "$pkg/.lake/build"
+        fi
+      done
+      rm -f .lake/packages/proofwidgets/.lake/ProofWidgets4.tar.gz \
+            .lake/packages/proofwidgets/.lake/ProofWidgets4.tar.gz.trace
+      rm -rf .lake/packages/mathlib/.lake/build/bin \
+             .lake/packages/mathlib/.lake/build/lib/Cache \
+             .lake/packages/mathlib/.lake/build/ir/Cache
       mkdir -p "$out"
       cp -r .lake "$out/.lake"
       runHook postInstall
     '';
     outputHashMode = "recursive";
     outputHashAlgo = "sha256";
-    outputHash = "sha256-yq57kvmwSEbRxB4M+5Zb+o/cXOw+/IV7cI/BKI5IG0U=";
+    outputHash = "sha256-u/x0GTy1kperKrlE5xkTf1URu+VviNLJU6ltJ0/oLLo=";
   };
 
   # The actual SciLean build. With a populated `.lake/` in place, Lake
