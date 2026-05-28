@@ -29,6 +29,7 @@ let
     pkgs.llvmPackages_19.clang
     pkgs.llvmPackages_19.lld
     pkgs.llvmPackages_19.openmp
+    pkgs.nix-output-monitor # CLI auto-detects and uses `nom` for prettier builds.
     pkgs.nixfmt-classic
     pkgs.nodejs_24
     pkgs.openblas

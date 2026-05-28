@@ -15,6 +15,7 @@ use std::{
     process::{Command, ExitCode, ExitStatus, Output, Stdio},
     rc::Rc,
     str::FromStr,
+    sync::OnceLock,
     time::Duration,
 };
 
@@ -354,6 +355,23 @@ fn status_code(status: ExitStatus) -> Result<(), ExitCode> {
     }
 }
 
+/// Whether `nix-output-monitor` (nom) is available on PATH. We use it as a
+/// drop-in for `nix build` to get prettier progress output; in environments
+/// without it (e.g. plain CI runners) we fall back to `nix`. The check is
+/// memoised since it can be hit once per eval/tool in the matrix run path.
+fn use_nom() -> bool {
+    static AVAILABLE: OnceLock<bool> = OnceLock::new();
+    *AVAILABLE.get_or_init(|| {
+        Command::new("nom")
+            .arg("--version")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false)
+    })
+}
+
 /// Run a command and preserve its exit code whenever possible.
 fn run(command: &mut Command) -> Result<Output, ExitCode> {
     let output = command
@@ -499,8 +517,11 @@ impl<'a> Nix<'a> {
             return Err(err_fail(anyhow!("can't find {prefix} to build: {name:?}")));
         }
         // Capture stdout for the store path; build progress goes to stderr,
-        // which is inherited so it still streams to the terminal.
-        let mut cmd = Command::new("nix");
+        // which is inherited so it still streams to the terminal. When
+        // `nix-output-monitor` (nom) is available, use it as a drop-in for
+        // `nix build` -- it forwards the same arguments, renders its TUI on
+        // stderr, and preserves the `--print-out-paths` output on stdout.
+        let mut cmd = Command::new(if use_nom() { "nom" } else { "nix" });
         cmd.args([
             "build",
             &Self::attr(prefix, name),
