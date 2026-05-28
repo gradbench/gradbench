@@ -395,6 +395,63 @@ fn read_out_path(path: &str) -> anyhow::Result<String> {
     Ok(out_path)
 }
 
+/// `name -> store path` for built runners.
+type BuiltPaths = HashMap<String, String>;
+
+/// Build all the given evals and tools in a single `nix`/`nom build`
+/// invocation so they can be realised in parallel (and there is one combined
+/// progress display and finish line). Returns one map per kind.
+/// `--print-out-paths` prints one path per installable in the order they were
+/// given, so we zip with the input ordering.
+fn build_many(evals: &[String], tools: &[String]) -> Result<(BuiltPaths, BuiltPaths), ExitCode> {
+    let mut attrs: Vec<String> = Vec::with_capacity(evals.len() + tools.len());
+    for e in evals {
+        if e.is_empty() || !fs::exists(Path::new("evals").join(e)).unwrap_or(false) {
+            return Err(err_fail(anyhow!("can't find eval to build: {e:?}")));
+        }
+        attrs.push(Nix::attr("eval", e));
+    }
+    for t in tools {
+        if t.is_empty() || !fs::exists(Path::new("tools").join(t)).unwrap_or(false) {
+            return Err(err_fail(anyhow!("can't find tool to build: {t:?}")));
+        }
+        attrs.push(Nix::attr("tool", t));
+    }
+    if attrs.is_empty() {
+        return Ok((HashMap::new(), HashMap::new()));
+    }
+    let mut cmd = Command::new(if use_nom() { "nom" } else { "nix" });
+    cmd.args(["build", "--no-link", "--print-out-paths"]);
+    for a in &attrs {
+        cmd.arg(a);
+    }
+    cmd.stdout(Stdio::piped());
+    let output = run(&mut cmd)?;
+    let paths: Vec<String> = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .map(str::to_string)
+        .collect();
+    if paths.len() != attrs.len() {
+        return Err(err_fail(anyhow!(
+            "`nix build` printed {} paths but {} were expected",
+            paths.len(),
+            attrs.len()
+        )));
+    }
+    let mut iter = paths.into_iter();
+    let mut eval_paths = HashMap::with_capacity(evals.len());
+    let mut tool_paths = HashMap::with_capacity(tools.len());
+    for e in evals {
+        eval_paths.insert(e.clone(), iter.next().unwrap());
+    }
+    for t in tools {
+        tool_paths.insert(t.clone(), iter.next().unwrap());
+    }
+    Ok((eval_paths, tool_paths))
+}
+
 /// Turn a [`RunCmd`] into a spawnable [`Command`], execing built Nix runners
 /// directly out of their store paths (looked up in `eval_paths`/`tool_paths`).
 fn materialize_run_cmd(
@@ -449,23 +506,6 @@ impl<'a> Nix<'a> {
     /// A flake output attribute, e.g. `.#eval-hello`.
     fn attr(prefix: &str, name: &str) -> String {
         format!(".#{prefix}-{name}")
-    }
-
-    /// A command to build the native runner for an eval. Used only for display
-    /// (e.g. `--dry-run`); the actual build adds `--print-out-paths` (see
-    /// [`Self::build`]).
-    fn build_eval_cmd(&self) -> Command {
-        let mut cmd = Command::new("nix");
-        cmd.args(["build", &Self::attr("eval", self.name)]);
-        cmd
-    }
-
-    /// A command to build the native runner for a tool. See
-    /// [`Self::build_eval_cmd`].
-    fn build_tool_cmd(&self) -> Command {
-        let mut cmd = Command::new("nix");
-        cmd.args(["build", &Self::attr("tool", self.name)]);
-        cmd
     }
 
     /// A command to run an eval via `nix run`. This re-evaluates the flake, so
@@ -893,13 +933,18 @@ fn run_dry(
             }
         }
         None => {
-            for eval in evals_build {
-                let cmd = shlex_cmd(&Nix::new(eval).build_eval_cmd())?;
-                writeln!(stdout, "{cmd}")?;
-            }
-            for tool in tools_build {
-                let cmd = shlex_cmd(&Nix::new(tool).build_tool_cmd())?;
-                writeln!(stdout, "{cmd}")?;
+            // The real run realises everything in a single `nix build`
+            // invocation so it can build in parallel; mirror that here.
+            if !(evals_build.is_empty() && tools_build.is_empty()) {
+                let mut cmd = Command::new("nix");
+                cmd.arg("build");
+                for eval in evals_build {
+                    cmd.arg(Nix::attr("eval", eval));
+                }
+                for tool in tools_build {
+                    cmd.arg(Nix::attr("tool", tool));
+                }
+                writeln!(stdout, "{}", shlex_cmd(&cmd)?)?;
             }
         }
     }
@@ -1017,25 +1062,29 @@ fn run_multiple(
             }
         }
         None => {
-            // `nix build` prints nothing when the result is already cached, so
-            // there is no need to suppress output as we did for `docker build`.
-            for eval in &evals_build {
-                println!("{} {eval}", "building eval".blue().bold());
-                match Nix::new(eval).build_eval() {
-                    Ok(path) => {
-                        eval_paths.insert(eval.clone(), path);
-                    }
-                    Err(code) => return Ok(Err(code)),
+            // List what we are about to build, then realise everything in a
+            // single `nix`/`nom build` invocation so things run in parallel
+            // (and produce one combined progress display and finish line).
+            if !evals_build.is_empty() {
+                print!("{} {}", "building".bold(), "evals".blue().bold());
+                for eval in &evals_build {
+                    print!(" {eval}");
                 }
+                println!();
             }
-            for tool in tools_build {
-                println!("{} {tool}", "building tool".magenta().bold());
-                match Nix::new(&tool).build_tool() {
-                    Ok(path) => {
-                        tool_paths.insert(tool, path);
-                    }
-                    Err(code) => return Ok(Err(code)),
+            if !tools_build.is_empty() {
+                print!("{} {}", "     and".bold(), "tools".magenta().bold());
+                for tool in &tools_build {
+                    print!(" {tool}");
                 }
+                println!();
+            }
+            match build_many(&evals_build, &tools_build) {
+                Ok((ep, tp)) => {
+                    eval_paths = ep;
+                    tool_paths = tp;
+                }
+                Err(code) => return Ok(Err(code)),
             }
             if let Some(dir) = &cfg.output {
                 fs::create_dir_all(dir)?;
