@@ -91,7 +91,7 @@ in rec {
   # cover every eval; `pythonPackages` adds any extras (e.g. scipy for gmm).
   mkPyEval = { name, pythonPackages ? (ps: [ ]) }:
     let
-      pythonEnv = pkgs.python311.withPackages (ps:
+      pythonEnv = pkgs.python312.withPackages (ps:
         (with ps; [ numpy pydantic dataclasses-json ]) ++ pythonPackages ps);
     in mkEval {
       inherit name;

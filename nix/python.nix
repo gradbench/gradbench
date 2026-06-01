@@ -8,7 +8,7 @@
 
 let
   inherit (pkgs) lib;
-  python = pkgs.python311;
+  python = pkgs.python312;
 
   workspace = uv2nix.lib.workspace.loadWorkspace { workspaceRoot = src; };
 

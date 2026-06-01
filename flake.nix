@@ -1,23 +1,13 @@
 {
   description = "GradBench: a benchmark suite for differentiable programming";
 
-  # The Nixpkgs revision is pinned in flake.lock. It matches the revision that
-  # was previously pinned with niv in nix/sources.json, so that we reuse the
-  # same binary cache. To update:
-  #
-  #   $ nix flake update nixpkgs
-  #
-  # nixos-unstable strikes a balance between being recent and being cached
-  # upstream.
+  # Nixpkgs follows the `nixpkgs-unstable` branch (the actual revision is
+  # locked in flake.lock; `nix flake update nixpkgs` advances it). We track
+  # `nixpkgs-unstable` rather than `nixos-unstable` because the former
+  # currently has the User-Agent patch for `fetchCargoVendor` that
+  # `nixos-unstable` does not -- see NixOS/nixpkgs#524985.
   inputs = {
-    nixpkgs.url =
-      "github:NixOS/nixpkgs/d89fc19e405cb2d55ce7cc114356846a0ee5e956";
-
-    # A newer Nixpkgs used ONLY for tools that need a toolchain the pinned
-    # Nixpkgs lacks (currently horde-ad, which needs GHC 9.14). Keeping it
-    # separate avoids rebuilding/revalidating every other tool against a new
-    # pin. Everything else uses `nixpkgs` above.
-    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
     # haskell.nix builds Haskell projects directly from their cabal.project,
     # honoring the pinned Hackage index-state and providing GHCs (incl. 9.14).
@@ -62,7 +52,6 @@
           f {
             inherit system;
             pkgs = import nixpkgs { inherit system; };
-            pkgsUnstable = import inputs.nixpkgs-unstable { inherit system; };
             # haskell.nix-enabled pkgs (its overlay on its own nixpkgs), for
             # horde-ad only.
             pkgsHaskellNix = import inputs.haskellNix.inputs.nixpkgs {
@@ -82,19 +71,19 @@
       # The native wrapper and the OCI image are two outputs of the same
       # underlying derivation: the wrapper bakes in the dependencies and
       # entrypoint that used to live in the tool's Dockerfile.
-      packages = forAllSystems ({ pkgs, pkgsUnstable, pkgsHaskellNix, system }:
+      packages = forAllSystems ({ pkgs, pkgsHaskellNix, system }:
         (import ./nix/registry.nix {
-          inherit pkgs pkgsUnstable pkgsHaskellNix system;
+          inherit pkgs pkgsHaskellNix system;
           src = self;
           inherit (inputs)
             uv2nix pyproject-nix pyproject-build-systems lean4-nix;
         }).packages);
 
       # `nix run .#eval-hello`, `nix run .#tool-manual`, etc.
-      apps = forAllSystems ({ pkgs, pkgsUnstable, pkgsHaskellNix, system }:
+      apps = forAllSystems ({ pkgs, pkgsHaskellNix, system }:
         let
           registry = import ./nix/registry.nix {
-            inherit pkgs pkgsUnstable pkgsHaskellNix system;
+            inherit pkgs pkgsHaskellNix system;
             src = self;
             inherit (inputs)
               uv2nix pyproject-nix pyproject-build-systems lean4-nix;

@@ -1,7 +1,7 @@
 # The registry of all evals and tools. As more are converted from Dockerfiles,
 # add them to the `evals` and `tools` attribute sets below; everything else
 # (native runners, OCI images, `nix run` apps) is derived automatically.
-{ pkgs, pkgsUnstable, pkgsHaskellNix, system, src, uv2nix, pyproject-nix
+{ pkgs, pkgsHaskellNix, system, src, uv2nix, pyproject-nix
 , pyproject-build-systems, lean4-nix }:
 
 let

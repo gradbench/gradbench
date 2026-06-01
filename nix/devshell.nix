@@ -10,7 +10,7 @@ let
     # Required
     pkgs.bun
     pkgs.cargo
-    pkgs.python311
+    pkgs.python312
     pkgs.uv
 
     pkgs.llvmPackages_19.clang-tools # Must come before clang for clangd to work.
