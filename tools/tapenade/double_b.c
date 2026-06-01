@@ -9,9 +9,9 @@
    with respect to varying inputs: x
    RW status of diff variables: x:incr square:in-killed
 */
-void square_b(double x, double *xb, double squareb) {
-    double y = 0.0;
-    double yb = 0.0;
-    yb = squareb;
-    *xb = *xb + 2*x*yb;
+void square_b(double x, double* xb, double squareb) {
+  double y  = 0.0;
+  double yb = 0.0;
+  yb        = squareb;
+  *xb       = *xb + 2 * x * yb;
 }

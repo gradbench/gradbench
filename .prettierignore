@@ -1,4 +1,5 @@
 /.venv/
+/flake.lock
 /tools/haskell-ad/dist-newstyle/
 /tools/horde-ad/dist-newstyle/
 /tools/scilean/lake-manifest.json

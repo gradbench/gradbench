@@ -71,7 +71,7 @@ pub fn nanostring(nanoseconds: u128) -> String {
     }
 }
 
-pub fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<T> {
+pub fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     match mutex.lock() {
         Ok(guard) => guard,
         Err(poison_error) => poison_error.into_inner(),
@@ -118,7 +118,7 @@ impl CtrlC {
         Ok(obj)
     }
 
-    pub fn handle(&mut self, f: Box<dyn FnOnce() + Send>) -> CtrlCHandler {
+    pub fn handle(&mut self, f: Box<dyn FnOnce() + Send>) -> CtrlCHandler<'_> {
         let key = self.next_key;
         lock(&self.handlers).insert(key, f);
         self.next_key += 1;
