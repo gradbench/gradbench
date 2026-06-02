@@ -89,9 +89,15 @@ in rec {
   mkCppTool = { name, libs ? [ ], compiler ? pkgs.gcc, extraInputs ? [ ]
     , extraSetup ? "" }:
     let
+      # The compile-on-demand binary dynamically links against libstdc++,
+      # which doesn't come from `libs` (those are the AD library packages).
+      # Use the stdenv compiler's libstdc++ -- nixpkgs's clang-wrapper on
+      # Linux also links against this libstdc++, so it's correct for both
+      # `pkgs.gcc` and the LLVM clang wrappers we use.
+      libraryPathLibs = libs ++ [ pkgs.stdenv.cc.cc.lib ];
       includePath =
         lib.makeSearchPathOutput "dev" "include" ([ jsonInclude ] ++ libs);
-      libraryPath = lib.makeLibraryPath libs;
+      libraryPath = lib.makeLibraryPath libraryPathLibs;
       pkgConfigPath = lib.makeSearchPathOutput "dev" "lib/pkgconfig" libs;
     in mkTool {
       inherit name;
@@ -188,6 +194,11 @@ in rec {
         mkdir -p "$writable"
         export JULIA_DEPOT_PATH="$writable:${depot}"
         export JULIA_PKG_OFFLINE=true
+        # Depot artifacts (e.g. OpenSpecFun_jll's libopenspecfun.so) need
+        # libgfortran.so.5 and friends at dlopen time; their RUNPATH is
+        # just $ORIGIN so they can't find Julia's bundled copies under
+        # lib/julia/ on their own. Put that directory on LD_LIBRARY_PATH.
+        export LD_LIBRARY_PATH="${julia}/lib/julia''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
       '';
       entrypoint = "julia --project=tools/${name} tools/${name}/run.jl";
     };
