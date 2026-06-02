@@ -36,6 +36,25 @@ in rec {
       inherit name;
       runtimeInputs = [ pkgs.coreutils ] ++ runtimeInputs;
       text = ''
+        # Scrub the inherited environment so the caller's shell (in
+        # particular our `nix develop` dev shell, which puts every
+        # buildInput's lib on LD_LIBRARY_PATH) can't paper over runtime
+        # deps that this runner's closure forgot to declare. Re-exec under
+        # `env -i` with a short allowlist; the writeShellApplication
+        # preamble that runs after the re-exec then rebuilds PATH from
+        # `runtimeInputs` alone (no parent PATH leakage). Matches what CI
+        # sees on a fresh Ubuntu runner without a dev shell loaded.
+        if [ -z "''${GRADBENCH_RUNNER_CLEAN:-}" ]; then
+          exec env -i \
+            HOME="''${HOME:-/tmp}" \
+            USER="''${USER:-nobody}" \
+            TERM="''${TERM:-dumb}" \
+            LANG="''${LANG:-C.UTF-8}" \
+            TMPDIR="''${TMPDIR:-/tmp}" \
+            GRADBENCH_RUNNER_CLEAN=1 \
+            "$0" "$@"
+        fi
+
         root="$(mktemp -d -t gradbench-${name}.XXXXXX)"
         trap 'rm -rf "$root"' EXIT
         # Preserve mode so the pre-compiled `tools/manual/bin/*` baselines
