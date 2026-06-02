@@ -1,7 +1,9 @@
 EXECUTABLES=hello gmm lstm ba ht kmeans particle saddle ode llsq det lse
 
 ENZYME_LIB?=/gradbench/enzyme-build/Enzyme/
-LLDENZYME=$(ENZYME_LIB)/LLDEnzyme-19.so
+# Pick up whichever LLDEnzyme-<N>.so the ENZYME_LIB ships, so we track the
+# nixpkgs `enzyme` package's LLVM major version automatically.
+LLDENZYME?=$(firstword $(wildcard $(ENZYME_LIB)/LLDEnzyme-*.so))
 
 CXX=clang++
 LLD=lld
