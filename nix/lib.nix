@@ -24,22 +24,29 @@ in rec {
   # environment it ran in. `setup` is raw shell (e.g. `export` lines) executed
   # before the entrypoint, and `entrypoint` is the command to exec.
   #
-  # Native runs operate on the working tree: GRADBENCH_SOURCE_ROOT defaults to
-  # the current directory, which is expected to be a GradBench checkout. This
-  # keeps compile-on-demand tools writable (they build into tools/<tool>/bin).
+  # Each run gets a fresh writable workdir initialised from `embeddedSource`
+  # (the gradbench source baked into the runner's closure), with
+  # GRADBENCH_SOURCE_ROOT pointing at it. The user's working tree is never
+  # read or written to, so an eval/tool can't observe artifacts left behind
+  # by a different (eval, tool) pair's run. Compile-on-demand binaries land
+  # in this tmpdir and are discarded on exit -- which is also what we want
+  # for benchmark timing (no stale `bin/` between runs).
   mkRunner = { name, runtimeInputs ? [ ], setup ? "", entrypoint }:
     pkgs.writeShellApplication {
-      inherit name runtimeInputs;
+      inherit name;
+      runtimeInputs = [ pkgs.coreutils ] ++ runtimeInputs;
       text = ''
-        root="''${GRADBENCH_SOURCE_ROOT:-$PWD}"
-        if [ ! -d "$root/python/gradbench" ]; then
-          echo "gradbench: '$root' does not look like a GradBench checkout;" \
-               "set GRADBENCH_SOURCE_ROOT or run from the repository root" >&2
-          exit 1
-        fi
+        root="$(mktemp -d -t gradbench-${name}.XXXXXX)"
+        trap 'rm -rf "$root"' EXIT
+        # Preserve mode so the pre-compiled `tools/manual/bin/*` baselines
+        # keep their executable bit; then add user-write on top so
+        # compile-on-demand can overwrite anything it owns.
+        cp -r --no-preserve=ownership ${embeddedSource}/. "$root/"
+        chmod -R u+w "$root"
+        export GRADBENCH_SOURCE_ROOT="$root"
         ${setup}
         cd "$root"
-        exec ${entrypoint} "$@"
+        ${entrypoint} "$@"
       '';
     };
 
@@ -166,45 +173,73 @@ in rec {
       entrypoint = "julia --project=tools/${name} tools/${name}/run.jl";
     };
 
-  # Build an OCI image from a native runner's closure. The repository source is
-  # embedded read-only; at startup it is copied to a writable workdir so that
-  # compile-on-demand tools can write into tools/<tool>/bin. This is the only
-  # place that needs the working tree to be writable.
+  # Build an OCI image from a native runner's closure. The runner already
+  # creates a fresh writable workdir from `embeddedSource` at startup, so
+  # the image just exposes it directly.
   mkImage = runner:
-    let
-      entry = pkgs.writeShellApplication {
-        name = "${runner.name}-entrypoint";
-        runtimeInputs = [ pkgs.coreutils ];
-        text = ''
-          work="$(mktemp -d)"
-          cp -r --no-preserve=mode,ownership ${embeddedSource}/. "$work/"
-          export GRADBENCH_SOURCE_ROOT="$work"
-          exec ${runner}/bin/${runner.name} "$@"
-        '';
-      };
-    in pkgs.dockerTools.buildLayeredImage {
+    pkgs.dockerTools.buildLayeredImage {
       name = "ghcr.io/gradbench/${runner.name}";
       tag = "latest";
       contents = [ pkgs.bashInteractive pkgs.coreutils runner ];
       config = {
-        Entrypoint = [ "${entry}/bin/${runner.name}-entrypoint" ];
+        Entrypoint = [ "${runner}/bin/${runner.name}" ];
         Labels."org.opencontainers.image.source" =
           "https://github.com/gradbench/gradbench";
       };
     };
 
-  # The repository source embedded into images, filtered to the files the
-  # runners actually need at run time. Keeping this lean keeps images small.
+  # Pre-compiled C++ baselines from `tools/manual` that the validating evals
+  # (gmm, kmeans, llsq, ba, det, ht, lse, lstm, ode) invoke as a golden
+  # reference via `cpp.evaluate(tool="manual", ...)`. The old per-eval
+  # Dockerfile did exactly this (`RUN make -C tools/manual -Bj NATIVE=no`);
+  # we bake the equivalent into a derivation and overlay its output into
+  # `embeddedSource` below. `NATIVE=no` so the baselines are portable across
+  # machines, since the derivation is content-addressed and shareable.
+  manualBaselines = pkgs.stdenv.mkDerivation {
+    name = "gradbench-manual-baselines";
+    inherit src;
+    nativeBuildInputs = [ pkgs.gnumake ];
+    CPATH = "${jsonInclude}/include";
+    dontConfigure = true;
+    buildPhase = ''
+      runHook preBuild
+      make -C tools/manual -Bj NATIVE=no
+      runHook postBuild
+    '';
+    installPhase = ''
+      runHook preInstall
+      mkdir -p "$out"
+      cp -r tools/manual/bin "$out/bin"
+      runHook postInstall
+    '';
+  };
+
+  # The repository source embedded into each runner's closure, filtered to
+  # the top-level dirs runners actually touch at run time. `python/`, `cpp/`,
+  # and `tools/` cover Python tools + C++ compile-on-demand; `js/` is needed
+  # by floretta and tensorflow-js; `julia/` is the relative `GradBench`
+  # package the Julia tools' `Project.toml`s depend on; `evals/` holds the
+  # C++ baseline implementations consumed by validating evals. Keeping this
+  # list explicit (rather than copying the whole repo) keeps the per-run
+  # tmpdir small. We also overlay `manualBaselines` so the validating evals
+  # find `tools/manual/bin/<module>` already compiled, exactly like the old
+  # per-eval Docker images did.
   embeddedSource = pkgs.runCommand "gradbench-source" { } ''
     mkdir -p "$out"
     cp -r ${src}/python "$out/python"
     cp -r ${src}/cpp "$out/cpp"
     cp -r ${src}/evals "$out/evals"
+    cp -r ${src}/js "$out/js"
+    cp -r ${src}/julia "$out/julia"
     cp -r ${src}/tools "$out/tools"
     # Files copied out of the store are read-only; make them writable both so we
     # can drop json.hpp in and so compile-on-demand can write here at run time.
     chmod -R u+w "$out"
     # Provide json.hpp where cpp/Makefile would have downloaded it.
     cp ${jsonInclude}/include/json.hpp "$out/cpp/json.hpp"
+    # Overlay the pre-compiled manual baselines.
+    mkdir -p "$out/tools/manual/bin"
+    cp ${manualBaselines}/bin/* "$out/tools/manual/bin/"
+    chmod -R u+w "$out/tools/manual/bin"
   '';
 }
