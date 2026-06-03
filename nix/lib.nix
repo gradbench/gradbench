@@ -44,6 +44,9 @@ in rec {
         # preamble that runs after the re-exec then rebuilds PATH from
         # `runtimeInputs` alone (no parent PATH leakage). Matches what CI
         # sees on a fresh Ubuntu runner without a dev shell loaded.
+        # XDG_RUNTIME_DIR and DBUS_SESSION_BUS_ADDRESS are preserved so
+        # the cgroup-scope wrapper below can reach the user's systemd
+        # session manager.
         if [ -z "''${GRADBENCH_RUNNER_CLEAN:-}" ]; then
           exec env -i \
             HOME="''${HOME:-/tmp}" \
@@ -51,6 +54,8 @@ in rec {
             TERM="''${TERM:-dumb}" \
             LANG="''${LANG:-C.UTF-8}" \
             TMPDIR="''${TMPDIR:-/tmp}" \
+            XDG_RUNTIME_DIR="''${XDG_RUNTIME_DIR:-}" \
+            DBUS_SESSION_BUS_ADDRESS="''${DBUS_SESSION_BUS_ADDRESS:-}" \
             GRADBENCH_RUNNER_CLEAN=1 \
             "$0" "$@"
         fi
@@ -65,7 +70,30 @@ in rec {
         export GRADBENCH_SOURCE_ROOT="$root"
         ${setup}
         cd "$root"
-        ${entrypoint} "$@"
+
+        # Run the entrypoint inside its own transient cgroup so an OOM
+        # kill in the eval/tool stays contained: the kernel reaps the
+        # heaviest process inside the scope (typically the compiled
+        # binary or JVM/Julia runtime), and `OOMPolicy=continue` keeps
+        # systemd from then SIGTERM'ing the rest of the scope -- so the
+        # in-process wrapper (e.g. cpp.py around `tools/<tool>/bin/<m>`)
+        # survives, catches the subprocess return code, and emits the
+        # `{success: false, status: -9, ...}` response the harness needs
+        # to log `outcome failure`. Mirrors the per-container memory
+        # boundary the old Docker setup had; without it the OOM would
+        # cascade up to the GHA runner agent and exit 143 mid-protocol.
+        # Skip the wrapper when systemd-run isn't available (macOS, or a
+        # Linux without a user systemd session) -- the runner still
+        # works, just without the OOM containment.
+        if command -v systemd-run >/dev/null 2>&1 \
+           && [ -n "''${XDG_RUNTIME_DIR:-}" ] \
+           && [ -S "$XDG_RUNTIME_DIR/bus" ]; then
+          exec systemd-run --user --scope --quiet --collect \
+            -p OOMPolicy=continue \
+            -- ${entrypoint} "$@"
+        fi
+
+        exec ${entrypoint} "$@"
       '';
     };
 
