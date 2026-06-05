@@ -71,26 +71,45 @@ in rec {
         ${setup}
         cd "$root"
 
-        # Run the entrypoint inside its own transient cgroup so an OOM
-        # kill in the eval/tool stays contained: the kernel reaps the
-        # heaviest process inside the scope (typically the compiled
-        # binary or JVM/Julia runtime), and `OOMPolicy=continue` keeps
-        # systemd from then SIGTERM'ing the rest of the scope -- so the
-        # in-process wrapper (e.g. cpp.py around `tools/<tool>/bin/<m>`)
-        # survives, catches the subprocess return code, and emits the
+        # Run the entrypoint inside its own transient cgroup scope so an
+        # OOM kill in the eval/tool stays contained: the kernel reaps
+        # the heaviest process in the scope, `OOMPolicy=continue` keeps
+        # systemd from SIGTERM'ing the rest of the scope after, and the
+        # in-process wrapper (cpp.py around `tools/<tool>/bin/<m>`,
+        # Julia/Lean runtimes, etc.) survives long enough to emit the
         # `{success: false, status: -9, ...}` response the harness needs
         # to log `outcome failure`. Mirrors the per-container memory
         # boundary the old Docker setup had; without it the OOM would
         # cascade up to the GHA runner agent and exit 143 mid-protocol.
-        # Skip the wrapper when systemd-run isn't available (macOS, or a
-        # Linux without a user systemd session) -- the runner still
-        # works, just without the OOM containment.
-        if command -v systemd-run >/dev/null 2>&1 \
-           && [ -n "''${XDG_RUNTIME_DIR:-}" ] \
-           && [ -S "$XDG_RUNTIME_DIR/bus" ]; then
-          exec systemd-run --user --scope --quiet --collect \
-            -p OOMPolicy=continue \
-            -- ${entrypoint} "$@"
+        #
+        # Two ways to enter a transient scope:
+        #
+        #   1. `systemd-run --user --scope`: the friendly path. Needs a
+        #      user systemd session (XDG_RUNTIME_DIR + a DBus socket).
+        #      Works locally under `nix develop` but not on GHA, where
+        #      the runner user has no login session and no user manager.
+        #
+        #   2. `sudo systemd-run --scope --uid/--gid`: system-level
+        #      transient scope, no user manager required. Drops back to
+        #      the caller's uid/gid via systemd's own setuid path. Works
+        #      on GHA (the runner has passwordless sudo) and on any
+        #      Linux host where `sudo -n` is preconfigured.
+        #
+        # On a host with neither (e.g. macOS, or a stripped Linux), exec
+        # the entrypoint directly -- no containment, but no regression.
+        if command -v systemd-run >/dev/null 2>&1; then
+          if [ -n "''${XDG_RUNTIME_DIR:-}" ] && [ -S "$XDG_RUNTIME_DIR/bus" ]; then
+            exec systemd-run --user --scope --quiet --collect \
+              -p OOMPolicy=continue \
+              -- ${entrypoint} "$@"
+          elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+            exec sudo --preserve-env=PATH \
+              systemd-run --scope --quiet --collect \
+              --uid="$(id -u)" --gid="$(id -g)" \
+              --working-directory="$PWD" \
+              -p OOMPolicy=continue \
+              -- ${entrypoint} "$@"
+          fi
         fi
 
         exec ${entrypoint} "$@"
