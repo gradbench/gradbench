@@ -97,17 +97,25 @@ in rec {
         #
         # On a host with neither (e.g. macOS, or a stripped Linux), exec
         # the entrypoint directly -- no containment, but no regression.
+        # `MemoryMax=85%` resolves per-host against `MemTotal`, so the
+        # cap moves with the runner (16 GB GHA → 13.6 GB cap; bigger dev
+        # box → bigger cap). Without it the scope has unlimited memory
+        # accounting and the OOM-killer fires at the host level, which
+        # can reap the GHA runner agent itself -- exit 143, no outcome
+        # line. With it, cppad-style "one huge alloc" hits the cgroup
+        # limit first, the cgroup OOM-killer reaps only the in-scope
+        # process, and the wrapper above it survives to log the failure.
         if command -v systemd-run >/dev/null 2>&1; then
           if [ -n "''${XDG_RUNTIME_DIR:-}" ] && [ -S "$XDG_RUNTIME_DIR/bus" ]; then
             exec systemd-run --user --scope --quiet --collect \
-              -p OOMPolicy=continue \
+              -p MemoryMax=85% -p OOMPolicy=continue \
               -- ${entrypoint} "$@"
           elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
             exec sudo --preserve-env=PATH \
               systemd-run --scope --quiet --collect \
               --uid="$(id -u)" --gid="$(id -g)" \
               --working-directory="$PWD" \
-              -p OOMPolicy=continue \
+              -p MemoryMax=85% -p OOMPolicy=continue \
               -- ${entrypoint} "$@"
           fi
         fi
