@@ -2,10 +2,28 @@
 # `lake build buildscilean` in the SciLean source dir; Lake's reachability
 # meant only the mathlib modules SciLean actually imports got compiled, so the
 # whole build finished in ~22 min. We do the same with two derivations: a
-# fixed-output one that runs the network step (`lake exe cache get`, which
-# clones every dep at its manifest-pinned revision and fetches mathlib's
-# prebuilt oleans + .c from the Lean community cache), and a pure compile
-# derivation that consumes its output and runs `lake build gradbench`.
+# fixed-output one that does the network step (clones every dep at its
+# manifest-pinned revision and fetches the deterministic olean closure from
+# the Lean community cache), and a pure compile derivation that consumes its
+# output and runs `lake build gradbench`.
+#
+# The fix for a long-standing build-time regression here: the FOD used to
+# run `lake exe cache get` and then strip every non-mathlib dep's
+# `.lake/build/` from the result. The strip was the bug -- mathlib's CDN
+# ltars cover the full transitive olean closure (mathlib + batteries + aesop
+# + Qq + ...), so those oleans were CDN-sourced and bit-deterministic, and
+# throwing them away cost the downstream compile a ~108-module mathlib
+# rebuild cascade (its stored .trace files referenced batteries oleans by
+# depHashes that no longer matched anything on disk). We now keep them.
+#
+# Why the two-phase dance in buildPhase: `lake exe cache get` interleaves
+# (1) building the `cache` exe -- which side-effect-compiles the ~10
+# `Cache.*` modules in mathlib, against the BUILD-TIME Lean toolchain, so
+# those particular oleans carry Nix store paths that wouldn't match
+# CDN-built versions -- and (2) running cache to fetch CDN ltars. We do
+# them as two steps with a `rm -rf .lake/build/` between, then run the
+# pre-built binary directly so the second step's CDN download repopulates
+# the `Cache.*` slot too. Every olean in the FOD output is CDN-sourced.
 { lean4-nix, system, gblib }:
 
 let
@@ -36,11 +54,10 @@ let
     hash = "sha256-69d/mQmLSRBD+dIjfJN74Ov+2JoMldUAlk3gNq4Rfmw=";
   };
 
-  # FOD that does what `RUN lake exe cache get` does in the Dockerfile: it
-  # clones every Lake dep at its manifest-pinned revision and fetches the
-  # prebuilt mathlib `.olean`/`.c` from the Lean community cache. We capture
-  # the resulting `.lake/` so the downstream compile step is pure (no
-  # network, no clones).
+  # FOD: clones every Lake dep at its manifest-pinned revision and fetches the
+  # deterministic prebuilt olean closure (mathlib + batteries + aesop + every
+  # transitive dep) from the Lean community cache. The downstream compile
+  # step consumes the resulting `.lake/` and runs offline.
   scileanLakeCache = pkgs.stdenvNoCC.mkDerivation {
     name = "gradbench-scilean-lake-cache";
     src = ../../tools/scilean;
@@ -50,7 +67,34 @@ let
     buildPhase = ''
       runHook preBuild
       export HOME="$TMPDIR"
-      lake exe cache get
+
+      # Phase 1: build the `cache` exe but don't run it. Lake clones every
+      # dep and compiles mathlib's ~10 `Cache.*` modules against the
+      # build-time Lean toolchain (Nix store path embedded); those oleans
+      # are the artifacts we need the CDN to overwrite.
+      lake build cache
+
+      # Snapshot the freshly-built cache binary, then wipe every compiled
+      # olean (in `.lake/build/` at the workspace and per-package). After
+      # this only sources, .git/, and the saved binary remain.
+      cache_bin="$TMPDIR/cache"
+      mv .lake/packages/mathlib/.lake/build/bin/cache "$cache_bin"
+      rm -rf .lake/build
+      for pkg in .lake/packages/*; do
+        rm -rf "$pkg/.lake/build"
+      done
+
+      # Phase 2: put the binary back and run it directly. Bypassing
+      # `lake exe cache get` matters: that command would re-evaluate the
+      # `cache` target, see no build dir, and rebuild the `Cache.*` oleans
+      # we just threw away. Running the binary directly only triggers the
+      # CDN download, which repopulates the entire transitive olean
+      # closure (mathlib + batteries + aesop + Qq + ...) from byte-stable
+      # URLs, so every compiled artifact this produces is deterministic.
+      mkdir -p .lake/packages/mathlib/.lake/build/bin
+      mv "$cache_bin" .lake/packages/mathlib/.lake/build/bin/cache
+      ./.lake/packages/mathlib/.lake/build/bin/cache get
+
       runHook postBuild
     '';
     installPhase = ''
@@ -63,9 +107,8 @@ let
       #
       # Things we KEEP:
       #   * each cloned dep's source tree, at its pinned commit
-      #   * mathlib's `.lake/build/lib` and `.lake/build/ir` (the prebuilt
-      #     oleans + .c from the Lean community cache -- the whole point
-      #     of running `lake exe cache get`)
+      #   * every dep's `.lake/build/` (oleans + .c) -- all CDN-sourced
+      #     after the two-phase dance, hence bit-deterministic
       #   * a minimal `.git/` per dep so Lake's offline manifest path
       #     recognises the dir as a repo and reads HEAD without fetching
       #
@@ -79,12 +122,9 @@ let
       #   * gradbench's and each dep's elaborated `lakefile.olean` and
       #     `lakefile.olean.trace` -- the compile step regenerates these
       #     in seconds, and the `.trace` files include build-env data.
-      #   * non-mathlib deps' `.lake/build/` -- those are cheap to rebuild
-      #     and we don't ship the mathlib cache equivalent for them.
-      #   * mathlib's locally-built `cache` exe artifacts (`bin/`,
-      #     `lib/Cache`, `ir/Cache`) -- they reference the build-time
-      #     Lean toolchain and we only needed `cache` to fetch the olean
-      #     cache.
+      #   * mathlib's locally-built `cache` exe (`bin/`) -- it's the only
+      #     non-CDN artifact left after the two-phase dance, and the
+      #     downstream compile doesn't need it.
       #   * proofwidgets' downloaded widget tarball -- we have our own
       #     pinned `fetchurl` and inject it at compile time.
       for pkg in .lake/packages/*; do
@@ -100,31 +140,25 @@ let
       done
       rm -f .lake/lakefile.olean .lake/lakefile.olean.trace
       for pkg in .lake/packages/*; do
-        name=$(basename "$pkg")
         rm -f "$pkg/.lake/lakefile.olean" "$pkg/.lake/lakefile.olean.trace"
-        if [ "$name" != mathlib ]; then
-          rm -rf "$pkg/.lake/build"
-        fi
       done
       rm -f .lake/packages/proofwidgets/.lake/ProofWidgets4.tar.gz \
             .lake/packages/proofwidgets/.lake/ProofWidgets4.tar.gz.trace
-      rm -rf .lake/packages/mathlib/.lake/build/bin \
-             .lake/packages/mathlib/.lake/build/lib/Cache \
-             .lake/packages/mathlib/.lake/build/ir/Cache
+      rm -rf .lake/packages/mathlib/.lake/build/bin
       mkdir -p "$out"
       cp -r .lake "$out/.lake"
       runHook postInstall
     '';
     outputHashMode = "recursive";
     outputHashAlgo = "sha256";
-    outputHash = "sha256-u/x0GTy1kperKrlE5xkTf1URu+VviNLJU6ltJ0/oLLo=";
+    outputHash = "sha256-UYi1d8v4mSId+I7VcTHWG8uayX1Jm9gkVpoddCgeKOs=";
   };
 
-  # The actual SciLean build. With a populated `.lake/` in place, Lake
-  # compiles only the modules reachable from `gradbench` (same subset as
-  # Docker's `lake build buildscilean`), so the build takes ~20-30 min
-  # instead of compiling the entire `Mathlib:shared` library from scratch.
-  # Lake's progress output streams to stderr -> visible in the build log.
+  # The actual SciLean build. With a populated `.lake/` in place (all deps'
+  # oleans matching what their stored .trace files were computed against),
+  # Lake skips the dep-rebuild cascade entirely and only compiles the
+  # SciLean / gradbench modules. Lake's progress output streams to stderr ->
+  # visible in the build log.
   scilean = pkgs.stdenv.mkDerivation (blasEnv // {
     name = "gradbench-scilean";
     src = ../../tools/scilean;
@@ -144,8 +178,9 @@ let
     dontConfigure = true;
     buildPhase = ''
       runHook preBuild
-      # Restore the cached Lake state (cloned deps + mathlib oleans) into a
-      # writable `.lake/` in this build dir.
+      # Restore the cached Lake state (cloned deps + CDN-sourced oleans for
+      # the full transitive closure) into a writable `.lake/` in this build
+      # dir.
       cp -r ${scileanLakeCache}/.lake .lake
       chmod -R u+w .lake
       # Inject ProofWidgets' prebuilt widget JS so its build sees the
