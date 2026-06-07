@@ -105,14 +105,25 @@ in rec {
         # line. With it, cppad-style "one huge alloc" hits the cgroup
         # limit first, the cgroup OOM-killer reaps only the in-scope
         # process, and the wrapper above it survives to log the failure.
-        if command -v systemd-run >/dev/null 2>&1; then
+        # systemd-run and sudo are NOT on the runner's PATH (runtimeInputs
+        # is the minimal set the entrypoint needs), so reference both by
+        # absolute path. systemd-run is bundled into our closure via
+        # nixpkgs's systemd; sudo is a host binary (setuid root, can't
+        # be bundled), so probe well-known locations.
+        SYSTEMD_RUN=${pkgs.systemd}/bin/systemd-run
+        SUDO=""
+        for p in /usr/bin/sudo /usr/local/bin/sudo /run/wrappers/bin/sudo; do
+          if [ -x "$p" ]; then SUDO="$p"; break; fi
+        done
+
+        if [ -x "$SYSTEMD_RUN" ]; then
           if [ -n "''${XDG_RUNTIME_DIR:-}" ] && [ -S "$XDG_RUNTIME_DIR/bus" ]; then
-            exec systemd-run --user --scope --quiet --collect \
+            exec "$SYSTEMD_RUN" --user --scope --quiet --collect \
               -p MemoryMax=85% -p MemorySwapMax=0 -p OOMPolicy=continue \
               -- ${entrypoint} "$@"
-          elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
-            exec sudo --preserve-env=PATH \
-              systemd-run --scope --quiet --collect \
+          elif [ -n "$SUDO" ] && "$SUDO" -n true 2>/dev/null; then
+            exec "$SUDO" --preserve-env=PATH \
+              "$SYSTEMD_RUN" --scope --quiet --collect \
               --uid="$(id -u)" --gid="$(id -g)" \
               --working-directory="$PWD" \
               -p MemoryMax=85% -p MemorySwapMax=0 -p OOMPolicy=continue \
