@@ -108,14 +108,14 @@ in rec {
         if command -v systemd-run >/dev/null 2>&1; then
           if [ -n "''${XDG_RUNTIME_DIR:-}" ] && [ -S "$XDG_RUNTIME_DIR/bus" ]; then
             exec systemd-run --user --scope --quiet --collect \
-              -p MemoryMax=85% -p OOMPolicy=continue \
+              -p MemoryMax=85% -p MemorySwapMax=0 -p OOMPolicy=continue \
               -- ${entrypoint} "$@"
           elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
             exec sudo --preserve-env=PATH \
               systemd-run --scope --quiet --collect \
               --uid="$(id -u)" --gid="$(id -g)" \
               --working-directory="$PWD" \
-              -p MemoryMax=85% -p OOMPolicy=continue \
+              -p MemoryMax=85% -p MemorySwapMax=0 -p OOMPolicy=continue \
               -- ${entrypoint} "$@"
           fi
         fi
