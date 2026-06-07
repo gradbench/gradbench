@@ -97,14 +97,17 @@ in rec {
         #
         # On a host with neither (e.g. macOS, or a stripped Linux), exec
         # the entrypoint directly -- no containment, but no regression.
-        # `MemoryMax=85%` resolves per-host against `MemTotal`, so the
-        # cap moves with the runner (16 GB GHA → 13.6 GB cap; bigger dev
+        # `MemoryMax=95%` resolves per-host against `MemTotal`, so the
+        # cap moves with the runner (16 GB GHA → ~15 GB cap; bigger dev
         # box → bigger cap). Without it the scope has unlimited memory
         # accounting and the OOM-killer fires at the host level, which
         # can reap the GHA runner agent itself -- exit 143, no outcome
         # line. With it, cppad-style "one huge alloc" hits the cgroup
         # limit first, the cgroup OOM-killer reaps only the in-scope
         # process, and the wrapper above it survives to log the failure.
+        # 95% leaves enough headroom for the runner-agent + system
+        # services while staying close to the effective memory budget
+        # the old Docker setup gave each container.
         # systemd-run and sudo are NOT on the runner's PATH (runtimeInputs
         # is the minimal set the entrypoint needs), so reference both by
         # absolute path. systemd-run is bundled into our closure via
@@ -119,14 +122,14 @@ in rec {
         if [ -x "$SYSTEMD_RUN" ]; then
           if [ -n "''${XDG_RUNTIME_DIR:-}" ] && [ -S "$XDG_RUNTIME_DIR/bus" ]; then
             exec "$SYSTEMD_RUN" --user --scope --quiet --collect \
-              -p MemoryMax=85% -p MemorySwapMax=0 -p OOMPolicy=continue \
+              -p MemoryMax=95% -p MemorySwapMax=0 -p OOMPolicy=continue \
               -- ${entrypoint} "$@"
           elif [ -n "$SUDO" ] && "$SUDO" -n true 2>/dev/null; then
             exec "$SUDO" --preserve-env=PATH \
               "$SYSTEMD_RUN" --scope --quiet --collect \
               --uid="$(id -u)" --gid="$(id -g)" \
               --working-directory="$PWD" \
-              -p MemoryMax=85% -p MemorySwapMax=0 -p OOMPolicy=continue \
+              -p MemoryMax=95% -p MemorySwapMax=0 -p OOMPolicy=continue \
               -- ${entrypoint} "$@"
           fi
         fi
