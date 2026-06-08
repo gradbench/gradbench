@@ -637,7 +637,11 @@ impl<'a> Nix<'a> {
     fn run_eval(&self, args: &[String], contain_oom: bool) -> Result<(), ExitCode> {
         let out_path = self.build_eval()?;
         run(&mut Self::runner_cmd(
-            "eval", self.name, &out_path, args, contain_oom,
+            "eval",
+            self.name,
+            &out_path,
+            args,
+            contain_oom,
         ))?;
         Ok(())
     }
@@ -646,7 +650,11 @@ impl<'a> Nix<'a> {
     fn run_tool(&self, args: &[String], contain_oom: bool) -> Result<(), ExitCode> {
         let out_path = self.build_tool()?;
         run(&mut Self::runner_cmd(
-            "tool", self.name, &out_path, args, contain_oom,
+            "tool",
+            self.name,
+            &out_path,
+            args,
+            contain_oom,
         ))?;
         Ok(())
     }
