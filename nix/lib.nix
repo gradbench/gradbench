@@ -56,6 +56,7 @@ in rec {
             TMPDIR="''${TMPDIR:-/tmp}" \
             XDG_RUNTIME_DIR="''${XDG_RUNTIME_DIR:-}" \
             DBUS_SESSION_BUS_ADDRESS="''${DBUS_SESSION_BUS_ADDRESS:-}" \
+            GRADBENCH_CONTAIN_OOM="''${GRADBENCH_CONTAIN_OOM:-}" \
             GRADBENCH_RUNNER_CLEAN=1 \
             "$0" "$@"
         fi
@@ -93,7 +94,11 @@ in rec {
         #      transient scope, no user manager required. Drops back to
         #      the caller's uid/gid via systemd's own setuid path. Works
         #      on GHA (the runner has passwordless sudo) and on any
-        #      Linux host where `sudo -n` is preconfigured.
+        #      Linux host where `sudo -n` is preconfigured. Opt-in via
+        #      the gradbench CLI's `--contain-oom` flag (sets
+        #      `GRADBENCH_CONTAIN_OOM=1` in the child env) so we don't
+        #      silently invoke `sudo` on a user's machine where it
+        #      happens to be passwordless.
         #
         # On a host with neither (e.g. macOS, or a stripped Linux), exec
         # the entrypoint directly -- no containment, but no regression.
@@ -124,7 +129,8 @@ in rec {
             exec "$SYSTEMD_RUN" --user --scope --quiet --collect \
               -p MemoryMax=95% -p MemorySwapMax=0 -p OOMPolicy=continue \
               -- ${entrypoint} "$@"
-          elif [ -n "$SUDO" ] && "$SUDO" -n true 2>/dev/null; then
+          elif [ "''${GRADBENCH_CONTAIN_OOM:-}" = 1 ] \
+               && [ -n "$SUDO" ] && "$SUDO" -n true 2>/dev/null; then
             exec "$SUDO" --preserve-env=PATH \
               "$SYSTEMD_RUN" --scope --quiet --collect \
               --uid="$(id -u)" --gid="$(id -g)" \

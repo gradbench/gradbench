@@ -55,6 +55,14 @@ enum Commands {
 
         /// Arguments for the eval itself
         args: Vec<String>,
+
+        /// Run the eval in its own memory-isolated cgroup so an OOM in
+        /// the eval doesn't take down the calling harness. On Linux
+        /// hosts without a user systemd session (e.g. CI runners), this
+        /// needs passwordless `sudo` to enter a system-level scope;
+        /// otherwise it falls back to plain exec.
+        #[clap(long)]
+        contain_oom: bool,
     },
 
     /// Run a tool using Nix.
@@ -67,6 +75,14 @@ enum Commands {
 
         /// Arguments for the tool itself
         args: Vec<String>,
+
+        /// Run the tool in its own memory-isolated cgroup so an OOM in
+        /// the tool doesn't take down the calling harness. On Linux
+        /// hosts without a user systemd session (e.g. CI runners), this
+        /// needs passwordless `sudo` to enter a system-level scope;
+        /// otherwise it falls back to plain exec.
+        #[clap(long)]
+        contain_oom: bool,
     },
 
     /// Run a given tool on a given eval. For example:
@@ -165,6 +181,15 @@ enum RepoCommands {
         /// Print commands to stdout instead of running anything
         #[clap(long)]
         dry_run: bool,
+
+        /// Run each eval/tool in its own memory-isolated cgroup so an
+        /// OOM in one process kills just that process instead of
+        /// cascading up to the harness or the GHA runner agent. On
+        /// Linux hosts without a user systemd session (e.g. CI
+        /// runners), this needs passwordless `sudo` to enter a
+        /// system-level scope; otherwise it falls back to plain exec.
+        #[clap(long)]
+        contain_oom: bool,
     },
 
     /// Build and run an eval using Nix.
@@ -176,6 +201,14 @@ enum RepoCommands {
 
         /// Arguments for the eval itself
         args: Vec<String>,
+
+        /// Run the eval in its own memory-isolated cgroup so an OOM in
+        /// the eval doesn't take down the calling harness. On Linux
+        /// hosts without a user systemd session (e.g. CI runners), this
+        /// needs passwordless `sudo` to enter a system-level scope;
+        /// otherwise it falls back to plain exec.
+        #[clap(long)]
+        contain_oom: bool,
     },
 
     /// Build and run a tool using Nix.
@@ -187,6 +220,14 @@ enum RepoCommands {
 
         /// Arguments for the tool itself
         args: Vec<String>,
+
+        /// Run the tool in its own memory-isolated cgroup so an OOM in
+        /// the tool doesn't take down the calling harness. On Linux
+        /// hosts without a user systemd session (e.g. CI runners), this
+        /// needs passwordless `sudo` to enter a system-level scope;
+        /// otherwise it falls back to plain exec.
+        #[clap(long)]
+        contain_oom: bool,
     },
 
     /// Build the native runner for an eval.
@@ -458,6 +499,7 @@ fn materialize_run_cmd(
     run_cmd: RunCmd,
     eval_paths: &HashMap<String, String>,
     tool_paths: &HashMap<String, String>,
+    contain_oom: bool,
 ) -> anyhow::Result<Command> {
     match run_cmd {
         RunCmd::Custom(cmd) => Ok(cmd),
@@ -469,7 +511,7 @@ fn materialize_run_cmd(
             let out_path = paths
                 .get(&name)
                 .ok_or_else(|| anyhow!("no built store path for {} {name:?}", kind.prefix()))?;
-            let mut cmd = Nix::runner_cmd(kind.prefix(), &name, out_path, &args);
+            let mut cmd = Nix::runner_cmd(kind.prefix(), &name, out_path, &args, contain_oom);
             configure_intermediary_subcommand(&mut cmd);
             Ok(cmd)
         }
@@ -530,9 +572,21 @@ impl<'a> Nix<'a> {
     /// of via `nix run`. This avoids re-evaluating the flake on every run, which
     /// for haskell.nix-based tools (horde-ad) would otherwise re-run their plan
     /// import-from-derivation each time.
-    fn runner_cmd(prefix: &str, name: &str, out_path: &str, args: &[String]) -> Command {
+    fn runner_cmd(
+        prefix: &str,
+        name: &str,
+        out_path: &str,
+        args: &[String],
+        contain_oom: bool,
+    ) -> Command {
         let mut cmd = Command::new(format!("{out_path}/bin/{prefix}-{name}"));
         cmd.args(args);
+        // Surfaced as the `--contain-oom` flag; the runner script reads
+        // this to gate the `sudo systemd-run` fallback that wraps the
+        // entrypoint in a memory-limited cgroup scope.
+        if contain_oom {
+            cmd.env("GRADBENCH_CONTAIN_OOM", "1");
+        }
         cmd
     }
 
@@ -580,16 +634,20 @@ impl<'a> Nix<'a> {
     }
 
     /// Build an eval and run it directly out of the Nix store.
-    fn run_eval(&self, args: &[String]) -> Result<(), ExitCode> {
+    fn run_eval(&self, args: &[String], contain_oom: bool) -> Result<(), ExitCode> {
         let out_path = self.build_eval()?;
-        run(&mut Self::runner_cmd("eval", self.name, &out_path, args))?;
+        run(&mut Self::runner_cmd(
+            "eval", self.name, &out_path, args, contain_oom,
+        ))?;
         Ok(())
     }
 
     /// Build a tool and run it directly out of the Nix store.
-    fn run_tool(&self, args: &[String]) -> Result<(), ExitCode> {
+    fn run_tool(&self, args: &[String], contain_oom: bool) -> Result<(), ExitCode> {
         let out_path = self.build_tool()?;
-        run(&mut Self::runner_cmd("tool", self.name, &out_path, args))?;
+        run(&mut Self::runner_cmd(
+            "tool", self.name, &out_path, args, contain_oom,
+        ))?;
         Ok(())
     }
 }
@@ -690,6 +748,10 @@ struct RunConfig {
 
     /// GitHub Actions run ID from which to download evals and tools.
     download_github: Option<u64>,
+
+    /// Wrap each runner in a cgroup memory scope. See the `--contain-oom`
+    /// flag on `repo run` for the runtime story.
+    contain_oom: bool,
 }
 
 /// Raw lists of evals and tools to run against each other.
@@ -1095,11 +1157,21 @@ fn run_multiple(
     // commands (execing the store paths directly, not `nix run`).
     let mut evals_run: Vec<(String, Command)> = evals_run
         .into_iter()
-        .map(|(string, rc)| Ok((string, materialize_run_cmd(rc, &eval_paths, &tool_paths)?)))
+        .map(|(string, rc)| {
+            Ok((
+                string,
+                materialize_run_cmd(rc, &eval_paths, &tool_paths, cfg.contain_oom)?,
+            ))
+        })
         .collect::<anyhow::Result<_>>()?;
     let mut tools_run: Vec<(String, Command)> = tools_run
         .into_iter()
-        .map(|(string, rc)| Ok((string, materialize_run_cmd(rc, &eval_paths, &tool_paths)?)))
+        .map(|(string, rc)| {
+            Ok((
+                string,
+                materialize_run_cmd(rc, &eval_paths, &tool_paths, cfg.contain_oom)?,
+            ))
+        })
         .collect::<anyhow::Result<_>>()?;
     if let Some(dir) = &cfg.output {
         for (eval_string, _) in &evals_run {
@@ -1335,8 +1407,16 @@ fn log_command(command: LogCommands) -> anyhow::Result<()> {
 fn cli() -> Result<(), ExitCode> {
     let mut ctrl_c = CtrlC::new().map_err(|error| err_fail(anyhow!(error)))?;
     match Cli::parse().command {
-        Commands::Eval { eval, args } => Nix::new(&eval).run_eval(&args),
-        Commands::Tool { tool, args } => Nix::new(&tool).run_tool(&args),
+        Commands::Eval {
+            eval,
+            args,
+            contain_oom,
+        } => Nix::new(&eval).run_eval(&args, contain_oom),
+        Commands::Tool {
+            tool,
+            args,
+            contain_oom,
+        } => Nix::new(&tool).run_tool(&args, contain_oom),
         Commands::Run {
             eval,
             tool,
@@ -1405,6 +1485,7 @@ fn cli() -> Result<(), ExitCode> {
                     check,
                     download_github,
                     dry_run,
+                    contain_oom,
                 } => match run_multiple(
                     &mut ctrl_c,
                     RunConfig {
@@ -1412,6 +1493,7 @@ fn cli() -> Result<(), ExitCode> {
                         timeout,
                         check,
                         download_github,
+                        contain_oom,
                     },
                     RunRaw {
                         eval,
@@ -1424,8 +1506,16 @@ fn cli() -> Result<(), ExitCode> {
                     Ok(res) => res,
                     Err(err) => Err(err_fail(err)),
                 },
-                RepoCommands::Eval { eval, args } => Nix::new(&eval).run_eval(&args),
-                RepoCommands::Tool { tool, args } => Nix::new(&tool).run_tool(&args),
+                RepoCommands::Eval {
+                    eval,
+                    args,
+                    contain_oom,
+                } => Nix::new(&eval).run_eval(&args, contain_oom),
+                RepoCommands::Tool {
+                    tool,
+                    args,
+                    contain_oom,
+                } => Nix::new(&tool).run_tool(&args, contain_oom),
                 RepoCommands::BuildEval { eval } => Nix::new(&eval).build_eval().map(|_| ()),
                 RepoCommands::BuildTool { tool } => Nix::new(&tool).build_tool().map(|_| ()),
                 RepoCommands::Lint {
