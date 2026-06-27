@@ -43,10 +43,7 @@
 
   outputs = inputs@{ self, nixpkgs, ... }:
     let
-      # The proof-of-concept currently targets x86_64-linux only. Adding
-      # aarch64-linux and aarch64-darwin later should just mean extending this
-      # list (and resolving any per-tool platform-specific logic).
-      systems = [ "x86_64-linux" ];
+      systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" ];
       forAllSystems = f:
         nixpkgs.lib.genAttrs systems (system:
           f {

@@ -113,32 +113,41 @@ in rec {
         # 95% leaves enough headroom for the runner-agent + system
         # services while staying close to the effective memory budget
         # the old Docker setup gave each container.
-        # systemd-run and sudo are NOT on the runner's PATH (runtimeInputs
-        # is the minimal set the entrypoint needs), so reference both by
-        # absolute path. systemd-run is bundled into our closure via
-        # nixpkgs's systemd; sudo is a host binary (setuid root, can't
-        # be bundled), so probe well-known locations.
-        SYSTEMD_RUN=${pkgs.systemd}/bin/systemd-run
-        SUDO=""
-        for p in /usr/bin/sudo /usr/local/bin/sudo /run/wrappers/bin/sudo; do
-          if [ -x "$p" ]; then SUDO="$p"; break; fi
-        done
+        # The cgroup-scope wrapper is Linux-only: systemd-run, /proc/cgroup,
+        # and the systemd service manager don't exist on darwin. Refer to
+        # `pkgs.systemd` only inside this Linux-gated block, otherwise the
+        # `aarch64-darwin` evaluation refuses (`pkgs.systemd` has no darwin
+        # in its `meta.platforms`). On non-Linux we just exec the
+        # entrypoint plainly -- same fallback shape as before, no OOM
+        # containment.
+        ${lib.optionalString pkgs.stdenv.isLinux ''
+          # systemd-run and sudo are NOT on the runner's PATH (runtimeInputs
+          # is the minimal set the entrypoint needs), so reference both by
+          # absolute path. systemd-run is bundled into our closure via
+          # nixpkgs's systemd; sudo is a host binary (setuid root, can't
+          # be bundled), so probe well-known locations.
+          SYSTEMD_RUN=${pkgs.systemd}/bin/systemd-run
+          SUDO=""
+          for p in /usr/bin/sudo /usr/local/bin/sudo /run/wrappers/bin/sudo; do
+            if [ -x "$p" ]; then SUDO="$p"; break; fi
+          done
 
-        if [ -x "$SYSTEMD_RUN" ]; then
-          if [ -n "''${XDG_RUNTIME_DIR:-}" ] && [ -S "$XDG_RUNTIME_DIR/bus" ]; then
-            exec "$SYSTEMD_RUN" --user --scope --quiet --collect \
-              -p MemoryMax=95% -p MemorySwapMax=0 -p OOMPolicy=continue \
-              -- ${entrypoint} "$@"
-          elif [ "''${GRADBENCH_CONTAIN_OOM:-}" = 1 ] \
-               && [ -n "$SUDO" ] && "$SUDO" -n true 2>/dev/null; then
-            exec "$SUDO" --preserve-env=PATH \
-              "$SYSTEMD_RUN" --scope --quiet --collect \
-              --uid="$(id -u)" --gid="$(id -g)" \
-              --working-directory="$PWD" \
-              -p MemoryMax=95% -p MemorySwapMax=0 -p OOMPolicy=continue \
-              -- ${entrypoint} "$@"
+          if [ -x "$SYSTEMD_RUN" ]; then
+            if [ -n "''${XDG_RUNTIME_DIR:-}" ] && [ -S "$XDG_RUNTIME_DIR/bus" ]; then
+              exec "$SYSTEMD_RUN" --user --scope --quiet --collect \
+                -p MemoryMax=95% -p MemorySwapMax=0 -p OOMPolicy=continue \
+                -- ${entrypoint} "$@"
+            elif [ "''${GRADBENCH_CONTAIN_OOM:-}" = 1 ] \
+                 && [ -n "$SUDO" ] && "$SUDO" -n true 2>/dev/null; then
+              exec "$SUDO" --preserve-env=PATH \
+                "$SYSTEMD_RUN" --scope --quiet --collect \
+                --uid="$(id -u)" --gid="$(id -g)" \
+                --working-directory="$PWD" \
+                -p MemoryMax=95% -p MemorySwapMax=0 -p OOMPolicy=continue \
+                -- ${entrypoint} "$@"
+            fi
           fi
-        fi
+        ''}
 
         exec ${entrypoint} "$@"
       '';
@@ -230,9 +239,16 @@ in rec {
   # non-deterministic parts (registries, logs, precompile caches) and keep the
   # content-addressed packages/artifacts. At run time JULIA_DEPOT_PATH points at
   # a writable overlay (for precompile caches) followed by that read-only depot.
-  mkJuliaTool = { name, depotHash }:
+  # `depotHashes` is a `{ <system> = "sha256-..."; ... }` attrset, because
+  # `Pkg.instantiate()`'s output differs per platform (different precompiled
+  # artifacts land in the depot). On a system that has no entry we throw a
+  # clear error; the per-tool .nix file is the place to add a new entry once
+  # we've computed the hash for that platform.
+  mkJuliaTool = { name, depotHashes }:
     let
       julia = pkgs.julia_110;
+      depotHash = depotHashes.${pkgs.stdenv.system} or (throw
+        "mkJuliaTool ${name}: no depot hash recorded for ${pkgs.stdenv.system}; compute one and add it to depotHashes");
       depot = pkgs.stdenvNoCC.mkDerivation {
         name = "gradbench-julia-${name}-depot";
         inherit src;
