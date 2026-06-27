@@ -71,6 +71,25 @@ let
     scilean = import ./tools/scilean.nix { inherit lean4-nix system gblib; };
   };
 
+  # Which systems each tool actually supports. Tools not listed default to
+  # all of `flake.nix`'s `systems`; tools listed are restricted to the given
+  # set and dropped from the registry on other systems. Keep this list short
+  # and document the reason next to each entry.
+  toolSystems = {
+    # Upstream only ships a `linux-x86_64` binary release; aarch64 would
+    # need a from-source build (Haskell, big tail of effort).
+    futhark = [ "x86_64-linux" ];
+    # The leanblas C extension lake-builds against `<cblas.h>` and fails
+    # to link on aarch64-linux (`cblas_daxpby`/`cblas_zdot` undefined --
+    # nixpkgs's OpenBLAS on aarch64 doesn't expose the same symbol set
+    # OpenBLAS-on-x86_64 does). Real fix requires upstream leanblas
+    # adjustments; gate for now.
+    scilean = [ "x86_64-linux" ];
+  };
+  supportedTools = lib.filterAttrs
+    (name: _: !(toolSystems ? ${name}) || lib.elem system toolSystems.${name})
+    tools;
+
   prefix = p: set:
     lib.mapAttrs' (name: drv: lib.nameValuePair "${p}${name}" drv) set;
   imagesOf = p: set:
@@ -78,6 +97,6 @@ let
     (name: drv: lib.nameValuePair "image-${p}${name}" (gblib.mkImage drv)) set;
 in {
   inherit gblib;
-  packages = (prefix "eval-" evals) // (prefix "tool-" tools)
-    // (imagesOf "eval-" evals) // (imagesOf "tool-" tools);
+  packages = (prefix "eval-" evals) // (prefix "tool-" supportedTools)
+    // (imagesOf "eval-" evals) // (imagesOf "tool-" supportedTools);
 }
