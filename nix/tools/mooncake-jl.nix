@@ -3,5 +3,8 @@
 
 gblib.mkJuliaTool {
   name = "mooncake-jl";
-  depotHash = "sha256-n2YSP6zHI0DVIeroq/KDCLxZvgsuZSUuRrwIxHrCNts=";
+  depotHashes = {
+    x86_64-linux = "sha256-n2YSP6zHI0DVIeroq/KDCLxZvgsuZSUuRrwIxHrCNts=";
+    aarch64-linux = "sha256-Aoc1C5BXKfUNxBpmOirhLezt2gh12sLUwqrRIeqkS5Q=";
+  };
 }

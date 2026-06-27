@@ -23,7 +23,15 @@ let
     '';
     outputHashMode = "recursive";
     outputHashAlgo = "sha256";
-    outputHash = "sha256-+yTFLYzY/Czc4sytTdezcPCYW22XQEF5yQqp/kNiiKU=";
+    # `bun install` resolves slightly differently per platform (lockfile entries,
+    # platform-tagged optional deps). Record one hash per system; the placeholder
+    # will provoke a hash-mismatch error on first build that spells out the real
+    # one.
+    outputHash = {
+      x86_64-linux = "sha256-+yTFLYzY/Czc4sytTdezcPCYW22XQEF5yQqp/kNiiKU=";
+      aarch64-linux = "sha256-8ljjVX+auN8Gmu/tnvec1+UT5w2Pc1pA0ZPfati7aLw=";
+    }.${pkgs.stdenv.system} or (throw
+      "tensorflow-js node_modules: no hash recorded for ${pkgs.stdenv.system}");
   };
 in gblib.mkTool {
   name = "tensorflow-js";
