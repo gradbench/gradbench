@@ -158,8 +158,8 @@ describes how to do that.
 
 While the dependencies required for the evals are somewhat restrained, tool
 dependencies can be very diverse and difficult to install. Details are provided
-below. If you use Nix or NixOS, then the [`shell.nix`](./shell.nix) provides an
-easy way to install the dependencies needed for most evals and tools.
+below. If you use Nix or NixOS, then `nix develop` (the flake's dev shell)
+provides an easy way to get the dependencies needed for most evals and tools.
 
 #### Running evals outside of Docker
 
@@ -224,7 +224,8 @@ Each tool README should document how to run that tool outside of Docker, which
 may require installing dependencies or setting environment variables. For some
 tools that can be quite challenging. However, there is also some commonality
 between related tools. When the documentation is insufficient, you can always
-look at the `Dockerfile` to see exactly what needs to be installed.
+look at the tool's Nix package under [`nix/tools/`](./nix/tools) to see exactly
+what it needs.
 
 ##### Running C++-based tools
 

@@ -5,7 +5,8 @@ implementations here use the sequential objective functions implemented in C++
 and differentiated with Enzyme, through an LLVM plugin.
 
 Enzyme needs to be compiled against a specific version of LLVM. You are strongly
-advised to use the Dockerfile for this one.
+advised to use the Nix package ([`nix/tools/enzyme.nix`](/nix/tools/enzyme.nix))
+for this one.
 
 [Enzyme]: https://enzyme.mit.edu/
 

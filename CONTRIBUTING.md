@@ -50,10 +50,10 @@ cd gradbench
 
 ## Dependencies
 
-You need [Docker][].
-
-If you use [Nix][], pretty much everything else you need is in the `shell.nix`
-file at the root of this repo.
+You need [Nix][] with flakes enabled: evals and tools are built and run as Nix
+derivations (see [`nix/README.md`](nix/README.md)). Running `nix develop` (or
+`direnv allow`, via the flake-based `.envrc`) drops you into a dev shell with
+the other tools you need.
 
 Otherwise, make sure you have the following tools installed:
 
@@ -150,18 +150,15 @@ just one platform which is supported by that tool:
 
 If you'd like to contribute a new tool: awesome! We're always excited to expand
 the set of automatic differentiation tools in GradBench. The main thing you need
-to do is create a subdirectory under the `tools` directory in this repo, and
-create a `Dockerfile` in that new subdirectory. Other than having an
-`ENTRYPOINT`, you can pretty much do whatever you want; take a look at the
-already-supported tools to see some examples! You must include the following as
-the last line in your `Dockerfile`, though:
+to do is create a subdirectory under the `tools` directory in this repo for your
+tool's sources, then package it as a Nix derivation: add a
+`nix/tools/<name>.nix` returning `gblib.mkTool { ... }` and register it in
+`nix/registry.nix`. See [`nix/README.md`](nix/README.md) (the "Adding an eval or
+tool" section) for the full recipe and templates; take a look at the
+already-supported tools for examples.
 
-```Dockerfile
-LABEL org.opencontainers.image.source=https://github.com/gradbench/gradbench
-```
-
-We'd also really appreciate it if you also write a short `README.md` file next
-to your `Dockerfile`; this can be as minimal as just a link to the tool's
+We'd also really appreciate it if you also write a short `README.md` file in
+your tool directory; this can be as minimal as just a link to the tool's
 website, but can also include more information, e.g. anything specific about
 this setup of that tool for GradBench.
 
@@ -169,10 +166,10 @@ Before taking a look at any of the other evals, you should implement the
 [`hello` eval](evals/hello) for the tool you're adding! This will help you get
 all the structure for the GradBench protocol working correctly first, after
 which you can implement other evals for that tool over time. Once you've done
-so, add a file called `evals.txt` in your tool directory (next to your
-`Dockerfile`) with the names of all the evals your tool supports, each on their
-own line, in sorted order; otherwise GitHub Actions will squawk at you saying it
-expected your tool to be `undefined` on those evals.
+so, add a file called `evals.txt` in your tool directory with the names of all
+the evals your tool supports, each on their own line, in sorted order; otherwise
+GitHub Actions will squawk at you saying it expected your tool to be `undefined`
+on those evals.
 
 If the new tool you want to add is a C++ or Python library, then you are in
 luck - you can piggyback on the existing implementations of the procotol.
@@ -188,7 +185,7 @@ using some bespoke mechanism. That is in fact
 ### Implementing a new eval for a tool
 
 For some tools, the infrastructure has been built (speaking the protocol,
-writing the `Dockerfile`), but not yet implementations of all benchmarks.
+packaging the tool in Nix), but not yet implementations of all benchmarks.
 Sometimes this is because we have not gotten around to it, but at other times it
 is because those benchmarks require something that is tricky to do in a specific
 tool.

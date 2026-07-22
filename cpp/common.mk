@@ -13,13 +13,13 @@ LDFLAGS?=-lm
 MULTITHREADED=no
 NATIVE=yes
 
-# This needs to be set to "no" anytime we compile in a Dockerfile,
-# because that Docker image may get run on a different computer.
-# For example, when compiling the "manual" tool as the golden impl
-# for an eval, we can't use anything about the current native
-# architecture. But it's totally fine to have it set to "yes" when
-# compiling a tool right before running it, because that does not
-# get baked into a Docker image.
+# This needs to be set to "no" anytime the compiled binary may run on a
+# different computer than the one that compiled it -- e.g. when it gets baked
+# into a portable OCI image -- since then we can't rely on the current native
+# architecture. For example, when compiling the "manual" tool as the golden
+# impl for an eval, we can't use anything native. But it's totally fine to
+# have it set to "yes" when compiling a tool right before running it locally,
+# which does not get baked into an image.
 ifeq ($(NATIVE),yes)
 CXXFLAGS+= -march=native
 endif

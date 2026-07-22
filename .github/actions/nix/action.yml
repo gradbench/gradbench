@@ -1,0 +1,12 @@
+name: Nix
+description: Install Nix, with IOG's binary cache for haskell.nix (horde-ad).
+runs:
+  using: composite
+  steps:
+    - uses: cachix/install-nix-action@v31
+      with:
+        # IOG's cache provides haskell.nix's GHCs and Haskell packages, so
+        # horde-ad doesn't build GHC 9.14 from source. Harmless for other tools.
+        extra_nix_config: |
+          extra-substituters = https://cache.iog.io
+          extra-trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ=

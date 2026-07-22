@@ -7,24 +7,22 @@ mod util;
 
 use std::{
     backtrace::BacktraceStatus,
-    collections::{BTreeMap, BTreeSet, HashSet, VecDeque},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque},
     env,
     fmt::Write as _,
-    fs,
-    io::{self, BufRead},
-    mem::take,
+    fs, io,
     path::{Path, PathBuf},
     process::{Command, ExitCode, ExitStatus, Output, Stdio},
     rc::Rc,
     str::FromStr,
+    sync::OnceLock,
     time::Duration,
 };
 
 use anyhow::{anyhow, bail, Context};
 use clap::{Parser, Subcommand};
-use colored::{Color, Colorize};
+use colored::Colorize;
 use itertools::Itertools;
-use regex::Regex;
 use serde::Serialize;
 use stats::StatsMetadata;
 use strum::{EnumIter, EnumString, IntoStaticStr};
@@ -47,46 +45,44 @@ const OUTCOME_HELP: &str =
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    /// Run an eval using Docker.
+    /// Run an eval using Nix.
     ///
-    /// The Docker image name is `ghcr.io/gradbench/eval-<EVAL>`. If the image is not found locally
-    /// (either from being previously downloaded or from being built locally), this command will
-    /// first download it from the GitHub Container registry, then run it.
+    /// Runs the flake output `.#eval-<EVAL>` (equivalent to `nix run
+    /// .#eval-<EVAL>`), building it first if necessary.
     Eval {
         /// The name of the eval to run
         eval: String,
 
-        /// The Docker image tag, or `latest` by default. For example: `2024-12-01`
-        #[clap(short, long)]
-        tag: Option<String>,
-
-        /// Docker platform, e.g. `linux/amd64` or `linux/arm64`
-        #[clap(long)]
-        platform: Option<String>,
-
         /// Arguments for the eval itself
         args: Vec<String>,
+
+        /// Run the eval in its own memory-isolated cgroup so an OOM in
+        /// the eval doesn't take down the calling harness. On Linux
+        /// hosts without a user systemd session (e.g. CI runners), this
+        /// needs passwordless `sudo` to enter a system-level scope;
+        /// otherwise it falls back to plain exec.
+        #[clap(long)]
+        contain_oom: bool,
     },
 
-    /// Run a tool using Docker.
+    /// Run a tool using Nix.
     ///
-    /// The Docker image name is `ghcr.io/gradbench/tool-<TOOL>`. If the image is not found locally
-    /// (either from being previously downloaded or from being built locally), this command will
-    /// first download it from the GitHub Container registry, then run it.
+    /// Runs the flake output `.#tool-<TOOL>` (equivalent to `nix run
+    /// .#tool-<TOOL>`), building it first if necessary.
     Tool {
         /// The name of the tool to run
         tool: String,
 
-        /// The Docker image tag, or `latest` by default. For example: `2024-12-01`
-        #[clap(short, long)]
-        tag: Option<String>,
-
-        /// Docker platform, e.g. `linux/amd64` or `linux/arm64`
-        #[clap(long)]
-        platform: Option<String>,
-
         /// Arguments for the tool itself
         args: Vec<String>,
+
+        /// Run the tool in its own memory-isolated cgroup so an OOM in
+        /// the tool doesn't take down the calling harness. On Linux
+        /// hosts without a user systemd session (e.g. CI runners), this
+        /// needs passwordless `sudo` to enter a system-level scope;
+        /// otherwise it falls back to plain exec.
+        #[clap(long)]
+        contain_oom: bool,
     },
 
     /// Run a given tool on a given eval. For example:
@@ -135,7 +131,7 @@ enum Commands {
 
 #[derive(Debug, Subcommand)]
 enum RepoCommands {
-    /// Build and run one or more evals against one of more tools, using Docker.
+    /// Build and run one or more evals against one of more tools, using Nix.
     ///
     /// The `--eval` and `--tool` arguments can each be repeated any number of times, and each
     /// instance can take any of the following forms:
@@ -185,80 +181,69 @@ enum RepoCommands {
         /// Print commands to stdout instead of running anything
         #[clap(long)]
         dry_run: bool,
+
+        /// Run each eval/tool in its own memory-isolated cgroup so an
+        /// OOM in one process kills just that process instead of
+        /// cascading up to the harness or the GHA runner agent. On
+        /// Linux hosts without a user systemd session (e.g. CI
+        /// runners), this needs passwordless `sudo` to enter a
+        /// system-level scope; otherwise it falls back to plain exec.
+        #[clap(long)]
+        contain_oom: bool,
     },
 
-    /// Build and run an eval using Docker.
+    /// Build and run an eval using Nix.
     ///
-    /// If the build is not already cached, any output will be printed in blue.
-    ///
-    /// The Docker image name is `ghcr.io/gradbench/eval-<EVAL>:<TAG>`.
+    /// Builds and runs the flake output `.#eval-<EVAL>`.
     Eval {
         /// The name of the eval to run
         eval: String,
 
-        /// The Docker image tag, or `latest` by default. For example: `2024-12-01`
-        #[clap(short, long)]
-        tag: Option<String>,
-
-        /// Docker platform, e.g. `linux/amd64` or `linux/arm64`
-        #[clap(long)]
-        platform: Option<String>,
-
         /// Arguments for the eval itself
         args: Vec<String>,
+
+        /// Run the eval in its own memory-isolated cgroup so an OOM in
+        /// the eval doesn't take down the calling harness. On Linux
+        /// hosts without a user systemd session (e.g. CI runners), this
+        /// needs passwordless `sudo` to enter a system-level scope;
+        /// otherwise it falls back to plain exec.
+        #[clap(long)]
+        contain_oom: bool,
     },
 
-    /// Build and run a tool using Docker.
+    /// Build and run a tool using Nix.
     ///
-    /// If the build is not already cached, any output will be printed in magenta.
-    ///
-    /// The Docker image name is `ghcr.io/gradbench/tool-<TOOL>:<TAG>`.
+    /// Builds and runs the flake output `.#tool-<TOOL>`.
     Tool {
         /// The name of the tool to run
         tool: String,
 
-        /// The Docker image tag, or `latest` by default. For example: `2024-12-01`
-        #[clap(short, long)]
-        tag: Option<String>,
-
-        /// Docker platform, e.g. `linux/amd64` or `linux/arm64`
-        #[clap(long)]
-        platform: Option<String>,
-
         /// Arguments for the tool itself
         args: Vec<String>,
+
+        /// Run the tool in its own memory-isolated cgroup so an OOM in
+        /// the tool doesn't take down the calling harness. On Linux
+        /// hosts without a user systemd session (e.g. CI runners), this
+        /// needs passwordless `sudo` to enter a system-level scope;
+        /// otherwise it falls back to plain exec.
+        #[clap(long)]
+        contain_oom: bool,
     },
 
-    /// Build the Docker image for an eval.
+    /// Build the native runner for an eval.
     ///
-    /// The Docker image name is `ghcr.io/gradbench/eval-<EVAL>:<TAG>`.
+    /// Builds the flake output `.#eval-<EVAL>`.
     BuildEval {
         /// The name of the eval to build
         eval: String,
-
-        /// The Docker image tag, or `latest` by default. For example: `2024-12-01`
-        #[clap(short, long)]
-        tag: Option<String>,
-
-        /// Comma-separated list of Docker platforms to build for, e.g. `linux/amd64,linux/arm64`
-        #[clap(long)]
-        platform: Option<String>,
     },
 
-    /// Build the Docker image for a tool.
+    /// Build the native runner for a tool.
     ///
-    /// The Docker image name is `ghcr.io/gradbench/tool-<TOOL>:<TAG>`.
+    /// Builds the flake output `.#tool-<TOOL>`.
     BuildTool {
         /// The name of the tool to build
         tool: String,
-
-        /// The Docker image tag, or `latest` by default. For example: `2024-12-01`
-        #[clap(short, long)]
-        tag: Option<String>,
-
-        /// Comma-separated list of Docker platforms to build for, e.g. `linux/amd64,linux/arm64`
-        #[clap(long)]
-        platform: Option<String>,
     },
 
     /// Run linters on the codebase.
@@ -411,6 +396,23 @@ fn status_code(status: ExitStatus) -> Result<(), ExitCode> {
     }
 }
 
+/// Whether `nix-output-monitor` (nom) is available on PATH. We use it as a
+/// drop-in for `nix build` to get prettier progress output; in environments
+/// without it (e.g. plain CI runners) we fall back to `nix`. The check is
+/// memoised since it can be hit once per eval/tool in the matrix run path.
+fn use_nom() -> bool {
+    static AVAILABLE: OnceLock<bool> = OnceLock::new();
+    *AVAILABLE.get_or_init(|| {
+        Command::new("nom")
+            .arg("--version")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false)
+    })
+}
+
 /// Run a command and preserve its exit code whenever possible.
 fn run(command: &mut Command) -> Result<Output, ExitCode> {
     let output = command
@@ -422,209 +424,240 @@ fn run(command: &mut Command) -> Result<Output, ExitCode> {
     Ok(output)
 }
 
-/// A level of verbosity for building a Docker image.
-enum Verbosity {
-    /// Normal output.
-    Normal,
-
-    /// No output except for errors.
-    Quiet,
+/// Read a store path written by the CI build job (a `.path` file naming the
+/// root of an imported closure), trimming surrounding whitespace.
+fn read_out_path(path: &str) -> anyhow::Result<String> {
+    let contents =
+        fs::read_to_string(path).with_context(|| format!("reading store path {path:?}"))?;
+    let out_path = contents.trim().to_string();
+    if out_path.is_empty() {
+        bail!("store path file {path:?} is empty");
+    }
+    Ok(out_path)
 }
 
-/// Parameters for a `docker build` or `docker run` command.
-struct Docker<'a> {
+/// `name -> store path` for built runners.
+type BuiltPaths = HashMap<String, String>;
+
+/// Build all the given evals and tools in a single `nix`/`nom build`
+/// invocation so they can be realised in parallel (and there is one combined
+/// progress display and finish line). Returns one map per kind.
+/// `--print-out-paths` prints one path per installable in the order they were
+/// given, so we zip with the input ordering.
+fn build_many(evals: &[String], tools: &[String]) -> Result<(BuiltPaths, BuiltPaths), ExitCode> {
+    let mut attrs: Vec<String> = Vec::with_capacity(evals.len() + tools.len());
+    for e in evals {
+        if e.is_empty() || !fs::exists(Path::new("evals").join(e)).unwrap_or(false) {
+            return Err(err_fail(anyhow!("can't find eval to build: {e:?}")));
+        }
+        attrs.push(Nix::attr("eval", e));
+    }
+    for t in tools {
+        if t.is_empty() || !fs::exists(Path::new("tools").join(t)).unwrap_or(false) {
+            return Err(err_fail(anyhow!("can't find tool to build: {t:?}")));
+        }
+        attrs.push(Nix::attr("tool", t));
+    }
+    if attrs.is_empty() {
+        return Ok((HashMap::new(), HashMap::new()));
+    }
+    let mut cmd = Command::new(if use_nom() { "nom" } else { "nix" });
+    cmd.args(["build", "--no-link", "--print-out-paths"]);
+    for a in &attrs {
+        cmd.arg(a);
+    }
+    cmd.stdout(Stdio::piped());
+    let output = run(&mut cmd)?;
+    let paths: Vec<String> = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .map(str::to_string)
+        .collect();
+    if paths.len() != attrs.len() {
+        return Err(err_fail(anyhow!(
+            "`nix build` printed {} paths but {} were expected",
+            paths.len(),
+            attrs.len()
+        )));
+    }
+    let mut iter = paths.into_iter();
+    let mut eval_paths = HashMap::with_capacity(evals.len());
+    let mut tool_paths = HashMap::with_capacity(tools.len());
+    for e in evals {
+        eval_paths.insert(e.clone(), iter.next().unwrap());
+    }
+    for t in tools {
+        tool_paths.insert(t.clone(), iter.next().unwrap());
+    }
+    Ok((eval_paths, tool_paths))
+}
+
+/// Turn a [`RunCmd`] into a spawnable [`Command`], execing built Nix runners
+/// directly out of their store paths (looked up in `eval_paths`/`tool_paths`).
+fn materialize_run_cmd(
+    run_cmd: RunCmd,
+    eval_paths: &HashMap<String, String>,
+    tool_paths: &HashMap<String, String>,
+    contain_oom: bool,
+) -> anyhow::Result<Command> {
+    match run_cmd {
+        RunCmd::Custom(cmd) => Ok(cmd),
+        RunCmd::Nix { kind, name, args } => {
+            let paths = match kind {
+                RunItemKind::Eval => eval_paths,
+                RunItemKind::Tool => tool_paths,
+            };
+            let out_path = paths
+                .get(&name)
+                .ok_or_else(|| anyhow!("no built store path for {} {name:?}", kind.prefix()))?;
+            let mut cmd = Nix::runner_cmd(kind.prefix(), &name, out_path, &args, contain_oom);
+            configure_intermediary_subcommand(&mut cmd);
+            Ok(cmd)
+        }
+    }
+}
+
+/// Import a serialized Nix store closure from a file into the local store.
+fn import_closure(path: &str) -> anyhow::Result<Result<(), ExitCode>> {
+    let file = fs::File::open(path).with_context(|| format!("opening closure {path:?}"))?;
+    let status = Command::new("nix-store")
+        .arg("--import")
+        .stdin(Stdio::from(file))
+        .stdout(Stdio::null())
+        .status()?;
+    Ok(status_code(status))
+}
+
+/// Parameters for building or running an eval or tool with Nix.
+///
+/// Each eval and tool is a flake output: `.#eval-<name>` / `.#tool-<name>` for
+/// the native runner, and `.#image-eval-<name>` / `.#image-tool-<name>` for the
+/// OCI image built from that runner's closure via `dockerTools`.
+struct Nix<'a> {
     /// The name of an eval or tool.
     name: &'a str,
-
-    /// The tag suffix, or `"latest"` by default.
-    tag: Option<&'a str>,
-
-    /// The platform, or native by default.
-    platform: Option<&'a str>,
 }
 
-impl<'a> Docker<'a> {
-    /// Create Docker parameters with the default tag and native platform.
+impl<'a> Nix<'a> {
+    /// Create Nix parameters for the given eval or tool name.
     fn new(name: &'a str) -> Self {
-        Self {
-            name,
-            tag: None,
-            platform: None,
-        }
+        Self { name }
     }
 
-    /// Get the tag suffix, or `"latest"` by default.
-    fn get_tag(&self) -> &str {
-        self.tag.unwrap_or("latest")
+    /// A flake output attribute, e.g. `.#eval-hello`.
+    fn attr(prefix: &str, name: &str) -> String {
+        format!(".#{prefix}-{name}")
     }
 
-    /// Get a command to build the Docker image for an eval.
-    fn build_eval_cmd(&self) -> Command {
-        let t = self.get_tag();
-        let mut cmd = Command::new("docker");
-        cmd.arg("build");
-        if let Some(platform) = self.platform {
-            cmd.args(["--platform", platform]);
-        }
-        cmd.args([".", "--file"])
-            .arg(format!("evals/{}/Dockerfile", self.name))
-            .arg("--tag")
-            .arg(format!("ghcr.io/gradbench/eval-{}:{t}", self.name));
-        cmd
-    }
-
-    /// Get a command to build the Docker image for a tool.
-    fn build_tool_cmd(&self) -> Command {
-        let t = self.get_tag();
-        let mut cmd = Command::new("docker");
-        cmd.arg("build");
-        if let Some(platform) = self.platform {
-            cmd.args(["--platform", platform]);
-        }
-        cmd.args([".", "--file"])
-            .arg(format!("tools/{}/Dockerfile", self.name))
-            .arg("--tag")
-            .arg(format!("ghcr.io/gradbench/tool-{}:{t}", self.name));
-        cmd
-    }
-
-    /// Get a command to run an eval using Docker.
+    /// A command to run an eval via `nix run`. This re-evaluates the flake, so
+    /// it is used only for display (e.g. `--dry-run`); to actually run, we
+    /// build and then exec the store path directly (see [`Self::runner_cmd`]).
     fn eval_cmd(&self, args: &[String]) -> Command {
-        let t = self.get_tag();
-        let mut cmd = Command::new("docker");
-        cmd.arg("run");
-        if let Some(platform) = self.platform {
-            cmd.args(["--platform", platform]);
-        }
-        cmd.args(["--rm", "--interactive"])
-            .arg(format!("ghcr.io/gradbench/eval-{}:{t}", self.name))
+        let mut cmd = Command::new("nix");
+        cmd.args(["run", &Self::attr("eval", self.name), "--"])
             .args(args);
         cmd
     }
 
-    /// Get a command to run a tool using Docker.
+    /// A command to run a tool via `nix run`. See [`Self::eval_cmd`].
     fn tool_cmd(&self, args: &[String]) -> Command {
-        let t = self.get_tag();
-        let mut cmd = Command::new("docker");
-        cmd.arg("run");
-        if let Some(platform) = self.platform {
-            cmd.args(["--platform", platform]);
-        }
-        cmd.args(["--rm", "--interactive"])
-            .arg(format!("ghcr.io/gradbench/tool-{}:{t}", self.name))
+        let mut cmd = Command::new("nix");
+        cmd.args(["run", &Self::attr("tool", self.name), "--"])
             .args(args);
         cmd
     }
 
-    /// Build the Docker image for an eval.
-    fn build_eval(&self, verbosity: Verbosity) -> Result<Caching, ExitCode> {
-        let name = self.name;
-        if name.is_empty() || !fs::exists(Path::new("evals").join(name)).unwrap_or(false) {
-            return Err(err_fail(anyhow!("can't find eval to build: {name:?}")));
+    /// A command to exec a built runner directly out of its store path, instead
+    /// of via `nix run`. This avoids re-evaluating the flake on every run, which
+    /// for haskell.nix-based tools (horde-ad) would otherwise re-run their plan
+    /// import-from-derivation each time.
+    fn runner_cmd(
+        prefix: &str,
+        name: &str,
+        out_path: &str,
+        args: &[String],
+        contain_oom: bool,
+    ) -> Command {
+        let mut cmd = Command::new(format!("{out_path}/bin/{prefix}-{name}"));
+        cmd.args(args);
+        // Surfaced as the `--contain-oom` flag; the runner script reads
+        // this to gate the `sudo systemd-run` fallback that wraps the
+        // entrypoint in a memory-limited cgroup scope.
+        if contain_oom {
+            cmd.env("GRADBENCH_CONTAIN_OOM", "1");
         }
-        let mut cmd = self.build_eval_cmd();
-        match verbosity {
-            Verbosity::Normal => {
-                run(&mut cmd)?;
-                Ok(Caching::Uncached)
-            }
-            Verbosity::Quiet => {
-                let (caching, status) = docker_build_quiet(Color::Blue, cmd)
-                    .with_context(|| format!("error building eval {name}"))
-                    .map_err(err_fail)?;
-                status_code(status)?;
-                Ok(caching)
-            }
-        }
+        cmd
     }
 
-    /// Build the Docker image for a tool.
-    fn build_tool(&self, verbosity: Verbosity) -> Result<Caching, ExitCode> {
-        let name = self.name;
-        if name.is_empty() || !fs::exists(Path::new("tools").join(name)).unwrap_or(false) {
-            return Err(err_fail(anyhow!("can't find tool to build: {name:?}")));
-        }
-        let mut cmd = self.build_tool_cmd();
-        match verbosity {
-            Verbosity::Normal => {
-                cmd.arg("--progress=plain");
-                run(&mut cmd)?;
-                Ok(Caching::Uncached)
-            }
-            Verbosity::Quiet => {
-                let (caching, status) = docker_build_quiet(Color::Magenta, cmd)
-                    .with_context(|| format!("error building tool {name}"))
-                    .map_err(err_fail)?;
-                status_code(status)?;
-                Ok(caching)
-            }
-        }
+    /// Build the native runner for an eval and return its store path. `nix
+    /// build` is quiet when the result is already cached, so no special
+    /// handling is needed.
+    fn build_eval(&self) -> Result<String, ExitCode> {
+        self.build("evals", "eval")
     }
 
-    /// Run an eval using Docker.
-    fn run_eval(&self, args: &[String]) -> Result<(), ExitCode> {
-        let mut cmd = self.eval_cmd(args);
-        run(&mut cmd)?;
+    /// Build the native runner for a tool and return its store path.
+    fn build_tool(&self) -> Result<String, ExitCode> {
+        self.build("tools", "tool")
+    }
+
+    /// Build a native runner and return its store path. `dir` is the source
+    /// directory to sanity-check (`evals`/`tools`) and `prefix` is the flake
+    /// output prefix (`eval`/`tool`).
+    fn build(&self, dir: &str, prefix: &str) -> Result<String, ExitCode> {
+        let name = self.name;
+        if name.is_empty() || !fs::exists(Path::new(dir).join(name)).unwrap_or(false) {
+            return Err(err_fail(anyhow!("can't find {prefix} to build: {name:?}")));
+        }
+        // Capture stdout for the store path; build progress goes to stderr,
+        // which is inherited so it still streams to the terminal. When
+        // `nix-output-monitor` (nom) is available, use it as a drop-in for
+        // `nix build` -- it forwards the same arguments, renders its TUI on
+        // stderr, and preserves the `--print-out-paths` output on stdout.
+        let mut cmd = Command::new(if use_nom() { "nom" } else { "nix" });
+        cmd.args([
+            "build",
+            &Self::attr(prefix, name),
+            "--no-link",
+            "--print-out-paths",
+        ]);
+        cmd.stdout(Stdio::piped());
+        let output = run(&mut cmd)?;
+        let out_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if out_path.is_empty() {
+            return Err(err_fail(anyhow!(
+                "`nix build` produced no store path for {prefix} {name:?}"
+            )));
+        }
+        Ok(out_path)
+    }
+
+    /// Build an eval and run it directly out of the Nix store.
+    fn run_eval(&self, args: &[String], contain_oom: bool) -> Result<(), ExitCode> {
+        let out_path = self.build_eval()?;
+        run(&mut Self::runner_cmd(
+            "eval",
+            self.name,
+            &out_path,
+            args,
+            contain_oom,
+        ))?;
         Ok(())
     }
 
-    /// Run a tool using Docker.
-    fn run_tool(&self, args: &[String]) -> Result<(), ExitCode> {
-        let mut cmd = self.tool_cmd(args);
-        run(&mut cmd)?;
+    /// Build a tool and run it directly out of the Nix store.
+    fn run_tool(&self, args: &[String], contain_oom: bool) -> Result<(), ExitCode> {
+        let out_path = self.build_tool()?;
+        run(&mut Self::runner_cmd(
+            "tool",
+            self.name,
+            &out_path,
+            args,
+            contain_oom,
+        ))?;
         Ok(())
     }
-}
-
-/// Whether or not Docker output was suppressed due to detected caching.
-enum Caching {
-    /// Everything seemed to be cached; output was suppressed.
-    Cached,
-
-    /// Not everything seemed to be cached; output was not suppressed.
-    Uncached,
-}
-
-/// Run a `docker build` command but don't print output if everything is cached.
-fn docker_build_quiet(color: Color, mut cmd: Command) -> anyhow::Result<(Caching, ExitStatus)> {
-    let mut child = cmd
-        .arg("--progress=plain")
-        // Podman-based Dockers print build logs to stdout, which will
-        // interfere with the GradBench protocol when building as part
-        // of a 'gradbench repo tool' command. To avoid this, we
-        // silence stdout.
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped())
-        .spawn()?;
-    // A digit mean the start of a number of seconds for an output line for a `RUN` command. The
-    // string `sha256` is the start of a line for downloading in a `FROM` command.
-    let re = Regex::new(r"^#\d+ (\d|sha256)").unwrap();
-    let mut cached = true;
-    let mut buffer = String::new();
-    colored::control::set_override(true);
-    for result in io::BufReader::new(child.stderr.take().unwrap()).lines() {
-        let line = result?;
-        if cached {
-            buffer.push_str(&line);
-            buffer.push('\n');
-            if re.is_match(&line) {
-                cached = false;
-                eprint!("{}", take(&mut buffer).color(color));
-            }
-        } else {
-            eprintln!("{}", line.color(color));
-        }
-    }
-    let caching = if cached {
-        Caching::Cached
-    } else {
-        Caching::Uncached
-    };
-    let status = child.wait()?;
-    if !status.success() {
-        eprint!("{}", take(&mut buffer).color(color));
-    }
-    Ok((caching, status))
 }
 
 /// An imperfect outcome from running the intermediary.
@@ -723,6 +756,10 @@ struct RunConfig {
 
     /// GitHub Actions run ID from which to download evals and tools.
     download_github: Option<u64>,
+
+    /// Wrap each runner in a cgroup memory scope. See the `--contain-oom`
+    /// flag on `repo run` for the runtime story.
+    contain_oom: bool,
 }
 
 /// Raw lists of evals and tools to run against each other.
@@ -744,6 +781,7 @@ struct RunRaw {
 }
 
 /// Choice between talking about evals or talking about tools.
+#[derive(Clone, Copy)]
 enum RunItemKind {
     /// Evals.
     Eval,
@@ -752,8 +790,66 @@ enum RunItemKind {
     Tool,
 }
 
-/// A raw `String` and the processed `Command` representing its semantics.
-type RunItem = (String, Command);
+impl RunItemKind {
+    /// The flake output prefix for this kind: `eval` or `tool`.
+    fn prefix(self) -> &'static str {
+        match self {
+            RunItemKind::Eval => "eval",
+            RunItemKind::Tool => "tool",
+        }
+    }
+}
+
+/// How to run one item in the matrix.
+enum RunCmd {
+    /// A user-provided `$`-prefixed command, ready to spawn.
+    Custom(Command),
+
+    /// A Nix eval/tool: build it, then exec it directly from its store path
+    /// (rather than via a re-evaluating `nix run`).
+    Nix {
+        kind: RunItemKind,
+        name: String,
+        args: Vec<String>,
+    },
+}
+
+impl RunCmd {
+    /// A shell-quoted string of the `nix run` command equivalent to this item,
+    /// for display only (e.g. `--dry-run`).
+    fn display_string(&self) -> anyhow::Result<String> {
+        match self {
+            RunCmd::Custom(cmd) => shlex_cmd(cmd),
+            RunCmd::Nix { kind, name, args } => {
+                let nix = Nix::new(name);
+                let cmd = match kind {
+                    RunItemKind::Eval => nix.eval_cmd(args),
+                    RunItemKind::Tool => nix.tool_cmd(args),
+                };
+                shlex_cmd(&cmd)
+            }
+        }
+    }
+
+    /// Convert into the `nix run` [`Command`] equivalent to this item. Used by
+    /// tests; actual runs build and exec the store path via [`Nix::runner_cmd`].
+    #[cfg(test)]
+    fn into_display_command(self) -> Command {
+        match self {
+            RunCmd::Custom(cmd) => cmd,
+            RunCmd::Nix { kind, name, args } => {
+                let nix = Nix::new(&name);
+                match kind {
+                    RunItemKind::Eval => nix.eval_cmd(&args),
+                    RunItemKind::Tool => nix.tool_cmd(&args),
+                }
+            }
+        }
+    }
+}
+
+/// A raw `String` and the processed command representing its semantics.
+type RunItem = (String, RunCmd);
 
 /// Return a string like the input but with a restricted alphabet.
 ///
@@ -827,24 +923,26 @@ fn process_run_items(
             let first = parts
                 .pop_front()
                 .ok_or_else(|| anyhow!("empty `--{kind}` after splitting: {string:?}"))?;
-            let (build, mut cmd) = if first == "$" {
+            let (build, run_cmd) = if first == "$" {
                 let program = parts
                     .pop_front()
                     .ok_or_else(|| anyhow!("empty `--{kind}` after `$`: {string:?}"))?;
-                let cmd = Command::new(program);
-                (None, cmd)
+                let mut cmd = Command::new(program);
+                for arg in parts {
+                    cmd.arg(arg);
+                }
+                configure_intermediary_subcommand(&mut cmd);
+                (None, RunCmd::Custom(cmd))
             } else {
-                let cmd = (match item_kind {
-                    RunItemKind::Eval => Docker::eval_cmd,
-                    RunItemKind::Tool => Docker::tool_cmd,
-                })(&Docker::new(&first), &[]);
-                (Some(first), cmd)
+                let args = parts.into_iter().collect();
+                let run_cmd = RunCmd::Nix {
+                    kind: item_kind,
+                    name: first.clone(),
+                    args,
+                };
+                (Some(first), run_cmd)
             };
-            for arg in parts {
-                cmd.arg(arg);
-            }
-            configure_intermediary_subcommand(&mut cmd);
-            Ok((build, (string, cmd)))
+            Ok((build, (string, run_cmd)))
         })
         .process_results::<_, _, anyhow::Error, (BTreeSet<Option<String>>, Vec<RunItem>)>(|it| {
             it.unzip()
@@ -892,20 +990,31 @@ fn run_dry(
                 writeln!(stdout)?;
             }
             for eval in evals_build {
-                writeln!(stdout, "docker load --input eval-{eval}/eval-{eval}.tar")?;
+                writeln!(
+                    stdout,
+                    "nix-store --import < eval-{eval}/eval-{eval}.closure"
+                )?;
             }
             for tool in tools_build {
-                writeln!(stdout, "docker load --input tool-{tool}/tool-{tool}.tar")?;
+                writeln!(
+                    stdout,
+                    "nix-store --import < tool-{tool}/tool-{tool}.closure"
+                )?;
             }
         }
         None => {
-            for eval in evals_build {
-                let cmd = shlex_cmd(&Docker::new(eval).build_eval_cmd())?;
-                writeln!(stdout, "{cmd}")?;
-            }
-            for tool in tools_build {
-                let cmd = shlex_cmd(&Docker::new(tool).build_tool_cmd())?;
-                writeln!(stdout, "{cmd}")?;
+            // The real run realises everything in a single `nix build`
+            // invocation so it can build in parallel; mirror that here.
+            if !(evals_build.is_empty() && tools_build.is_empty()) {
+                let mut cmd = Command::new("nix");
+                cmd.arg("build");
+                for eval in evals_build {
+                    cmd.arg(Nix::attr("eval", eval));
+                }
+                for tool in tools_build {
+                    cmd.arg(Nix::attr("tool", tool));
+                }
+                writeln!(stdout, "{}", shlex_cmd(&cmd)?)?;
             }
         }
     }
@@ -922,8 +1031,8 @@ fn run_dry(
     }
     for (eval_string, eval_cmd) in evals_run {
         for (tool_string, tool_cmd) in tools_run {
-            let eval = shlex_cmd(eval_cmd)?;
-            let tool = shlex_cmd(tool_cmd)?;
+            let eval = eval_cmd.display_string()?;
+            let tool = tool_cmd.display_string()?;
             write!(stdout, "{this} run")?;
             if let Some(seconds) = cfg.timeout {
                 write!(stdout, " --timeout {seconds}")?;
@@ -956,9 +1065,9 @@ fn run_multiple(
     }: RunRaw,
 ) -> anyhow::Result<Result<(), ExitCode>> {
     let evals = ls("evals")?;
-    let (evals_build, mut evals_run) =
+    let (evals_build, evals_run) =
         process_run_items(RunItemKind::Eval, eval, no_eval, || Ok(evals.clone()))?;
-    let (tools_build, mut tools_run) =
+    let (tools_build, tools_run) =
         process_run_items(RunItemKind::Tool, tool, no_tool, || ls("tools"))?;
     if dry_run {
         let this = env::args()
@@ -978,6 +1087,10 @@ fn run_multiple(
         return Ok(Ok(()));
     }
     let map = evals_to_tools(evals)?;
+    // The store path of each built eval/tool runner, so we can exec it directly
+    // instead of via a re-evaluating `nix run`.
+    let mut eval_paths: HashMap<String, String> = HashMap::new();
+    let mut tool_paths: HashMap<String, String> = HashMap::new();
     match cfg.download_github {
         Some(run_id) => {
             let mut cmd = Command::new("gh");
@@ -998,63 +1111,76 @@ fn run_multiple(
                 return Ok(Err(code));
             }
             println!();
+            // Each artifact is a serialized Nix store closure plus a `.path`
+            // file naming its root (see the CI workflow); import the closure and
+            // record the path so we can exec the runner directly.
             for eval in &evals_build {
                 println!("{} {eval}", "loading eval".blue().bold());
-                let cmd = Command::new("docker")
-                    .args(["load", "--input", &format!("eval-{eval}/eval-{eval}.tar")])
-                    .status()?;
-                if let Err(code) = status_code(cmd) {
+                if let Err(code) = import_closure(&format!("eval-{eval}/eval-{eval}.closure"))? {
                     return Ok(Err(code));
                 }
-                println!();
+                let path = read_out_path(&format!("eval-{eval}/eval-{eval}.path"))?;
+                eval_paths.insert(eval.clone(), path);
             }
             for tool in tools_build {
                 println!("{} {tool}", "loading tool".magenta().bold());
-                let cmd = Command::new("docker")
-                    .args(["load", "--input", &format!("tool-{tool}/tool-{tool}.tar")])
-                    .status()?;
-                if let Err(code) = status_code(cmd) {
+                if let Err(code) = import_closure(&format!("tool-{tool}/tool-{tool}.closure"))? {
                     return Ok(Err(code));
                 }
-                println!();
+                let path = read_out_path(&format!("tool-{tool}/tool-{tool}.path"))?;
+                tool_paths.insert(tool, path);
             }
         }
         None => {
-            let mut need_newline = false;
-            for eval in &evals_build {
-                println!("{} {eval}", "building eval".blue().bold());
-                match Docker::new(eval).build_eval(Verbosity::Quiet) {
-                    Ok(Caching::Cached) => need_newline = true,
-                    Ok(Caching::Uncached) => {
-                        println!();
-                        need_newline = false;
-                    }
-                    Err(code) => return Ok(Err(code)),
+            // List what we are about to build, then realise everything in a
+            // single `nix`/`nom build` invocation so things run in parallel
+            // (and produce one combined progress display and finish line).
+            if !evals_build.is_empty() {
+                print!("{} {}", "building".bold(), "evals".blue().bold());
+                for eval in &evals_build {
+                    print!(" {eval}");
                 }
-            }
-            if need_newline {
                 println!();
-                need_newline = false;
             }
-            for tool in tools_build {
-                println!("{} {tool}", "building tool".magenta().bold());
-                match Docker::new(&tool).build_tool(Verbosity::Quiet) {
-                    Ok(Caching::Cached) => need_newline = true,
-                    Ok(Caching::Uncached) => {
-                        println!();
-                        need_newline = false;
-                    }
-                    Err(code) => return Ok(Err(code)),
+            if !tools_build.is_empty() {
+                print!("{} {}", "     and".bold(), "tools".magenta().bold());
+                for tool in &tools_build {
+                    print!(" {tool}");
                 }
+                println!();
+            }
+            match build_many(&evals_build, &tools_build) {
+                Ok((ep, tp)) => {
+                    eval_paths = ep;
+                    tool_paths = tp;
+                }
+                Err(code) => return Ok(Err(code)),
             }
             if let Some(dir) = &cfg.output {
                 fs::create_dir_all(dir)?;
             }
-            if need_newline {
-                println!();
-            }
         }
     }
+    // Now that every runner's store path is known, build the spawnable
+    // commands (execing the store paths directly, not `nix run`).
+    let mut evals_run: Vec<(String, Command)> = evals_run
+        .into_iter()
+        .map(|(string, rc)| {
+            Ok((
+                string,
+                materialize_run_cmd(rc, &eval_paths, &tool_paths, cfg.contain_oom)?,
+            ))
+        })
+        .collect::<anyhow::Result<_>>()?;
+    let mut tools_run: Vec<(String, Command)> = tools_run
+        .into_iter()
+        .map(|(string, rc)| {
+            Ok((
+                string,
+                materialize_run_cmd(rc, &eval_paths, &tool_paths, cfg.contain_oom)?,
+            ))
+        })
+        .collect::<anyhow::Result<_>>()?;
     if let Some(dir) = &cfg.output {
         for (eval_string, _) in &evals_run {
             fs::create_dir_all(eval_subpath(dir, eval_string))?;
@@ -1222,16 +1348,6 @@ fn parse_outcomes(outcome_str: &str) -> anyhow::Result<Vec<BadOutcome>> {
     Ok(outcomes)
 }
 
-/// A single entry in the `tool` matrix for GitHub Actions.
-#[derive(Serialize)]
-struct ToolEntry<'a> {
-    /// The name of the tool.
-    tool: &'a str,
-
-    /// Whether the tool can be built for `linux/arm64`, as opposed to just `linux/amd64`.
-    cross: bool,
-}
-
 /// A single entry in the `run` matrix for GitHub Actions.
 #[derive(Serialize)]
 struct RunEntry {
@@ -1257,16 +1373,7 @@ fn matrix() -> anyhow::Result<()> {
     github_output("eval", &evals)?;
     let mut tools = ls("tools")?;
     tools.sort();
-    github_output(
-        "tool",
-        tools
-            .iter()
-            .map(|tool| ToolEntry {
-                tool,
-                cross: tool != "scilean",
-            })
-            .collect::<Vec<_>>(),
-    )?;
+    github_output("tool", &tools)?;
     let evals_squish = ["hello", "llsq", "lstm", "particle", "saddle"];
     let mut runs = Vec::new();
     for tool in &tools {
@@ -1310,26 +1417,14 @@ fn cli() -> Result<(), ExitCode> {
     match Cli::parse().command {
         Commands::Eval {
             eval,
-            tag,
-            platform,
             args,
-        } => Docker {
-            name: &eval,
-            tag: tag.as_deref(),
-            platform: platform.as_deref(),
-        }
-        .run_eval(&args),
+            contain_oom,
+        } => Nix::new(&eval).run_eval(&args, contain_oom),
         Commands::Tool {
             tool,
-            tag,
-            platform,
             args,
-        } => Docker {
-            name: &tool,
-            tag: tag.as_deref(),
-            platform: platform.as_deref(),
-        }
-        .run_tool(&args),
+            contain_oom,
+        } => Nix::new(&tool).run_tool(&args, contain_oom),
         Commands::Run {
             eval,
             tool,
@@ -1398,6 +1493,7 @@ fn cli() -> Result<(), ExitCode> {
                     check,
                     download_github,
                     dry_run,
+                    contain_oom,
                 } => match run_multiple(
                     &mut ctrl_c,
                     RunConfig {
@@ -1405,6 +1501,7 @@ fn cli() -> Result<(), ExitCode> {
                         timeout,
                         check,
                         download_github,
+                        contain_oom,
                     },
                     RunRaw {
                         eval,
@@ -1419,56 +1516,16 @@ fn cli() -> Result<(), ExitCode> {
                 },
                 RepoCommands::Eval {
                     eval,
-                    tag,
-                    platform,
                     args,
-                } => {
-                    let docker = Docker {
-                        name: &eval,
-                        tag: tag.as_deref(),
-                        platform: platform.as_deref(),
-                    };
-                    docker.build_eval(Verbosity::Quiet)?;
-                    docker.run_eval(&args)?;
-                    Ok(())
-                }
+                    contain_oom,
+                } => Nix::new(&eval).run_eval(&args, contain_oom),
                 RepoCommands::Tool {
                     tool,
-                    tag,
-                    platform,
                     args,
-                } => {
-                    let docker = Docker {
-                        name: &tool,
-                        tag: tag.as_deref(),
-                        platform: platform.as_deref(),
-                    };
-                    docker.build_tool(Verbosity::Quiet)?;
-                    docker.run_tool(&args)?;
-                    Ok(())
-                }
-                RepoCommands::BuildEval {
-                    eval,
-                    tag,
-                    platform,
-                } => Docker {
-                    name: &eval,
-                    tag: tag.as_deref(),
-                    platform: platform.as_deref(),
-                }
-                .build_eval(Verbosity::Normal)
-                .map(|_| ()),
-                RepoCommands::BuildTool {
-                    tool,
-                    tag,
-                    platform,
-                } => Docker {
-                    name: &tool,
-                    tag: tag.as_deref(),
-                    platform: platform.as_deref(),
-                }
-                .build_tool(Verbosity::Normal)
-                .map(|_| ()),
+                    contain_oom,
+                } => Nix::new(&tool).run_tool(&args, contain_oom),
+                RepoCommands::BuildEval { eval } => Nix::new(&eval).build_eval().map(|_| ()),
+                RepoCommands::BuildTool { tool } => Nix::new(&tool).build_tool().map(|_| ()),
                 RepoCommands::Lint {
                     fix,
                     clang_format,
@@ -1529,7 +1586,7 @@ mod tests {
     use strum::IntoEnumIterator;
 
     use crate::{
-        mangle, process_run_items, run_dry, util::stringify_cmd, BadOutcome, Docker, RunConfig,
+        mangle, process_run_items, run_dry, util::stringify_cmd, BadOutcome, Nix, RunConfig,
         RunItemKind, RunItems, OUTCOME_HELP,
     };
 
@@ -1594,7 +1651,7 @@ mod tests {
     }
 
     fn simple_tool_cmd(name: &str, args: &[&str]) -> Vec<String> {
-        strings(&stringify_cmd(&Docker::new(name).tool_cmd(&strings(args))).unwrap())
+        strings(&stringify_cmd(&Nix::new(name).tool_cmd(&strings(args))).unwrap())
     }
 
     type RunItemSimplified = (String, Vec<String>);
@@ -1617,7 +1674,12 @@ mod tests {
             Ok((builds, runs)) => Ok((
                 builds,
                 runs.into_iter()
-                    .map(|(string, cmd)| (string, strings(&stringify_cmd(&cmd).unwrap())))
+                    .map(|(string, rc)| {
+                        (
+                            string,
+                            strings(&stringify_cmd(&rc.into_display_command()).unwrap()),
+                        )
+                    })
                     .collect(),
             )),
             Err(error) => Err(format!("{error:#}")),

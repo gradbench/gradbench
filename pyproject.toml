@@ -18,8 +18,16 @@ scipy = ["scipy~=1.0"]
 [tool.uv]
 default-groups = "all"
 
+# Use CPU builds of the ML frameworks: GradBench runs on CPU, and the default
+# Linux wheels otherwise pull in ~2 GB of CUDA (nvidia-*) wheels per framework.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
 [tool.uv.sources]
 gradbench = { workspace = true }
+torch = [{ index = "pytorch-cpu" }]
 
 [tool.uv.workspace]
 members = ["python/*"]
