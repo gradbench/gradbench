@@ -19,7 +19,8 @@ let
   GRADBENCH_PATH = builtins.getEnv "PWD";
 
   isX86 = builtins.currentSystem == "x86_64-linux";
-in pkgs.stdenv.mkDerivation rec {
+in
+pkgs.stdenv.mkDerivation rec {
   name = "gradbench";
   buildInputs = [
     # Required
@@ -45,7 +46,7 @@ in pkgs.stdenv.mkDerivation rec {
     pkgs.llvmPackages_19.clang
     pkgs.llvmPackages_19.lld
     pkgs.llvmPackages_19.openmp
-    pkgs.nixfmt-classic
+    pkgs.nixfmt
     pkgs.nodejs_24
     pkgs.openblas
     pkgs.pkg-config
@@ -70,15 +71,15 @@ in pkgs.stdenv.mkDerivation rec {
     pkgs.opam
     pkgs.ocamlPackages.dune_3
     pkgs.ocamlPackages.ocaml
-  ] ++
+  ]
+  ++
     # Nixpkgs marks Julia as broken on Apple Silicon
     (if isX86 then [ pkgs.julia_110 ] else [ ]);
 
   # The following are environment variables used by various tools.
   RUST_SRC_PATH = pkgs.rustPlatform.rustLibSrc;
   ENZYME_LIB = "${pkgs.enzyme}/lib";
-  LD_LIBRARY_PATH =
-    "${pkgs.lib.makeLibraryPath buildInputs}:${pkgs.stdenv.cc.cc.lib}/lib";
+  LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath buildInputs}:${pkgs.stdenv.cc.cc.lib}/lib";
 
   # The Nix C/C++ compilers disable -march=native on purity reasons, but we
   # don't use them to compile Nix derivations.
