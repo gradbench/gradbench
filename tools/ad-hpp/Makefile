@@ -7,10 +7,6 @@ include ../../cpp/common.mk
 GIT_TAG=v1.7.1
 CXXFLAGS+=-Iinclude
 
-bin/kmeans:
-	echo "kmeans temporarily disabled, see #654"
-	exit 1
-
 include/ad.hpp:
 	mkdir -p include
 	wget https://gitlab.stce.rwth-aachen.de/stce/ad/-/raw/$(GIT_TAG)/$@ -O $@
