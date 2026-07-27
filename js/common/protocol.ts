@@ -1,10 +1,12 @@
-type Id = number;
+// These are types in the core protocol.
+
+export type Id = number;
 
 export interface Base {
   id: Id;
 }
 
-interface Duration {
+export interface Duration {
   nanoseconds: number;
 }
 
@@ -12,12 +14,7 @@ export interface Timing extends Duration {
   name: string;
 }
 
-export interface Runs {
-  min_runs: number;
-  min_seconds: number;
-}
-
-interface StartMessage extends Base {
+export interface StartMessage extends Base {
   kind: "start";
   eval?: string;
   config?: any;
@@ -36,7 +33,7 @@ export interface EvaluateMessage extends Base {
   description?: string;
 }
 
-interface AnalysisMessage extends Base {
+export interface AnalysisMessage extends Base {
   kind: "analysis";
   of: Id;
   valid: boolean;
@@ -49,6 +46,11 @@ export type Message =
   | EvaluateMessage
   | AnalysisMessage;
 
+export interface StartResponse extends Base {
+  tool?: string;
+  config?: any;
+}
+
 export interface DefineResponse extends Base {
   success: boolean;
   timings?: Timing[];
@@ -60,4 +62,42 @@ export interface EvaluateResponse extends Base {
   output?: any;
   timings?: Timing[];
   error?: string;
+}
+
+export type Response = Base | StartResponse | DefineResponse | EvaluateResponse;
+
+export interface Line {
+  elapsed: Duration;
+}
+
+export interface MessageLine extends Line {
+  message: Message;
+}
+
+export interface ResponseLine extends Line {
+  response: Response;
+}
+
+export type Session = (MessageLine | ResponseLine)[];
+
+// These are auxiliary types used by some evals.
+
+/** An integer. */
+export type Int = number;
+
+/** A double-precision floating point value. */
+export type Float = number;
+
+/**
+ * Fields to be included in the input of an eval requesting a tool to run a
+ * function multiple times in a single evaluate message. The tool's response
+ * should include one timing entry with the name `"evaluate"` for each time it
+ * ran the function.
+ */
+export interface Runs {
+  /** Evaluate the function at least this many times. */
+  min_runs: number;
+
+  /** Evaluate the function until the total time exceeds this many seconds. */
+  min_seconds: number;
 }
