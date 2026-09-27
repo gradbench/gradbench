@@ -73,9 +73,10 @@ T log_wishart_prior(int d, int k, const Wishart wishart, const T* const sum_qs,
 }
 
 template <typename T>
-void Qtimesx(int d, const T* __restrict__ const Qdiag,
-             const T* __restrict__ const ltri,  // strictly lower triangular part
-             const T* __restrict__ const x, T* __restrict__ out) {
+void Qtimesx(
+    int d, const T* __restrict__ const Qdiag,
+    const T* __restrict__ const ltri,  // strictly lower triangular part
+    const T* __restrict__ const x, T* __restrict__ out) {
   for (int id = 0; id < d; id++) {
     out[id] = Qdiag[id] * x[id];
   }
