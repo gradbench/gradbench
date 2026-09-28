@@ -1,5 +1,5 @@
 FROM debian:trixie
-ARG ENZYME_VER=0.0.172
+ARG ENZYME_VER=0.0.297
 WORKDIR /gradbench
 
 # Install build dependencies.
