@@ -1,5 +1,5 @@
 FROM debian:trixie
-ARG ENZYME_VER=0.0.172
+ARG ENZYME_VER=0.0.298
 WORKDIR /gradbench
 
 # Install build dependencies.
@@ -15,12 +15,10 @@ RUN apt-get update && apt-get install -y \
     llvm-19 \
     clang-19 \
     libclang-19-dev \
-    lld-19 \
     libomp-dev
 
 # Set clang.
 RUN update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 100
-RUN update-alternatives --install /usr/bin/lld lld /usr/bin/lld-19 100
 
 # Install Enzyme.
 RUN wget https://github.com/EnzymeAD/Enzyme/archive/refs/tags/v${ENZYME_VER}.tar.gz
