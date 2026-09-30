@@ -1,0 +1,13 @@
+#!/bin/sh
+#
+# Tie together data extraction and gnuplot for a set of log files.
+
+set -e
+
+if [ $# -lt 1 ]; then
+    echo "Usage $0 logfiles..." >&2
+    exit 1
+fi
+
+eval=$(scripts/plotdata.py "$@")
+scripts/plot.gnuplot ${eval}

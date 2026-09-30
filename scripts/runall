@@ -1,0 +1,34 @@
+#!/bin/sh
+#
+# Run various tools for a given eval. Produces log files named
+# $tool.json.
+#
+# The first option is the eval and the rest are the tools.
+#
+# Automatically builds eval and tool Docker images before running, to
+# ensure everything is up to date.
+#
+# Must be run from the root of the gradbench directory.
+
+set -e
+
+eval="gmm"
+tools="pytorch tensorflow finite manual tapenade futhark"
+
+if [ $# -gt 1 ]; then
+    eval=$1
+    shift
+    if [ $# -gt 1 ]; then
+        tools=$@
+    fi
+fi
+
+./gradbench repo build-eval "$eval"
+
+for tool in $tools; do
+    ./gradbench repo build-tool "$tool"
+    ./gradbench run \
+                --tool "./gradbench tool $tool" \
+                --eval "./gradbench eval $eval" \
+                --output "$eval-$tool.json"
+done
