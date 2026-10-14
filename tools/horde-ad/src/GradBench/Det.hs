@@ -1,10 +1,25 @@
 {-# LANGUAGE OverloadedLists #-}
--- | This is an implementation that directly implements the recursive
--- specification and so is fundamentally so inefficient (something like O(n!)).
+-- | This code directly implements the recursive specification
+-- and so is fundamentally inefficient (something like O(n!)).
 -- Fortunately, the workloads are necessarily tiny so this doesn't OOM.
--- Due to the tiny workloads and, consequently, numerous but tiny tensors,
--- the gradient but especially the primal are much slower than
--- when implemented with lists for haskell-ad.
+-- Due to the tiny workloads and, consequently, numerous but tiny tensors
+-- with their metadata overhead, the gradient, but especially the primal,
+-- are slower than when implemented with lists for haskell-ad (and lists
+-- are handled in horde-ad via tensors, so using them in the code below
+-- would not help).
+--
+-- We employ symbolic @grad@ instead of non-symbolic @cgrad@, because
+-- we use @rbuild1@, which takes much more memory and time with @cgrad@.
+--
+-- TODO: transform @rbuild1@ manually to @rgather@, manually fuse and simplify
+-- the resulting code as much as possible and see if it's more performant
+-- that currently (try both @grad@ and @cgrad@; the latter should be
+-- equally fast when the fusion and simplification is completed manually
+-- and when AD is redone for each individual run, as it is currently).
+--
+-- TODO2: once https://gitlab.haskell.org/ghc/ghc/-/issues/26816 is solved,
+-- bring back from previous commits the implementation copied from Futhark
+-- and try to make it faster than this one.
 module GradBench.Det
   ( Input,
     PrimalOutput,
@@ -73,5 +88,3 @@ primal (Input a ell) =
 gradient :: Input -> GradientOutput
 gradient (Input a ell) =
   Nested.rtoVector . unConcrete $ grad det (chunk ell a)
-    -- non-symbolic cgrad would take much more memory and time here
-    -- due to rbuild1 above
