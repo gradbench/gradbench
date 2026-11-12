@@ -4,6 +4,13 @@
 #include "gradient.hpp"
 #include <type_traits>
 
+// saddle::objective with its arguments by reference, as copying a nested
+// active is not free.
+template <typename A>
+A f_pq(A const& p0, A const& p1, A const& q0, A const& q1) {
+  return (p0 * p0 + p1 * p1) - (q0 * q0 + q1 * q1);
+}
+
 // f(p, q) for a fixed p, as a function of q for gradient ascent; its
 // gradient comes from `grad`.
 template <typename T, typename Grad>
@@ -14,15 +21,14 @@ struct FixedP {
   size_t input_size() const { return 2; }
 
   void objective(T const* q, T* out) const {
-    *out = saddle::objective(p[0], p[1], q[0], q[1]);
+    *out = f_pq(p[0], p[1], q[0], q[1]);
   }
 
   void gradient(T const* q, T* out) const {
     grad.gradient(
         [this](auto const* a) {
           using A = std::decay_t<decltype(*a)>;
-          return saddle::objective(constant<A>(p[0]), constant<A>(p[1]), a[0],
-                                   a[1]);
+          return f_pq(constant<A>(p[0]), constant<A>(p[1]), a[0], a[1]);
         },
         q, out);
   }
@@ -34,7 +40,7 @@ T max_f(T const* p, double const* start, Grad const& grad) {
   T                    q0[2] = {start[0], start[1]};
   FixedP<T, Grad>      f{p, grad};
   std::vector<T> const q = multivariate_argmax(f, q0);
-  return saddle::objective(p[0], p[1], q[0], q[1]);
+  return f_pq(p[0], p[1], q[0], q[1]);
 }
 
 // Outer is the argmin's mode, Inner the argmax's.
