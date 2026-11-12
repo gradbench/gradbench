@@ -16,10 +16,12 @@ A constant(T const& v) {
   return a;
 }
 
-// One forward sweep per input.
-template <typename T, size_t N>
+// Forward mode, W directions per sweep: N / W sweeps, W either 1 or N.
+// Vector mode (W = N) pays when the function is expensive to evaluate.
+template <typename T, size_t N, size_t W = 1>
 struct Forward {
-  using active_type = typename xad::fwd<T>::active_type;
+  static_assert(W == 1 || W == N, "W is 1 or N");
+  using active_type = typename xad::fwd<T, W>::active_type;
 
   template <typename F>
   void gradient(F const& f, T const* in, T* out) const {
@@ -27,11 +29,25 @@ struct Forward {
     for (size_t i = 0; i < N; i++) {
       x[i] = constant<active_type>(in[i]);
     }
-    for (size_t i = 0; i < N; i++) {
-      xad::derivative(x[i]) = 1.0;
-      active_type y         = f(x.data());
-      out[i]                = xad::derivative(y);
-      xad::derivative(x[i]) = 0.0;
+    for (size_t s = 0; s < N; s += W) {
+      for (size_t i = s; i < s + W; i++) {
+        direction(x[i], i - s) = 1.0;
+      }
+      active_type y = f(x.data());
+      for (size_t i = s; i < s + W; i++) {
+        out[i]                 = direction(y, i - s);
+        direction(x[i], i - s) = 0.0;
+      }
+    }
+  }
+
+private:
+  // With W = 1 the derivative is a T, not a vector of them.
+  static T& direction(active_type& a, size_t d) {
+    if constexpr (W == 1) {
+      return xad::derivative(a);
+    } else {
+      return xad::derivative(a)[d];
     }
   }
 };

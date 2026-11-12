@@ -72,10 +72,14 @@ public:
   }
 };
 
+// The potential is costly enough that one vector sweep beats two.
+template <typename T, size_t N>
+using ForwardVector = Forward<T, N, N>;
+
 int main(int argc, char* argv[]) {
   return generic_main(argc, argv,
                       {{"rr", function_main<Particle<Reverse, Reverse>>},
-                       {"rf", function_main<Particle<Reverse, Forward>>},
-                       {"ff", function_main<Particle<Forward, Forward>>},
+                       {"rf", function_main<Particle<Reverse, ForwardVector>>},
+                       {"ff", function_main<Particle<Forward, ForwardVector>>},
                        {"fr", function_main<Particle<Forward, Reverse>>}});
 }
