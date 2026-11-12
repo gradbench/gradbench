@@ -7,9 +7,9 @@
 // Potential at (x1, x2) of the charges at (10, 10 - w) and (10, 0).
 template <typename A>
 A potential(A const& x1, A const& x2, A const& w) {
-  return 1.0 / sqrt((x1 - 10.0) * (x1 - 10.0) +
-                    (x2 - (10.0 - w)) * (x2 - (10.0 - w))) +
-         1.0 / sqrt((x1 - 10.0) * (x1 - 10.0) + x2 * x2);
+  A const dx = x1 - 10.0;
+  A const dy = x2 - (10.0 - w);
+  return 1.0 / sqrt(dx * dx + dy * dy) + 1.0 / sqrt(dx * dx + x2 * x2);
 }
 
 // Euler steps until the particle crosses the x axis; returns the squared x
