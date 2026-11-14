@@ -17,7 +17,8 @@ A constant(T const& v) {
 }
 
 // Forward mode, W directions per sweep: N / W sweeps, W either 1 or N.
-// Vector mode (W = N) pays when the function is expensive to evaluate.
+// Vector mode (W = N) pays when the function is expensive to evaluate, but not
+// for saddle's inner gradient, where f is cheap.
 template <typename T, size_t N, size_t W = 1>
 struct Forward {
   static_assert(W == 1 || W == N, "W is 1 or N");
@@ -51,6 +52,9 @@ private:
     }
   }
 };
+
+template <typename T, size_t N>
+using ForwardVector = Forward<T, N, N>;
 
 // One adjoint sweep, on a tape kept across calls.
 template <typename T, size_t N>

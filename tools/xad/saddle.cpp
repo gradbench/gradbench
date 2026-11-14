@@ -82,10 +82,12 @@ public:
   }
 };
 
+// ff carries both outer directions through one inner ascent. fr cannot: the
+// XAD library has no tape over a vector forward type by default.
 int main(int argc, char* argv[]) {
   return generic_main(argc, argv,
                       {{"rr", function_main<Saddle<Reverse, Reverse>>},
                        {"rf", function_main<Saddle<Reverse, Forward>>},
-                       {"ff", function_main<Saddle<Forward, Forward>>},
+                       {"ff", function_main<Saddle<ForwardVector, Forward>>},
                        {"fr", function_main<Saddle<Forward, Reverse>>}});
 }
