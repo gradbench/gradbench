@@ -158,7 +158,7 @@ describes how to do that.
 
 While the dependencies required for the evals are somewhat restrained, tool
 dependencies can be very diverse and difficult to install. Details are provided
-below. If you use Nix or NixOS, then the [`shell.nix`](./shell.nix) provides an
+below. If you use Nix or NixOS, then the [`flake.nix`](./flake.nix) provides an
 easy way to install the dependencies needed for most evals and tools.
 
 #### Running evals outside of Docker

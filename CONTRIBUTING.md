@@ -52,8 +52,9 @@ cd gradbench
 
 You need [Docker][].
 
-If you use [Nix][], pretty much everything else you need is in the `shell.nix`
-file at the root of this repo.
+If you use [Nix][], pretty much everything else you need is in the development
+shell defined by the `flake.nix` file at the root of this repo (run
+`nix develop`).
 
 Otherwise, make sure you have the following tools installed:
 

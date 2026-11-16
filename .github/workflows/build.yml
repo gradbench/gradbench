@@ -45,13 +45,13 @@ jobs:
       - name: Install CLI from artifact
         uses: ./.github/actions/cli
       - name: Install npm dependencies
-        run: nix-shell --command "bun install"
+        run: nix develop --command bun install
       - name: Install runic
         run:
-          nix-shell --command "julia --startup-file=no --project=. -e 'using
-          Pkg; Pkg.instantiate()'"
+          nix develop --command julia --startup-file=no --project=. -e 'using
+          Pkg; Pkg.instantiate()'
       - name: Lint
-        run: nix-shell --command "gradbench repo lint"
+        run: nix develop --command gradbench repo lint
 
   site:
     needs: lint
