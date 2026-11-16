@@ -13,9 +13,8 @@ python3 tools/ormi/run.py
 
 ## Commentary
 
-`evals.txt` lists enabled evals. All passed the default inputs. Other modules
-are unfinished. Large determinant, LSTM, ODE and particle cases can time out or
-exceed memory limits.
+`evals.txt` lists enabled evals.
 
-`particle` and `saddle` use reverse-over-reverse differentiation. Forward mode
-is unsupported in ORMI 0.1.0a8.
+`particle` and `saddle` are disabled. They only implement
+reverse-over-reverse differentiation, as forward mode is unsupported in ORMI
+0.1.0a8.
