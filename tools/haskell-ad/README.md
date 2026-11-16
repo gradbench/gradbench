@@ -4,7 +4,7 @@
 programming language.
 
 To run this outside Docker, you need to install `ghc` and `cabal`. The easiest
-way to get these is to use [ghcup][] or [shell.nix][].
+way to get these is to use [ghcup][] or [flake.nix][].
 
 Then run the following command to populate local knowledge of the Hackage
 package repository:
@@ -32,4 +32,4 @@ argument to `gradbench`.
 [`ad`]: https://hackage.haskell.org/package/ad
 [haskell]: https://haskell.org/
 [ghcup]: https://www.haskell.org/ghcup/
-[shell.nix]: /shell.nix
+[flake.nix]: /flake.nix
