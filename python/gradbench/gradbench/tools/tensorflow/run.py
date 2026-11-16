@@ -4,6 +4,7 @@ import sys
 import traceback
 from importlib import import_module
 
+import tensorflow as tf
 from gradbench.wrap import Wrapped
 
 
@@ -22,8 +23,12 @@ def main():
     parser.add_argument("--multithreaded", action="store_true")
     args = parser.parse_args()
 
-    if args.multithreaded:
-        print("multithreading not yet implemented", file=sys.stderr)
+    # TensorFlow uses all available cores by default. This must be
+    # configured before the TensorFlow runtime is initialised, which happens
+    # the first time an operation is executed.
+    if not args.multithreaded:
+        tf.config.threading.set_intra_op_parallelism_threads(1)
+        tf.config.threading.set_inter_op_parallelism_threads(1)
 
     for line in sys.stdin:
         message = json.loads(line)

@@ -3,52 +3,43 @@ from gradbench import wrap
 from gradbench.tools.tensorflow.gmm_objective import gmm_objective
 
 
+@tf.function(jit_compile=True)
+def gmm_value(fixed, independent):
+    return gmm_objective(**fixed, **independent)
+
+
+@tf.function(jit_compile=True)
+def gmm_gradient(fixed, independent):
+    with tf.GradientTape() as tape:
+        tape.watch(independent)
+        obj = gmm_objective(**fixed, **independent)
+    return tape.gradient(obj, independent)
+
+
 def prepare(input):
-    def constant(value):
+    def tensor(value):
         return tf.constant(value, dtype=tf.float64)
 
-    def variable(value):
-        return tf.Variable(value, dtype=tf.float64)
-
-    def tensify(*, d, k, n, x, m, gamma, alpha, mu, q, l, **_):
-        return {
-            "d": d,
-            "k": k,
-            "n": n,
-            "x": constant(x),
-            "m": m,
-            "gamma": gamma,
-            "alpha": variable(alpha),
-            "mu": variable(mu),
-            "q": variable(q),
-            "l": variable(l),
-        }
-
-    return tensify(**input)
+    fixed = {
+        "d": input["d"],
+        "k": input["k"],
+        "n": input["n"],
+        "x": tensor(input["x"]),
+        "m": input["m"],
+        "gamma": input["gamma"],
+    }
+    independent = {name: tensor(input[name]) for name in ["alpha", "mu", "q", "l"]}
+    return fixed, independent
 
 
 @wrap.multiple_runs(pre=prepare, post=float)
 def objective(input):
-    return gmm_objective(**input)
+    return gmm_value(*input)
 
 
-def postprocess(gradients):
-    def listify(*, alpha, mu, q, l):
-        return {
-            "alpha": alpha.numpy().tolist(),
-            "mu": mu.numpy().tolist(),
-            "q": q.numpy().tolist(),
-            "l": l.numpy().tolist(),
-        }
-
-    return listify(**gradients)
-
-
-@wrap.multiple_runs(pre=prepare, post=postprocess)
+@wrap.multiple_runs(
+    pre=prepare,
+    post=lambda grad: {name: g.numpy().tolist() for name, g in grad.items()},
+)
 def jacobian(input):
-    def independent(*, alpha, mu, q, l, **_):
-        return {"alpha": alpha, "mu": mu, "q": q, "l": l}
-
-    with tf.GradientTape() as tape:
-        obj = gmm_objective(**input)
-    return tape.gradient(obj, independent(**input))
+    return gmm_gradient(*input)

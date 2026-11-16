@@ -1,219 +1,109 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT license.
-
+# Originally based on
 # https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/modules/TensorflowGraph/TensorflowGraphBA.py
-
-"""
-Changes made:
-  * Use simplified ITest interface.
-  * Add jacobian/objective top level functions.
-"""
+# Copyright (c) Microsoft Corporation. Licensed under the MIT license.
 
 import numpy as np
 import tensorflow as tf
 from gradbench import wrap
-from gradbench.adbench.ba_data import BAInput
-from gradbench.adbench.ba_sparse_mat import BASparseMat
-from gradbench.adbench.itest import ITest
+from gradbench.adbench.defs import BA_NCAMPARAMS
 from gradbench.tools.tensorflow.ba_objective import compute_reproj_err, compute_w_err
-from gradbench.tools.tensorflow.utils import flatten
-from tensorflow.python.framework.ops import disable_eager_execution
-
-disable_eager_execution()  # turn eager execution off
 
 
-class TensorflowBA(ITest):
-    """Test class for BA diferentiation by Tensorflow using computational
-    graphs."""
+@tf.function(jit_compile=True)
+def ba_objective(cams, X, w, feats, obs):
+    reproj_err = compute_reproj_err(
+        tf.gather(cams, obs[:, 0]), tf.gather(X, obs[:, 1]), w, feats
+    )
+    return reproj_err, compute_w_err(w)
 
-    def prepare(self, input):
-        """Prepares calculating. This function must be run before any others."""
 
-        self.p = len(input.obs)
+@tf.function(jit_compile=True)
+def ba_jacobian(cams, X, w, feats, obs):
+    """Compute the sparse Jacobian in compressed sparse row format."""
+    n, m, p = cams.shape[0], X.shape[0], w.shape[0]
+    cam_idx, pt_idx = obs[:, 0], obs[:, 1]
 
-        self.cams = input.cams
-        self.x = input.x
-        self.w = input.w
-        self.obs = input.obs
-        self.feats = input.feats
-
-        graph = tf.compat.v1.Graph()
-        with graph.as_default():
-            self.prepare_operations()
-
-        self.session = tf.compat.v1.Session(graph=graph)
-        self.first_running()
-
-        self.r_err = np.zeros(2 * self.p, dtype=np.float64)
-        self.w_err = np.zeros(len(input.w))
-        self.jacobian = BASparseMat(len(input.cams), len(input.x), self.p)
-
-    def prepare_operations(self):
-        """Prepares computational graph for needed operations."""
-
-        # creating holders for storing needed input for calculating a part of
-        # the BA objective and its derivative (the current camera, point,
-        # weight, and feat)
-        self.cam_holder = tf.compat.v1.placeholder(
-            dtype=tf.float64, shape=self.cams[0].shape
+    # Each reprojection error depends on exactly one camera, one point, and
+    # one weight, so its Jacobian is a dense 2x15 block per observation.
+    params = tf.concat([tf.gather(cams, cam_idx), tf.gather(X, pt_idx), w[:, None]], 1)
+    with tf.GradientTape() as tape:
+        tape.watch(params)
+        reproj_err = compute_reproj_err(
+            params[:, :BA_NCAMPARAMS],
+            params[:, BA_NCAMPARAMS:-1],
+            params[:, -1],
+            feats,
         )
+    reproj_jac = tape.batch_jacobian(reproj_err, params)
 
-        self.x_holder = tf.compat.v1.placeholder(
-            dtype=tf.float64, shape=self.x[0].shape
-        )
+    # Each weight error depends only on the corresponding weight.
+    with tf.GradientTape() as tape:
+        tape.watch(w)
+        w_err = compute_w_err(w)
+    w_jac = tape.gradient(w_err, w)
 
-        self.w_holder = tf.compat.v1.placeholder(
-            dtype=tf.float64, shape=self.w[0].shape
-        )
+    block_size = BA_NCAMPARAMS + 3 + 1
+    w_col = BA_NCAMPARAMS * n + 3 * m + tf.range(p)
+    block_cols = tf.concat(
+        [
+            BA_NCAMPARAMS * cam_idx[:, None] + tf.range(BA_NCAMPARAMS),
+            BA_NCAMPARAMS * n + 3 * pt_idx[:, None] + tf.range(3),
+            w_col[:, None],
+        ],
+        1,
+    )
+    # Both rows of a block have the same columns.
+    block_cols = tf.repeat(block_cols, 2, axis=0)
 
-        self.feat_holder = tf.compat.v1.placeholder(
-            dtype=tf.float64, shape=self.feats[0].shape
-        )
-
-        self.create_operations()
-
-    def create_operations(self):
-        """Creates operations for calculating the part of the objective and its
-        derivative."""
-
-        with tf.GradientTape(persistent=True) as grad_tape:
-            grad_tape.watch(self.cam_holder)
-            grad_tape.watch(self.x_holder)
-            grad_tape.watch(self.w_holder)
-
-            self.w_err_operation = compute_w_err(self.w_holder)
-            self.r_err_operation = compute_reproj_err(
-                self.cam_holder, self.x_holder, self.w_holder, self.feat_holder
-            )
-
-        dc, dx, dw = grad_tape.jacobian(
-            self.r_err_operation,
-            (self.cam_holder, self.x_holder, self.w_holder),
-            experimental_use_pfor=False,
-        )
-
-        self.r_err_grad_operation = flatten(
-            tf.concat((dc, dx, tf.reshape(dw, [2, 1])), axis=1), column_major=True
-        )
-
-        self.w_err_grad_operation = grad_tape.gradient(
-            self.w_err_operation, self.w_holder
-        )
-
-    def first_running(self):
-        """Performs the first session running."""
-
-        self.session.run(
-            (self.w_err_operation, self.r_err_operation),
-            feed_dict=self.get_feed_dict(0),
-        )
-
-        self.session.run(
-            (self.w_err_grad_operation, self.r_err_grad_operation),
-            feed_dict=self.get_feed_dict(0),
-        )
-
-    def get_feed_dict(self, i):
-        """Returns feed dictionary for the needed jacobian part calculation."""
-
-        return {
-            self.cam_holder: self.cams[self.obs[i, 0]],
-            self.x_holder: self.x[self.obs[i, 1]],
-            self.w_holder: self.w[i],
-            self.feat_holder: self.feats[i],
-        }
-
-    def calculate_objective(self):
-        # calculate reprojection and weight error part by part and
-        # then combine the parts together
-        result = tuple(
-            self.session.run(
-                (self.r_err_operation, self.w_err_operation),
-                feed_dict=self.get_feed_dict(i),
-            )
-            for i in range(self.p)
-        )
-
-        result = zip(*result)
-        self.r_err = np.concatenate(result.__next__(), 0)
-        self.w_err = np.stack(result.__next__(), 0)
-
-    def calculate_jacobian(self):
-        # calculate reprojection and weight error derivatives part by
-        # part. Note, that weight error should be added to the sparse
-        # matrix only after the last reprojection error jacobian part
-        # adding, otherwise the result will be wrong
-        dws = []
-        for i in range(self.p):
-            dr, dw = self.session.run(
-                (self.r_err_grad_operation, self.w_err_grad_operation),
-                feed_dict=self.get_feed_dict(i),
-            )
-
-            self.jacobian.insert_reproj_err_block(i, self.obs[i, 0], self.obs[i, 1], dr)
-
-            dws.append(dw)
-
-        for i in range(self.p):
-            self.jacobian.insert_w_err_block(i, dws[i])
+    rows = tf.concat(
+        [
+            block_size * tf.range(2 * p + 1),
+            2 * block_size * p + tf.range(1, p + 1),
+        ],
+        0,
+    )
+    cols = tf.concat([tf.reshape(block_cols, [-1]), w_col], 0)
+    vals = tf.concat([tf.reshape(reproj_jac, [-1]), w_jac], 0)
+    return rows, cols, vals
 
 
-# Parse JSON input and convert to BAInput
-def prepare_input(input):
-    n = input["n"]
-    m = input["m"]
-    p = input["p"]
-    one_cam = np.array(input["cam"])
-    one_X = np.array(input["x"])
-    one_w = input["w"]
-    one_feat = np.array(input["feat"])
+def prepare(input):
+    n, m, p = input["n"], input["m"], input["p"]
+    cams = np.tile(input["cam"], (n, 1))
+    X = np.tile(input["x"], (m, 1))
+    w = np.full(p, input["w"])
+    feats = np.tile(input["feat"], (p, 1))
+    obs = np.stack([np.arange(p) % n, np.arange(p) % m], 1)
 
-    cams = np.tile(one_cam, (n, 1))
-    X = np.tile(one_X, (m, 1))
-    w = np.tile(one_w, p)
-    feats = np.tile(one_feat, (p, 1))
-
-    camIdx = 0
-    ptIdx = 0
-    obs = []
-    for i in range(p):
-        obs.append((camIdx, ptIdx))
-        camIdx = (camIdx + 1) % n
-        ptIdx = (ptIdx + 1) % m
-
-    py = TensorflowBA()
-    py.prepare(BAInput(cams, X, w, np.array(obs), feats))
-    return py
+    args = tuple(tf.constant(a, dtype=tf.float64) for a in (cams, X, w, feats))
+    args += (tf.constant(obs, dtype=tf.int32),)
+    return args
 
 
 def objective_output(errors):
-    r_err, w_err = errors
-    num_r = len(r_err.tolist()) // 2
-    num_w = len(w_err.tolist())
+    reproj_err, w_err = errors
     return {
-        "reproj_error": {"elements": r_err.tolist()[:2], "repeated": num_r},
-        "w_err": {"element": w_err.tolist()[0], "repeated": num_w},
+        "reproj_error": {
+            "elements": reproj_err[0].numpy().tolist(),
+            "repeated": reproj_err.shape[0],
+        },
+        "w_err": {"element": float(w_err[0]), "repeated": w_err.shape[0]},
     }
 
 
-def jacobian_output(ba_mat):
+def jacobian_output(jacobian):
     def dedup(A):
-        return A[0:30] + [A[-1]]
+        return tf.concat([A[:30], A[-1:]], 0).numpy().tolist()
 
-    return {
-        "rows": list(map(int, dedup(list(ba_mat.rows)))),
-        "cols": list(map(int, dedup(list(ba_mat.cols)))),
-        "vals": list(map(float, dedup(list(ba_mat.vals)))),
-    }
+    rows, cols, vals = jacobian
+    return {"rows": dedup(rows), "cols": dedup(cols), "vals": dedup(vals)}
 
 
-@wrap.function(pre=prepare_input, post=objective_output)
-def objective(py):
-    py.calculate_objective()
-    return (py.r_err, py.w_err)
+@wrap.multiple_runs(pre=prepare, post=objective_output)
+def objective(input):
+    return ba_objective(*input)
 
 
-@wrap.function(pre=prepare_input, post=jacobian_output)
-def jacobian(py):
-    py.calculate_jacobian()
-    return py.jacobian
+@wrap.multiple_runs(pre=prepare, post=jacobian_output)
+def jacobian(input):
+    return ba_jacobian(*input)

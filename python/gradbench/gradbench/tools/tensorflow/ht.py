@@ -1,167 +1,94 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT license.
-
+# Originally based on
 # https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/modules/TensorflowGraph/TensorflowGraphHand.py
+# Copyright (c) Microsoft Corporation. Licensed under the MIT license.
 
-import numpy as np
 import tensorflow as tf
 from gradbench import wrap
 from gradbench.adbench.ht_data import HandInput
-from gradbench.adbench.itest import ITest
 from gradbench.tools.tensorflow.ht_objective import (
     ht_objective,
     ht_objective_complicated,
 )
-from gradbench.tools.tensorflow.utils import flatten, to_tf_tensor
-from tensorflow.python.framework.ops import disable_eager_execution
 
-disable_eager_execution()  # turn eager execution off
+# We use XLA (jit_compile) to fuse the many small operations in these
+# functions, which makes them significantly faster.
 
 
-class TensorflowHT(ITest):
-    """Test class for HT diferentiation by Tensorflow using computational
-    graphs."""
+@tf.function(jit_compile=True)
+def ht_value(theta, us, **params):
+    if us is None:
+        return ht_objective(theta, **params)
+    else:
+        return ht_objective_complicated(theta, us, **params)
 
-    def prepare(self, input):
-        """Prepares calculating. This function must be run before any others."""
 
-        self.complicated = len(input.us) > 0
-        self.nrows = 3 * len(input.data.correspondences)
+def forward_jacobian(f, x, tangents):
+    """The Jacobian-vector products of `f` at `x` for every tangent in the
+    batch `tangents`, computed with forward mode and vectorised over the batch.
+    The result has the tangents as columns."""
 
-        graph = tf.compat.v1.Graph()
-        with graph.as_default():
-            if self.complicated:
-                self.variables = np.append(input.us.flatten(), input.theta)
-                self.params = (
-                    input.data.model.bone_count,
-                    input.data.model.parents,
-                    to_tf_tensor(input.data.model.base_relatives),
-                    to_tf_tensor(input.data.model.inverse_base_absolutes),
-                    to_tf_tensor(input.data.model.base_positions),
-                    tf.transpose(to_tf_tensor(input.data.model.weights)),
-                    input.data.model.is_mirrored,
-                    to_tf_tensor(input.data.points),
-                    input.data.correspondences,
-                    input.data.model.triangles,
-                )
+    def jvp(tangent):
+        with tf.autodiff.ForwardAccumulator(x, tangent) as acc:
+            out = f(x)
+        return tf.reshape(acc.jvp(out), [-1])
 
-                self.objective_function = ht_objective_complicated
-                self.ncols = len(input.theta) + 2
-            else:
-                self.variables = input.theta
-                self.params = (
-                    input.data.model.bone_count,
-                    input.data.model.parents,
-                    to_tf_tensor(input.data.model.base_relatives),
-                    to_tf_tensor(input.data.model.inverse_base_absolutes),
-                    to_tf_tensor(input.data.model.base_positions),
-                    tf.transpose(to_tf_tensor(input.data.model.weights)),
-                    input.data.model.is_mirrored,
-                    to_tf_tensor(input.data.points),
-                    input.data.correspondences,
-                )
+    return tf.transpose(tf.vectorized_map(jvp, tangents))
 
-                self.objective_function = ht_objective
-                self.ncols = len(input.theta)
 
-            self.prepare_operations()
+@tf.function(jit_compile=True)
+def ht_jacobian(theta, us, **params):
+    theta_tangents = tf.eye(theta.shape[0], dtype=theta.dtype)
 
-        self.session = tf.compat.v1.Session(graph=graph)
-        self.first_running()
-
-        self.objective = None
-        self.jacobian = None
-
-    def prepare_operations(self):
-        """Prepares computational graph for needed operations."""
-
-        self.variables_holder = tf.compat.v1.placeholder(
-            dtype=tf.float64, shape=self.variables.shape
+    if us is None:
+        return forward_jacobian(
+            lambda theta: ht_objective(theta, **params), theta, theta_tangents
         )
 
-        with tf.GradientTape(persistent=True) as grad_tape:
-            grad_tape.watch(self.variables_holder)
-            self.objective_operation = self.objective_function(
-                self.variables_holder, *self.params
-            )
-
-            self.objective_operation = flatten(self.objective_operation)
-
-        self.jacobian_operation = grad_tape.jacobian(
-            self.objective_operation, self.variables_holder, experimental_use_pfor=False
-        )
-
-        self.feed_dict = {self.variables_holder: self.variables}
-
-    def first_running(self):
-        """Performs the first session running."""
-
-        self.session.run(self.objective_operation, feed_dict=self.feed_dict)
-
-        self.session.run(self.jacobian_operation, feed_dict=self.feed_dict)
-
-    def calculate_objective(self):
-        self.objective = self.session.run(
-            self.objective_operation, feed_dict=self.feed_dict
-        )
-
-    def calculate_jacobian(self):
-        self.jacobian = self.session.run(
-            self.jacobian_operation, feed_dict=self.feed_dict
-        )
-
-        if self.complicated:
-            # Merging us part of jacobian to two columns.
-            # Note: jacobian has the following structure:
-            #
-            #   [us_part theta_part]
-            #
-            # where us part is a block diagonal matrix with blocks of
-            # size [3, 2]
-
-            # Explicitly fail when the input is large. This is to avoid
-            # flakiness in CI. This particular implementation is so slow that
-            # these numbers are in any case not interesting.
-            if self.nrows > 5000:
-                raise Exception(
-                    "ht disabled due to https://github.com/gradbench/gradbench/issues/390"
-                )
-
-            us_J = np.concatenate(
-                [
-                    self.jacobian[3 * i : 3 * i + 3, 2 * i : 2 * i + 2]
-                    for i in range(self.nrows // 3)
-                ],
-                0,
-            )
-
-            us_count = 2 * self.nrows // 3
-            theta_J = self.jacobian[:, us_count:]
-
-            self.jacobian = np.concatenate((us_J, theta_J), 1)
+    J_theta = forward_jacobian(
+        lambda theta: ht_objective_complicated(theta, us, **params),
+        theta,
+        theta_tangents,
+    )
+    # The Jacobian with respect to `us` is block diagonal, as each point
+    # depends only on its own two `us`. This means we can compute the nonzero
+    # entries for all points simultaneously with just two Jacobian-vector
+    # products.
+    us_tangents = tf.eye(2, dtype=us.dtype)[:, None, :] * tf.ones_like(us)
+    J_us = forward_jacobian(
+        lambda us: ht_objective_complicated(theta, us, **params), us, us_tangents
+    )
+    return tf.concat([J_us, J_theta], 1)
 
 
-def prepare_input(input):
-    py = TensorflowHT()
-    py.prepare(HandInput.from_dict(input))
-    return py
+def prepare(input):
+    input = HandInput.from_dict(input)
+    model = input.data.model
+
+    def tensor(x):
+        return tf.constant(x, dtype=tf.float64)
+
+    return {
+        "theta": tensor(input.theta),
+        "us": tensor(input.us) if len(input.us) > 0 else None,
+        "model": {
+            "parents": tuple(model.parents.tolist()),
+            "base_relatives": tensor(model.base_relatives),
+            "inverse_base_absolutes": tensor(model.inverse_base_absolutes),
+            "base_positions": tensor(model.base_positions),
+            "weights": tensor(model.weights),
+            "triangles": tf.constant(model.triangles, dtype=tf.int32),
+            "is_mirrored": model.is_mirrored,
+        },
+        "points": tensor(input.data.points),
+        "correspondences": tf.constant(input.data.correspondences, dtype=tf.int32),
+    }
 
 
-def objective_output(output):
-    return output.flatten().tolist()
+@wrap.multiple_runs(pre=prepare, post=lambda x: x.numpy().flatten().tolist())
+def objective(input):
+    return ht_value(**input)
 
 
-def jacobian_output(output):
-    return output.tolist()
-
-
-@wrap.multiple_runs(pre=prepare_input, post=objective_output)
-def objective(py):
-    py.calculate_objective()
-    return py.objective
-
-
-@wrap.multiple_runs(pre=prepare_input, post=jacobian_output)
-def jacobian(py):
-    py.calculate_jacobian()
-    return py.jacobian
+@wrap.multiple_runs(pre=prepare, post=lambda x: x.numpy().tolist())
+def jacobian(input):
+    return ht_jacobian(**input)
