@@ -1,5 +1,5 @@
--- TODO
--- See evals/ba in this repo, as well as https://github.com/tomsmeding/ADBench/blob/101508da93cd4fc80c0ea7a690c6de824c815ca6/tools/Accelerate/src/BA.hs and https://tomsmeding.com/f/master.pdf
+-- TODO: the eval is not yet implemented for horde-ad (just as the ht eval), because it requires quite a bit of work that is not related to AD
+-- For hints, see evals/ba in this repo, as well as https://github.com/tomsmeding/ADBench/blob/101508da93cd4fc80c0ea7a690c6de824c815ca6/tools/Accelerate/src/BA.hs and https://tomsmeding.com/f/master.pdf
 
 {-# LANGUAGE OverloadedLists #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise #-}
