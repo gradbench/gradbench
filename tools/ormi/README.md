@@ -15,6 +15,5 @@ python3 tools/ormi/run.py
 
 `evals.txt` lists enabled evals.
 
-`particle` and `saddle` are disabled. They only implement
-reverse-over-reverse differentiation, as forward mode is unsupported in ORMI
-0.1.0a8.
+`particle` and `saddle` are disabled. They only implement reverse-over-reverse
+differentiation, as forward mode is unsupported in ORMI 0.1.0a8.
