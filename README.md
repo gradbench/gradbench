@@ -303,6 +303,7 @@ their differentiated functions:
 - [futhark](tools/futhark)
 - [jax](tools/jax)
 - [manual](tools/manual)
+- [tensorflow](tools/tensorflow)
 
 ### Without cloning this repository
 

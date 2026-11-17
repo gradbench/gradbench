@@ -20,30 +20,14 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+# Originally based on
 # https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/modules/TensorflowCommon/gmm_objective.py
-
 
 import math
 
+import numpy as np
 import tensorflow as tf
 from scipy import special
-
-
-def logsumexp(x):
-    mx = tf.reduce_max(x)
-    return tf.reduce_logsumexp(x - mx) + mx
-
-
-def logsumexpvec(x):
-    """The same as "logsumexp" but calculates result for each row separately."""
-
-    mx = tf.reduce_max(x, 1)
-    lset = tf.reduce_logsumexp(tf.transpose(x) - mx, 0)
-    return tf.transpose(lset + mx)
-
-
-def log_gamma_distrib(a, p):
-    return special.multigammaln(a, p)
 
 
 def log_wishart_prior(*, k, p, gamma, m, sum_qs, Qdiags, l):
@@ -54,49 +38,44 @@ def log_wishart_prior(*, k, p, gamma, m, sum_qs, Qdiags, l):
         - m * sum_qs
     )
 
-    C = n * p * (math.log(gamma / math.sqrt(2)))
-    return -out + k * (C - log_gamma_distrib(0.5 * n, p))
+    C = n * p * math.log(gamma / math.sqrt(2))
+    return -out + k * (C - special.multigammaln(0.5 * n, p))
 
 
-def constructL(*, d, l):
-    j = 0
+def construct_Ls(*, d, l):
+    """Build the strictly lower triangular parts of the Cholesky factors.
 
-    def make_L_col(i):
-        nonlocal j
-
-        nelems = d - i - 1
-        col = tf.concat([tf.zeros(i + 1, dtype=tf.float64), l[j : (j + nelems)]], 0)
-
-        j += nelems
-        return col
-
-    columns = tuple(make_L_col(i) for i in range(d))
-    return tf.stack(columns, -1)
-
-
-def Qtimesx(Qdiag, L, x):
-    return Qdiag * x + tf.linalg.matvec(L, x)
+    `l` has shape [k, d*(d-1)/2] and stores each factor column by column.
+    The result has shape [k, d, d].
+    """
+    # Index 0 refers to a zero we prepend to every row of `l`.
+    indices = np.zeros((d, d), dtype=np.int32)
+    indices.T[np.triu_indices(d, 1)] = np.arange(1, d * (d - 1) // 2 + 1)
+    padded = tf.pad(l, [[0, 0], [1, 0]])
+    return tf.gather(padded, indices, axis=1)
 
 
 def gmm_objective(*, d, k, n, x, m, gamma, alpha, mu, q, l):
     Qdiags = tf.exp(q)
     sum_qs = tf.reduce_sum(q, 1)
+    Ls = construct_Ls(d=d, l=l)
 
-    Ls = tf.stack(tuple(constructL(d=d, l=l[i]) for i in range(k)))
+    # All of these have shape [k, n, d].
+    xcentered = x[None, :, :] - mu[:, None, :]
+    Lxcentered = Qdiags[:, None, :] * xcentered + tf.linalg.matmul(
+        xcentered, Ls, transpose_b=True
+    )
 
-    xcentered = tf.stack(tuple(x[i] - mu for i in range(n)))
-    Lxcentered = Qtimesx(Qdiags, Ls, xcentered)
     sqsum_Lxcentered = tf.reduce_sum(Lxcentered**2, 2)
-    inner_term = alpha + sum_qs - 0.5 * sqsum_Lxcentered
-    lse = logsumexpvec(inner_term)
-    slse = tf.reduce_sum(lse)
+    inner_term = (alpha + sum_qs)[:, None] - 0.5 * sqsum_Lxcentered
+    slse = tf.reduce_sum(tf.reduce_logsumexp(inner_term, 0))
 
-    const = tf.constant(-n * d * 0.5 * math.log(2 * math.pi), dtype=tf.float64)
+    const = -n * d * 0.5 * math.log(2 * math.pi)
 
     return (
         const
         + slse
-        - n * logsumexp(alpha)
+        - n * tf.reduce_logsumexp(alpha)
         + log_wishart_prior(
             k=k, p=d, gamma=gamma, m=m, sum_qs=sum_qs, Qdiags=Qdiags, l=l
         )

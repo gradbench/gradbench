@@ -1,27 +1,29 @@
-import numpy as np
 import tensorflow as tf
 from gradbench import wrap
 
 
+@tf.function
 def logsumexp(x):
-    max_val = tf.reduce_max(x)
-    return max_val + tf.math.log(tf.reduce_sum(tf.exp(x - max_val)))
+    return tf.reduce_logsumexp(x)
 
 
-def prepare_input(input):
-    return tf.Variable(np.array(input["x"], dtype=np.float64), dtype=tf.float64)
+@tf.function
+def logsumexp_gradient(x):
+    with tf.GradientTape() as tape:
+        tape.watch(x)
+        y = tf.reduce_logsumexp(x)
+    return tape.gradient(y, x)
 
 
-@wrap.function(pre=prepare_input, post=float)
+def prepare(input):
+    return tf.constant(input["x"], dtype=tf.float64)
+
+
+@wrap.multiple_runs(pre=prepare, post=float)
 def primal(x):
     return logsumexp(x)
 
 
-@wrap.function(pre=prepare_input, post=lambda x: x.numpy().tolist())
+@wrap.multiple_runs(pre=prepare, post=lambda g: g.numpy().tolist())
 def gradient(x):
-    with tf.GradientTape() as tape:
-        tape.watch(x)
-        y = logsumexp(x)
-
-    grad = tape.gradient(y, x)
-    return grad
+    return logsumexp_gradient(x)

@@ -1,254 +1,131 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT license.
-
+# Originally based on
 # https://github.com/microsoft/ADBench/blob/38cb7931303a830c3700ca36ba9520868327ac87/src/python/modules/TensorflowCommon/hand_objective.py
+# Copyright (c) Microsoft Corporation. Licensed under the MIT license.
 
+import numpy as np
 import tensorflow as tf
-from gradbench.tools.tensorflow.utils import shape
 
 
-def to_pose_params(theta, nbones):
-    def tail_generator(theta):
-        """Help function for generating pose params."""
+def pose_param_indices(n_theta):
+    """Where each pose parameter comes from, as an index into `theta` extended
+    with a zero (at index `n_theta`) and a one (at index `n_theta + 1`).
 
-        i_theta = 6
-        n_fingers = 5
-        zeros = tf.zeros((3,), dtype=tf.float64)
+    The pose parameters are (one row each): global rotation, scale, global
+    translation, two unused rows, and then four rows for each of five fingers,
+    where only the first one or two components of the first three rows are
+    nonzero.
+    """
+    zero, one = n_theta, n_theta + 1
+    rows = [[0, 1, 2], [one] * 3, [3, 4, 5], [zero] * 3, [zero] * 3]
+    i = 6
+    for _ in range(5):
+        rows += [[i, i + 1, zero], [i + 2, zero, zero], [i + 3, zero, zero]]
+        rows += [[zero] * 3]
+        i += 4
+    return np.array(rows, dtype=np.int32)
 
-        # posed params have the following structure:
-        #       [ head ]
-        #       [ tail ]
-        #
-        # this function generates tail which form is:
-        #       [ *, *, 0 ]
-        #       [ *, 0, 0 ]
-        #       [ *, 0, 0 ]
-        #       [ 0, 0, 0 ]
-        #       ... repeats n_fingers times ...
-        for _ in range(n_fingers):
-            yield tf.concat(
-                (  # [ *, *, 0]
-                    theta[i_theta : i_theta + 2],
-                    tf.reshape(zeros[0], (1,)),
-                ),
-                0,
-            )
-            i_theta += 2
 
-            for _ in range(2):
-                yield tf.concat(
-                    (tf.reshape(theta[i_theta], (1,)), zeros[:2]),  # [ *, 0, 0] 2 times
-                    0,
-                )
+def to_pose_params(theta):
+    padded = tf.concat([theta, tf.constant([0.0, 1.0], dtype=theta.dtype)], 0)
+    return tf.gather(padded, pose_param_indices(theta.shape[0]))
 
-                i_theta += 1
 
-            yield zeros  # [ 0, 0, 0 ]
-
-    head = tf.stack(
-        (
-            theta[0:3],
-            tf.ones((3,), dtype=tf.float64),
-            theta[3:6],
-            tf.zeros((3,), dtype=tf.float64),
-            tf.zeros((3,), dtype=tf.float64),
-        )
-    )
-
-    tail = tf.stack(tuple(tail_generator(theta)))
-    return tf.concat((head, tail), 0)
+def matrices(*entries):
+    """Stack a row-major list of 3x3 batched entries into a [b, 3, 3] tensor."""
+    return tf.reshape(tf.stack(entries, -1), [-1, 3, 3])
 
 
 def euler_angles_to_rotation_matrix(xzy):
-    tx = xzy[0]
-    ty = xzy[2]
-    tz = xzy[1]
+    tx, tz, ty = tf.unstack(xzy, axis=-1)
+    ctx, stx = tf.cos(tx), tf.sin(tx)
+    cty, sty = tf.cos(ty), tf.sin(ty)
+    ctz, stz = tf.cos(tz), tf.sin(tz)
+    one, zero = tf.ones_like(tx), tf.zeros_like(tx)
 
-    ctx = tf.math.cos(tx)
-    stx = tf.math.sin(tx)
-
-    cty = tf.math.cos(ty)
-    sty = tf.math.sin(ty)
-
-    ctz = tf.math.cos(tz)
-    stz = tf.math.sin(tz)
-
-    Rx = tf.convert_to_tensor(
-        [[1, 0, 0], [0, ctx, -stx], [0, stx, ctx]], dtype=tf.float64
-    )
-
-    Ry = tf.convert_to_tensor(
-        [[cty, 0, -sty], [0, 1, 0], [sty, 0, cty]], dtype=tf.float64
-    )
-
-    Rz = tf.convert_to_tensor(
-        [[ctz, -stz, 0], [stz, ctz, 0], [0, 0, 1]], dtype=tf.float64
-    )
-
-    return (Rz @ Ry) @ Rx
+    Rx = matrices(one, zero, zero, zero, ctx, -stx, zero, stx, ctx)
+    Ry = matrices(cty, zero, -sty, zero, one, zero, sty, zero, cty)
+    Rz = matrices(ctz, -stz, zero, stz, ctz, zero, zero, zero, one)
+    return Rz @ Ry @ Rx
 
 
 def get_posed_relatives(pose_params, base_relatives):
-    def inner(rot_param, base_relative):
-        R = euler_angles_to_rotation_matrix(rot_param)
-
-        # tr has the following form
-        #       [ R  0 ]
-        #       [ 0  1 ]
-        tr = tf.concat((R, tf.zeros((3, 1), dtype=tf.float64)), 1)
-        tr = tf.concat(
-            (tr, tf.constant([0, 0, 0, 1], shape=(1, 4), dtype=tf.float64)), 0
-        )
-
-        return base_relative @ tr
-
-    relatives = tf.stack(
-        [
-            inner(pose_params[3:][i], base_relatives[i])
-            for i in range(pose_params[3:].shape[0])
-        ]
+    R = euler_angles_to_rotation_matrix(pose_params[3:])
+    # Embed every R in a 4x4 homogeneous transformation.
+    tr = tf.pad(R, [[0, 0], [0, 1], [0, 1]]) + tf.constant(
+        np.diag([0.0, 0.0, 0.0, 1.0]), dtype=R.dtype
     )
-
-    return relatives
+    return base_relatives @ tr
 
 
 def relatives_to_absolutes(relatives, parents):
     absolutes = []
-    for i in range(relatives.shape[0]):
-        if parents[i] == -1:
+    for i, parent in enumerate(parents):
+        if parent == -1:
             absolutes.append(relatives[i])
         else:
-            absolutes.append(absolutes[parents[i]] @ relatives[i])
-
+            absolutes.append(absolutes[parent] @ relatives[i])
     return tf.stack(absolutes)
 
 
 def angle_axis_to_rotation_matrix(angle_axis):
-    n = tf.math.sqrt(tf.reduce_sum(angle_axis**2, 0))
+    sqnorm = tf.reduce_sum(angle_axis**2)
+    small = sqnorm < 1e-8  # Norm less than 1e-4.
 
-    def aa2R():
-        angle_axis_normalized = angle_axis / n
-
-        x = angle_axis_normalized[0]
-        y = angle_axis_normalized[1]
-        z = angle_axis_normalized[2]
-
-        s, c = tf.sin(n), tf.cos(n)
-        R = tf.convert_to_tensor(
-            [
-                [
-                    x * x + (1 - x * x) * c,
-                    x * y * (1 - c) - z * s,
-                    x * z * (1 - c) + y * s,
-                ],
-                [
-                    x * y * (1 - c) + z * s,
-                    y * y + (1 - y * y) * c,
-                    y * z * (1 - c) - x * s,
-                ],
-                [
-                    x * z * (1 - c) - y * s,
-                    z * y * (1 - c) + x * s,
-                    z * z + (1 - z * z) * c,
-                ],
-            ],
-            dtype=tf.float64,
-        )
-
-        return R
-
-    return tf.cond(n < 0.0001, lambda: tf.eye(3, dtype=tf.float64), aa2R)
+    # Avoid division by zero (and NaN gradients) in the branch not taken.
+    n = tf.sqrt(tf.where(small, tf.ones_like(sqnorm), sqnorm))
+    x, y, z = tf.unstack(angle_axis / n)
+    s, c = tf.sin(n), tf.cos(n)
+    R = matrices(
+        x * x + (1 - x * x) * c,
+        x * y * (1 - c) - z * s,
+        x * z * (1 - c) + y * s,
+        x * y * (1 - c) + z * s,
+        y * y + (1 - y * y) * c,
+        y * z * (1 - c) - x * s,
+        x * z * (1 - c) - y * s,
+        z * y * (1 - c) + x * s,
+        z * z + (1 - z * z) * c,
+    )[0]
+    return tf.where(small, tf.eye(3, dtype=R.dtype), R)
 
 
 def apply_global_transform(pose_params, positions):
-    R = angle_axis_to_rotation_matrix(pose_params[0])
-    s = pose_params[1]
-    R *= s
-    t = pose_params[2]
-    return tf.transpose(R @ tf.transpose(positions)) + t
+    R = angle_axis_to_rotation_matrix(pose_params[0]) * pose_params[1]
+    return positions @ tf.transpose(R) + pose_params[2]
 
 
-def get_skinned_vertex_positions(
-    pose_params,
-    base_relatives,
-    parents,
-    inverse_base_absolutes,
-    base_positions,
-    weights,
-    mirror_factor,
-):
-    relatives = get_posed_relatives(pose_params, base_relatives)
-    absolutes = relatives_to_absolutes(relatives, parents)
-    transforms = absolutes @ inverse_base_absolutes
+def get_skinned_vertex_positions(pose_params, model):
+    relatives = get_posed_relatives(pose_params, model["base_relatives"])
+    absolutes = relatives_to_absolutes(relatives, model["parents"])
+    transforms = absolutes @ model["inverse_base_absolutes"]
 
-    positions = base_positions @ tf.transpose(transforms, perm=[0, 2, 1])
-    positions = tf.reduce_sum(positions * tf.reshape(weights, [*shape(weights), 1]), 0)
-    positions = apply_global_transform(pose_params, positions[:, :3])
+    # Linear blend skinning: transform every vertex by every bone, then take
+    # the weighted sum.
+    positions = transforms @ tf.transpose(model["base_positions"])
+    positions = tf.reduce_sum(positions * tf.transpose(model["weights"])[:, None, :], 0)
+    positions = tf.transpose(positions[:3])
 
-    return positions
+    if model["is_mirrored"]:
+        positions *= tf.constant([-1.0, 1.0, 1.0], dtype=positions.dtype)
+
+    return apply_global_transform(pose_params, positions)
 
 
-def ht_objective(
-    params,
-    nbones,
-    parents,
-    base_relatives,
-    inverse_base_absolutes,
-    base_positions,
-    weights,
-    mirror_factor,
-    points,
-    correspondences,
-):
-    pose_params = to_pose_params(params, nbones)
-    vertex_positions = get_skinned_vertex_positions(
-        pose_params,
-        base_relatives,
-        parents,
-        inverse_base_absolutes,
-        base_positions,
-        weights,
-        mirror_factor,
-    )
-
+def ht_objective(theta, model, points, correspondences):
+    pose_params = to_pose_params(theta)
+    vertex_positions = get_skinned_vertex_positions(pose_params, model)
     return points - tf.gather(vertex_positions, correspondences)
 
 
-def ht_objective_complicated(
-    all_params,
-    nbones,
-    parents,
-    base_relatives,
-    inverse_base_absolutes,
-    base_positions,
-    weights,
-    mirror_factor,
-    points,
-    correspondences,
-    triangles,
-):
-    npts = points.shape[0]
-    us = tf.reshape(all_params[: 2 * npts], (npts, 2))
-    theta = all_params[2 * npts :]
-    pose_params = to_pose_params(theta, nbones)
-    vertex_positions = get_skinned_vertex_positions(
-        pose_params,
-        base_relatives,
-        parents,
-        inverse_base_absolutes,
-        base_positions,
-        weights,
-        mirror_factor,
-    )
+def ht_objective_complicated(theta, us, model, points, correspondences):
+    pose_params = to_pose_params(theta)
+    vertex_positions = get_skinned_vertex_positions(pose_params, model)
 
-    def get_hand_pt(us, triangles):
-        return (
-            us[:, 0] * tf.gather(vertex_positions, triangles[:, 0])
-            + us[:, 1] * tf.gather(vertex_positions, triangles[:, 1])
-            + (1.0 - us[:, 0] - us[:, 1]) * tf.gather(vertex_positions, triangles[:, 2])
-        )
+    # Every point corresponds to a point on a triangle of the hand mesh,
+    # expressed in barycentric coordinates.
+    triangles = tf.gather(model["triangles"], correspondences)
+    corners = tf.gather(vertex_positions, triangles)  # [npts, 3, 3]
+    us = tf.concat([us, 1.0 - tf.reduce_sum(us, 1, keepdims=True)], 1)
+    hand_points = tf.reduce_sum(us[:, :, None] * corners, 1)
 
-    us = tf.reshape(us, [*us.shape, 1])
-    err = points - get_hand_pt(us, tf.gather(triangles, correspondences))
-
-    return err
+    return points - hand_points
