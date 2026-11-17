@@ -419,7 +419,37 @@ fn run_helper(
             }
         }
     }
+    // Report abnormal termination, except where we killed the process
+    // ourselves.
+    match outcome {
+        Err(BadOutcome::Interrupt) => {}
+        Err(BadOutcome::Timeout) => report_exit_status("eval", eval),
+        _ => {
+            report_exit_status("tool", tool);
+            report_exit_status("eval", eval);
+        }
+    }
     outcome
+}
+
+/// Wait for a process to terminate, and print its exit status if it was
+/// unsuccessful.
+fn report_exit_status(name: &str, child: &mut Child) {
+    let Ok(status) = child.wait() else { return };
+    if status.success() {
+        return;
+    }
+    let mut msg = format!("{name} terminated with {status}");
+    // Shells and `docker run` report a subprocess killed by signal N as exit
+    // status 128+N.
+    #[cfg(unix)]
+    if let Some(signal) = status
+        .code()
+        .and_then(|code| nix::sys::signal::Signal::try_from(code - 128).ok())
+    {
+        msg.push_str(&format!(" (possibly killed by {signal})"));
+    }
+    println!("{}", msg.red());
 }
 
 /// Run an eval and a tool together, returning the outcome.
