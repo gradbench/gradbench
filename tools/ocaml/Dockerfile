@@ -23,7 +23,16 @@ RUN eval $(opam env) && opam install --yes dune=3.19.1
 RUN eval $(opam env) && opam install --yes yojson
 
 # Install owl.
-RUN eval $(opam env) && opam install --yes owl=1.2
+#
+# By default Owl compiles its C stubs with -march=native, which may result in
+# instructions (like AVX-512) that are not available on the machine on which we
+# run the Docker image. To ensure the binaries are reasonably portable, we pass
+# Owl's default flags minus -march=native.
+ARG TARGETARCH
+RUN eval $(opam env) && \
+    if [ "$TARGETARCH" = amd64 ]; then ARCH_CFLAGS="-mfpmath=sse -msse2"; fi && \
+    OWL_CFLAGS="-g -O3 $ARCH_CFLAGS -funroll-loops -fno-math-errno -fno-rounding-math -fno-signaling-nans -fexcess-precision=fast -DSFMT_MEXP=19937 -fno-strict-aliasing" \
+    opam install --yes owl=1.2
 
 COPY tools/ocaml/ /gradbench/tools/ocaml
 
