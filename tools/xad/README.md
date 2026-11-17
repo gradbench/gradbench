@@ -12,5 +12,5 @@ single-threaded (one global tape) and does not support `--multithreaded`.
 
 Based on work by [Mikhail Pilipov][fork].
 
-[XAD]: https://auto-differentiation.github.io
+[XAD]: https://www.xcelerit.com/xad/docs/
 [fork]: https://github.com/mpilipov/gradbench
