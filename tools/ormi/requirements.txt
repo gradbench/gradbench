@@ -1,0 +1,4 @@
+ormi @ https://github.com/l-h-ha/Ormi/releases/download/ormi-core-v0.1.0a8/ormi-0.1.0a8-py3-none-any.whl#sha256=56c0fc2ac1d07d5da50be29f1be232cd3c164f246f60071c15eea28221d05cf6
+ormi-core @ https://github.com/l-h-ha/Ormi/releases/download/ormi-core-v0.1.0a8/ormi_core-0.1.0a8-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl#sha256=4846e271f2b91ab9abfa4e7a660216f970258fc6ee30be1e6c6b59d061d1d6e4
+numpy==2.2.6
+tqdm==4.67.1
