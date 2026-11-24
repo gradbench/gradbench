@@ -16,7 +16,7 @@ public:
     adj[n - 1] = 1;
     __enzyme_autodiff(ode::primal<double>, enzyme_const, n, enzyme_dup,
                       _input.x.data(), output.data(), enzyme_const, _input.s,
-                      enzyme_dupnoneed, dummy.data(), adj.data());
+                      enzyme_dup, dummy.data(), adj.data());
   }
 };
 
