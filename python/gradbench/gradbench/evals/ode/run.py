@@ -21,8 +21,12 @@ def expect(function: str, input: Any) -> EvaluateResponse:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-n", nargs="+", type=int, default=[1000, 10000, 100000])
-    parser.add_argument("-s", nargs="+", type=int, default=[1, 10, 100])
+    # After s RK4 steps, y[i] is identically zero for i >= 4*s, and RK4
+    # approximates the analytic solution that the manual tool
+    # differentiates only when h = 2/s is small compared to 1/n. These
+    # defaults keep s >= 16*n, where they agree to about 1e-5.
+    parser.add_argument("-n", nargs="+", type=int, default=[16, 64, 256])
+    parser.add_argument("-s", nargs="+", type=int, default=[4096, 16384, 65536])
     parser.add_argument("--min-runs", type=int, default=1)
     parser.add_argument("--min-seconds", type=float, default=1)
     args = parser.parse_args()
@@ -36,7 +40,11 @@ def main():
             key=lambda v: v[0] * v[1],
         )
         for n, s in combinations:
-            x = np.random.rand(n).tolist()
+            # The exact y[n-1] at t=2 is prod(x) * 2**n / n!, so with x
+            # in [0, 1) it underflows to zero for any n beyond a few
+            # hundred. Scaling x[i] around (i+1)/2 keeps y[n-1], and
+            # with it the gradient, of order one.
+            x = ((np.arange(n) + 1) / 2 * np.random.uniform(0.9, 1.1, n)).tolist()
             input = {"x": x, "s": s}
             e.evaluate(
                 function="primal",
