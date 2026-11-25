@@ -66,6 +66,34 @@ eval is the sequential loop with $s$ steps, which requires the AD tool to
 maintain a tape. The [lstm][] eval is a more complicated problem that exercises
 roughly the same parts of AD.
 
+### Input sizes
+
+The `manual` tool computes the gradient of the exact solution, which at $t = 2$
+is
+
+```math
+y_{n-1}(2) = \frac{2^n}{n!} \prod_{j=0}^{n-1} x_j,
+```
+
+not the gradient of the Runge-Kutta approximation that the other tools
+differentiate. The two agree only for some inputs, and the choice of inputs here
+differs from cmpad.
+
+- cmpad checks this gradient with $n = 4$ and $x_i$ in $[1, 2)$. Runge-Kutta of
+  order 4 is exact there, because the solution is a polynomial of degree $n$ in
+  $t$.
+- Each Runge-Kutta step moves the chain forward by at most four entries, so
+  after $s$ steps $y_i$ is exactly zero for $i \ge 4s$.
+- With $x_i$ in $[0, 1)$ the exact $y_{n-1}$ underflows to zero for $n$ beyond a
+  few hundred.
+
+With larger $n$ and $x_i$ in $[0, 1)$, both gradients are therefore zero in
+every entry, and the eval cannot detect a wrong gradient. The eval instead draws
+$x_i$ around $(i + 1) / 2$, so that $y_{n-1}$ is of order one, and uses
+$s \ge 16 n$, where the Runge-Kutta gradient agrees with the exact one to about
+$10^{-5}$. This makes the benchmark about many time steps on a small state,
+rather than one large state.
+
 ### Parallel execution
 
 The `primal` function is easily parallelised, and this has been done with OpenMP
