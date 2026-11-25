@@ -10,7 +10,8 @@ two rows per sweep. `particle` and `saddle` nest the two modes in all four
 combinations (forward or adjoint over forward or adjoint). The tool is
 single-threaded (one global tape) and does not support `--multithreaded`.
 
-Based on work by [Mikhail Pilipov][fork].
+Based on [Mikhail Pilipov's fork][fork], the first XAD integration for
+GradBench.
 
 [XAD]: https://www.xcelerit.com/xad/docs/
 [fork]: https://github.com/mpilipov/gradbench
