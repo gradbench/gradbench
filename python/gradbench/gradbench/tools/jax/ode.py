@@ -5,6 +5,8 @@ import jax.numpy as jnp
 import numpy as np
 from gradbench import wrap
 
+jax.config.update("jax_enable_x64", True)
+
 
 # ODE function: depends on index i, x[i], and y[i-1] (rotated y)
 def ode_fun_vec(x):
