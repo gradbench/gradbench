@@ -21,8 +21,8 @@ def expect(function: str, input: Any) -> EvaluateResponse:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-n", nargs="+", type=int, default=[1000, 10000, 100000])
-    parser.add_argument("-s", nargs="+", type=int, default=[1, 10, 100])
+    parser.add_argument("-n", nargs="+", type=int, default=[16, 64, 256])
+    parser.add_argument("-s", nargs="+", type=int, default=[4096, 16384, 65536])
     parser.add_argument("--min-runs", type=int, default=1)
     parser.add_argument("--min-seconds", type=float, default=1)
     args = parser.parse_args()
@@ -36,7 +36,7 @@ def main():
             key=lambda v: v[0] * v[1],
         )
         for n, s in combinations:
-            x = np.random.rand(n).tolist()
+            x = ((np.arange(n) + 1) / 2 * np.random.uniform(0.9, 1.1, n)).tolist()
             input = {"x": x, "s": s}
             e.evaluate(
                 function="primal",
